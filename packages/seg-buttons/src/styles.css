@@ -1,0 +1,116 @@
+/* cujuju-solidjs-seg-buttons — default theme via CSS custom properties.
+   Defaults are scoped in an @layer so unlayered consumer overrides
+   (`:root { --seg-active-bg: var(--my-accent); }`) take precedence
+   regardless of CSS file load order. */
+
+@layer cujuju-defaults {
+  :root {
+    --seg-active-bg: #10b981;
+    --seg-active-border: #059669;
+    --seg-active-text: #ffffff;
+    --seg-active-weight: 600;
+    --seg-inactive-bg: #1e293b;
+    --seg-inactive-border: #334155;
+    --seg-inactive-text: #94a3b8;
+    --seg-disabled-opacity: 0.4;
+    --seg-focus-ring: 2px solid #6366f1;
+    --seg-focus-ring-offset: 2px;
+    --seg-radius: 4px;
+    --seg-hover-bg: rgba(255, 255, 255, 0.04);
+    --seg-hover-text: #e2e8f0;
+  }
+}
+
+/* Group container — connects adjacent buttons into one visual control. */
+.csb-group {
+  display: inline-flex;
+}
+
+.csb-group > .csb-btn {
+  /* Inner buttons: square corners, overlap borders by -1px. CSS logical
+     properties so RTL layouts flip correctly. */
+  border-radius: 0;
+  margin-inline-start: -1px;
+  position: relative;
+}
+
+.csb-group > .csb-btn:first-child {
+  border-start-start-radius: var(--seg-radius);
+  border-end-start-radius: var(--seg-radius);
+  margin-inline-start: 0;
+}
+
+.csb-group > .csb-btn:last-child {
+  border-start-end-radius: var(--seg-radius);
+  border-end-end-radius: var(--seg-radius);
+}
+
+.csb-group > .csb-btn:only-child {
+  border-radius: var(--seg-radius);
+}
+
+/* Raise active button so its accent border shows fully above neighbours. */
+.csb-group > .csb-btn[aria-pressed="true"],
+.csb-group > .csb-btn[aria-checked="true"] {
+  z-index: 1;
+}
+
+/* Button itself */
+.csb-btn {
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+  border: 1px solid;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+
+  background: var(--seg-inactive-bg);
+  border-color: var(--seg-inactive-border);
+  color: var(--seg-inactive-text);
+}
+
+.csb-btn[aria-pressed="true"],
+.csb-btn[aria-checked="true"] {
+  background: var(--seg-active-bg);
+  border-color: var(--seg-active-border);
+  color: var(--seg-active-text);
+  font-weight: var(--seg-active-weight);
+}
+
+/* Hover on inactive buttons only — active buttons keep the accent color. */
+.csb-btn:hover:not(:disabled):not([aria-pressed="true"]):not([aria-checked="true"]) {
+  background: var(--seg-hover-bg);
+  color: var(--seg-hover-text);
+}
+
+.csb-btn:disabled {
+  opacity: var(--seg-disabled-opacity);
+  cursor: not-allowed;
+}
+
+.csb-btn:focus-visible {
+  outline: var(--seg-focus-ring);
+  outline-offset: var(--seg-focus-ring-offset);
+}
+
+/* Size presets */
+.csb-btn-xs { padding-inline: 0.375rem; height: 20px;   font-size: 10px; }
+.csb-btn-sm { padding-inline: 0.5rem;   height: 24px;   font-size: 10px; }
+.csb-btn-md { padding-inline: 0.75rem;  height: 28px;   font-size: 12px; }
+
+/* Bold-width reservation trick: hidden pseudo-element sized at bold weight
+   so the visible button doesn't shift when the active state toggles weight. */
+.csb-btn[data-reserve-bold="true"] {
+  position: relative;
+}
+.csb-btn[data-reserve-bold="true"]::after {
+  content: attr(data-label);
+  display: block;
+  font-weight: var(--seg-active-weight);
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+}

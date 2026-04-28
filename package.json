@@ -1,0 +1,24 @@
+{
+  "name": "solidjs-toolkit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cujuju SolidJS UI primitives — monorepo for @cujuju/solidjs-* packages.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cujuju/solidjs-toolkit.git"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "publish-all": "pnpm -r publish --access public --no-git-checks"
+  },
+  "devDependencies": {
+    "solid-js": "^1.9.5",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "vite-plugin-dts": "^4.2.0",
+    "vite-plugin-solid": "^2.11.12"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

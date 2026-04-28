@@ -1,0 +1,116 @@
+/* cujuju-solidjs-pill-toggle — default theme via CSS custom properties.
+   Defaults in @layer so unlayered consumer overrides win regardless of
+   CSS file load order. */
+
+@layer cujuju-defaults {
+  :root {
+    --tp-on-bg: #10b981;
+    --tp-off-bg: #334155;
+    --tp-dot: #ffffff;
+    /* Indeterminate ("mixed") dot fill — defaults to ~55% alpha of the
+       solid dot color so the centered position reads as "uncommitted"
+       rather than "between transitions." Override directly to invert
+       the default. color-mix is baseline-supported (Chrome 111+,
+       Safari 16.2+, Firefox 113+; all 2023). */
+    --tp-dot-mixed: color-mix(in srgb, var(--tp-dot) 55%, transparent);
+    --tp-disabled-opacity: 0.5;
+    --tp-readonly-opacity: 0.85;
+    --tp-focus-ring: 2px solid #6366f1;
+    --tp-focus-ring-offset: 2px;
+  }
+}
+
+.ctp-root {
+  box-sizing: border-box;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color var(--tp-transition, 150ms linear);
+  background: var(--tp-off-bg);
+}
+
+.ctp-root[aria-checked="true"] {
+  background: var(--tp-on-bg);
+}
+
+/* Indeterminate state — pill background stays at off-color (the dot's
+   centered position carries the "mixed" signal); dot fill is dimmed via
+   --tp-dot-mixed. The pure dotTranslate helper computes the centered
+   transform; this rule only governs the visual fill. */
+.ctp-root[aria-checked="mixed"] .ctp-dot {
+  background: var(--tp-dot-mixed);
+}
+
+.ctp-root:disabled,
+.ctp-root[aria-disabled="true"] {
+  opacity: var(--tp-disabled-opacity);
+  cursor: not-allowed;
+}
+
+.ctp-root[aria-readonly="true"] {
+  opacity: var(--tp-readonly-opacity);
+  cursor: default;
+}
+
+.ctp-root:focus-visible {
+  outline: var(--tp-focus-ring);
+  outline-offset: var(--tp-focus-ring-offset);
+}
+
+/* Sliding dot */
+.ctp-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--tp-dot);
+  transition: transform var(--tp-transition, 150ms linear);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--tp-on-bg);
+}
+
+/* Press effects */
+.ctp-root[data-press-effect="scale"]:active:not(:disabled) .ctp-dot {
+  transform: var(--tp-dot-transform, none) scale(0.85);
+}
+
+.ctp-root[data-press-effect="ripple"] {
+  overflow: hidden;
+}
+.ctp-root[data-press-effect="ripple"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+.ctp-root[data-press-effect="ripple"]:active:not(:disabled)::after {
+  opacity: 1;
+  transition: opacity 0ms;
+}
+
+/* Loading spinner keyframes (if `loading` is set) */
+@keyframes ctp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ctp-spinner {
+  width: 60%;
+  height: 60%;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  animation: ctp-spin 700ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctp-root, .ctp-dot { transition: none !important; }
+  .ctp-spinner { animation: none !important; }
+}

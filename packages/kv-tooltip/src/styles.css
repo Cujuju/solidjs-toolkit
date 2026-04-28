@@ -1,0 +1,77 @@
+/* cujuju-solidjs-kv-tooltip — default theme.
+   Defaults in @layer so unlayered consumer overrides win. */
+
+@layer cujuju-defaults {
+  :root {
+    --kv-bg: #0f172a;
+    --kv-border: #334155;
+    --kv-key-color: #64748b;
+    --kv-value-color: #e2e8f0;
+    --kv-separator-color: #334155;
+    --kv-radius: 5px;
+    --kv-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --kv-padding: 6px 9px;
+    --kv-key-font-size: 10px;
+    --kv-value-font-size: 11px;
+    --kv-key-min-width: 32px;
+    --kv-gap: 8px;
+    --kv-line-height: 1.6;
+    --kv-min-width: 120px;
+    --kv-max-width: 300px;
+  }
+}
+
+.ckv-panel {
+  position: fixed;
+  z-index: 9999;
+  background: var(--kv-bg);
+  border: 1px solid var(--kv-border);
+  border-radius: var(--kv-radius);
+  padding: var(--kv-padding);
+  box-shadow: var(--kv-shadow);
+  min-width: var(--kv-min-width);
+  max-width: var(--kv-max-width);
+  pointer-events: none;
+}
+
+/* The data-interactive attribute is set by KvTooltip.tsx based on the
+   `interactive` prop. This rule + the JS hover-intent state machine in
+   _internal/hoverIntent.ts together implement the interactive-tooltip
+   contract — both layers must agree.
+
+   Regression lock: KvTooltip.integration.test.ts asserts the data-attribute
+   is set iff interactive=true. If a future refactor renames the attribute,
+   that test fails and surfaces the CSS / JS contract drift before merge. */
+.ckv-panel[data-interactive="true"] {
+  pointer-events: auto;
+}
+
+.ckv-row {
+  display: flex;
+  gap: var(--kv-gap);
+  align-items: baseline;
+  line-height: var(--kv-line-height);
+}
+
+.ckv-key {
+  font-size: var(--kv-key-font-size);
+  font-weight: 600;
+  color: var(--kv-key-color);
+  white-space: nowrap;
+  text-align: right;
+  min-width: var(--kv-key-min-width);
+}
+
+.ckv-value {
+  font-size: var(--kv-value-font-size);
+  color: var(--kv-value-color);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: left;
+}
+
+.ckv-extra {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--kv-separator-color);
+}

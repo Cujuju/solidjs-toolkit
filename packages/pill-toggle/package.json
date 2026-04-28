@@ -1,0 +1,58 @@
+{
+  "name": "@cujuju/solidjs-pill-toggle",
+  "version": "0.1.0",
+  "description": "iOS-style pill toggle for SolidJS — icons, loading/readOnly, press effects, a11y switch role.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "solid": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "license": "MIT",
+  "author": "Cujuju",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cujuju/solidjs-toolkit.git",
+    "directory": "packages/pill-toggle"
+  },
+  "homepage": "https://github.com/Cujuju/solidjs-toolkit/tree/main/packages/pill-toggle",
+  "bugs": "https://github.com/Cujuju/solidjs-toolkit/issues",
+  "keywords": [
+    "solidjs",
+    "toggle",
+    "switch",
+    "ios-switch",
+    "pill"
+  ],
+  "peerDependencies": {
+    "solid-js": ">=1.7.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build",
+    "prepublishOnly": "vite build"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "jsdom": "^29.0.2",
+    "vite-plugin-solid": "^2.11.12",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

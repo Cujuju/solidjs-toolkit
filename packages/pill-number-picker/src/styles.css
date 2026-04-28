@@ -1,0 +1,221 @@
+/* cujuju-solidjs-pill-number-picker — default theme + layout.
+   Defaults in @layer so unlayered consumer overrides win. */
+
+@layer cujuju-defaults {
+  :root {
+    --pnp-bg: #1e293b;
+    --pnp-border: #334155;
+    --pnp-text: #e2e8f0;
+    --pnp-text-muted: #94a3b8;
+    --pnp-suffix-color: #64748b;
+    --pnp-radius: 9999px;
+    --pnp-disabled-opacity: 0.3;
+    --pnp-focus-ring: 2px solid #6366f1;
+    --pnp-focus-ring-offset: 2px;
+    --pnp-gap: 0;
+    --pnp-btn-hover-bg: rgba(255, 255, 255, 0.06);
+    --pnp-btn-hover-text: #e2e8f0;
+    --pnp-btn-active-bg: rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* Root — flex container for items + optional suffix/range siblings. */
+.cpnp-root {
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+}
+
+/* Items subcontainer — value + buttons live here so :first-child /
+   :last-child match within this group, NOT against sibling suffix/range. */
+.cpnp-items {
+  display: inline-flex;
+  gap: var(--pnp-gap);
+}
+
+/* Horizontal layouts */
+.cpnp-items[data-layout="value-inc-dec"],
+.cpnp-items[data-layout="value-dec-inc"],
+.cpnp-items[data-layout="inc-value-dec"],
+.cpnp-items[data-layout="dec-value-inc"],
+.cpnp-items[data-layout="inc-dec-value"],
+.cpnp-items[data-layout="dec-inc-value"] {
+  flex-direction: row;
+}
+
+/* Vertical layouts */
+.cpnp-items[data-layout="v-inc-value-dec"],
+.cpnp-items[data-layout="v-dec-value-inc"] {
+  flex-direction: column;
+}
+
+/* Value + button base styles */
+.cpnp-value,
+.cpnp-input,
+.cpnp-btn {
+  box-sizing: border-box;
+  background: var(--pnp-bg);
+  border: 1px solid var(--pnp-border);
+  color: var(--pnp-text);
+  font-family: monospace;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+  /* Start fully square; corner rounding applied per-position below. */
+  border-radius: 0;
+}
+
+.cpnp-value,
+.cpnp-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  user-select: none;
+  padding: 0;
+}
+
+.cpnp-input {
+  outline: none;
+  appearance: textfield;
+}
+.cpnp-input::-webkit-outer-spin-button,
+.cpnp-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cpnp-btn {
+  color: var(--pnp-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.cpnp-btn:hover:not(:disabled) {
+  background: var(--pnp-btn-hover-bg);
+  color: var(--pnp-btn-hover-text);
+}
+
+.cpnp-btn:active:not(:disabled) {
+  background: var(--pnp-btn-active-bg);
+}
+
+.cpnp-btn:disabled {
+  opacity: var(--pnp-disabled-opacity);
+  cursor: not-allowed;
+}
+
+.cpnp-btn:focus-visible,
+.cpnp-input:focus-visible,
+.cpnp-value:focus-visible {
+  outline: var(--pnp-focus-ring);
+  outline-offset: var(--pnp-focus-ring-offset);
+  z-index: 1;
+}
+
+/* Suffix label */
+.cpnp-suffix {
+  font-size: 11px;
+  color: var(--pnp-suffix-color);
+  margin-inline-start: 4px;
+}
+
+/* Range display ("3 / 100") */
+.cpnp-range {
+  font-size: 11px;
+  color: var(--pnp-text-muted);
+  margin-inline-start: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Size presets — applied to the root for height/font-size, to .cpnp-btn
+   for button width. */
+.cpnp-size-xs .cpnp-value,
+.cpnp-size-xs .cpnp-input,
+.cpnp-size-xs .cpnp-btn { height: 18px; font-size: 10px; }
+.cpnp-size-xs .cpnp-btn { width: 16px; }
+
+.cpnp-size-sm .cpnp-value,
+.cpnp-size-sm .cpnp-input,
+.cpnp-size-sm .cpnp-btn { height: 20px; font-size: 11px; }
+.cpnp-size-sm .cpnp-btn { width: 16px; }
+
+.cpnp-size-md .cpnp-value,
+.cpnp-size-md .cpnp-input,
+.cpnp-size-md .cpnp-btn { height: 22px; font-size: 12px; }
+.cpnp-size-md .cpnp-btn { width: 18px; }
+
+/* ──────────────────────────────────────────────────────────────
+   Corner rounding + border-collapse, using CSS logical properties.
+   All rules target direct children of .cpnp-items — suffix/range
+   sit outside .cpnp-items so they don't affect first/last-child.
+   ────────────────────────────────────────────────────────────── */
+
+/* Horizontal: collapse borders between siblings */
+.cpnp-items[data-layout$="-inc-dec"] > *,
+.cpnp-items[data-layout$="-dec-inc"] > *,
+.cpnp-items[data-layout^="inc-"] > *,
+.cpnp-items[data-layout^="dec-"] > * {
+  margin-inline-start: -1px;
+}
+.cpnp-items[data-layout^="v-"] > * {
+  margin-inline-start: 0;
+}
+.cpnp-items > *:first-child {
+  margin-inline-start: 0;
+}
+
+/* Horizontal first child — outer-start corners rounded */
+.cpnp-items[data-layout="value-inc-dec"] > *:first-child,
+.cpnp-items[data-layout="value-dec-inc"] > *:first-child,
+.cpnp-items[data-layout="inc-value-dec"] > *:first-child,
+.cpnp-items[data-layout="dec-value-inc"] > *:first-child,
+.cpnp-items[data-layout="inc-dec-value"] > *:first-child,
+.cpnp-items[data-layout="dec-inc-value"] > *:first-child {
+  border-start-start-radius: var(--pnp-radius);
+  border-end-start-radius: var(--pnp-radius);
+}
+
+/* Horizontal last child — outer-end corners rounded */
+.cpnp-items[data-layout="value-inc-dec"] > *:last-child,
+.cpnp-items[data-layout="value-dec-inc"] > *:last-child,
+.cpnp-items[data-layout="inc-value-dec"] > *:last-child,
+.cpnp-items[data-layout="dec-value-inc"] > *:last-child,
+.cpnp-items[data-layout="inc-dec-value"] > *:last-child,
+.cpnp-items[data-layout="dec-inc-value"] > *:last-child {
+  border-start-end-radius: var(--pnp-radius);
+  border-end-end-radius: var(--pnp-radius);
+}
+
+/* Active/focused item raises z-index so its border isn't clipped by neighbors. */
+.cpnp-items > *:focus-within {
+  z-index: 1;
+}
+
+/* Vertical: collapse borders block-direction */
+.cpnp-items[data-layout^="v-"] > * {
+  margin-block-start: -1px;
+}
+.cpnp-items[data-layout^="v-"] > *:first-child {
+  margin-block-start: 0;
+  border-start-start-radius: var(--pnp-radius);
+  border-start-end-radius: var(--pnp-radius);
+}
+.cpnp-items[data-layout^="v-"] > *:last-child {
+  border-end-start-radius: var(--pnp-radius);
+  border-end-end-radius: var(--pnp-radius);
+}
+
+/* Vertical: make buttons fill container width to match value. */
+.cpnp-items[data-layout^="v-"] .cpnp-btn {
+  width: auto;
+  min-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cpnp-btn, .cpnp-value, .cpnp-input { transition: none !important; }
+}

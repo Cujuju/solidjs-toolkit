@@ -1,0 +1,58 @@
+{
+  "name": "@cujuju/solidjs-kv-tooltip",
+  "version": "0.1.0",
+  "description": "Mouse-follow key-value tooltip for SolidJS — viewport-clamped with hysteresis, Portal-rendered, extraContent slot.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "solid": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "license": "MIT",
+  "author": "Cujuju",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cujuju/solidjs-toolkit.git",
+    "directory": "packages/kv-tooltip"
+  },
+  "homepage": "https://github.com/Cujuju/solidjs-toolkit/tree/main/packages/kv-tooltip",
+  "bugs": "https://github.com/Cujuju/solidjs-toolkit/issues",
+  "keywords": [
+    "solidjs",
+    "tooltip",
+    "hover",
+    "portal",
+    "viewport-clamp"
+  ],
+  "peerDependencies": {
+    "solid-js": ">=1.7.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build",
+    "prepublishOnly": "vite build"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "jsdom": "^24.1.3",
+    "vite-plugin-solid": "^2.11.12",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
