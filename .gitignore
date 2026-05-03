@@ -6,3 +6,5 @@ dist/
 .turbo/
 .vite/
 coverage/
+.npmrc
+
