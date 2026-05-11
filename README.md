@@ -16,6 +16,7 @@ Monorepo for Cujuju's SolidJS UI primitives. Each package publishes to npm under
 | [`@cujuju/solidjs-kv-tooltip`](packages/kv-tooltip) | Key/value tooltip with hover-intent — `KvTooltip`, `KvTooltipPanel`. |
 | [`@cujuju/solidjs-hold-action`](packages/hold-action) | Press-and-hold primitive — `useHoldAction`, `HoldIndicator`. |
 | [`@cujuju/solidjs-collapsible`](packages/collapsible) | Animated collapse/expand — `Collapsible`. |
+| [`@cujuju/solidjs-tri-state-chip`](packages/tri-state-chip) | Tri-state filter chip — include/exclude/neutral cycling + pure state helpers (`TriStateChip`, `cycleTriState`, `applyTriState`, `tristateOf`, `EMPTY_TRI_STATE`). |
 
 ## Install (consumer)
 

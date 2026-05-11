@@ -1,0 +1,100 @@
+/* cujuju-solidjs-tri-state-chip — default theme via CSS custom properties.
+   Defaults in @layer so unlayered consumer overrides win regardless of
+   CSS file load order. */
+
+@layer cujuju-defaults {
+  :root {
+    /* Unselected — neutral chip. */
+    --ctc-bg: transparent;
+    --ctc-color: inherit;
+    --ctc-border: 1px solid currentColor;
+    --ctc-border-hover: 1px solid #6366f1;
+
+    /* Included — emerald accent. */
+    --ctc-bg-included: rgba(16, 185, 129, 0.15);
+    --ctc-color-included: #10b981;
+    --ctc-border-included: 1px solid #10b981;
+    --ctc-bg-included-hover: rgba(16, 185, 129, 0.25);
+
+    /* Excluded — rose accent. */
+    --ctc-bg-excluded: rgba(244, 63, 94, 0.15);
+    --ctc-color-excluded: #f43f5e;
+    --ctc-border-excluded: 1px solid #f43f5e;
+    --ctc-bg-excluded-hover: rgba(244, 63, 94, 0.25);
+
+    /* Layout. */
+    --ctc-padding: 5px 10px;
+    --ctc-radius: 6px;
+    --ctc-font-size: 0.875rem;
+    --ctc-font-weight: 500;
+    --ctc-gap: 0;
+    --ctc-transition: 150ms ease;
+
+    /* States. */
+    --ctc-disabled-opacity: 0.5;
+    --ctc-focus-ring: 2px solid #6366f1;
+    --ctc-focus-ring-offset: 2px;
+  }
+}
+
+.ctc-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ctc-gap);
+  padding: var(--ctc-padding);
+  border: var(--ctc-border);
+  border-radius: var(--ctc-radius);
+  background: var(--ctc-bg);
+  color: var(--ctc-color);
+  font-size: var(--ctc-font-size);
+  font-weight: var(--ctc-font-weight);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--ctc-transition),
+    border-color var(--ctc-transition),
+    color var(--ctc-transition);
+}
+
+.ctc-chip:hover:not(:disabled) {
+  border: var(--ctc-border-hover);
+}
+
+.ctc-chip[data-state="included"] {
+  background: var(--ctc-bg-included);
+  color: var(--ctc-color-included);
+  border: var(--ctc-border-included);
+}
+
+.ctc-chip[data-state="included"]:hover:not(:disabled) {
+  background: var(--ctc-bg-included-hover);
+  border: var(--ctc-border-included);
+}
+
+.ctc-chip[data-state="excluded"] {
+  background: var(--ctc-bg-excluded);
+  color: var(--ctc-color-excluded);
+  border: var(--ctc-border-excluded);
+}
+
+.ctc-chip[data-state="excluded"]:hover:not(:disabled) {
+  background: var(--ctc-bg-excluded-hover);
+  border: var(--ctc-border-excluded);
+}
+
+.ctc-chip:disabled {
+  cursor: not-allowed;
+  opacity: var(--ctc-disabled-opacity);
+}
+
+.ctc-chip:focus-visible {
+  outline: var(--ctc-focus-ring);
+  outline-offset: var(--ctc-focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctc-chip {
+    transition: none !important;
+  }
+}
