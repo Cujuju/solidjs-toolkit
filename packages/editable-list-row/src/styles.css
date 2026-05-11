@@ -1,0 +1,159 @@
+/*
+ * @cujuju/solidjs-editable-list-row — base styles.
+ *
+ * Selectors are scoped under `[data-cuj-elr]` to avoid colliding with consumer
+ * class names. The row element + every interactive child carries the attribute
+ * so consumers can also write their own `[data-cuj-elr=row]` selectors.
+ *
+ * CSS variables for theming — defaults render a neutral palette. App consumers
+ * typically override these with theme tokens via their own selectors.
+ */
+
+[data-cuj-elr] {
+  --cuj-elr-bg-active: rgba(59, 130, 246, 0.1);
+  --cuj-elr-bg-hover: rgba(59, 130, 246, 0.05);
+  --cuj-elr-bg-rename-input: #fff;
+  --cuj-elr-border-rename: #3b82f6;
+  --cuj-elr-icon-fg: #6b7280;
+  --cuj-elr-icon-fg-hover: #111827;
+  --cuj-elr-icon-bg-hover: rgba(59, 130, 246, 0.1);
+  --cuj-elr-icon-danger-fg: #ef4444;
+  --cuj-elr-icon-danger-bg-hover: rgba(239, 68, 68, 0.1);
+  --cuj-elr-row-padding-y: 4px;
+  --cuj-elr-row-padding-x: 8px;
+  --cuj-elr-row-radius: 6px;
+  --cuj-elr-label-padding-y: 4px;
+  --cuj-elr-label-padding-x: 6px;
+  --cuj-elr-label-radius: 4px;
+}
+
+[data-cuj-elr='row'] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--cuj-elr-row-padding-y) var(--cuj-elr-row-padding-x);
+  border-radius: var(--cuj-elr-row-radius);
+  background: transparent;
+  user-select: none;
+  min-width: 0;
+}
+
+[data-cuj-elr='row'][data-active='true'] {
+  background: var(--cuj-elr-bg-active);
+}
+
+[data-cuj-elr='row'][aria-busy='true'] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+[data-cuj-elr='drag-handle'] {
+  display: flex;
+  align-items: center;
+  color: var(--cuj-elr-icon-fg);
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+[data-cuj-elr='leading-icon'],
+[data-cuj-elr='leading-control'] {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+[data-cuj-elr='checkbox'] {
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+[data-cuj-elr='checkbox']:disabled {
+  cursor: not-allowed;
+}
+
+[data-cuj-elr='label'] {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  background: none;
+  /* Transparent 1px border so display and rename states have identical
+   * box dimensions — without this, the rename input's solid border
+   * would grow the row by 2px on rename entry. */
+  border: 1px solid transparent;
+  padding: var(--cuj-elr-label-padding-y) var(--cuj-elr-label-padding-x);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  border-radius: var(--cuj-elr-label-radius);
+}
+
+[data-cuj-elr='label']:hover {
+  background: var(--cuj-elr-bg-hover);
+}
+
+[data-cuj-elr='label-text'] {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-cuj-elr='trailing-label'] {
+  flex-shrink: 0;
+  color: var(--cuj-elr-icon-fg);
+  font-size: 0.85em;
+}
+
+[data-cuj-elr='rename-input'] {
+  flex: 1;
+  min-width: 0;
+  background: var(--cuj-elr-bg-rename-input);
+  color: inherit;
+  border: 1px solid var(--cuj-elr-border-rename);
+  padding: var(--cuj-elr-label-padding-y) var(--cuj-elr-label-padding-x);
+  height: auto;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: inherit;
+  border-radius: var(--cuj-elr-label-radius);
+  outline: none;
+}
+
+[data-cuj-elr='rename-input']:focus {
+  outline: 1px solid var(--cuj-elr-border-rename);
+  outline-offset: 1px;
+}
+
+[data-cuj-elr='icon-btn'] {
+  background: none;
+  border: none;
+  padding: 4px;
+  color: var(--cuj-elr-icon-fg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+[data-cuj-elr='icon-btn']:hover:not(:disabled) {
+  background: var(--cuj-elr-icon-bg-hover);
+  color: var(--cuj-elr-icon-fg-hover);
+}
+
+[data-cuj-elr='icon-btn'][data-variant='danger']:hover:not(:disabled) {
+  background: var(--cuj-elr-icon-danger-bg-hover);
+  color: var(--cuj-elr-icon-danger-fg);
+}
+
+[data-cuj-elr='icon-btn']:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

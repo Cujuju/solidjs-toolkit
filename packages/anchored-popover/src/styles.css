@@ -1,0 +1,19 @@
+/*
+ * @cujuju/solidjs-anchored-popover — base styles.
+ *
+ * The shell element (the one carrying `popover="manual"`) is styled inline
+ * by the component (overriding UA defaults for position/overflow/background).
+ * This stylesheet exposes per-instance CSS variables for consumer overrides
+ * and ships sensible defaults.
+ *
+ * The content `<div>` inside the shell is unstyled by default — consumers
+ * pass their own `class` and own visual styling (background, border, shadow,
+ * padding, width). The toolkit takes no opinion on the visual layer.
+ */
+
+:root {
+  /* Shell-level z-index. Top-layer popovers naturally paint above page
+   * content, but consumers can adjust if they have an existing stacking
+   * context fight to win. */
+  --cuj-ap-z-index: 1000;
+}

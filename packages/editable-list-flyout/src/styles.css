@@ -1,0 +1,115 @@
+/*
+ * @cujuju/solidjs-editable-list-flyout — base styles.
+ *
+ * Scoped via `[data-cuj-elf]` attribute. CSS variables follow the project
+ * convention (`--cuj-elf-*`) and ship with neutral defaults.
+ *
+ * Footer geometry (button vs input) is identical-size by design — the
+ * "+ New X" affordance must morph between button and input without
+ * shifting the row list below it. Both branches share padding, height,
+ * border-style, border-radius so the swap is pixel-identical.
+ */
+
+[data-cuj-elf] {
+  --cuj-elf-popover-bg: #fff;
+  --cuj-elf-popover-border: 1px solid rgba(0, 0, 0, 0.1);
+  --cuj-elf-popover-radius: 8px;
+  --cuj-elf-popover-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  --cuj-elf-popover-padding: 6px;
+  --cuj-elf-popover-min-width: 220px;
+  --cuj-elf-popover-max-height: 60vh;
+
+  --cuj-elf-list-gap: 2px;
+
+  --cuj-elf-footer-margin-top: 6px;
+  --cuj-elf-footer-padding-y: 6px;
+  --cuj-elf-footer-padding-x: 8px;
+  --cuj-elf-footer-radius: 6px;
+  --cuj-elf-footer-border-style: 1px dashed #b6b6b6;
+  --cuj-elf-footer-bg: transparent;
+  --cuj-elf-footer-fg: #6b7280;
+  --cuj-elf-footer-fg-hover: #111827;
+  --cuj-elf-footer-bg-hover: rgba(59, 130, 246, 0.05);
+  --cuj-elf-footer-input-bg: #fff;
+  --cuj-elf-footer-input-border: 1px solid #3b82f6;
+  --cuj-elf-footer-icon-size: 14px;
+}
+
+[data-cuj-elf='popover'] {
+  background: var(--cuj-elf-popover-bg);
+  border: var(--cuj-elf-popover-border);
+  border-radius: var(--cuj-elf-popover-radius);
+  box-shadow: var(--cuj-elf-popover-shadow);
+  padding: var(--cuj-elf-popover-padding);
+  min-width: var(--cuj-elf-popover-min-width);
+  display: flex;
+  flex-direction: column;
+}
+
+[data-cuj-elf='list'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cuj-elf-list-gap);
+  overflow-y: auto;
+  max-height: var(--cuj-elf-popover-max-height);
+  min-width: 0;
+}
+
+[data-cuj-elf='empty'] {
+  color: var(--cuj-elf-footer-fg);
+  font-size: 0.9em;
+  padding: 8px 6px;
+}
+
+/*
+ * Footer add-button and add-input share identical geometry — but they're
+ * different HTML elements (button vs input), so selectors must be
+ * element-qualified individually instead of grouped under the attribute
+ * selector alone (which would be specificity 0,1,0 and lose to generic
+ * `input[type="text"]` consumer globals).
+ */
+button[data-cuj-elf='add-button'],
+input[data-cuj-elf='add-input'] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: var(--cuj-elf-footer-margin-top);
+  padding: var(--cuj-elf-footer-padding-y) var(--cuj-elf-footer-padding-x);
+  border-radius: var(--cuj-elf-footer-radius);
+  font: inherit;
+  font-size: inherit;
+  box-sizing: border-box;
+  height: auto;
+}
+
+button[data-cuj-elf='add-button'] {
+  background: var(--cuj-elf-footer-bg);
+  color: var(--cuj-elf-footer-fg);
+  border: var(--cuj-elf-footer-border-style);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+
+button[data-cuj-elf='add-button']:hover:not(:disabled) {
+  background: var(--cuj-elf-footer-bg-hover);
+  color: var(--cuj-elf-footer-fg-hover);
+}
+
+button[data-cuj-elf='add-button']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[data-cuj-elf='add-input'] {
+  background: var(--cuj-elf-footer-input-bg);
+  color: inherit;
+  border: var(--cuj-elf-footer-input-border);
+  outline: none;
+}
+
+input[data-cuj-elf='add-input']:focus {
+  outline: 1px solid var(--cuj-elf-footer-input-border);
+  outline-offset: 1px;
+}
