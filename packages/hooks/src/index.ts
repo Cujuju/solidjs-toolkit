@@ -1,27 +1,29 @@
-export { useClickOutside, type UseClickOutsideOptions } from './useClickOutside';
+export { createClickOutside, type CreateClickOutsideOptions } from './createClickOutside';
 export { contains } from './contains';
-export { useEscapeKey } from './useEscapeKey';
-export { useHotkey, type UseHotkeyOptions } from './useHotkey';
-export { useLocalStorage } from './useLocalStorage';
+export { createEscapeKey, type CreateEscapeKeyOptions } from './createEscapeKey';
+export { createHotkey, type CreateHotkeyOptions } from './createHotkey';
+export { createLocalStorage } from './createLocalStorage';
 export {
-  usePersistedSet,
-  type UsePersistedSetOptions,
-  type UsePersistedSetReturn,
-} from './usePersistedSet';
+  createPersistedSet,
+  type CreatePersistedSetOptions,
+  type CreatePersistedSetReturn,
+} from './createPersistedSet';
 export {
-  usePersistedMap,
-  type UsePersistedMapOptions,
-  type UsePersistedMapReturn,
-} from './usePersistedMap';
-export { useMediaQuery } from './useMediaQuery';
-export { useResizeObserver } from './useResizeObserver';
-export { useIntersectionObserver } from './useIntersectionObserver';
-export { useDebounce } from './useDebounce';
-export { useDebouncedCallback } from './useDebouncedCallback';
-export { useDocumentVisibility } from './useDocumentVisibility';
+  createPersistedMap,
+  type CreatePersistedMapOptions,
+  type CreatePersistedMapReturn,
+} from './createPersistedMap';
+export { createMediaQuery } from './createMediaQuery';
+export { createResizeObserver } from './createResizeObserver';
+export { createIntersectionObserver } from './createIntersectionObserver';
+export { createDebounce } from './createDebounce';
+export { createDebouncedCallback } from './createDebouncedCallback';
+export { createDocumentVisibility } from './createDocumentVisibility';
 export {
-  useAsyncStatus,
+  createAsyncStatus,
   type AsyncStatus,
-  type UseAsyncStatusOptions,
-  type UseAsyncStatusReturn,
-} from './useAsyncStatus';
+  type CreateAsyncStatusOptions,
+  type CreateAsyncStatusReturn,
+} from './createAsyncStatus';
+export { createAfterPaint } from './createAfterPaint';
+export { createOutsideScrollDismiss } from './createOutsideScrollDismiss';

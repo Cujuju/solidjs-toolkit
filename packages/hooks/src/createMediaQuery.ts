@@ -5,10 +5,10 @@ import { safeAddEventListener } from './_internal/safeEvent';
  * Reactive media query matcher.
  *
  * @example
- *   const isWide = useMediaQuery('(min-width: 768px)');
+ *   const isWide = createMediaQuery('(min-width: 768px)');
  *   <Show when={isWide()}>Wide layout</Show>
  */
-export function useMediaQuery(query: string): Accessor<boolean> {
+export function createMediaQuery(query: string): Accessor<boolean> {
   // SSR / non-browser guard — `matchMedia` is not on the standard SSR globals.
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     const [value] = createSignal(false);

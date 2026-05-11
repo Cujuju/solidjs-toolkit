@@ -1,14 +1,14 @@
 import { createSignal, type Accessor } from 'solid-js';
 import { safeStorageRead, safeStorageWrite } from './_internal/safeStorage';
 
-export interface UsePersistedMapOptions<K, V> {
+export interface CreatePersistedMapOptions<K, V> {
   serializeKey?: (k: K) => string;
   deserializeKey?: (s: string) => K;
   serializeValue?: (v: V) => string;
   deserializeValue?: (s: string) => V;
 }
 
-export interface UsePersistedMapReturn<K, V> {
+export interface CreatePersistedMapReturn<K, V> {
   map: Accessor<Map<K, V>>;
   set: (key: K, value: V) => void;
   get: (key: K) => V | undefined;
@@ -21,10 +21,10 @@ export interface UsePersistedMapReturn<K, V> {
  * A `Map<K, V>` backed by localStorage. Defaults assume both K and V are strings.
  * Persisted as a JSON array of `[serializedKey, serializedValue]` pairs.
  */
-export function usePersistedMap<K = string, V = string>(
+export function createPersistedMap<K = string, V = string>(
   storageKey: string,
-  options: UsePersistedMapOptions<K, V> = {},
-): UsePersistedMapReturn<K, V> {
+  options: CreatePersistedMapOptions<K, V> = {},
+): CreatePersistedMapReturn<K, V> {
   const sk = options.serializeKey ?? ((k: K) => k as unknown as string);
   const dk = options.deserializeKey ?? ((s: string) => s as unknown as K);
   const sv = options.serializeValue ?? ((v: V) => v as unknown as string);

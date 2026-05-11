@@ -4,7 +4,7 @@ import { createEffect, onCleanup, type Accessor } from 'solid-js';
  * Observes viewport intersection for the referenced element. Calls `handler`
  * on every intersection change with the matching `IntersectionObserverEntry`.
  */
-export function useIntersectionObserver(
+export function createIntersectionObserver(
   elAccessor: Accessor<Element | undefined>,
   handler: (entry: IntersectionObserverEntry) => void,
   options?: IntersectionObserverInit,

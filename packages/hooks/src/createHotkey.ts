@@ -1,7 +1,7 @@
 import { type Accessor } from 'solid-js';
 import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';
 
-export interface UseHotkeyOptions {
+export interface CreateHotkeyOptions {
   enabled?: Accessor<boolean>;
   preventDefault?: boolean;
   target?: 'document' | 'window';
@@ -76,14 +76,14 @@ function matchesCombo(e: KeyboardEvent, combo: ParsedCombo): boolean {
  * Case-insensitive. Modifier order irrelevant. `cmd`/`command` alias `meta`; `option` aliases `alt`.
  *
  * @example
- *   useHotkey('ctrl+k', () => openSearch());
- *   useHotkey('shift+?', () => showHelp());
- *   useHotkey('escape', () => close(), { enabled: () => modalOpen() });
+ *   createHotkey('ctrl+k', () => openSearch());
+ *   createHotkey('shift+?', () => showHelp());
+ *   createHotkey('escape', () => close(), { enabled: () => modalOpen() });
  */
-export function useHotkey(
+export function createHotkey(
   combo: string,
   handler: (e: KeyboardEvent) => void,
-  options: UseHotkeyOptions = {},
+  options: CreateHotkeyOptions = {},
 ): void {
   const parsed = parseCombo(combo);
   const enabled = options.enabled ?? (() => true);

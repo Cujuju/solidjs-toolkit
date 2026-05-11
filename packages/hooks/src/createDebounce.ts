@@ -8,7 +8,7 @@ import { createSignal, createRenderEffect, onCleanup, type Accessor } from 'soli
  * Uses `createRenderEffect` (synchronous) so the timer is scheduled in the
  * same tick as a source change — predictable under fake timers.
  */
-export function useDebounce<T>(source: Accessor<T>, ms: number): Accessor<T> {
+export function createDebounce<T>(source: Accessor<T>, ms: number): Accessor<T> {
   const [debounced, setDebounced] = createSignal<T>(source());
   let timerId: ReturnType<typeof setTimeout> | undefined;
   let firstRun = true;

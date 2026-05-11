@@ -11,7 +11,7 @@ import { createSignal, onCleanup, type Accessor } from 'solid-js';
  * intervening `cancel()` / `flush()`). It flips back to false even if `fn`
  * throws — the pending state describes scheduling, not the in-flight call.
  */
-export function useDebouncedCallback<A extends unknown[]>(
+export function createDebouncedCallback<A extends unknown[]>(
   fn: (...args: A) => void,
   ms: number,
 ): {

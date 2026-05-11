@@ -1,7 +1,7 @@
 import { type Accessor } from 'solid-js';
 import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';
 
-export interface UseClickOutsideOptions {
+export interface CreateClickOutsideOptions {
   /** Reactive gate. When returns false, handler is suppressed. */
   enabled?: Accessor<boolean>;
 }
@@ -35,10 +35,10 @@ export interface UseClickOutsideOptions {
  * @param handler  - Called with the original event when an outside pointerdown fires.
  * @param options  - Convention: `enabled` gate lives here.
  */
-export function useClickOutside(
+export function createClickOutside(
   isInside: (target: Node) => boolean,
   handler: (e: Event) => void,
-  options: UseClickOutsideOptions = {},
+  options: CreateClickOutsideOptions = {},
 ): void {
   const enabled = options.enabled ?? ((): boolean => true);
   const attachTime = typeof performance !== 'undefined' ? performance.now() : 0;

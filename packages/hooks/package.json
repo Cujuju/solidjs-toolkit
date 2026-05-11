@@ -1,7 +1,7 @@
 {
   "name": "@cujuju/solidjs-hooks",
-  "version": "0.1.0",
-  "description": "Generic SolidJS hooks — click-outside, escape-key, hotkeys, localStorage-backed signals, media queries, observers, debounce, async status. Zero deps.",
+  "version": "2.0.0",
+  "description": "Generic SolidJS hooks — click-outside, escape-key, hotkeys, localStorage-backed signals, media queries, observers, debounce, async status, after-paint scheduling, outside-scroll dismiss. Zero deps.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -36,7 +36,9 @@
     "debounce",
     "resize-observer",
     "intersection-observer",
-    "media-query"
+    "media-query",
+    "after-paint",
+    "scroll-dismiss"
   ],
   "peerDependencies": {
     "solid-js": ">=1.7.0"

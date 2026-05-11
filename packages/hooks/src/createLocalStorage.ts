@@ -7,7 +7,7 @@ import { safeStorageRead, safeStorageWrite } from './_internal/safeStorage';
  *
  * @returns `[value, setValue]` — same shape as `createSignal`.
  */
-export function useLocalStorage<T>(
+export function createLocalStorage<T>(
   key: string,
   defaultValue: T,
 ): [Accessor<T>, (v: T | ((prev: T) => T)) => void] {

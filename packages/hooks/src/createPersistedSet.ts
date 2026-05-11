@@ -1,12 +1,12 @@
 import { createSignal, type Accessor } from 'solid-js';
 import { safeStorageRead, safeStorageWrite } from './_internal/safeStorage';
 
-export interface UsePersistedSetOptions<T> {
+export interface CreatePersistedSetOptions<T> {
   serialize?: (v: T) => string;
   deserialize?: (s: string) => T;
 }
 
-export interface UsePersistedSetReturn<T> {
+export interface CreatePersistedSetReturn<T> {
   set: Accessor<Set<T>>;
   toggle: (value: T) => void;
   add: (value: T) => void;
@@ -19,18 +19,18 @@ export interface UsePersistedSetReturn<T> {
  * The full set is persisted on every mutation.
  *
  * @example
- *   const expanded = usePersistedSet<string>('myapp:expanded');
+ *   const expanded = createPersistedSet<string>('myapp:expanded');
  *   expanded.toggle('panel-1');
  *
- *   const selectedIds = usePersistedSet<number>('myapp:selected', {
+ *   const selectedIds = createPersistedSet<number>('myapp:selected', {
  *     serialize: String,
  *     deserialize: Number,
  *   });
  */
-export function usePersistedSet<T = string>(
+export function createPersistedSet<T = string>(
   storageKey: string,
-  options: UsePersistedSetOptions<T> = {},
-): UsePersistedSetReturn<T> {
+  options: CreatePersistedSetOptions<T> = {},
+): CreatePersistedSetReturn<T> {
   const serialize = options.serialize ?? ((v: T) => v as unknown as string);
   const deserialize = options.deserialize ?? ((s: string) => s as unknown as T);
 

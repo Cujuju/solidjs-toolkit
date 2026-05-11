@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
-import { useDebounce } from '../useDebounce';
+import { createDebounce } from '../createDebounce';
 
 // Fake timers interact oddly with Solid's reactive scheduler. The trick that
 // works reliably: use Promise-based microtask flushing between reactive updates
@@ -10,7 +10,7 @@ async function flush(): Promise<void> {
   await Promise.resolve();
 }
 
-describe('useDebounce', () => {
+describe('createDebounce', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
@@ -21,7 +21,7 @@ describe('useDebounce', () => {
   it('initial value matches source', () => {
     createRoot(() => {
       const [src] = createSignal('hello');
-      const debounced = useDebounce(src, 100);
+      const debounced = createDebounce(src, 100);
       expect(debounced()).toBe('hello');
     });
   });
@@ -29,7 +29,7 @@ describe('useDebounce', () => {
   it('emits updated value after delay', async () => {
     await createRoot(async (dispose) => {
       const [src, setSrc] = createSignal('a');
-      const debounced = useDebounce(src, 100);
+      const debounced = createDebounce(src, 100);
       setSrc('b');
       await flush();
       expect(debounced()).toBe('a'); // still within delay window
@@ -43,7 +43,7 @@ describe('useDebounce', () => {
   it('rapid source changes reset the timer', async () => {
     await createRoot(async (dispose) => {
       const [src, setSrc] = createSignal('a');
-      const debounced = useDebounce(src, 100);
+      const debounced = createDebounce(src, 100);
       setSrc('b');
       await flush();
       vi.advanceTimersByTime(50);

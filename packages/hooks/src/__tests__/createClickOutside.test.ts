@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { useClickOutside } from '../useClickOutside';
+import { createClickOutside } from '../createClickOutside';
 import { contains } from '../contains';
 
 /**
  * Dispatch a pointerdown on `el`. happy-dom Event constructor sets
  * `timeStamp = performance.now()`, so events created here are stamped *after*
- * any prior `useClickOutside` attach (which captures `performance.now()` at
+ * any prior `createClickOutside` attach (which captures `performance.now()` at
  * its own attach time). That gives the timestamp-suppression mechanism real
  * monotonic timestamps to compare against.
  */
@@ -14,7 +14,7 @@ const firePointerDown = (el: EventTarget): void => {
   el.dispatchEvent(new Event('pointerdown', { bubbles: true }));
 };
 
-describe('useClickOutside', () => {
+describe('createClickOutside', () => {
   // ─── Existing contract (preserved across the refactor) ───────────────────
 
   it('fires handler on outside pointerdown (predicate-based surface)', () => {
@@ -25,7 +25,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(outer);
 
     createRoot(() => {
-      useClickOutside((t) => inner.contains(t), handler);
+      createClickOutside((t) => inner.contains(t), handler);
     });
 
     firePointerDown(document.body);
@@ -40,7 +40,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(el);
 
     createRoot(() => {
-      useClickOutside(contains(() => el), handler);
+      createClickOutside(contains(() => el), handler);
     });
 
     firePointerDown(el);
@@ -55,7 +55,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(el);
 
     createRoot(() => {
-      useClickOutside(contains(() => el), handler, { enabled: () => false });
+      createClickOutside(contains(() => el), handler, { enabled: () => false });
     });
 
     firePointerDown(document.body);
@@ -70,7 +70,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(el);
 
     const dispose = createRoot((d) => {
-      useClickOutside(contains(() => el), handler);
+      createClickOutside(contains(() => el), handler);
       return d;
     });
 
@@ -89,7 +89,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(el);
 
     createRoot(() => {
-      useClickOutside(() => false, handler);
+      createClickOutside(() => false, handler);
     });
 
     firePointerDown(el);
@@ -104,7 +104,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(el);
 
     createRoot(() => {
-      useClickOutside(() => true, handler);
+      createClickOutside(() => true, handler);
     });
 
     firePointerDown(el);
@@ -119,7 +119,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(el);
 
     createRoot(() => {
-      useClickOutside(contains(() => el), handler);
+      createClickOutside(contains(() => el), handler);
     });
 
     // mousedown should NOT trigger — we listen on pointerdown only
@@ -139,7 +139,7 @@ describe('useClickOutside', () => {
     document.body.appendChild(el);
 
     createRoot(() => {
-      useClickOutside(contains(() => el), handler);
+      createClickOutside(contains(() => el), handler);
     });
 
     // Forge an event with a timestamp before the hook attached.
@@ -163,7 +163,7 @@ describe('useClickOutside', () => {
     stopper.addEventListener('pointerdown', (e) => e.stopPropagation());
 
     createRoot(() => {
-      useClickOutside(contains(() => surface), handler);
+      createClickOutside(contains(() => surface), handler);
     });
 
     firePointerDown(stopper);

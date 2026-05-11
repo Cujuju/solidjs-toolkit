@@ -2,14 +2,14 @@ import { createSignal, onCleanup, type Accessor } from 'solid-js';
 
 export type AsyncStatus = 'idle' | 'loading' | 'done' | 'error';
 
-export interface UseAsyncStatusOptions {
+export interface CreateAsyncStatusOptions {
   /** ms before auto-resetting to 'idle' after done/error. Default 2000. */
   resetMs?: number;
   /** Whether to auto-reset on error. Default true. */
   resetOnError?: boolean;
 }
 
-export interface UseAsyncStatusReturn<T, A extends unknown[]> {
+export interface CreateAsyncStatusReturn<T, A extends unknown[]> {
   status: Accessor<AsyncStatus>;
   error: Accessor<Error | null>;
   result: Accessor<T | null>;
@@ -25,10 +25,10 @@ export interface UseAsyncStatusReturn<T, A extends unknown[]> {
  * Useful for buttons that show a brief "done" / "error" state before
  * returning to their default look.
  */
-export function useAsyncStatus<T, A extends unknown[] = unknown[]>(
+export function createAsyncStatus<T, A extends unknown[] = unknown[]>(
   fn: (...args: A) => Promise<T>,
-  options: UseAsyncStatusOptions = {},
-): UseAsyncStatusReturn<T, A> {
+  options: CreateAsyncStatusOptions = {},
+): CreateAsyncStatusReturn<T, A> {
   const resetMs = options.resetMs ?? 2000;
   const resetOnError = options.resetOnError ?? true;
 

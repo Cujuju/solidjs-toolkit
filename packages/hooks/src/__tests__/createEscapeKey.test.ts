@@ -1,18 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { useEscapeKey } from '../useEscapeKey';
+import { createEscapeKey } from '../createEscapeKey';
 
-describe('useEscapeKey', () => {
+describe('createEscapeKey', () => {
   it('fires on Escape', () => {
     const handler = vi.fn();
-    createRoot(() => useEscapeKey(handler));
+    createRoot(() => createEscapeKey(handler));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it('ignores other keys', () => {
     const handler = vi.fn();
-    createRoot(() => useEscapeKey(handler));
+    createRoot(() => createEscapeKey(handler));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
     expect(handler).not.toHaveBeenCalled();
@@ -20,7 +20,7 @@ describe('useEscapeKey', () => {
 
   it('respects enabled=false', () => {
     const handler = vi.fn();
-    createRoot(() => useEscapeKey(handler, { enabled: () => false }));
+    createRoot(() => createEscapeKey(handler, { enabled: () => false }));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(handler).not.toHaveBeenCalled();
   });

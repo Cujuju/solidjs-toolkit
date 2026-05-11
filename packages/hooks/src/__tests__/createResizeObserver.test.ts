@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { useResizeObserver } from '../useResizeObserver';
+import { createResizeObserver } from '../createResizeObserver';
 
-describe('useResizeObserver', () => {
+describe('createResizeObserver', () => {
   it('wires up without throwing when element is present', () => {
     const handler = vi.fn();
     const el = document.createElement('div');
@@ -10,7 +10,7 @@ describe('useResizeObserver', () => {
 
     // happy-dom has stub ResizeObserver; this is mostly a smoke test.
     expect(() => {
-      createRoot(() => useResizeObserver(() => el, handler));
+      createRoot(() => createResizeObserver(() => el, handler));
     }).not.toThrow();
 
     document.body.removeChild(el);
@@ -19,7 +19,7 @@ describe('useResizeObserver', () => {
   it('handles undefined element gracefully', () => {
     const handler = vi.fn();
     expect(() => {
-      createRoot(() => useResizeObserver(() => undefined, handler));
+      createRoot(() => createResizeObserver(() => undefined, handler));
     }).not.toThrow();
   });
 });

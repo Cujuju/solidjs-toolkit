@@ -1,25 +1,25 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { usePersistedMap } from '../usePersistedMap';
+import { createPersistedMap } from '../createPersistedMap';
 import { installLocalStorageMock } from './testUtils';
 
-const KEY = 'usePersistedMap-test';
+const KEY = 'createPersistedMap-test';
 
-describe('usePersistedMap', () => {
+describe('createPersistedMap', () => {
   beforeEach(() => {
     installLocalStorageMock();
   });
 
   it('starts empty when storage is empty', () => {
     createRoot(() => {
-      const m = usePersistedMap(KEY);
+      const m = createPersistedMap(KEY);
       expect(m.map().size).toBe(0);
     });
   });
 
   it('set and get roundtrip', () => {
     createRoot(() => {
-      const m = usePersistedMap<string, string>(KEY);
+      const m = createPersistedMap<string, string>(KEY);
       m.set('a', 'apple');
       expect(m.get('a')).toBe('apple');
     });
@@ -28,14 +28,14 @@ describe('usePersistedMap', () => {
   it('persists across signals', () => {
     localStorage.setItem(KEY, JSON.stringify([['a', 'apple']]));
     createRoot(() => {
-      const m = usePersistedMap<string, string>(KEY);
+      const m = createPersistedMap<string, string>(KEY);
       expect(m.get('a')).toBe('apple');
     });
   });
 
   it('has returns correct presence', () => {
     createRoot(() => {
-      const m = usePersistedMap<string, string>(KEY);
+      const m = createPersistedMap<string, string>(KEY);
       m.set('a', 'apple');
       expect(m.has('a')).toBe(true);
       expect(m.has('b')).toBe(false);
@@ -44,7 +44,7 @@ describe('usePersistedMap', () => {
 
   it('remove deletes entry', () => {
     createRoot(() => {
-      const m = usePersistedMap<string, string>(KEY);
+      const m = createPersistedMap<string, string>(KEY);
       m.set('a', 'apple');
       m.remove('a');
       expect(m.has('a')).toBe(false);
@@ -53,7 +53,7 @@ describe('usePersistedMap', () => {
 
   it('clear empties the map and storage', () => {
     createRoot(() => {
-      const m = usePersistedMap<string, string>(KEY);
+      const m = createPersistedMap<string, string>(KEY);
       m.set('a', 'apple');
       m.clear();
       expect(m.map().size).toBe(0);
@@ -63,7 +63,7 @@ describe('usePersistedMap', () => {
 
   it('supports custom serializers', () => {
     createRoot(() => {
-      const m = usePersistedMap<number, number>(KEY, {
+      const m = createPersistedMap<number, number>(KEY, {
         serializeKey: String,
         deserializeKey: Number,
         serializeValue: String,

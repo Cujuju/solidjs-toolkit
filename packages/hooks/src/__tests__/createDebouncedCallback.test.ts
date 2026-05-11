@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { useDebouncedCallback } from '../useDebouncedCallback';
+import { createDebouncedCallback } from '../createDebouncedCallback';
 
-describe('useDebouncedCallback', () => {
+describe('createDebouncedCallback', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -13,7 +13,7 @@ describe('useDebouncedCallback', () => {
   it('delays invocation', () => {
     const fn = vi.fn();
     createRoot(() => {
-      const { call } = useDebouncedCallback(fn, 100);
+      const { call } = createDebouncedCallback(fn, 100);
       call('a');
       expect(fn).not.toHaveBeenCalled();
       vi.advanceTimersByTime(100);
@@ -24,7 +24,7 @@ describe('useDebouncedCallback', () => {
   it('only fires once per burst', () => {
     const fn = vi.fn();
     createRoot(() => {
-      const { call } = useDebouncedCallback(fn, 100);
+      const { call } = createDebouncedCallback(fn, 100);
       call('a');
       call('b');
       call('c');
@@ -37,7 +37,7 @@ describe('useDebouncedCallback', () => {
   it('cancel prevents invocation', () => {
     const fn = vi.fn();
     createRoot(() => {
-      const { call, cancel } = useDebouncedCallback(fn, 100);
+      const { call, cancel } = createDebouncedCallback(fn, 100);
       call('a');
       cancel();
       vi.advanceTimersByTime(100);
@@ -48,7 +48,7 @@ describe('useDebouncedCallback', () => {
   it('flush fires pending call immediately', () => {
     const fn = vi.fn();
     createRoot(() => {
-      const { call, flush } = useDebouncedCallback(fn, 100);
+      const { call, flush } = createDebouncedCallback(fn, 100);
       call('a');
       flush();
       expect(fn).toHaveBeenCalledWith('a');
@@ -58,7 +58,7 @@ describe('useDebouncedCallback', () => {
   it('cleans up on dispose', () => {
     const fn = vi.fn();
     const dispose = createRoot((d) => {
-      const { call } = useDebouncedCallback(fn, 100);
+      const { call } = createDebouncedCallback(fn, 100);
       call('a');
       return d;
     });
@@ -73,7 +73,7 @@ describe('useDebouncedCallback', () => {
     it('is false initially', () => {
       const fn = vi.fn();
       createRoot(() => {
-        const { isPending } = useDebouncedCallback(fn, 100);
+        const { isPending } = createDebouncedCallback(fn, 100);
         expect(isPending()).toBe(false);
       });
     });
@@ -81,7 +81,7 @@ describe('useDebouncedCallback', () => {
     it('flips true on call() before timer fires', () => {
       const fn = vi.fn();
       createRoot(() => {
-        const { call, isPending } = useDebouncedCallback(fn, 100);
+        const { call, isPending } = createDebouncedCallback(fn, 100);
         call('a');
         expect(isPending()).toBe(true);
         // Mid-window — still pending
@@ -93,7 +93,7 @@ describe('useDebouncedCallback', () => {
     it('flips false after timer fires', () => {
       const fn = vi.fn();
       createRoot(() => {
-        const { call, isPending } = useDebouncedCallback(fn, 100);
+        const { call, isPending } = createDebouncedCallback(fn, 100);
         call('a');
         vi.advanceTimersByTime(100);
         expect(fn).toHaveBeenCalledWith('a');
@@ -104,7 +104,7 @@ describe('useDebouncedCallback', () => {
     it('flips false after cancel()', () => {
       const fn = vi.fn();
       createRoot(() => {
-        const { call, cancel, isPending } = useDebouncedCallback(fn, 100);
+        const { call, cancel, isPending } = createDebouncedCallback(fn, 100);
         call('a');
         expect(isPending()).toBe(true);
         cancel();
@@ -115,7 +115,7 @@ describe('useDebouncedCallback', () => {
     it('flips false after flush()', () => {
       const fn = vi.fn();
       createRoot(() => {
-        const { call, flush, isPending } = useDebouncedCallback(fn, 100);
+        const { call, flush, isPending } = createDebouncedCallback(fn, 100);
         call('a');
         expect(isPending()).toBe(true);
         flush();
@@ -127,7 +127,7 @@ describe('useDebouncedCallback', () => {
     it('flips false even if fn throws (try/finally guard)', () => {
       const fn = vi.fn(() => { throw new Error('boom'); });
       createRoot(() => {
-        const { call, isPending } = useDebouncedCallback(fn, 100);
+        const { call, isPending } = createDebouncedCallback(fn, 100);
         call('a');
         expect(isPending()).toBe(true);
         // Timer fires inside this advance; fn throws; finally runs setPending(false).

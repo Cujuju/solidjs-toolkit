@@ -1,7 +1,7 @@
 import { type Accessor } from 'solid-js';
 import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';
 
-export interface UseEscapeKeyOptions {
+export interface CreateEscapeKeyOptions {
   /** Optional accessor gating the listener. When returns false, handler is suppressed. */
   enabled?: Accessor<boolean>;
 }
@@ -12,9 +12,9 @@ export interface UseEscapeKeyOptions {
  * @param handler - Callback fired on Escape keydown.
  * @param options - Options object (convention: `enabled` gate lives here).
  */
-export function useEscapeKey(
+export function createEscapeKey(
   handler: (e: KeyboardEvent) => void,
-  options: UseEscapeKeyOptions = {},
+  options: CreateEscapeKeyOptions = {},
 ): void {
   const enabled = options.enabled ?? (() => true);
 

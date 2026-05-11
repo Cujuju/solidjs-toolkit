@@ -4,7 +4,7 @@ import { createEffect, onCleanup, type Accessor } from 'solid-js';
  * Observes size changes on the referenced element. Calls `handler` with the
  * latest `ResizeObserverEntry` whenever the element's size changes.
  */
-export function useResizeObserver(
+export function createResizeObserver(
   elAccessor: Accessor<Element | undefined>,
   handler: (entry: ResizeObserverEntry) => void,
 ): void {

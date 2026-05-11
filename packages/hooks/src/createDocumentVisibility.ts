@@ -5,7 +5,7 @@ import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';
  * Reactive `document.visibilityState`. Updates when the user switches tabs
  * or minimises the window.
  */
-export function useDocumentVisibility(): Accessor<DocumentVisibilityState> {
+export function createDocumentVisibility(): Accessor<DocumentVisibilityState> {
   if (typeof document === 'undefined') {
     const [value] = createSignal<DocumentVisibilityState>('visible');
     return value;

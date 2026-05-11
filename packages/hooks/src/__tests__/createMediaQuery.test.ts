@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createRoot } from 'solid-js';
-import { useMediaQuery } from '../useMediaQuery';
+import { createMediaQuery } from '../createMediaQuery';
 
-describe('useMediaQuery', () => {
+describe('createMediaQuery', () => {
   it('returns an accessor without throwing', () => {
     // happy-dom's matchMedia returns matches=false for all queries, so this is
     // mostly a smoke test that the hook wires up without erroring.
     createRoot(() => {
-      const matches = useMediaQuery('(min-width: 768px)');
+      const matches = createMediaQuery('(min-width: 768px)');
       expect(typeof matches).toBe('function');
       expect(typeof matches()).toBe('boolean');
     });

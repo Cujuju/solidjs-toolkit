@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { useAsyncStatus } from '../useAsyncStatus';
+import { createAsyncStatus } from '../createAsyncStatus';
 
-describe('useAsyncStatus', () => {
+describe('createAsyncStatus', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -12,7 +12,7 @@ describe('useAsyncStatus', () => {
 
   it('transitions idle → loading → done → idle', async () => {
     await createRoot(async () => {
-      const { status, run } = useAsyncStatus(async () => 'ok', { resetMs: 1000 });
+      const { status, run } = createAsyncStatus(async () => 'ok', { resetMs: 1000 });
       expect(status()).toBe('idle');
       const p = run();
       expect(status()).toBe('loading');
@@ -25,7 +25,7 @@ describe('useAsyncStatus', () => {
 
   it('transitions idle → loading → error → idle', async () => {
     await createRoot(async () => {
-      const { status, error, run } = useAsyncStatus(async () => {
+      const { status, error, run } = createAsyncStatus(async () => {
         throw new Error('boom');
       }, { resetMs: 500 });
       await run();
@@ -38,7 +38,7 @@ describe('useAsyncStatus', () => {
 
   it('stays in error when resetOnError=false', async () => {
     await createRoot(async () => {
-      const { status, run } = useAsyncStatus(async () => {
+      const { status, run } = createAsyncStatus(async () => {
         throw new Error('boom');
       }, { resetMs: 500, resetOnError: false });
       await run();
@@ -50,7 +50,7 @@ describe('useAsyncStatus', () => {
 
   it('reset clears state', async () => {
     await createRoot(async () => {
-      const { status, result, run, reset } = useAsyncStatus(async () => 42);
+      const { status, result, run, reset } = createAsyncStatus(async () => 42);
       await run();
       expect(result()).toBe(42);
       reset();
@@ -61,7 +61,7 @@ describe('useAsyncStatus', () => {
 
   it('run returns the resolved value', async () => {
     await createRoot(async () => {
-      const { run } = useAsyncStatus(async (n: number) => n * 2);
+      const { run } = createAsyncStatus(async (n: number) => n * 2);
       const v = await run(5);
       expect(v).toBe(10);
     });
@@ -69,7 +69,7 @@ describe('useAsyncStatus', () => {
 
   it('run returns null on error', async () => {
     await createRoot(async () => {
-      const { run } = useAsyncStatus(async () => {
+      const { run } = createAsyncStatus(async () => {
         throw new Error('x');
       });
       const v = await run();
