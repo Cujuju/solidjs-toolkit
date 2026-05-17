@@ -113,6 +113,26 @@ describe('GlassMenu', () => {
     expect(getByText('Act')).toBeInTheDocument();
   });
 
+  it('clips overflow by default', () => {
+    const { container } = render(() => <GlassMenu title="T">body</GlassMenu>);
+    const root = container.firstElementChild as HTMLElement;
+    expect(
+      root.classList.contains('cujuju-glass-menu--overflow-visible'),
+    ).toBe(false);
+  });
+
+  it('opts out of clipping when overflow is "visible"', () => {
+    const { container } = render(() => (
+      <GlassMenu title="T" overflow="visible">
+        body
+      </GlassMenu>
+    ));
+    const root = container.firstElementChild as HTMLElement;
+    expect(
+      root.classList.contains('cujuju-glass-menu--overflow-visible'),
+    ).toBe(true);
+  });
+
   it('keeps the header divider by default', () => {
     const { container } = render(() => <GlassMenu title="T">body</GlassMenu>);
     const header = container.querySelector('.cujuju-glass-menu-header')!;

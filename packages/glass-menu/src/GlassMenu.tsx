@@ -24,6 +24,12 @@ export interface GlassMenuProps
    *  `false` for a flush header (no border-bottom) — e.g. an option
    *  list where a header-to-body rule reads as visual clutter. */
   headerDivider?: boolean;
+  /** Root `overflow`. Defaults to `'hidden'` — clips edge-to-edge body
+   *  content (e.g. full-width row hovers) to the rounded corners. Pass
+   *  `'visible'` for a menu whose children must paint past the surface
+   *  edge — a context menu with Portal-less submenus, or one relying on
+   *  the drop shadow rendering outside the box. */
+  overflow?: 'hidden' | 'visible';
   /** Forwarded to the root element so a caller (e.g. a positioned
    *  popover) can measure the surface. */
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
@@ -49,6 +55,7 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
     'headerAction',
     'onClose',
     'headerDivider',
+    'overflow',
     'children',
     'class',
   ]);
@@ -62,8 +69,10 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
     <div
       {...rest}
       class={`glass-menu cujuju-glass-menu${
-        local.class ? ` ${local.class}` : ''
-      }`}
+        local.overflow === 'visible'
+          ? ' cujuju-glass-menu--overflow-visible'
+          : ''
+      }${local.class ? ` ${local.class}` : ''}`}
     >
       <Show when={hasHeader()}>
         <div

@@ -59,6 +59,7 @@ Make it the positioned element directly — `ref`, `style`, `class`,
 | `headerAction` | `JSX.Element?` | Optional node between the title and the close button. |
 | `onClose` | `() => void`? | Close-button handler. The close button renders **only** when this is set. |
 | `headerDivider` | `boolean?` | Hairline under the header. Default `true`; `false` = flush header. |
+| `overflow` | `'hidden' \| 'visible'`? | Root overflow. Default `'hidden'` (clips body to rounded corners); `'visible'` for menus with edge-escaping children (submenus, shadows). |
 | `children` | `JSX.Element?` | Body content. |
 | ...rest | `JSX.HTMLAttributes<HTMLDivElement>` | `ref` / `style` / `class` / `role` / `aria-*` forwarded to the root. |
 

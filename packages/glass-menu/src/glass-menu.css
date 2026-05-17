@@ -17,6 +17,13 @@
   overflow: hidden;
 }
 
+/* Opt out of corner clipping — for a menu whose children must paint
+   past the surface edge (Portal-less submenus, edge-overflowing drop
+   shadows). Set via the `overflow="visible"` prop. */
+.cujuju-glass-menu--overflow-visible {
+  overflow: visible;
+}
+
 .cujuju-glass-menu-header {
   display: flex;
   align-items: center;
