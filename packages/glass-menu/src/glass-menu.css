@@ -1,0 +1,82 @@
+/* @cujuju/solidjs-glass-menu — chrome for the GlassMenu shell.
+
+   The `.glass-menu` surface treatment (tint, blur, border, shadow,
+   menu-scoped token rebinds) comes from `@cujuju/solidjs-glass`; this
+   stylesheet adds only the header / body LAYOUT on top.
+
+   Plain prefixed global classes (`cujuju-glass-menu*`), matching the
+   rest of the toolkit. Host theme tokens are referenced with inline
+   fallbacks so the shell renders standalone; a themed host overrides
+   them. NO position / width / height / z-index rules — the caller owns
+   placement and sizing on the root element. */
+
+.cujuju-glass-menu {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+.cujuju-glass-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm, 8px);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.18));
+  flex-shrink: 0;
+}
+
+/* Flush header — no hairline between header and body. Opt in via the
+   `headerDivider={false}` prop. */
+.cujuju-glass-menu-header--flush {
+  border-bottom: none;
+}
+
+.cujuju-glass-menu-title {
+  font-size: var(--font-size-base, 0.9375rem);
+  font-weight: 600;
+  color: var(--color-text, rgba(255, 255, 255, 0.95));
+  min-width: 0;
+}
+
+/* Right-side cluster — caller-supplied action slot + close button. */
+.cujuju-glass-menu-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 6px);
+  flex-shrink: 0;
+}
+
+.cujuju-glass-menu-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-text-secondary, rgba(255, 255, 255, 0.78));
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--transition-speed, 0.15s),
+    background-color var(--transition-speed, 0.15s);
+}
+
+.cujuju-glass-menu-close:hover {
+  color: var(--color-text, rgba(255, 255, 255, 0.95));
+  background: var(--color-border, rgba(255, 255, 255, 0.18));
+}
+
+/* Body — scrolls when the caller constrains the root's height.
+   `min-height: 0` lets the flex child shrink so `overflow-y` engages.
+   No padding: a padded panel and an edge-to-edge option list want
+   different insets, so the caller pads its own body content. */
+.cujuju-glass-menu-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

@@ -1,0 +1,173 @@
+/* @cujuju/solidjs-glass — glassmorphism surface system.
+
+   Two global surface classes plus the design tokens that drive them:
+
+   `.glass-panel` — translucent panel for CONTENT surfaces (chapter
+   lists, description sections, modals, hover preview cards). Page-tinted
+   so cover art and body content tint through.
+
+   `.glass-menu` — smoked-glass variant for MENU surfaces (popovers,
+   flyouts, context menus, listing actions or selectable rows). Smoked-
+   dark fill + luminance-clamped backdrop + inner edge bevel + menu-
+   scoped text/border/surface aliases. Reads uniformly over both bright
+   and dark backdrops.
+
+   Apply either class two ways:
+     - Plain global class on a JSX element: `class="glass-menu"`.
+     - From a CSS Module: `composes: glass-menu from global;`.
+
+   No display / position / width / height / padding rules belong here —
+   those live on the consumer's class so each surface controls its own
+   geometry. These rules are purely visual treatment.
+
+   Token defaults live in `@layer cujuju-defaults` so an unlayered host
+   theme overrides them regardless of CSS load order. The only HOST
+   tokens read are `--color-surface` and `--color-border`; both carry
+   layered fallbacks here so the package renders standalone.
+
+   `.glass-menu` text/border/raised/input tokens are intentionally
+   HARDCODED white-alpha — the menu assumes a smoked-dark backdrop
+   regardless of host theme. A light theme cannot use `.glass-menu`
+   without redesigning the `--color-menu-*` aliases.
+
+   The menu tint is user-tunable at runtime via the five
+   `--user-menu-tint-*` variables — see `menuTint.ts` / `MenuTintSection`,
+   which write them onto `document.documentElement`. */
+
+@layer cujuju-defaults {
+  :root {
+    /* Host theme inputs — fallbacks only; a host theme's unlayered
+       definitions override these. */
+    --color-surface: #16213e;
+    --color-border: rgba(255, 255, 255, 0.1);
+
+    /* Glassmorphism — translucent panel surface + backdrop blur.
+       Saturate >100% prevents the blur from washing out colors behind.
+       `--surface-glass-border` sits brighter than `--color-border` so
+       the panel edge stays legible against translucent body content.
+       The outer drop layers are extracted so `.glass-menu` can
+       reference them without re-declaring the literals. */
+    --surface-glass-blur: 10px;
+    --surface-glass-saturate: 140%;
+    --surface-glass: color-mix(in srgb, var(--color-surface) 35%, transparent);
+    --surface-glass-border: color-mix(in srgb, white 14%, var(--color-border));
+    --surface-glass-shadow-outer:
+      0 16px 48px rgba(0, 0, 0, 0.55),
+      0 2px 6px rgba(0, 0, 0, 0.35);
+    --surface-glass-shadow:
+      var(--surface-glass-shadow-outer),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+    /* Menu-variant tuning — luminance compression (contrast +
+       brightness) inside the backdrop-filter chain so menu surfaces
+       read as glass over both bright and dark content. The contrast/
+       brightness pair pulls the FILTERED backdrop toward middle gray
+       BEFORE the surface tint paints on top. The two edge tokens drive
+       the inner Fresnel-style highlight + base shadow framing the
+       panel. */
+    --surface-glass-menu-contrast: 0.78;
+    --surface-glass-menu-brightness: 0.92;
+    --surface-glass-menu-edge-highlight: rgba(255, 255, 255, 0.22);
+    --surface-glass-menu-edge-shadow: rgba(0, 0, 0, 0.14);
+
+    /* Menu tint knobs — five user-tunable inputs to the surface-derived
+       menu tint formula. The MenuTintSection settings panel and the
+       menuTint.ts engine write these onto documentElement at runtime.
+
+         1. darken: percent black mixed into the saturation-adjusted
+            surface. Higher -> darker tint. Range 0-60%, default 35%.
+         2. alpha: outer translucency. Higher -> more solid. Range
+            5-50%, default 35%.
+         3. saturate: multiplier on `--color-surface`'s saturation
+            before mixing. Range 0-2, default 1.
+         4. backdrop-saturate: multiplier on the `backdrop-filter:
+            saturate()` applied to content bleeding THROUGH the menu.
+            Range 0-2, default 0.8.
+         5. blur: backdrop-filter blur radius. Range 0-30px, default
+            10px. */
+    --user-menu-tint-darken: 35%;
+    --user-menu-tint-alpha: 35%;
+    --user-menu-tint-saturate: 1;
+    --user-menu-tint-backdrop-saturate: 0.8;
+    --user-menu-tint-blur: 10px;
+
+    /* Menu surface tint — derived from `--color-surface`, mutated by
+       the knobs above. Uses CSS relative-color syntax to read surface
+       hsl + scale saturation, then mixes with black, then composites
+       with transparent. Host surface swaps flow through automatically. */
+    --surface-glass-menu-tint: color-mix(
+      in srgb,
+      color-mix(
+        in srgb,
+        black var(--user-menu-tint-darken),
+        hsl(from var(--color-surface) h calc(s * var(--user-menu-tint-saturate)) l)
+      ) var(--user-menu-tint-alpha),
+      transparent
+    );
+
+    /* Menu text/border/surface tier — the smoked-glass menu tint sits
+       darker than `--color-surface`, so menu surfaces need their own
+       contrast ladder. `.glass-menu` rebinds the page-level aliases to
+       these values so every descendant picks them up automatically.
+       All values are hardcoded white-alpha — the menu always paints
+       over a smoked-dark backdrop and does NOT participate in theme
+       swaps. */
+    --color-menu-text: rgba(255, 255, 255, 0.95);
+    --color-menu-text-secondary: rgba(255, 255, 255, 0.78);
+    --color-menu-text-muted: rgba(255, 255, 255, 0.65);
+    --color-menu-border: rgba(255, 255, 255, 0.18);
+    --color-menu-surface-raised: rgba(255, 255, 255, 0.1);
+    --color-menu-input-bg: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.glass-panel {
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--surface-glass-blur)) saturate(var(--surface-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--surface-glass-blur)) saturate(var(--surface-glass-saturate));
+  border: 1px solid var(--surface-glass-border);
+  box-shadow: var(--surface-glass-shadow);
+}
+
+/* Menu-variant glass — extends `.glass-panel`'s base look with smoked
+   tint + luminance compression + an inner edge frame. The CSS variable
+   rebindings at the top swap every page-level text/border/surface token
+   to its menu equivalent for this scope, so descendants render with the
+   menu palette without per-module changes.
+
+   NOTE: any rule that sets `color: inherit` on a `.glass-menu`
+   descendant at higher specificity than this rule wins the cascade and
+   reverts to the host body's computed color — re-resolve `color` at
+   that descendant or drop the `color: inherit`. */
+.glass-menu {
+  --color-text: var(--color-menu-text);
+  --color-text-secondary: var(--color-menu-text-secondary);
+  --color-text-muted: var(--color-menu-text-muted);
+  --color-border: var(--color-menu-border);
+  --color-surface-raised: var(--color-menu-surface-raised);
+  --color-surface: var(--color-menu-input-bg);
+  /* Re-resolve `color` at this scope boundary using the rebound
+     `--color-text`. Without this the menu surface inherits the literal
+     computed value from the host <body>'s page-level `color`, which was
+     resolved before this rebind. */
+  color: var(--color-text);
+  background: var(--surface-glass-menu-tint);
+  backdrop-filter:
+    blur(var(--user-menu-tint-blur))
+    saturate(var(--user-menu-tint-backdrop-saturate))
+    contrast(var(--surface-glass-menu-contrast))
+    brightness(var(--surface-glass-menu-brightness));
+  -webkit-backdrop-filter:
+    blur(var(--user-menu-tint-blur))
+    saturate(var(--user-menu-tint-backdrop-saturate))
+    contrast(var(--surface-glass-menu-contrast))
+    brightness(var(--surface-glass-menu-brightness));
+  border: 1px solid var(--surface-glass-border);
+  /* Outer drop reuses `--surface-glass-shadow-outer` so a retune of the
+     panel's outer shadow propagates here automatically. The two inner
+     insets frame the panel's edge as a beveled tile. */
+  box-shadow:
+    var(--surface-glass-shadow-outer),
+    inset 0 1px 0 0 var(--surface-glass-menu-edge-highlight),
+    inset 0 -1px 0 0 var(--surface-glass-menu-edge-shadow);
+}

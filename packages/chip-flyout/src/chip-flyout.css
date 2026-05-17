@@ -1,0 +1,228 @@
+/* @cujuju/solidjs-chip-flyout — trigger + panel-content styling.
+
+   Plain prefixed global classes (`cujuju-cf-*`), matching the toolkit.
+   The panel's surface + header/close/body chrome come from
+   `@cujuju/solidjs-glass-menu` (`GlassMenu`); this stylesheet owns only
+   the trigger button, the +N/-N badges, and the in-body controls
+   (search input, chip rows, group headers, status text, "Load more").
+
+   References host theme tokens directly (`--color-*`, `--font-size-*`,
+   `--radius-*`, `--height-btn`, `--spacing-*`, `--transition-speed`) —
+   see the package README for the required set. `--z-flyout` carries an
+   inline fallback so the Portal'd panel still layers above page content
+   when a host omits it. */
+
+/* ── Trigger button (secondary-button sized) ───────────────────── */
+
+.cujuju-cf-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: var(--height-btn);
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--transition-speed),
+    border-color var(--transition-speed),
+    color var(--transition-speed);
+}
+
+.cujuju-cf-trigger:hover,
+.cujuju-cf-trigger--active {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.cujuju-cf-trigger--active {
+  background: var(--color-primary-alpha-10);
+}
+
+.cujuju-cf-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* +N / -N badges on the trigger. */
+.cujuju-cf-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cujuju-cf-badge--included {
+  background: var(--color-success-alpha-20);
+  color: var(--color-success);
+}
+
+.cujuju-cf-badge--excluded {
+  background: var(--color-danger-alpha-25);
+  color: var(--color-danger);
+}
+
+/* ── Panel — applied to the GlassMenu root ─────────────────────── */
+
+/* GlassMenu supplies display/flex/border-radius/overflow + the glass
+   surface; this class adds only placement + the scroll clamp. The
+   dynamic top/left/min-width/max-width are set inline by the
+   component. */
+.cujuju-cf-panel {
+  position: fixed;
+  z-index: var(--z-flyout, 1000);
+  max-height: 60vh;
+}
+
+/* Body content column — sits inside GlassMenu's scrollable body and
+   supplies the panel inset (GlassMenu's body is unpadded). */
+.cujuju-cf-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: 12px 14px;
+}
+
+/* Text-only Clear button — passed as the GlassMenu header action.
+   Styled subtly so it doesn't compete with the chip toggles. */
+.cujuju-cf-clear {
+  border: none;
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--transition-speed),
+    background-color var(--transition-speed);
+}
+
+.cujuju-cf-clear:hover {
+  color: var(--color-primary);
+  background: var(--color-border);
+}
+
+/* ── Async-typeahead extensions ───────────────────────────────── */
+
+/* Search input renders inside the panel body when the caller wires
+   `onSearchInput`. */
+.cujuju-cf-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  height: var(--height-btn);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  outline: none;
+  transition:
+    border-color var(--transition-speed),
+    box-shadow var(--transition-speed);
+}
+
+.cujuju-cf-search:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-alpha-10);
+}
+
+/* Single-line affordance for "Loading…" / "No matches." text. */
+.cujuju-cf-status {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding: 4px 2px;
+  text-align: center;
+}
+
+/* "Load more" sentinel — outlined button at the bottom of the panel. */
+.cujuju-cf-load-more {
+  align-self: center;
+  margin-top: 4px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--transition-speed),
+    border-color var(--transition-speed),
+    background-color var(--transition-speed);
+}
+
+.cujuju-cf-load-more:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-alpha-10);
+}
+
+/* ── Chips ─────────────────────────────────────────────────────── */
+
+/* The chip element is rendered by `@cujuju/solidjs-tri-state-chip`
+   (`.ctc-chip` global class). Its theme vars (`--ctc-*`) are overridden
+   here so chips match the host's design-token palette instead of the
+   library's hex-coded defaults. Setting `--ctc-*` on `.cujuju-cf-chips`
+   cascades down to every `.ctc-chip` rendered inside. */
+.cujuju-cf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+
+  /* Unselected — high-contrast neutral chip. */
+  --ctc-bg: var(--color-background);
+  --ctc-color: var(--color-text);
+  --ctc-border: 1px solid var(--color-border);
+  --ctc-border-hover: 1px solid var(--color-primary);
+
+  /* Included — success/green accent. */
+  --ctc-bg-included: var(--color-success-alpha-15);
+  --ctc-color-included: var(--color-success);
+  --ctc-border-included: 1px solid var(--color-success);
+  --ctc-bg-included-hover: var(--color-success-alpha-25);
+
+  /* Excluded — danger/red accent. */
+  --ctc-bg-excluded: var(--color-danger-alpha-15);
+  --ctc-color-excluded: var(--color-danger);
+  --ctc-border-excluded: 1px solid var(--color-danger);
+  --ctc-bg-excluded-hover: var(--color-danger-alpha-25);
+
+  /* Layout. */
+  --ctc-padding: 5px 10px;
+  --ctc-radius: var(--radius-btn);
+  --ctc-font-size: var(--font-size-sm);
+  --ctc-font-weight: 500;
+  --ctc-transition: var(--transition-speed);
+}
+
+/* ── Group headers ────────────────────────────────────────────── */
+
+.cujuju-cf-group-header {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: var(--spacing-sm);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cujuju-cf-group-header:first-child {
+  margin-top: 0;
+}

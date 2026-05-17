@@ -1,0 +1,356 @@
+/* @cujuju/solidjs-glass — MenuTintSection styling.
+
+   Plain global classes (prefixed `cujuju-mt-`) rather than CSS Modules,
+   matching the rest of the toolkit. The component applies these class
+   names as plain strings.
+
+   Geometry tokens live in `@layer cujuju-defaults` so a host can
+   override slider dimensions; the slider thumb/track/tick sizes stay
+   coupled through them.
+
+   This stylesheet references HOST theme tokens (`--color-*`,
+   `--font-size-*`, `--radius-*`, `--height-btn`, `--transition-speed-
+   fast`). MenuTintSection is a settings panel for a themed host — see
+   the package README for the required token list. The live-preview row
+   additionally needs the `.glass-menu` class from `glass.css`. */
+
+@layer cujuju-defaults {
+  :root {
+    /* Menu-tint slider geometry. Tick height derives from track height
+       minus 2x border so ticks always fit inside the rail interior. */
+    --cujuju-mt-thumb-size: 20px;
+    --cujuju-mt-track-height: 14px;
+    --cujuju-mt-track-border: 1px;
+    --cujuju-mt-tick-width: 2px;
+  }
+}
+
+/* Section wrapper. */
+.cujuju-mt-section {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cujuju-mt-description {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.cujuju-mt-label {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* Stack of knob rows. */
+.cujuju-mt-knobs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cujuju-mt-knob-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 56px;
+  align-items: center;
+  gap: 12px;
+}
+
+.cujuju-mt-knob-label {
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+}
+
+/* Slider chrome — three-layer architecture so painting order is
+   deterministic:
+     1. `.cujuju-mt-knob-track-bg`  (z=0, absolute) — gradient + border + radius
+     2. `.cujuju-mt-knob-tick-row`  (z=1, absolute) — colored preset ticks
+     3. `.cujuju-mt-knob-slider`    (z=2, relative) — transparent input
+                                      whose pseudo-thumb paints over the ticks
+   The native pseudo-thumb is part of the input's stacking context, so
+   the input MUST be positioned with z-index higher than the tick row
+   for the thumb to paint over the ticks.
+
+   Positioning math anchors ticks to the THUMB's reachable extremes
+   (thumb-center moves between `thumbRadius` and `width - thumbRadius`),
+   not the wrap's edges. */
+
+.cujuju-mt-knob-track-wrap {
+  position: relative;
+  height: var(--cujuju-mt-thumb-size);
+}
+
+/* Track background — absolute layer beneath input + ticks. */
+.cujuju-mt-knob-track-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--cujuju-mt-track-height);
+  margin-top: calc(var(--cujuju-mt-track-height) / -2);
+  border: var(--cujuju-mt-track-border) solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-raised);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Darken: surface (left, 0% black) -> 60%-black-mixed surface (right). */
+.cujuju-mt-knob-track-bg-darken {
+  background: linear-gradient(
+    to right,
+    var(--color-surface),
+    color-mix(in srgb, black 60%, var(--color-surface))
+  );
+}
+
+/* Alpha: 15%-alpha surface (left) -> 50%-alpha surface (right) over a
+   checkerboard so the user sees translucency at low alpha values. */
+.cujuju-mt-knob-track-bg-alpha {
+  background:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-surface) 15%, transparent),
+      color-mix(in srgb, var(--color-surface) 50%, transparent)
+    ),
+    repeating-conic-gradient(
+      var(--color-surface-raised) 0% 25%,
+      var(--color-border) 0% 50%
+    )
+    50% / 6px 6px;
+}
+
+/* Saturate: grayscale (left, 0x) -> unchanged (middle, 1x) ->
+   over-saturated (right, 2x). The @supports guard upgrades to CSS
+   relative-color syntax where supported. */
+.cujuju-mt-knob-track-bg-saturate {
+  background: linear-gradient(
+    to right,
+    var(--color-text-muted),
+    var(--color-surface) 50%,
+    var(--color-primary)
+  );
+}
+@supports (background: hsl(from red h s l)) {
+  .cujuju-mt-knob-track-bg-saturate {
+    background: linear-gradient(
+      to right,
+      hsl(from var(--color-surface) h 0% l),
+      var(--color-surface) 50%,
+      hsl(from var(--color-surface) h calc(s * 2) l)
+    );
+  }
+}
+
+/* Tick row — sits above the gradient, below the input/thumb. */
+.cujuju-mt-knob-tick-row {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Tick mark. Width + color set inline per preset. Height clips to the
+   track interior; horizontal position anchors to the thumb's reachable
+   extremes via the `--cujuju-mt-tick-pct` custom property (unitless
+   0-100 from the consumer). */
+.cujuju-mt-knob-tick {
+  position: absolute;
+  top: 50%;
+  width: var(--cujuju-mt-tick-width);
+  height: calc(var(--cujuju-mt-track-height) - 2 * var(--cujuju-mt-track-border));
+  margin-top: calc((var(--cujuju-mt-track-height) - 2 * var(--cujuju-mt-track-border)) / -2);
+  transform: translateX(-50%);
+  left: calc(
+    var(--cujuju-mt-thumb-size) / 2
+    + var(--cujuju-mt-tick-pct, 0) * (100% - var(--cujuju-mt-thumb-size)) / 100
+  );
+}
+
+/* Slider input — transparent shell hosting the pseudo-thumb. */
+.cujuju-mt-knob-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: var(--cujuju-mt-thumb-size);
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+/* Thumb — hollow white ring riding over the track. Transparent center
+   so the colored preset tick beneath shows THROUGH the thumb when the
+   slider sits on a preset value. */
+.cujuju-mt-knob-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--cujuju-mt-thumb-size);
+  height: var(--cujuju-mt-thumb-size);
+  border-radius: 50%;
+  background: transparent;
+  border: 3px solid var(--color-text-on-overlay);
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.cujuju-mt-knob-slider::-moz-range-thumb {
+  width: var(--cujuju-mt-thumb-size);
+  height: var(--cujuju-mt-thumb-size);
+  border-radius: 50%;
+  background: transparent;
+  border: 3px solid var(--color-text-on-overlay);
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.cujuju-mt-knob-value {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preset chip row — right-aligned, wraps on narrow viewports. */
+.cujuju-mt-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.cujuju-mt-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--height-btn);
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-speed-fast),
+    border-color var(--transition-speed-fast),
+    color var(--transition-speed-fast);
+}
+
+/* Leading dot — same color as the preset's matching slider tick. */
+.cujuju-mt-preset-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.cujuju-mt-preset-chip:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.cujuju-mt-preset-chip--active {
+  background: var(--color-primary-alpha-20);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+/* Live preview stage — anchors backdrop boxes behind the menu so the
+   user sees the smoked-glass tint against extreme luminances. */
+.cujuju-mt-preview-stage {
+  position: relative;
+  width: 260px;
+  margin-top: 4px;
+  margin-left: auto;
+}
+
+/* Backdrop layer — two reference rectangles at the menu centerline. */
+.cujuju-mt-preview-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.cujuju-mt-preview-box-black,
+.cujuju-mt-preview-box-white {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 25%;
+}
+
+.cujuju-mt-preview-box-black {
+  top: 25%;
+  background: #000;
+}
+
+.cujuju-mt-preview-box-white {
+  top: 50%;
+  background: #fff;
+}
+
+/* Live preview menu surface — the `.glass-menu` class (from glass.css)
+   is applied alongside this one in the component markup so the preview
+   reads as the actual menu chrome. `position: relative` + z-index keep
+   it painted ABOVE the backdrop boxes. */
+.cujuju-mt-preview {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--radius-md);
+  padding: 8px 0;
+  width: 260px;
+}
+
+.cujuju-mt-preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: var(--font-size-md);
+}
+
+.cujuju-mt-preview-row--primary {
+  color: var(--color-text);
+}
+
+.cujuju-mt-preview-row--secondary {
+  color: var(--color-text-secondary);
+}
+
+.cujuju-mt-preview-pill {
+  font-size: var(--font-size-xs);
+  padding: 1px 8px;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+}
+
+.cujuju-mt-preview-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 0;
+}
+
+.cujuju-mt-preview-footer {
+  padding: 6px 14px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
