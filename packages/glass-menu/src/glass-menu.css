@@ -33,11 +33,15 @@
   border-bottom: none;
 }
 
+/* Title region — grows to fill the header so the action cluster hugs
+   the right edge; `min-width: 0` lets long titles truncate rather than
+   force the header wider. */
 .cujuju-glass-menu-title {
+  flex: 1;
+  min-width: 0;
   font-size: var(--font-size-base, 0.9375rem);
   font-weight: 600;
   color: var(--color-text, rgba(255, 255, 255, 0.95));
-  min-width: 0;
 }
 
 /* Right-side cluster — caller-supplied action slot + close button. */
@@ -73,10 +77,14 @@
 
 /* Body — scrolls when the caller constrains the root's height.
    `min-height: 0` lets the flex child shrink so `overflow-y` engages.
-   No padding: a padded panel and an edge-to-edge option list want
-   different insets, so the caller pads its own body content. */
+   A flex column so a consumer can give one child `flex: 1` for an
+   internal scroll region and keep a sibling (e.g. a footer affordance)
+   pinned. No padding: a padded panel and an edge-to-edge option list
+   want different insets, so the caller pads its own body content. */
 .cujuju-glass-menu-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
 }

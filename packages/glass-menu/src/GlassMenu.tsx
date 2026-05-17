@@ -73,10 +73,11 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
               : ''
           }`}
         >
-          {/* Always rendered inside the header so the actions cluster
-              stays right-aligned (space-between) even when there is no
-              title — the empty span collapses to zero width. */}
-          <span class="cujuju-glass-menu-title">{local.title}</span>
+          {/* Always rendered so the actions cluster stays right-
+              aligned even with no title — an empty title div has zero
+              content width. A `div` (not `span`) so callers can pass
+              block content, e.g. a stacked stats cluster. */}
+          <div class="cujuju-glass-menu-title">{local.title}</div>
           <div class="cujuju-glass-menu-header-actions">
             {local.headerAction}
             <Show when={local.onClose}>
