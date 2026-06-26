@@ -1,4 +1,5 @@
 import { createSignal, createMemo, onMount, Show, type JSX } from 'solid-js';
+import { Portal } from 'solid-js/web';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import type { ContextMenuEntry } from './types';
@@ -139,22 +140,30 @@ export function ContextMenu(props: ContextMenuProps) {
     </>
   );
 
-  return props.surface === 'solid' ? (
-    <div
-      ref={setMenu}
-      class="cujuju-context-menu cujuju-context-menu--solid"
-      style={menuStyle()}
-    >
-      {renderBody()}
-    </div>
-  ) : (
-    <GlassMenu
-      overflow="visible"
-      ref={setMenu}
-      class="cujuju-context-menu"
-      style={menuStyle()}
-    >
-      {renderBody()}
-    </GlassMenu>
+  // Portal to <body> so the menu does NOT inherit the consumer's ancestor
+  // cascade (e.g. a chart panel that sets `color` on its subtree would otherwise
+  // tint the menu's un-coloured label spans invisible). Painting is already
+  // top-layer via popover; the Portal is purely to escape DOM-ancestry styling.
+  return (
+    <Portal>
+      {props.surface === 'solid' ? (
+        <div
+          ref={setMenu}
+          class="cujuju-context-menu cujuju-context-menu--solid"
+          style={menuStyle()}
+        >
+          {renderBody()}
+        </div>
+      ) : (
+        <GlassMenu
+          overflow="visible"
+          ref={setMenu}
+          class="cujuju-context-menu"
+          style={menuStyle()}
+        >
+          {renderBody()}
+        </GlassMenu>
+      )}
+    </Portal>
   );
 }

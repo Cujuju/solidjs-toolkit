@@ -232,6 +232,13 @@
   padding: 0;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
+  /* Pin line-height: a host ancestor that sets `line-height: 0` (common on
+     chart/canvas containers to kill inline-gap) would otherwise collapse the
+     label spans — which carry `overflow:hidden` for ellipsis — to 0 height,
+     clipping the text to nothing (icons + shortcut, lacking overflow:hidden,
+     still paint, so only the labels vanish). The Portal escapes most ancestor
+     cascade; this is the belt-and-suspenders so menu text is never clipped. */
+  line-height: 1.4;
   color: var(--color-text-secondary, #94a3b8);
   user-select: none;
 }
@@ -268,6 +275,12 @@
   min-width: 16px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--color-text-muted, #64748b);
+}
+/* Explicit label colour (belt-and-suspenders with the Portal): the label span
+   would otherwise inherit, and a hostile host-ancestor `color` could tint it
+   invisible. Pin it to the row's intended secondary text colour. */
+.cujuju-context-menu--solid .cujuju-context-menu-label {
+  color: var(--color-text-secondary, #94a3b8);
 }
 .cujuju-context-menu--solid .cujuju-context-menu-shortcut {
   margin-left: 12px;
