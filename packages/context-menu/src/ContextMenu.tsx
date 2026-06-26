@@ -1,8 +1,8 @@
-import { createSignal, onMount } from 'solid-js';
+import { createSignal, createMemo, onMount, Show, type JSX } from 'solid-js';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import type { ContextMenuEntry } from './types';
-import { MenuEntries } from './MenuEntries';
+import { MenuEntries, type ContextMenuSurface } from './MenuEntries';
 import { VIEWPORT_MARGIN_PX } from './submenuPosition';
 import { createDocumentListener } from './_internal/createDocumentListener';
 import { POPOVER_STACK_ATTR_SELECTOR } from './_internal/popoverStack';
@@ -18,6 +18,16 @@ export interface ContextMenuProps {
    *  non-`keepOpen` item activation. The caller owns open state; render
    *  `<ContextMenu>` while open and stop rendering it on `onClose`. */
   onClose: () => void;
+  /** Surface treatment. `'glass'` (default) renders the glassmorphism
+   *  `GlassMenu` shell; `'solid'` renders a plain opaque card
+   *  (`.cujuju-context-menu--solid`, host-themed) for apps that want a flat
+   *  menu instead of glass. Submenu flyouts inherit it. */
+  surface?: ContextMenuSurface;
+  /** Optional custom header band rendered above the items, inside the menu
+   *  surface (e.g. a title + metadata row). */
+  header?: () => JSX.Element;
+  /** Minimum menu width in px. Overrides the stylesheet's default floor. */
+  minWidth?: number;
 }
 
 /**
@@ -93,32 +103,58 @@ export function ContextMenu(props: ContextMenuProps) {
     });
   });
 
-  return (
-    <GlassMenu
-      overflow="visible"
-      ref={(el) => {
-        menuRef = el;
-        // Set `popover` via ref, not a JSX attribute: Solid's JSX types
-        // do not yet include the global `popover` attr. Manual mode —
-        // the UA does NOT auto-dismiss; the document listeners above
-        // own dismiss.
-        el.setAttribute('popover', 'manual');
-      }}
-      class="cujuju-context-menu"
-      style={{
-        position: 'fixed',
-        left: `${pos().x}px`,
-        top: `${pos().y}px`,
-        // Cap the menu's own width so very narrow viewports force
-        // content to wrap/truncate inside rather than clipping.
-        'max-width': `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
-      }}
-    >
+  // Set `popover` via ref, not a JSX attribute (Solid's JSX types lack the
+  // global `popover` attr). Manual mode — the document listeners above own
+  // dismiss. Shared by both surface branches so positioning + dismiss are
+  // identical regardless of glass/solid.
+  const setMenu = (el: HTMLDivElement) => {
+    menuRef = el;
+    el.setAttribute('popover', 'manual');
+  };
+
+  // Reactive style so the onMount clamp (setPos) repositions the menu. A memo
+  // read in the JSX style binding stays reactive; a plain object built once
+  // would freeze left/top at the pre-clamp coords.
+  const menuStyle = createMemo<JSX.CSSProperties>(() => ({
+    position: 'fixed',
+    left: `${pos().x}px`,
+    top: `${pos().y}px`,
+    // Cap width so very narrow viewports wrap/truncate inside rather than clip.
+    'max-width': `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
+    ...(props.minWidth ? { 'min-width': `${props.minWidth}px` } : {}),
+  }));
+
+  // Header band (optional) + the entries. Shared by both surfaces.
+  const renderBody = () => (
+    <>
+      <Show when={props.header}>
+        <div class="cujuju-context-menu-header">{props.header!()}</div>
+      </Show>
       <MenuEntries
         items={props.items}
         onClose={props.onClose}
         parentMenuRef={() => menuRef ?? null}
+        surface={props.surface ?? 'glass'}
       />
+    </>
+  );
+
+  return props.surface === 'solid' ? (
+    <div
+      ref={setMenu}
+      class="cujuju-context-menu cujuju-context-menu--solid"
+      style={menuStyle()}
+    >
+      {renderBody()}
+    </div>
+  ) : (
+    <GlassMenu
+      overflow="visible"
+      ref={setMenu}
+      class="cujuju-context-menu"
+      style={menuStyle()}
+    >
+      {renderBody()}
     </GlassMenu>
   );
 }

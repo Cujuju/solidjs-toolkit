@@ -4,11 +4,13 @@
 import './context-menu.css';
 
 export { ContextMenu, type ContextMenuProps } from './ContextMenu';
+export type { ContextMenuSurface } from './MenuEntries';
 export type {
   ContextMenuItem,
   ContextMenuDivider,
   ContextMenuSlider,
   ContextMenuSubmenu,
   ContextMenuButtonRow,
+  ContextMenuCustom,
   ContextMenuEntry,
 } from './types';

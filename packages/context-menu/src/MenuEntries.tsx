@@ -11,7 +11,14 @@ import {
   isSlider,
   isSubmenu,
   isButtonRow,
+  isCustom,
 } from './types';
+
+/** Surface treatment shared by a menu and all its descendant submenus.
+ *  `'glass'` (default) = the `GlassMenu` glassmorphism shell; `'solid'` = a
+ *  plain opaque card (host-themed via `.cujuju-context-menu--solid`). Threaded
+ *  through every level so submenu flyouts match their parent. */
+export type ContextMenuSurface = 'glass' | 'solid';
 import { computeSubmenuStyle } from './submenuPosition';
 import { POPOVER_STACK_ATTR } from './_internal/popoverStack';
 
@@ -52,6 +59,7 @@ function SubmenuItem(props: {
   activeSubmenu: () => number;
   setActiveSubmenu: (i: number) => void;
   parentMenuRef: () => HTMLElement | null;
+  surface: ContextMenuSurface;
 }) {
   const [filter, setFilter] = createSignal('');
   const [flyoutStyle, setFlyoutStyle] = createSignal<Record<string, string>>({});
@@ -144,6 +152,42 @@ function SubmenuItem(props: {
     });
   };
 
+  // Set `popover` via ref, not a JSX attribute: Solid's JSX types do not yet
+  // include the global `popover` attr. Manual mode — the UA does NOT
+  // auto-dismiss; the menu's document mousedown/keydown listeners +
+  // [data-popover-stack] own dismiss.
+  const setFlyout = (el: HTMLDivElement) => {
+    flyoutRef = el;
+    el.setAttribute('popover', 'manual');
+  };
+
+  // Flyout body — built lazily (called only inside the open branch) so a closed
+  // submenu never mounts its children. A nested sub-submenu tucks under THIS
+  // submenu, not the grandparent (pass our own flyout as parentMenuRef), and
+  // inherits our surface so glass/solid stays consistent all the way down.
+  const renderFlyoutBody = () => (
+    <>
+      <Show when={props.item.scrollable}>
+        <div class="cujuju-context-menu-flyout-search">
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Search..."
+            onInput={(e) => setFilter(e.currentTarget.value)}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+        </div>
+      </Show>
+      <MenuEntries
+        items={filteredChildren()}
+        onClose={props.onClose}
+        parentMenuRef={() => flyoutRef ?? null}
+        surface={props.surface}
+      />
+    </>
+  );
+
   return (
     <div
       ref={wrapperRef}
@@ -155,7 +199,11 @@ function SubmenuItem(props: {
           <span class="cujuju-context-menu-icon">{props.item.icon}</span>
         </Show>
         <span class="cujuju-context-menu-label">{props.item.label}</span>
-        <span class="cujuju-context-menu-chevron">›</span>
+        {/* Arrow glyph differs by surface: solid mirrors the host's ▶
+            right-pointing context-menu arrow; glass keeps the lighter › . */}
+        <span class="cujuju-context-menu-chevron">
+          {props.surface === 'solid' ? '▶' : '›'}
+        </span>
       </div>
       <Show when={isOpen()}>
         {/* Portal the submenu out of the parent menu's DOM tree.
@@ -163,52 +211,30 @@ function SubmenuItem(props: {
             Portaling also (a) sidesteps the `backdrop-filter`
             containing-block trap (a glass ancestor re-anchors
             `position: fixed` descendants per spec), and (b) keeps each
-            popover a self-contained body-level child. */}
+            popover a self-contained body-level child.
+            `data-popover-stack` marks it as part of the popover stack so
+            the menu's own dismiss skips clicks inside it. */}
         <Portal>
-          {/* `data-popover-stack` marks this Portal'd element as part
-              of the popover stack — the menu's own dismiss skips clicks
-              inside it, and a host's popover machinery can honor the
-              same attribute. See `_internal/popoverStack.ts`. */}
-          <GlassMenu
-            overflow="visible"
-            ref={(el) => {
-              flyoutRef = el;
-              // Set `popover` via ref, not a JSX attribute: Solid's JSX
-              // types do not yet include the global `popover` attr.
-              // Manual mode — the UA does NOT auto-dismiss; the menu's
-              // document mousedown/keydown listeners + the
-              // [data-popover-stack] skip own dismiss.
-              el.setAttribute('popover', 'manual');
-            }}
-            class="cujuju-context-menu cujuju-context-menu-flyout"
-            {...{ [POPOVER_STACK_ATTR]: '' }}
-            style={flyoutStyle()}
-          >
-            <Show when={props.item.scrollable}>
-              <div class="cujuju-context-menu-flyout-search">
-                <input
-                  ref={searchRef}
-                  type="text"
-                  placeholder="Search..."
-                  onInput={(e) => setFilter(e.currentTarget.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                />
-              </div>
-            </Show>
-            <MenuEntries
-              items={filteredChildren()}
-              onClose={props.onClose}
-              // A nested sub-submenu tucks under THIS submenu, not the
-              // grandparent — pass our own flyout element. Forwarding
-              // `props.parentMenuRef` (the menu one level UP) would
-              // anchor a 3-deep submenu off the top menu's right edge,
-              // overlapping its actual parent, and re-promote the wrong
-              // menu in the top-layer LIFO so the sub-submenu paints
-              // ABOVE its parent instead of sliding out from under it.
-              parentMenuRef={() => flyoutRef ?? null}
-            />
-          </GlassMenu>
+          {props.surface === 'solid' ? (
+            <div
+              ref={setFlyout}
+              class="cujuju-context-menu cujuju-context-menu-flyout cujuju-context-menu--solid"
+              {...{ [POPOVER_STACK_ATTR]: '' }}
+              style={flyoutStyle()}
+            >
+              {renderFlyoutBody()}
+            </div>
+          ) : (
+            <GlassMenu
+              overflow="visible"
+              ref={setFlyout}
+              class="cujuju-context-menu cujuju-context-menu-flyout"
+              {...{ [POPOVER_STACK_ATTR]: '' }}
+              style={flyoutStyle()}
+            >
+              {renderFlyoutBody()}
+            </GlassMenu>
+          )}
         </Portal>
       </Show>
     </div>
@@ -224,6 +250,8 @@ export function MenuEntries(props: {
   items: ContextMenuEntry[];
   onClose: () => void;
   parentMenuRef: () => HTMLElement | null;
+  /** Surface treatment inherited from the owning menu (default `'glass'`). */
+  surface?: ContextMenuSurface;
 }) {
   const [activeSubmenu, setActiveSubmenu] = createSignal(-1);
 
@@ -232,6 +260,11 @@ export function MenuEntries(props: {
       {(item, index) => {
         if (isDivider(item)) return <hr class="cujuju-context-menu-divider" />;
         if (isSlider(item)) return <Show when={!item.when || item.when()}><SliderRow item={item} /></Show>;
+        if (isCustom(item)) {
+          // Host-supplied JSX row — no default padding/hover; the custom
+          // content owns its layout + interactions.
+          return <div class="cujuju-context-menu-custom">{item.custom()}</div>;
+        }
         if (isSubmenu(item)) {
           return (
             <SubmenuItem
@@ -241,6 +274,7 @@ export function MenuEntries(props: {
               activeSubmenu={activeSubmenu}
               setActiveSubmenu={setActiveSubmenu}
               parentMenuRef={props.parentMenuRef}
+              surface={props.surface ?? 'glass'}
             />
           );
         }
@@ -273,6 +307,7 @@ export function MenuEntries(props: {
           <button
             class={`cujuju-context-menu-item${mi.danger ? ' cujuju-context-menu-item-danger' : ''}`}
             disabled={mi.disabled}
+            title={mi.disabled ? mi.disabledTooltip : undefined}
             onClick={() => { mi.onClick(); if (!mi.keepOpen) props.onClose(); }}
             type="button"
           >
@@ -280,6 +315,10 @@ export function MenuEntries(props: {
               <span class="cujuju-context-menu-icon">{resolveIcon()}</span>
             </Show>
             <span class="cujuju-context-menu-label">{mi.label}</span>
+            {/* Right-aligned shortcut hint (display-only). */}
+            <Show when={mi.shortcut}>
+              <span class="cujuju-context-menu-shortcut">{mi.shortcut}</span>
+            </Show>
             {/* Checkbox-style state indicator. Rendered when `checked`
                 is explicitly defined (true or false). `false` still
                 reserves the slot so adjacent toggle items align

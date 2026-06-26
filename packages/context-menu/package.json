@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-context-menu",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cursor-positioned context menu for SolidJS — nested submenus, slider / button-row / checkbox entries, viewport clamping, top-layer popover, styled with the .glass-menu surface.",
   "type": "module",
   "main": "./dist/index.js",

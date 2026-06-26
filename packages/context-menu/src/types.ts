@@ -24,6 +24,12 @@ export interface ContextMenuItem {
    *  label stays constant and the checkmark communicates state.
    *  Undefined means no indicator (plain action item). */
   checked?: boolean;
+  /** Right-aligned shortcut hint (e.g. `'Alt+R'`), rendered dim + monospace
+   *  after the label. Display-only; the host owns the actual key binding. */
+  shortcut?: string;
+  /** Tooltip (`title`) shown on hover when the row is `disabled` — e.g. the
+   *  reason it's unavailable ("Coming soon"). Ignored unless `disabled`. */
+  disabledTooltip?: string;
 }
 
 /** A horizontal rule between entries. */
@@ -67,13 +73,22 @@ export interface ContextMenuButtonRow {
   }>;
 }
 
+/** A fully custom row — the host supplies arbitrary JSX (e.g. a color
+ *  swatch grid, a split pair of buttons, a key/value info block). The menu
+ *  renders it in a row wrapper with no default padding/hover so the custom
+ *  content owns its own layout + interactions. */
+export interface ContextMenuCustom {
+  custom: () => JSX.Element;
+}
+
 /** Any entry the menu can render. */
 export type ContextMenuEntry =
   | ContextMenuItem
   | ContextMenuDivider
   | ContextMenuSlider
   | ContextMenuSubmenu
-  | ContextMenuButtonRow;
+  | ContextMenuButtonRow
+  | ContextMenuCustom;
 
 export function isDivider(item: ContextMenuEntry): item is ContextMenuDivider {
   return 'divider' in item && (item as ContextMenuDivider).divider === true;
@@ -89,4 +104,8 @@ export function isSubmenu(item: ContextMenuEntry): item is ContextMenuSubmenu {
 
 export function isButtonRow(item: ContextMenuEntry): item is ContextMenuButtonRow {
   return 'row' in item && (item as ContextMenuButtonRow).row === true;
+}
+
+export function isCustom(item: ContextMenuEntry): item is ContextMenuCustom {
+  return 'custom' in item && typeof (item as ContextMenuCustom).custom === 'function';
 }
