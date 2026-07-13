@@ -1,3 +1,6 @@
 packages:
   - 'packages/*'
   - '!packages/_shared'
+  # Live dev harness. Private, never published — consumes the packages from source
+  # via workspace:* so an edit in packages/*/src hot-reloads without a build.
+  - 'playground'

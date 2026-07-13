@@ -9,7 +9,8 @@
     "url": "https://github.com/Cujuju/solidjs-toolkit.git"
   },
   "scripts": {
-    "build": "pnpm -r build",
+    "dev": "pnpm --filter playground dev",
+    "build": "pnpm -r --filter \"!playground\" build",
     "test": "pnpm -r test",
     "publish-all": "pnpm -r publish --access public --no-git-checks"
   },

@@ -47,6 +47,9 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "jsdom": "^24.0.0",
+    "vite-plugin-solid": "^2.11.12",
     "vitest": "^3.2.4"
   },
   "publishConfig": {

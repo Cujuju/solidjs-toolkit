@@ -1,0 +1,20 @@
+{
+  "name": "playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Live dev harness for the @cujuju/solidjs-* packages. Consumes them from SOURCE via the workspace, so edits hot-reload with no build, no publish, and no linking into a consuming app.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@cujuju/solidjs-pill-number-picker": "workspace:*",
+    "solid-js": "^1.9.5"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "vite-plugin-solid": "^2.11.12"
+  }
+}
