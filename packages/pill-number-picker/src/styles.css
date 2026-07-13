@@ -216,6 +216,50 @@
   min-width: 100%;
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Collapse + pop-out (`collapsible`).
+
+   Collapsed, the picker is the value cell alone. Because it is then a
+   :first-child AND a :last-child of .cpnp-items, the existing corner rules
+   round BOTH ends of it for free — it reads as a complete pill, not as a
+   control with its buttons torn off.
+
+   The panel is portalled to <body> and positioned in viewport coords by the
+   component, so it escapes any overflow:hidden / overflow-y:auto ancestor.
+   ────────────────────────────────────────────────────────────── */
+
+@layer cujuju-defaults {
+  :root {
+    --pnp-popout-z: 1000;
+    --pnp-popout-pad: 0px;
+    --pnp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* Collapsed cell: clickable, and hugging its digits (width comes from the
+   component as max-content, with the reserved width as a floor). */
+.cpnp-root[data-collapsible] .cpnp-anchor .cpnp-value {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Open: the anchor is a layout placeholder for the row. Dimmed, because the
+   live control is the panel floating above it — two identical numbers at equal
+   weight would be a puzzle. */
+.cpnp-root[data-collapsible][data-open] .cpnp-anchor .cpnp-value {
+  opacity: 0.45;
+}
+
+.cpnp-popout {
+  z-index: var(--pnp-popout-z);
+  padding: var(--pnp-popout-pad);
+  border-radius: var(--pnp-radius);
+  box-shadow: var(--pnp-popout-shadow);
+  /* The panel is its own layer; it must not inherit a clipped/parent stacking
+     context's text alignment or wrapping. */
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cpnp-btn, .cpnp-value, .cpnp-input { transition: none !important; }
 }

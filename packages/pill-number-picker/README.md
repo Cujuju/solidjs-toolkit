@@ -1,6 +1,6 @@
 # @cujuju/solidjs-pill-number-picker
 
-Compact number stepper for SolidJS. 8 layouts (horizontal + vertical). Auto-repeat with optional acceleration. Full spinbutton a11y. RTL-ready via CSS logical properties.
+Compact number stepper for SolidJS. 8 layouts (horizontal + vertical). Optional collapse-to-value with a portalled pop-out. Auto-repeat with optional acceleration. Full spinbutton a11y. RTL-ready via CSS logical properties.
 
 ## Install
 
@@ -37,7 +37,10 @@ const [qty, setQty] = createSignal(1);
 | `size` | `'md'` | `'xs'` / `'sm'` / `'md'`. |
 | `width`, `height`, `buttonWidth`, `fontSize` | (preset) | Raw overrides. |
 | `layout` | `'value-inc-dec'` | See layout table below. |
-| `editable` | `true` | Click value to edit inline. |
+| `collapsible` | `false` | Collapse to the value alone; reveal the buttons in a pop-out on demand. See below. |
+| `open`, `onOpenChange` | (uncontrolled) | Controlled pop-out state. Omit `open` to let the component own it. |
+| `popoutGap` | `4` | px between the collapsed value and the pop-out panel. |
+| `editable` | `true` | Click value to edit inline. On a **collapsed** picker the first click expands instead — edit by clicking the value inside the pop-out. |
 | `suffix` | — | Label appended after the value (e.g., `"px"`). |
 | `zeroLabel` | — | Display text when value is 0 (e.g., `"∞"`). |
 | `displayValue(v)` | — | Format the displayed value. |
@@ -66,6 +69,26 @@ const [qty, setQty] = createSignal(1);
 | `'v-inc-value-dec'` | `[+] / [value] / [−]` (stacked) |
 | `'v-dec-value-inc'` | `[−] / [value] / [+]` (stacked) |
 
+## Collapse (`collapsible`)
+
+The picker's chrome is most of its width. In a dense row — a table cell, an order leg, a rail — that chrome is paid for on every row and used on almost none. `collapsible` makes the resting state **the number alone**; the `+`/`−` appear only when you ask for them.
+
+```tsx
+<PillNumberPicker collapsible value={qty()} onChange={setQty} min={1} max={100} />
+```
+
+- **Collapsed**, the value cell hugs its digits (`max-content`, with the reserved width as a floor) — it can never truncate the number, however large it grows. It is still a full spinbutton: the wheel and the arrow keys step it *without* expanding, so the common case never opens the pop-out at all.
+- **Click** (or Enter / Space) expands. The panel renders through a `<Portal>` and is positioned in viewport coordinates — so it is **not clipped** by an ancestor with `overflow: hidden` or `overflow-y: auto`, which is what a plain absolutely-positioned expansion would die to in exactly the dense layouts this feature is for.
+- It opens **above** the anchor by preference (a panel below covers the *next* row — usually the next thing the user wants), flipping below only when there isn't room, and clamping into the viewport at the edges.
+- The anchor stays in flow while open, so expanding **never reflows the row**.
+- Dismiss: outside `pointerdown`, or `Escape` (which returns focus to the anchor).
+
+Controlled, if you need to own it:
+
+```tsx
+<PillNumberPicker collapsible open={open()} onOpenChange={setOpen} value={qty()} onChange={setQty} />
+```
+
 ## A11y
 
 - Wrapper has `role="group"`; value span has `role="spinbutton"` with `aria-valuenow/min/max`.
@@ -86,6 +109,11 @@ const [qty, setQty] = createSignal(1);
   --pnp-disabled-opacity: 0.3;
   --pnp-focus-ring: 2px solid #6366f1;
   --pnp-focus-ring-offset: 2px;
+
+  /* collapse / pop-out */
+  --pnp-popout-z: 1000;
+  --pnp-popout-pad: 0px;
+  --pnp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 ```
 
