@@ -49,14 +49,29 @@ export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
    */
   items: readonly T[];
   /**
-   * The selected expiration, as its ISO date — not as an item.
+   * The selected expiration, as its KEY — see `keyOf`. By default that key is the ISO date.
    *
-   * Keying selection by date rather than by object identity is deliberate: a caller who
-   * refetches their chain gets structurally-equal items with brand-new identities, and an
-   * identity-keyed selection would silently deselect on every refresh. Assumes dates are
-   * unique within `items`, which is what "an expiration ladder" means.
+   * Keyed by value, never by object identity: a caller who refetches their chain gets
+   * structurally-equal items with brand-new identities, and an identity-keyed selection
+   * would silently deselect on every refresh.
    */
   value?: string | null;
+  /**
+   * The stable key of an item. Defaults to its ISO date.
+   *
+   * Supply this when a date is NOT unique in your ladder — which is not a hypothetical:
+   * AM- and PM-settled index options (SPX and SPXW on the third Friday) are two different
+   * contracts on the same calendar day. Keyed by date alone, this control cannot tell them
+   * apart and would select the wrong one.
+   *
+   * The key must be STABLE ACROSS REFETCHES, and that is why it is yours to supply rather
+   * than something the control derives. A tempting-but-broken choice is the item's POSITION
+   * in the array: rebuild the ladder after a weekly expires and position 3 now names a
+   * different expiration, so the selection silently moves to the wrong contract — a failure
+   * that is worse than deselecting, because nothing about it looks wrong. Use an id, an OCC
+   * root, `${date}:${settlement}` — anything that names the CONTRACT rather than its slot.
+   */
+  keyOf?: (item: T) => string;
   /** Fires with the ORIGINAL item — payload keys intact. */
   onChange: (item: T) => void;
 
@@ -133,10 +148,14 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   const labelOf = (iso: string): string =>
     props.formatDate ? props.formatDate(iso) : formatMonthDay(iso);
 
+  /** The item's selection key — the caller's if they gave one, else its date. Every
+   *  comparison against `value` goes through here; nothing compares dates directly. */
+  const keyOf = (item: T): string => (props.keyOf ? props.keyOf(item) : dateOf(item));
+
   const selectedItem = createMemo<T | undefined>(() => {
     const v = props.value;
     if (v === null || v === undefined) return undefined;
-    return props.items.find((i) => dateOf(i) === v);
+    return props.items.find((i) => keyOf(i) === v);
   });
 
   // ── Open state ───────────────────────────────────────────────────────
@@ -227,7 +246,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     }
     // Open with the current selection under the cursor, so Enter is a no-op rather than a
     // surprise, and ArrowDown starts from where the user already is.
-    const preselected = props.items.findIndex((i) => dateOf(i) === props.value);
+    const preselected = props.items.findIndex((i) => keyOf(i) === props.value);
     setActiveIndex(preselected);
     place();
 
@@ -353,7 +372,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
           {(item, i) => {
             const iso = (): string => dateOf(item);
             const dte = (): number | null => dteOf(item);
-            const selected = (): boolean => props.value === iso();
+            // Compare on the KEY, not the date. With two same-date contracts in the ladder
+            // (SPX / SPXW), a date comparison would light up BOTH rows as selected.
+            const selected = (): boolean => props.value === keyOf(item);
             return (
               <div
                 class="cpdp-row"

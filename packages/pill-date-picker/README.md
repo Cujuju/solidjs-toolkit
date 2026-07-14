@@ -62,7 +62,8 @@ const chain = [
 | Prop | Default | Description |
 |---|---|---|
 | `items` | (required) | Ordered list of expirations. `string[]` of ISO dates, or objects with a `date` key. Rendered verbatim; assumed legitimate. |
-| `value` | — | The selected expiration, as its **ISO date**. Keyed by date, not by object identity, so a refetched chain does not silently deselect. |
+| `value` | — | The selected expiration, as its **key** (see `keyOf` — by default, its ISO date). Keyed by value, not by object identity, so a refetched chain does not silently deselect. |
+| `keyOf` | (the item's date) | The item's stable key. **Required when a date is not unique in your ladder** — see below. |
 | `onChange` | (required) | Fires with the ORIGINAL item. |
 | `now` | `new Date()` | The clock DTE is measured from. Inject it to make DTE deterministic (tests, replay, backtests). |
 | `size` | `'md'` | `'xs' \| 'sm' \| 'md'` — matches the sibling pill-number-picker's rhythm. |
@@ -77,6 +78,28 @@ const chain = [
 | `tooltipEntries` | long date + DTE | Rows for the hover tooltip. Takes the whole item. |
 | `disableTooltip` | `false` | |
 | `ariaLabel`, `class` | — | Passthrough. |
+
+## `keyOf` — when one date is two contracts
+
+By default the selection is keyed by the item's ISO date, which is correct for an ordinary ladder. It is **wrong for index options**: SPX (AM-settled) and SPXW (PM-settled) both expire on the third Friday, so a date-keyed ladder cannot tell them apart — and lights up *both* rows as selected.
+
+Supply the key and the ambiguity is gone:
+
+```tsx
+const ladder = [
+  { id: 'SPX-2026-06-19',  date: '2026-06-19', settle: 'AM' },
+  { id: 'SPXW-2026-06-19', date: '2026-06-19', settle: 'PM' },
+];
+
+<PillDatePicker
+  items={ladder}
+  keyOf={(i) => i.id}
+  value={selectedId()}
+  onChange={(item) => setSelectedId(item.id)}
+/>
+```
+
+**The key must be stable across refetches**, which is why you supply it rather than the control deriving it. A tempting-but-broken choice is the item's **position** in the array: rebuild the ladder after a weekly expires and position 3 names a *different* expiration, so the selection silently moves to the wrong contract. That is worse than deselecting — nothing about it looks wrong. Use an id, an OCC root, `${date}:${settlement}` — anything that names the **contract**, not its slot.
 
 ## DTE
 

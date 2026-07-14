@@ -362,6 +362,71 @@ describe('open state', () => {
   });
 });
 
+describe('keyOf — when a date is NOT unique in the ladder', () => {
+  /** SPX (AM-settled) and SPXW (PM-settled) both expire on the third Friday. Two different
+   *  contracts, one calendar day. Keyed by date alone the control cannot tell them apart. */
+  const SPX_LADDER = [
+    { id: 'SPX-2026-06-19', date: '2026-06-19', settle: 'AM' },
+    { id: 'SPXW-2026-06-19', date: '2026-06-19', settle: 'PM' },
+    { id: 'SPXW-2026-06-26', date: '2026-06-26', settle: 'PM' },
+  ];
+
+  it('selects the RIGHT one of two same-date contracts', () => {
+    const c = mount(() => (
+      <PillDatePicker
+        items={SPX_LADDER}
+        value="SPXW-2026-06-19"
+        keyOf={(i) => i.id}
+        onChange={() => {}}
+        now={NOW}
+      />
+    ));
+    click(pill(c));
+    const selected = rows().filter((r) => r.dataset.selected === 'true');
+    // Exactly ONE row is selected, and it is the PM contract — not both same-date rows, and
+    // not the first one that happened to match the date.
+    expect(selected.length).toBe(1);
+    expect(selected[0]).toBe(rows()[1]);
+  });
+
+  it('without keyOf, a same-date ladder lights up BOTH rows — the bug this prop exists for', () => {
+    // Pinned deliberately: this is the honest behaviour of date-keying, and it is why a
+    // caller with a same-date ladder MUST supply keyOf.
+    const c = mount(() => (
+      <PillDatePicker items={SPX_LADDER} value="2026-06-19" onChange={() => {}} now={NOW} />
+    ));
+    click(pill(c));
+    expect(rows().filter((r) => r.dataset.selected === 'true').length).toBe(2);
+  });
+
+  it('still hands back the ORIGINAL item, payload intact', () => {
+    const got: unknown[] = [];
+    const c = mount(() => (
+      <PillDatePicker
+        items={SPX_LADDER}
+        value={null}
+        keyOf={(i) => i.id}
+        onChange={(item) => got.push(item)}
+        now={NOW}
+      />
+    ));
+    click(pill(c));
+    click(rows()[1]);
+    expect(got).toEqual([SPX_LADDER[1]]);
+    expect(got[0]).toBe(SPX_LADDER[1]); // by reference, not a copy
+  });
+
+  it('defaults to the date when keyOf is omitted — existing callers are untouched', () => {
+    const c = mount(() => (
+      <PillDatePicker items={LADDER} value="2026-07-17" onChange={() => {}} now={NOW} />
+    ));
+    click(pill(c));
+    const selected = rows().filter((r) => r.dataset.selected === 'true');
+    expect(selected.length).toBe(1);
+    expect(selected[0]).toBe(rows()[3]);
+  });
+});
+
 describe('DTE colour', () => {
   it('colours each row from the ramp', () => {
     const c = mount(() => <Harness />);
