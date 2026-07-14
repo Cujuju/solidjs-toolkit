@@ -1,212 +1,125 @@
-import { For, createSignal, type JSX } from 'solid-js';
-import { PillNumberPicker } from '@cujuju/solidjs-pill-number-picker';
+import { For, Show, createSignal, onCleanup, type Component, type JSX } from 'solid-js';
+
+import { AnchoredPopoverPage } from './pages/AnchoredPopoverPage';
+import { ChipFlyoutPage } from './pages/ChipFlyoutPage';
+import { CollapsiblePage } from './pages/CollapsiblePage';
+import { ContextMenuPage } from './pages/ContextMenuPage';
+import { EditableListFlyoutPage } from './pages/EditableListFlyoutPage';
+import { EditableListRowPage } from './pages/EditableListRowPage';
+import { GlassPage } from './pages/GlassPage';
+import { GlassMenuPage } from './pages/GlassMenuPage';
+import { HoldActionPage } from './pages/HoldActionPage';
+import { HooksPage } from './pages/HooksPage';
+import { KvTooltipPage } from './pages/KvTooltipPage';
+import { PillDatePickerPage } from './pages/PillDatePickerPage';
+import { PillNumberPickerPage } from './pages/PillNumberPickerPage';
+import { PillTogglePage } from './pages/PillTogglePage';
+import { SegButtonsPage } from './pages/SegButtonsPage';
+import { SelectFlyoutPage } from './pages/SelectFlyoutPage';
+import { TriStateChipPage } from './pages/TriStateChipPage';
 
 /**
  * Playground — the live harness for the toolkit packages.
  *
- * Everything here is aimed at the cases that a unit test cannot show you and a static
- * mock cannot prove: how the control behaves inside HOSTILE ancestors (clipping,
- * scrolling), at the density it will actually ship in, with the real theme tokens.
+ * Everything here is aimed at the cases that a unit test cannot show you and a static mock
+ * cannot prove: how a control behaves inside HOSTILE ancestors (clipping, scrolling, a viewport
+ * edge), at the density it will actually ship in, with real theme tokens.
+ *
+ * Packages are consumed FROM SOURCE via the `solid` export condition (see vite.config.ts), so
+ * an edit in `packages/*\/src` hot-reloads here with no build, no publish, and no linking into a
+ * consuming app.
+ *
+ * ONE page per package. If a package has no page, it is invisible here — and a control nobody
+ * looks at is a control nobody notices breaking.
  */
 
-function Card(props: { cap: string; children: JSX.Element }) {
-  return (
-    <div class="card">
-      <div class="cap">{props.cap}</div>
-      <div class="body">{props.children}</div>
-    </div>
-  );
+interface Page {
+  /** URL hash + nav key. Matches the package directory name. */
+  id: string;
+  /** One-line "what is it", shown under the nav entry. */
+  blurb: string;
+  component: Component;
 }
 
-/** One picker with its own state — so every instance on the page is independently live. */
-function Picker(props: {
-  collapsible?: boolean;
-  initial?: number;
-  size?: 'xs' | 'sm' | 'md';
-  editable?: boolean;
-  max?: number;
-}) {
-  const [v, setV] = createSignal(props.initial ?? 1);
-  return (
-    <PillNumberPicker
-      collapsible={props.collapsible}
-      value={v()}
-      onChange={setV}
-      min={1}
-      max={props.max ?? 100}
-      size={props.size}
-      editable={props.editable}
-      ariaLabel="Quantity"
-    />
-  );
-}
-
-/** A StockApp-shaped option leg: side chip (click flips), qty picker, strike. */
-function LegRow(props: { strike: number; right: 'C' | 'P'; initial: number; collapsible?: boolean }) {
-  const [side, setSide] = createSignal<'buy' | 'sell'>(props.initial > 0 ? 'buy' : 'sell');
-  const [qty, setQty] = createSignal(Math.abs(props.initial));
-  return (
-    <div class="leg">
-      <button
-        class="side"
-        data-side={side()}
-        onClick={() => setSide((s) => (s === 'buy' ? 'sell' : 'buy'))}
-        title="Flip side"
-      >
-        {side() === 'buy' ? 'BTO' : 'STO'}
-      </button>
-      <PillNumberPicker
-        collapsible={props.collapsible}
-        value={qty()}
-        onChange={setQty}
-        min={1}
-        max={100}
-        size="xs"
-        ariaLabel="Contracts"
-      />
-      <span class="strike">
-        {props.strike}
-        {props.right}
-      </span>
-    </div>
-  );
-}
-
-const LEGS: Array<{ strike: number; right: 'C' | 'P'; initial: number }> = [
-  { strike: 6200, right: 'P', initial: 1 },
-  { strike: 6250, right: 'P', initial: -1 },
-  { strike: 6300, right: 'C', initial: -10 },
-  { strike: 6350, right: 'C', initial: 1 },
+/** Ordered by how much there is to look at, not alphabetically — the two pickers carry the
+ *  interesting behaviour (portalled pop-outs in hostile ancestors) and are what someone opening
+ *  this is usually here for. */
+const PAGES: Page[] = [
+  { id: 'pill-date-picker', blurb: 'expiration + DTE', component: PillDatePickerPage },
+  { id: 'pill-number-picker', blurb: 'stepper', component: PillNumberPickerPage },
+  { id: 'anchored-popover', blurb: 'placement primitive', component: AnchoredPopoverPage },
+  { id: 'context-menu', blurb: 'right-click menu', component: ContextMenuPage },
+  { id: 'select-flyout', blurb: 'themed select', component: SelectFlyoutPage },
+  { id: 'chip-flyout', blurb: 'filter chips', component: ChipFlyoutPage },
+  { id: 'tri-state-chip', blurb: 'in / out / off', component: TriStateChipPage },
+  { id: 'kv-tooltip', blurb: 'key/value hover', component: KvTooltipPage },
+  { id: 'editable-list-flyout', blurb: 'manage-a-list panel', component: EditableListFlyoutPage },
+  { id: 'editable-list-row', blurb: 'rename / delete row', component: EditableListRowPage },
+  { id: 'collapsible', blurb: 'disclosure section', component: CollapsiblePage },
+  { id: 'seg-buttons', blurb: 'segmented control', component: SegButtonsPage },
+  { id: 'pill-toggle', blurb: 'switch', component: PillTogglePage },
+  { id: 'hold-action', blurb: 'press-and-hold', component: HoldActionPage },
+  { id: 'glass-menu', blurb: 'menu surface', component: GlassMenuPage },
+  { id: 'glass', blurb: 'surfaces + tint engine', component: GlassPage },
+  { id: 'hooks', blurb: 'primitive drawer', component: HooksPage },
 ];
 
-export function App() {
-  const [controlledOpen, setControlledOpen] = createSignal(false);
-  const [controlledVal, setControlledVal] = createSignal(4);
+const DEFAULT_PAGE = PAGES[0].id;
+
+/** Routing is the URL hash and nothing else. No router dependency: the toolkit has none, and a
+ *  16-line signal buys the one thing that actually matters here — a reload (or a hot-reload)
+ *  puts you back on the page you were looking at instead of dumping you at the top. */
+function currentIdFromHash(): string {
+  const id = window.location.hash.replace(/^#\/?/, '');
+  return PAGES.some((p) => p.id === id) ? id : DEFAULT_PAGE;
+}
+
+export function App(): JSX.Element {
+  const [id, setId] = createSignal(currentIdFromHash());
+
+  const onHashChange = (): void => {
+    setId(currentIdFromHash());
+  };
+  window.addEventListener('hashchange', onHashChange);
+  onCleanup(() => window.removeEventListener('hashchange', onHashChange));
+
+  const navigate = (next: string): void => {
+    window.location.hash = `/${next}`;
+    // The hashchange event covers the back button and a pasted URL; this covers the case where
+    // the hash is already what we are setting it to (a re-click on the current page), which
+    // fires no event at all.
+    setId(next);
+    window.scrollTo(0, 0);
+  };
+
+  const active = (): Page => PAGES.find((p) => p.id === id()) ?? PAGES[0];
 
   return (
-    <>
-      <h1>solidjs-toolkit — playground</h1>
-      <p class="note">
-        Packages are consumed <b>from source</b> through the workspace, so editing
-        <code> packages/*/src </code> hot-reloads this page. No build, no publish, no linking
-        into a consuming app.
-      </p>
+    <div class="shell">
+      <nav class="nav">
+        <h1>solidjs-toolkit</h1>
+        <For each={PAGES}>
+          {(p) => (
+            <button
+              class="nav-item"
+              aria-current={p.id === id() ? 'page' : undefined}
+              onClick={() => navigate(p.id)}
+            >
+              {p.id}
+              <small>{p.blurb}</small>
+            </button>
+          )}
+        </For>
+      </nav>
 
-      <h2>
-        pill-number-picker — collapse <small>(click a number)</small>
-      </h2>
-      <p class="note">
-        Collapsed, the picker is the value alone and still steps on wheel + arrow keys.
-        Click / Enter / Space expands it into a portalled pop-out.
-      </p>
-      <div class="row">
-        <Card cap="collapsed vs expanded — md / sm / xs">
-          <Picker collapsible initial={1} size="md" />
-          <Picker collapsible initial={12} size="sm" />
-          <Picker collapsible initial={100} size="xs" />
-        </Card>
-        <Card cap="not collapsible (the old default) — unchanged">
-          <Picker initial={3} size="md" />
-          <Picker initial={3} size="sm" />
-          <Picker initial={3} size="xs" />
-        </Card>
-        <Card cap="never truncates — 1, 10, 100, max 100000">
-          <Picker collapsible initial={1} />
-          <Picker collapsible initial={10} />
-          <Picker collapsible initial={100} />
-          <Picker collapsible initial={100000} max={100000} />
-        </Card>
-      </div>
-
-      <h2>
-        The hostile ancestors <small>— the reason the pop-out is portalled</small>
-      </h2>
-      <p class="note">
-        Both boxes below would <b>clip</b> an in-flow expansion dead. Open a picker inside
-        each: the panel escapes. In the scroll box, scroll while it is open — it tracks the
-        anchor (fixed positioning + a captured scroll listener), because the container that
-        moves is not <code>window</code>.
-      </p>
-      <div class="row">
-        <Card cap="overflow: hidden, width 150px">
-          <div class="clip">
-            <Picker collapsible initial={7} size="sm" />
-          </div>
-        </Card>
-        <Card cap="overflow-y: auto — scroll it while open">
-          <div class="scrollbox">
-            <For each={[...LEGS, ...LEGS]}>
-              {(l) => <LegRow strike={l.strike} right={l.right} initial={l.initial} collapsible />}
-            </For>
-          </div>
-        </Card>
-        <Card cap="edge of the viewport — panel clamps, never leaves the screen">
-          <div style={{ display: 'flex', 'justify-content': 'flex-end', width: '260px' }}>
-            <Picker collapsible initial={42} size="sm" />
-          </div>
-        </Card>
-      </div>
-
-      <h2>
-        In situ — the StockApp leg row <small>(the density it must survive)</small>
-      </h2>
-      <p class="note">
-        Left: collapsed qty. Right: the full picker, as it ships today. The side chip flips
-        BTO/STO on click. Note how much of the row the expanded picker's chrome eats.
-      </p>
-      <div class="row">
-        <Card cap="collapsed qty">
-          <div style={{ width: '190px' }}>
-            <For each={LEGS}>
-              {(l) => <LegRow strike={l.strike} right={l.right} initial={l.initial} collapsible />}
-            </For>
-          </div>
-        </Card>
-        <Card cap="full picker (today)">
-          <div style={{ width: '190px' }}>
-            <For each={LEGS}>
-              {(l) => <LegRow strike={l.strike} right={l.right} initial={l.initial} />}
-            </For>
-          </div>
-        </Card>
-      </div>
-
-      <h2>Placement — top by preference, flips when it must</h2>
-      <p class="note">
-        The picker at the very top of the page has no room above it, so its panel opens
-        DOWNWARD. The one at the bottom opens upward. Resize the window to force the flip.
-      </p>
-      <div class="row">
-        <Card cap="controlled open state">
-          <PillNumberPicker
-            collapsible
-            open={controlledOpen()}
-            onOpenChange={setControlledOpen}
-            value={controlledVal()}
-            onChange={setControlledVal}
-            min={1}
-            max={100}
-            ariaLabel="Controlled"
-          />
-          <button class="side" data-side="buy" onClick={() => setControlledOpen((o) => !o)}>
-            {controlledOpen() ? 'close' : 'open'} from outside
-          </button>
-          <span style={{ color: 'var(--text-muted)', font: '11px var(--mono)' }}>
-            value {controlledVal()}
-          </span>
-        </Card>
-        <Card cap="editable — click the value INSIDE the pop-out to type">
-          <Picker collapsible initial={25} />
-          <Picker collapsible initial={25} editable={false} />
-        </Card>
-      </div>
-
-      <div class="tall" />
-      <div class="row">
-        <Card cap="bottom of the page — opens upward">
-          <Picker collapsible initial={8} />
-        </Card>
-      </div>
-    </>
+      <main class="page">
+        {/* Keyed on the page id so switching pages REMOUNTS rather than diffing one control's
+            state onto another's. A stale open pop-out surviving a page switch would be a
+            playground bug that looks exactly like a package bug. */}
+        <Show when={active()} keyed>
+          {(p) => <p.component />}
+        </Show>
+      </main>
+    </div>
   );
 }

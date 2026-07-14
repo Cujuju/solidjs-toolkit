@@ -278,6 +278,28 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
 
+  packages/pill-date-picker:
+    dependencies:
+      solid-js:
+        specifier: '>=1.7.0'
+        version: 1.9.12
+    devDependencies:
+      '@cujuju/solidjs-kv-tooltip':
+        specifier: workspace:*
+        version: link:../kv-tooltip
+      '@testing-library/jest-dom':
+        specifier: ^6.9.1
+        version: 6.9.1
+      jsdom:
+        specifier: ^24.0.0
+        version: 24.1.3
+      vite-plugin-solid:
+        specifier: ^2.11.12
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+
   packages/pill-number-picker:
     dependencies:
       solid-js:
@@ -374,9 +396,57 @@ importers:
 
   playground:
     dependencies:
+      '@cujuju/solidjs-anchored-popover':
+        specifier: workspace:*
+        version: link:../packages/anchored-popover
+      '@cujuju/solidjs-chip-flyout':
+        specifier: workspace:*
+        version: link:../packages/chip-flyout
+      '@cujuju/solidjs-collapsible':
+        specifier: workspace:*
+        version: link:../packages/collapsible
+      '@cujuju/solidjs-context-menu':
+        specifier: workspace:*
+        version: link:../packages/context-menu
+      '@cujuju/solidjs-editable-list-flyout':
+        specifier: workspace:*
+        version: link:../packages/editable-list-flyout
+      '@cujuju/solidjs-editable-list-row':
+        specifier: workspace:*
+        version: link:../packages/editable-list-row
+      '@cujuju/solidjs-glass':
+        specifier: workspace:*
+        version: link:../packages/glass
+      '@cujuju/solidjs-glass-menu':
+        specifier: workspace:*
+        version: link:../packages/glass-menu
+      '@cujuju/solidjs-hold-action':
+        specifier: workspace:*
+        version: link:../packages/hold-action
+      '@cujuju/solidjs-hooks':
+        specifier: workspace:*
+        version: link:../packages/hooks
+      '@cujuju/solidjs-kv-tooltip':
+        specifier: workspace:*
+        version: link:../packages/kv-tooltip
+      '@cujuju/solidjs-pill-date-picker':
+        specifier: workspace:*
+        version: link:../packages/pill-date-picker
       '@cujuju/solidjs-pill-number-picker':
         specifier: workspace:*
         version: link:../packages/pill-number-picker
+      '@cujuju/solidjs-pill-toggle':
+        specifier: workspace:*
+        version: link:../packages/pill-toggle
+      '@cujuju/solidjs-seg-buttons':
+        specifier: workspace:*
+        version: link:../packages/seg-buttons
+      '@cujuju/solidjs-select-flyout':
+        specifier: workspace:*
+        version: link:../packages/select-flyout
+      '@cujuju/solidjs-tri-state-chip':
+        specifier: workspace:*
+        version: link:../packages/tri-state-chip
       solid-js:
         specifier: ^1.9.5
         version: 1.9.12

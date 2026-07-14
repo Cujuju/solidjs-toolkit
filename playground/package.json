@@ -10,7 +10,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cujuju/solidjs-anchored-popover": "workspace:*",
+    "@cujuju/solidjs-chip-flyout": "workspace:*",
+    "@cujuju/solidjs-collapsible": "workspace:*",
+    "@cujuju/solidjs-context-menu": "workspace:*",
+    "@cujuju/solidjs-editable-list-flyout": "workspace:*",
+    "@cujuju/solidjs-editable-list-row": "workspace:*",
+    "@cujuju/solidjs-glass": "workspace:*",
+    "@cujuju/solidjs-glass-menu": "workspace:*",
+    "@cujuju/solidjs-hold-action": "workspace:*",
+    "@cujuju/solidjs-hooks": "workspace:*",
+    "@cujuju/solidjs-kv-tooltip": "workspace:*",
+    "@cujuju/solidjs-pill-date-picker": "workspace:*",
     "@cujuju/solidjs-pill-number-picker": "workspace:*",
+    "@cujuju/solidjs-pill-toggle": "workspace:*",
+    "@cujuju/solidjs-seg-buttons": "workspace:*",
+    "@cujuju/solidjs-select-flyout": "workspace:*",
+    "@cujuju/solidjs-tri-state-chip": "workspace:*",
     "solid-js": "^1.9.5"
   },
   "devDependencies": {

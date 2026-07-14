@@ -13,6 +13,8 @@
   --red: #ef4444;
   --mono: ui-monospace, Consolas, monospace;
 
+  --nav-width: 208px;
+
   /* @cujuju/solidjs-pill-number-picker */
   --pnp-bg: var(--surface-2);
   --pnp-border: var(--border);
@@ -20,16 +22,75 @@
   --pnp-text-muted: var(--text-muted);
   --pnp-radius: 6px;
   --pnp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+
+  /* @cujuju/solidjs-pill-date-picker */
+  --pdp-bg: var(--surface-2);
+  --pdp-border: var(--border);
+  --pdp-text: var(--text);
+  --pdp-text-muted: var(--text-muted);
+  --pdp-radius: 6px;
+  --pdp-popout-bg: var(--surface);
+  --pdp-popout-border: var(--border);
+  --pdp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  padding: 24px 24px 80px;
   background: var(--bg);
   color: var(--text);
   font: 13px/1.5 system-ui, "Segoe UI", sans-serif;
+}
+
+/* ── Shell: fixed left nav, scrolling page. ──────────────────────────────────
+   The nav is `position: fixed` so the page can scroll under it — a control parked at the
+   bottom of a long page is one of the states worth looking at (it must flip its pop-out
+   upward), and a nav that scrolled away with it would make that state hard to reach. */
+.shell { display: block; }
+
+.nav {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--nav-width);
+  overflow-y: auto;
+  padding: 16px 0 40px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  z-index: 10;
+}
+.nav h1 {
+  font-size: 12px;
+  margin: 0 0 12px;
+  padding: 0 14px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-weight: 400;
+}
+.nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 5px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: 12px/1.4 var(--mono);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+.nav-item[aria-current="page"] {
+  color: var(--text);
+  background: var(--surface-2);
+  border-left-color: var(--accent);
+}
+.nav-item small { display: block; color: var(--text-muted); font-size: 10px; opacity: 0.7; }
+
+.page {
+  margin-left: var(--nav-width);
+  padding: 24px 24px 120px;
+  max-width: 1200px;
 }
 
 h1 { font-size: 16px; margin: 0 0 4px; }
@@ -60,20 +121,27 @@ code { font-family: var(--mono); color: var(--text); }
 }
 .card > .body { padding: 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 
-/* ── The hostile ancestors. The whole reason the pop-out is portalled. ───────── */
+/* ── The hostile ancestors. The whole reason floating surfaces are portalled. ── */
 .clip {
   overflow: hidden;          /* would clip an in-flow expansion dead */
-  width: 150px;
   padding: 10px;
 }
 .scrollbox {
   overflow-y: auto;          /* ditto, and it also scrolls the anchor out from under */
-  max-height: 132px;
-  width: 210px;
   border-top: 1px solid var(--border);
 }
+.scrollfill {
+  padding: 24px 8px 60px;
+  color: var(--text-muted);
+  font: 10px/1.4 var(--mono);
+}
+.edge-right {
+  display: flex;
+  justify-content: flex-end;
+  width: 260px;
+}
 
-/* A StockApp-ish leg row, so the picker is judged in the density it will live in. */
+/* A StockApp-ish leg row, so the controls are judged in the density they will live in. */
 .leg {
   display: flex;
   align-items: center;
@@ -100,3 +168,39 @@ code { font-family: var(--mono); color: var(--text); }
   margin-left: auto;
 }
 .tall { height: 420px; }
+
+/* Generic demo button, for pages whose package needs a trigger of its own. */
+.demo-btn {
+  font: 12px/1 var(--mono);
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.demo-btn:hover { background: var(--border); }
+
+/* A surface to right-click / drop a menu onto. */
+.canvas {
+  width: 100%;
+  min-width: 260px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font: 11px/1 var(--mono);
+  background: repeating-linear-gradient(
+    45deg, transparent, transparent 8px,
+    rgba(255, 255, 255, 0.02) 8px, rgba(255, 255, 255, 0.02) 16px
+  );
+}
+
+.readout {
+  font: 11px/1.5 var(--mono);
+  color: var(--text-muted);
+}
+.readout b { color: var(--text); font-weight: 700; }

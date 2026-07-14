@@ -1,0 +1,165 @@
+/* cujuju-solidjs-pill-date-picker — default theme + layout.
+   Defaults in @layer so unlayered consumer overrides win. */
+
+@layer cujuju-defaults {
+  :root {
+    --pdp-bg: #1e293b;
+    --pdp-border: #334155;
+    --pdp-text: #e2e8f0;
+    --pdp-text-muted: #94a3b8;
+    --pdp-radius: 6px;
+    --pdp-disabled-opacity: 0.3;
+    --pdp-focus-ring: 2px solid #6366f1;
+    --pdp-focus-ring-offset: 2px;
+    --pdp-hover-bg: rgba(255, 255, 255, 0.06);
+
+    /* Pop-out surface */
+    --pdp-popout-z: 1000;
+    --pdp-popout-bg: #1e293b;
+    --pdp-popout-border: #334155;
+    --pdp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    --pdp-popout-min-width: 132px;
+    /* A full ladder (weeklies + monthlies + LEAPS) is far taller than any sane pop-out.
+       The panel scrolls internally rather than growing until the viewport clamp mangles it. */
+    --pdp-popout-max-height: 260px;
+
+    /* Row states */
+    --pdp-row-hover-bg: rgba(255, 255, 255, 0.07);
+    --pdp-row-selected-bg: rgba(99, 102, 241, 0.18);
+
+    /* DTE urgency ramp. Referenced by DEFAULT_DTE_RAMP, so a consuming app re-themes the
+       colours from its own stylesheet without ever passing the `dteRamp` prop. Neutral,
+       legible defaults — NOT an opinion about anyone's palette. */
+    --pdp-dte-expiring: #f87171;
+    --pdp-dte-urgent: #fb923c;
+    --pdp-dte-near: #fbbf24;
+    --pdp-dte-far: #94a3b8;
+  }
+}
+
+.cpdp-root {
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+}
+
+/* KvTooltip's hover wrapper sits between the root and the pill; it is `display: inline` by
+   default, which would drop the pill out of the flex row's alignment. */
+.cpdp-trigger-wrap {
+  display: inline-flex !important;
+  align-items: center;
+}
+
+/* ── The collapsed pill: the date, and nothing else. ─────────────────────── */
+.cpdp-pill {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Hugs its label — 'Sep 5' and 'Dec 18' are different widths and neither may be clipped. */
+  width: max-content;
+  background: var(--pdp-bg);
+  border: 1px solid var(--pdp-border);
+  border-radius: var(--pdp-radius);
+  color: var(--pdp-text);
+  font-family: monospace;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cpdp-pill[data-empty] {
+  color: var(--pdp-text-muted);
+  font-weight: 400;
+}
+
+.cpdp-pill:hover:not(:disabled) {
+  background: var(--pdp-hover-bg);
+}
+
+.cpdp-pill:disabled {
+  opacity: var(--pdp-disabled-opacity);
+  cursor: not-allowed;
+}
+
+.cpdp-pill:focus-visible {
+  outline: var(--pdp-focus-ring);
+  outline-offset: var(--pdp-focus-ring-offset);
+}
+
+/* ── The pop-out ladder. ──────────────────────────────────────────────────
+   Portalled to <body> and positioned in viewport coords by the component, so it escapes any
+   overflow:hidden / overflow-y:auto ancestor. Nothing here may depend on the pill's
+   ancestors — by the time this paints, it has none of them. */
+.cpdp-popout {
+  box-sizing: border-box;
+  z-index: var(--pdp-popout-z);
+  display: flex;
+  flex-direction: column;
+  min-width: var(--pdp-popout-min-width);
+  max-height: var(--pdp-popout-max-height);
+  overflow-y: auto;
+  background: var(--pdp-popout-bg);
+  border: 1px solid var(--pdp-popout-border);
+  border-radius: var(--pdp-radius);
+  box-shadow: var(--pdp-popout-shadow);
+  padding: 3px;
+  outline: none;
+  white-space: nowrap;
+}
+
+.cpdp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--pdp-text);
+  font-family: monospace;
+}
+
+/* `data-active` (keyboard/pointer cursor) rather than :hover, so the arrow keys and the mouse
+   drive ONE highlight. Two competing highlights read as two cursors. */
+.cpdp-row[data-active] {
+  background: var(--pdp-row-hover-bg);
+}
+
+.cpdp-row[data-selected] {
+  background: var(--pdp-row-selected-bg);
+}
+
+.cpdp-row-date {
+  font-weight: 700;
+}
+
+.cpdp-row-dte {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.cpdp-empty {
+  padding: 6px 8px;
+  color: var(--pdp-text-muted);
+  font-size: 11px;
+}
+
+/* ── Size presets. Match the sibling pill-number-picker's rhythm so the two controls sit in
+   the same row without a half-pixel step between them. ───────────────────── */
+/* The size class is on BOTH the root and the portalled panel, so one descendant rule covers
+   the pill and the ladder even though they are in different subtrees of the document. */
+.cpdp-size-xs .cpdp-pill { height: 18px; font-size: 10px; padding: 0 6px; }
+.cpdp-size-xs .cpdp-row { font-size: 10px; }
+
+.cpdp-size-sm .cpdp-pill { height: 20px; font-size: 11px; padding: 0 7px; }
+.cpdp-size-sm .cpdp-row { font-size: 11px; }
+
+.cpdp-size-md .cpdp-pill { height: 22px; font-size: 12px; padding: 0 8px; }
+.cpdp-size-md .cpdp-row { font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cpdp-pill, .cpdp-row { transition: none !important; }
+}
