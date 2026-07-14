@@ -94,14 +94,16 @@ describe('collapsible', () => {
     expect(panel()).toBeNull(); // never opened
   });
 
-  it('collapsed: clicking the value EXPANDS it — it does not enter edit mode', () => {
-    // `editable` defaults to true and owns the value click on a normal picker. Collapsed,
-    // expand wins that click. Both cannot have it; this is the rule.
+  it('collapsed: clicking the value opens the EDITOR — pop-out + a live text field', () => {
+    // Click-to-open means the editor is ready to type into immediately. Anything less and
+    // the user pays a second click to reach the keyboard, which is the tax this removes.
     const c = mount(() => <Harness collapsible />);
     click(spinbuttons(c)[0]);
     expect(panel()).not.toBeNull();
-    expect(document.body.querySelector('.cpnp-input')).toBeNull(); // no text input opened
     expect(buttonsIn(panel()).length).toBe(2);
+    const input = document.body.querySelector('.cpnp-input') as HTMLInputElement | null;
+    expect(input, 'the pop-out has no text field').not.toBeNull();
+    expect(document.activeElement).toBe(input);
   });
 
   it('expands from the KEYBOARD (Enter and Space), or the buttons are mouse-only', () => {
@@ -116,20 +118,21 @@ describe('collapsible', () => {
   });
 
   it('the +/- inside the pop-out actually change the value', () => {
+    // Opening puts the value cell into edit mode, so the live value is the INPUT's value,
+    // not a span's text. The anchor mirrors it — a stale number under an open panel would
+    // be a lie about what pressing Enter is about to commit.
     const c = mount(() => <Harness collapsible initial={3} />);
     click(spinbuttons(c)[0]);
     const [inc, dec] = buttonsIn(panel());
-    const liveValue = () => spinbuttons(panel()!)[0];
+    const liveValue = () => (document.body.querySelector('.cpnp-input') as HTMLInputElement).value;
 
     click(inc);
-    expect(liveValue().textContent).toBe('4');
-    expect(liveValue().getAttribute('aria-valuenow')).toBe('4');
-    // The anchor tracks it too — a stale number under an open panel would be a lie.
+    expect(liveValue()).toBe('4');
     expect(placeholderIn(c).textContent).toBe('4');
 
     click(dec);
     click(dec);
-    expect(liveValue().textContent).toBe('2');
+    expect(liveValue()).toBe('2');
     expect(placeholderIn(c).textContent).toBe('2');
   });
 

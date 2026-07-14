@@ -40,7 +40,11 @@ const [qty, setQty] = createSignal(1);
 | `collapsible` | `false` | Collapse to the value alone; reveal the buttons in a pop-out on demand. See below. |
 | `open`, `onOpenChange` | (uncontrolled) | Controlled pop-out state. Omit `open` to let the component own it. |
 | `popoutGap` | `4` | px between the collapsed value and the pop-out panel. |
-| `editable` | `true` | Click value to edit inline. On a **collapsed** picker the first click expands instead — edit by clicking the value inside the pop-out. |
+| `commit` | `'change'` | `'change'` publishes every step via `onChange`. `'finish'` steps a local draft and publishes only on confirmation. See below. |
+| `onCommit(v)` | — | The value was CONFIRMED — Enter, or clicking the pill again to close the editor. |
+| `onCancel(v)` | — | The session was ABANDONED — Escape, or an outside press. Receives the value the picker is left holding. |
+| `revertOnCancel` | `true` | Cancel restores the value the session started with. |
+| `editable` | `true` | Click value to edit inline. On a **collapsed** picker, opening the editor focuses and selects the field. |
 | `suffix` | — | Label appended after the value (e.g., `"px"`). |
 | `zeroLabel` | — | Display text when value is 0 (e.g., `"∞"`). |
 | `displayValue(v)` | — | Format the displayed value. |
@@ -88,6 +92,35 @@ Controlled, if you need to own it:
 ```tsx
 <PillNumberPicker collapsible open={open()} onOpenChange={setOpen} value={qty()} onChange={setQty} />
 ```
+
+## The editing session — `commit`, `onCommit`, `onCancel`
+
+Clicking the collapsed pill opens the **editor**: the pop-out, with the value field focused and selected. That starts a *session*, which ends one of two ways:
+
+| | Gesture |
+|---|---|
+| **Commit** | `Enter`, or clicking the pill again to close it |
+| **Cancel** | `Escape`, or a pointerdown outside the pop-out |
+
+`commit` decides **when the value is published**:
+
+- **`'change'` (default)** — every step publishes immediately via `onChange`, exactly as the picker has always behaved. `onCommit` / `onCancel` still fire, so a consumer can tell a *settled* value from one being scrubbed through.
+- **`'finish'`** — the pop-out steps a **local draft**. The display updates; `onChange` stays silent; the value is published once, on commit. For a consumer where every intermediate value costs something real — a request per tick, an order repriced on every keystroke — being told about values the user never chose isn't noise, it's wrong, and debouncing at the callsite doesn't fix it.
+
+```tsx
+<PillNumberPicker
+  collapsible
+  commit="finish"
+  value={qty()}
+  onChange={setQty}                 // fires ONCE, on commit
+  onCommit={(v) => placeOrder(v)}   // the user settled on v
+  onCancel={() => {}}               // abandoned; value restored
+/>
+```
+
+**Cancel reverts** by default, and means the same thing in both modes. In `'finish'` that's free (the draft is dropped). In `'change'` the consumer has already *seen* the intermediate values, so the revert is published as a real `onChange(valueAtOpen)` — without that, "cancel" would mean *undo* in one mode and *keep* in the other. Opt out with `revertOnCancel={false}`.
+
+**The collapsed pill still steps in place.** Wheel and arrow keys on the resting pill open no session and publish immediately in both modes — there's nothing to confirm, and requiring a confirmation for a scroll gesture would tax the fastest path the control has.
 
 ## A11y
 

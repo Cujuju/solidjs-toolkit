@@ -1,7 +1,7 @@
 {
   "name": "@cujuju/solidjs-pill-number-picker",
-  "version": "0.2.0",
-  "description": "Compact number stepper for SolidJS — 8 layouts, optional collapse-to-value with a portalled pop-out, auto-repeat with acceleration, full spinbutton a11y, RTL-ready.",
+  "version": "0.3.0",
+  "description": "Compact number stepper for SolidJS — 8 layouts, optional collapse-to-value with a portalled pop-out editor, commit-on-change or commit-on-finish, auto-repeat with acceleration, full spinbutton a11y, RTL-ready.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
