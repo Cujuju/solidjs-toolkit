@@ -70,19 +70,6 @@ const DEFAULT_EXCLUDE_PREFIX = '✗ ';
 const DEFAULT_NEUTRAL_PREFIX = '';
 
 /**
- * Quote an arbitrary prefix as a CSS string literal for `content:`.
- *
- * The prefix is consumer-supplied, so it goes through the escape hatch a CSS
- * string needs: backslash first (or it would double-escape the quote it is
- * about to introduce), then the quote, then newlines — a raw newline
- * terminates a CSS string and would invalidate the whole declaration,
- * collapsing the sizer to zero width.
- */
-function cssString(value: string): string {
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\A ')}"`;
-}
-
-/**
  * A single tri-state filter chip — one button that cycles through
  * `unselected` → `included` → `excluded` → `unselected` on click. Visual
  * theme via CSS custom properties on the `.ctc-chip` selector. Pure
@@ -139,6 +126,11 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       class={`ctc-chip ${props.class ?? ''}`.trim()}
       data-state={props.value}
       data-indicator={indicator()}
+      // Set only when the CURRENT state shows no glyph, so the stylesheet can
+      // centre the bare label without centring a label that has a glyph beside
+      // it. Distinct from data-state: a `neutralPrefix` makes the neutral state
+      // non-empty, and a custom cycle could leave include/exclude empty.
+      data-glyph-empty={prefixGlyph() === '' ? '' : undefined}
       aria-pressed={ariaPressed()}
       aria-label={props.ariaLabel}
       disabled={props.disabled}
@@ -146,67 +138,23 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       onClick={handleClick}
       {...(props.dataAttr ?? {})}
     >
-      {/* ONE prefix slot, rendered in every state, in a column as wide as the
-          widest of the three glyphs. Rendering it conditionally made the
-          chip's width content-driven, so it grew the instant a glyph appeared
-          and the whole row of chips reflowed on click.
+      {/* Leading glyph column, a FIXED `--ctc-glyph-col` wide in every state,
+          so the chip's width never changes with state. The width is a token,
+          not the glyph's intrinsic advance, precisely so the neutral-centering
+          offset (below) can be exactly half of it — an intrinsic column has no
+          value CSS can halve. A prefix wider than the token clips rather than
+          shoving the label; size the token to your widest prefix.
 
-          An out-of-flow "overlay" variant (glyph painted into the chip's start
-          padding, no column at all) was built and REJECTED on looks — the
-          glyph crowded the label. Do not reintroduce it; the column is the
-          agreed shape, and a blank column is answered by `neutralPrefix`.
-
-          Suppressed entirely when ALL THREE prefixes are empty: that consumer
-          wants no glyph at all, and reserving space for one would be dead
-          padding. */}
+          When the CURRENT state has no glyph (bare neutral), the label is
+          shifted back by half the column to CENTRE it — see the `data-glyph-
+          empty` rule in styles.css. When a glyph IS shown, the label stays
+          offset after the column, so the glyph pushes it right. */}
       <Show when={hasPrefix()}>
-        <span
-          aria-hidden="true"
-          class="ctc-chip-prefix"
-          style={{
-            '--ctc-sizer-include': cssString(includePrefix()),
-            '--ctc-sizer-exclude': cssString(excludePrefix()),
-            '--ctc-sizer-neutral': cssString(neutralPrefix()),
-          }}
-        >
-          {/* Sizers: all three possible glyphs share the visible glyph's grid
-              cell, so the cell resolves to the WIDEST prefix and the chip
-              measures identically in all three states. They carry their text
-              as CSS `content` rather than as child text nodes on purpose — a
-              hidden text node still lands in `textContent`, so selecting and
-              copying a chip would yield "+ − calls", and text queries would
-              match the sizers. Pseudo-element content is not part of
-              `textContent`. */}
-          <span class="ctc-chip-prefix-sizer" data-sizer="include" />
-          <span class="ctc-chip-prefix-sizer" data-sizer="exclude" />
-          <span class="ctc-chip-prefix-sizer" data-sizer="neutral" />
-          <span class="ctc-chip-prefix-glyph">{prefixGlyph()}</span>
+        <span aria-hidden="true" class="ctc-chip-prefix">
+          {prefixGlyph()}
         </span>
       </Show>
       <span class="ctc-chip-label">{props.label}</span>
-      {/* Trailing MIRROR of the glyph column, same reserved width, never a
-          visible glyph. It makes the two side columns symmetric, so the label
-          is CENTERED in every state instead of shoved right by a lone leading
-          column — the neutral chip stopped looking indented. Because both
-          columns are always present, the label's centre never moves: the glyph
-          simply appears in the left column on include/exclude without nudging
-          the label. Only rendered alongside the prefix (same `hasPrefix` gate)
-          so a glyph-free chip pays nothing. */}
-      <Show when={hasPrefix()}>
-        <span
-          aria-hidden="true"
-          class="ctc-chip-prefix ctc-chip-suffix"
-          style={{
-            '--ctc-sizer-include': cssString(includePrefix()),
-            '--ctc-sizer-exclude': cssString(excludePrefix()),
-            '--ctc-sizer-neutral': cssString(neutralPrefix()),
-          }}
-        >
-          <span class="ctc-chip-prefix-sizer" data-sizer="include" />
-          <span class="ctc-chip-prefix-sizer" data-sizer="exclude" />
-          <span class="ctc-chip-prefix-sizer" data-sizer="neutral" />
-        </span>
-      </Show>
     </button>
   );
 }

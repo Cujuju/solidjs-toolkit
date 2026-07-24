@@ -23,6 +23,12 @@
     --ctc-bg-excluded-hover: rgba(244, 63, 94, 0.25);
 
     /* Layout. */
+    /* Fixed width of the leading glyph column (glyph indicator). Sized to hold
+       one glyph plus its trailing space — the default `'✓ '` / `'✗ '` measure
+       ~1.02em, so 1.15em clears them with a hair of gap. Raise it for a wider
+       custom prefix (it clips past this width); the neutral-centring offset
+       tracks it automatically. */
+    --ctc-glyph-col: 1.15em;
     --ctc-padding: 5px 10px;
     --ctc-radius: 6px;
     --ctc-font-size: 0.875rem;
@@ -64,43 +70,32 @@
     color var(--ctc-transition);
 }
 
-/* Glyph column. Present in every state; empty while unselected. `min-width`
-   (not `width`) so an over-long custom prefix grows rather than clipping. */
-/* Glyph column — present in every state, empty while unselected.
-   Its width is MEASURED, not guessed: both possible prefixes are rendered as
-   hidden sizers in the same single grid cell as the visible glyph, so the
-   cell resolves to max(include, exclude) in whatever font the consumer ships.
-   A reserved `min-width` constant would have to out-guess the glyph's real
-   advance, and silently starts jittering again in any font where it guesses
-   low. `pre` keeps the trailing space in the default `'+ '` / `'− '`, which
-   is part of the prefix contract rather than incidental markup. */
+/* Leading glyph column — a FIXED `--ctc-glyph-col` wide in every state, so the
+   chip's width never changes with state. A fixed token (not the glyph's
+   intrinsic advance) is deliberate: the neutral-centering offset below must be
+   exactly half the column, and only a known value can be halved. `pre` keeps
+   the trailing space in the default `'✓ '` / `'✗ '`; `overflow: hidden` makes a
+   too-wide custom prefix clip rather than shove the label — size the token up
+   for a wider prefix. */
 .ctc-chip-prefix {
-  display: inline-grid;
-}
-
-.ctc-chip-prefix > * {
-  grid-area: 1 / 1;
+  display: inline-block;
+  width: var(--ctc-glyph-col);
   white-space: pre;
-  text-align: center;
+  overflow: hidden;
+  text-align: start;
 }
 
-/* The sizers' text comes from `content`, fed by inline custom properties the
-   component sets from the prefix props. Keeping it out of the DOM as text is
-   the point — see the markup comment. */
-.ctc-chip-prefix-sizer {
-  visibility: hidden;
+/* Centre the bare label. When the current state shows NO glyph, the reserved
+   column would otherwise leave the label shoved right; shift it back by half
+   the column to centre it. A `transform` (not a margin) so the chip's width is
+   untouched. `data-glyph-empty` — not `data-state` — so a chip with a
+   `neutralPrefix` glyph stays offset like the marked states. LTR by default;
+   the RTL rule flips the direction. */
+.ctc-chip[data-indicator="glyph"][data-glyph-empty] .ctc-chip-label {
+  transform: translateX(calc(var(--ctc-glyph-col) / -2));
 }
-
-.ctc-chip-prefix-sizer[data-sizer="include"]::before {
-  content: var(--ctc-sizer-include, "");
-}
-
-.ctc-chip-prefix-sizer[data-sizer="exclude"]::before {
-  content: var(--ctc-sizer-exclude, "");
-}
-
-.ctc-chip-prefix-sizer[data-sizer="neutral"]::before {
-  content: var(--ctc-sizer-neutral, "");
+[dir="rtl"] .ctc-chip[data-indicator="glyph"][data-glyph-empty] .ctc-chip-label {
+  transform: translateX(calc(var(--ctc-glyph-col) / 2));
 }
 
 .ctc-chip:hover:not(:disabled) {
