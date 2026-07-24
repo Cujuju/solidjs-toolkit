@@ -292,6 +292,32 @@ describe('KvTooltip (integration)', () => {
     dispose();
   });
 
+  // ─── Measurement must not leave the panel parked at the origin ──────────
+
+  it('the measure pass restores the panel position it borrowed', () => {
+    // measureNaturalSize temporarily flushes the panel to left: 0 so its
+    // shrink-to-fit width is not capped by its own current left (a fixed
+    // element's available width is `viewport - left`, which makes measuring
+    // in place a feedback loop). If the restore ever regresses, every panel
+    // pins itself to the left edge of the screen.
+    //
+    // jsdom has no layout engine — offsetWidth is always 0 — so the natural
+    // SIZE this produces cannot be asserted here; that half is verified in a
+    // real browser via the playground. What is assertable, and what actually
+    // breaks visibly, is that `left` comes back.
+    const OFFSET_X = 12;
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+    });
+
+    fire(getTrigger(container), 'mouseenter');
+    expect(getPanel()!.style.left).toBe(`${100 + OFFSET_X}px`);
+    expect(getPanel()!.style.left).not.toBe('0px');
+
+    dispose();
+  });
+
   // ─── Dismissal: pointerdown wiring ──────────────────────────────────────
 
   it('hideOnPointerDown: pointerdown on the trigger hides the panel', () => {

@@ -106,6 +106,43 @@ function toCssSize(v: number | string | undefined): string | undefined {
   return typeof v === 'number' ? `${v}px` : v;
 }
 
+/**
+ * `left` used while measuring. A `position: fixed` element's containing block
+ * is the viewport, so its shrink-to-fit width is capped at `viewport - left`;
+ * flushing it to the origin is what makes the measurement independent of
+ * wherever the panel currently sits.
+ */
+const MEASURE_ORIGIN_LEFT = '0px';
+
+/**
+ * Measure the panel at its NATURAL size — the size it would take with the
+ * whole viewport available — rather than at whatever size its current `left`
+ * happens to allow.
+ *
+ * Why this is not paranoia: measuring in place is a feedback loop. The panel
+ * is `position: fixed`, so at `left: L` its available width is `viewport - L`;
+ * a shrink-to-fit panel near the right edge therefore measures NARROWER than
+ * it is, and (because the content rewraps) TALLER. That wrong width feeds the
+ * clamp, which picks a new `left`, which changes the available width again.
+ * Observed 2026-07-23 in the playground: a panel whose natural box is 260x84
+ * measured 228x102 in place and settled flush against the viewport edge with
+ * zero `edgePadPx` clearance. The corrupted HEIGHT is the worse half — it is
+ * the entire basis of the above/below flip decision in anchored mode.
+ *
+ * Reading `offsetWidth` forces a synchronous layout but no paint, and Solid
+ * effects run before the browser paints, so the temporary `left` is never
+ * visible. The write is restored immediately; Solid's style binding re-applies
+ * the real value on the update that `setSize` triggers anyway.
+ */
+function measureNaturalSize(el: HTMLElement): { w: number; h: number } {
+  const previousLeft = el.style.left;
+  el.style.left = MEASURE_ORIGIN_LEFT;
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  el.style.left = previousLeft;
+  return { w, h };
+}
+
 function TooltipContent(props: TooltipContentProps): JSX.Element {
   let ref: HTMLDivElement | undefined;
   const [measured, setMeasured] = createSignal(false);
@@ -117,7 +154,7 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
     void _len;
     void props.extraContent; // re-measure when extra content changes
     if (ref) {
-      setSize({ w: ref.offsetWidth, h: ref.offsetHeight });
+      setSize(measureNaturalSize(ref));
       setMeasured(true);
     }
   });
