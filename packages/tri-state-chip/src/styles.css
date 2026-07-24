@@ -186,9 +186,17 @@
   content: "";
   position: absolute;
   inset-inline: 0;
-  top: 50%;
+  /* Centred with AUTO MARGINS, not `top: 50%` + `translateY(-50%)`.
+     A transformed element is composited without pixel snapping, so the old
+     centring put the line's top edge at an arbitrary sub-pixel offset: at
+     125% / 150% display scaling it landed mid-device-row and the browser
+     smeared a 1px line across TWO rows at partial alpha — which is exactly
+     what a "2px" strike looks like. `inset-block: 0` + `margin-block: auto`
+     centres it in LAYOUT instead, where the box is snapped to the device
+     grid and the line paints as one crisp row. */
+  inset-block: 0;
+  margin-block: auto;
   height: var(--ctc-strike-thickness);
-  transform: translateY(-50%);
   background: currentColor;
   /* The KNOCKOUT. A box-shadow spread paints `--ctc-strike-knockout` on every
      side of the line; the ::after stacks above the label's text, so that band
