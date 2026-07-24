@@ -6,6 +6,7 @@ import {
   type KvTooltipPlacement,
 } from './clamp';
 import { createHoverIntent } from './_internal/hoverIntent';
+import { isTopLayerSurfaceOpen } from './_internal/topLayer';
 
 /**
  * An anchor is either a rect captured by the caller, or an accessor that
@@ -241,6 +242,42 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    */
   freezeOnShow?: boolean;
 
+  /**
+   * Pressing the pointer on the trigger hides the panel and suppresses every
+   * re-show until the pointer leaves the trigger and comes back.
+   *
+   * For a trigger that is also a control — a field that opens a select menu,
+   * a button that opens a popover — the tooltip has said what it had to say by
+   * the time the user commits to clicking, and keeping it up means it competes
+   * with whatever the click opened.
+   *
+   * The suppression (rather than a bare hide) is the load-bearing half: a
+   * click that lands before a pending `showDelayMs` elapses would otherwise
+   * still let the deferred show fire, painting the tooltip over the surface
+   * that just opened.
+   *
+   * Default `false` = pointerdown is not observed at all (0.1.x behaviour).
+   */
+  hideOnPointerDown?: boolean;
+
+  /**
+   * Refuse to show while any native popover is open in the browser's top
+   * layer (`[popover]:popover-open`).
+   *
+   * `hideOnPointerDown` covers the click that opens a menu; this covers the
+   * opens it cannot see — keyboard activation, programmatic opens, a surface
+   * opened from elsewhere on the page. The panel is ordinary
+   * stacking-context content, so it can never paint above the top layer at
+   * any z-index; showing it there produces an invisible or competing tooltip.
+   *
+   * Default `false`, and deliberately so despite being a bug fix: the check is
+   * document-global, so defaulting it on would silently break a KvTooltip
+   * rendered INSIDE an open popover or dialog — a legitimate existing usage
+   * that would simply stop showing tooltips. Opt in from the surface that
+   * actually has the collision.
+   */
+  suppressWhileTopLayerOpen?: boolean;
+
   ariaLabel?: string;
   role?: 'tooltip' | 'status';
 
@@ -308,6 +345,9 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     interactive,
     hideDelayMs,
     showDelayMs,
+    hideOnPointerDown: () => props.hideOnPointerDown ?? false,
+    blockShow: () =>
+      (props.suppressWhileTopLayerOpen ?? false) && isTopLayerSurfaceOpen(),
   });
   onCleanup(hoverIntent.cleanup);
 
@@ -326,6 +366,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
       }}
       onMouseMove={(e) => setMouse({ x: e.clientX, y: e.clientY })}
       onMouseLeave={hoverIntent.onTriggerLeave}
+      onPointerDown={hoverIntent.onTriggerPointerDown}
     >
       {props.children}
       <Show when={visible() && shouldShow()}>

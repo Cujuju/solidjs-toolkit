@@ -15,10 +15,12 @@
  * State machine:
  *
  *   trigger enter  → cancel pending hide; arm show (or show now if no delay)
- *   trigger leave  → cancel pending show; if interactive: arm hide;
- *                    else: hide immediately
+ *   trigger leave  → cancel pending show; clear pointerdown suppression;
+ *                    if interactive: arm hide; else: hide immediately
  *   panel   enter  → if interactive: cancel pending hide
  *   panel   leave  → if interactive: arm hide
+ *   trigger down   → if hideOnPointerDown: cancel both timers, hide, and
+ *                    suppress every show until the pointer leaves
  *
  * Extracted as a pure factory so the state machine is testable without
  * mounting JSX. Caller injects `setVisible`, `shouldShow`, and the option
@@ -115,6 +117,18 @@ export interface HoverIntentOptions {
    * has no derived default.
    */
   showDelayMs?: () => number;
+  /**
+   * Enables the pointerdown dismissal branch. Absent = disabled, which is the
+   * 0.1.x behaviour (pointerdown was not observed at all).
+   */
+  hideOnPointerDown?: () => boolean;
+  /**
+   * Veto predicate consulted at every show attempt — both the immediate path
+   * and the deferred one. Returning true suppresses the show without touching
+   * any timer state. Injected rather than called directly so the state machine
+   * stays testable without a DOM.
+   */
+  blockShow?: () => boolean;
 }
 
 export interface HoverIntentApi {
@@ -122,6 +136,13 @@ export interface HoverIntentApi {
   onTriggerLeave: () => void;
   onPanelEnter: () => void;
   onPanelLeave: () => void;
+  /** Pointer pressed on the trigger — see `hideOnPointerDown`. */
+  onTriggerPointerDown: () => void;
+  /**
+   * Hide immediately, cancelling both pending timers. For external dismissal
+   * causes (scroll) that are not part of the hover state machine.
+   */
+  hideNow: () => void;
   /** Cancels any pending show/hide timer — call from component cleanup. */
   cleanup: () => void;
 }
@@ -152,8 +173,19 @@ export function createHoverIntent(opts: HoverIntentOptions): HoverIntentApi {
     }, opts.hideDelayMs());
   };
 
+  /**
+   * Set by pointerdown, cleared only by leaving the trigger. This flag is
+   * load-bearing, not belt-and-braces: without it a pointerdown that lands
+   * BEFORE a pending `showDelayMs` elapses still lets the deferred show fire,
+   * painting the tooltip on top of whatever the click just opened. Hiding
+   * alone cannot prevent a show that has not happened yet.
+   */
+  let suppressedUntilReenter = false;
+
   /** The single place visibility is asserted — every show gate lives here. */
   const show = (): void => {
+    if (suppressedUntilReenter) return;
+    if (opts.blockShow?.()) return;
     if (opts.shouldShow()) opts.setVisible(true);
   };
 
@@ -179,6 +211,10 @@ export function createHoverIntent(opts: HoverIntentOptions): HoverIntentApi {
       // and non-interactive mode, otherwise the panel appears after the
       // pointer has already gone.
       cancelShow();
+      // Leaving the trigger is the ONLY thing that clears pointerdown
+      // suppression — that is what makes it "until the pointer leaves and
+      // re-enters" rather than "until the next mouse event".
+      suppressedUntilReenter = false;
       if (opts.interactive()) armHide();
       else opts.setVisible(false);
     },
@@ -187,6 +223,18 @@ export function createHoverIntent(opts: HoverIntentOptions): HoverIntentApi {
     },
     onPanelLeave: (): void => {
       if (opts.interactive()) armHide();
+    },
+    onTriggerPointerDown: (): void => {
+      if (!(opts.hideOnPointerDown?.() ?? false)) return;
+      cancelShow();
+      cancelHide();
+      suppressedUntilReenter = true;
+      opts.setVisible(false);
+    },
+    hideNow: (): void => {
+      cancelShow();
+      cancelHide();
+      opts.setVisible(false);
     },
     cleanup: (): void => {
       cancelHide();

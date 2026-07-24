@@ -17,6 +17,7 @@ interface Harness {
   setHideDelay: (ms: number) => void;
   setShowDelay: (ms: number) => void;
   setShouldShow: (v: boolean) => void;
+  setBlockShow: (v: boolean) => void;
 }
 
 function createHarness(
@@ -25,12 +26,16 @@ function createHarness(
     hideDelayMs?: number;
     showDelayMs?: number;
     shouldShow?: boolean;
+    hideOnPointerDown?: boolean;
+    blockShow?: boolean;
   } = {},
 ): Harness {
   let interactive = initial.interactive ?? false;
   let hideDelayMs = initial.hideDelayMs ?? 100;
   let showDelayMs = initial.showDelayMs ?? 0;
   let shouldShow = initial.shouldShow ?? true;
+  let blockShow = initial.blockShow ?? false;
+  const hideOnPointerDown = initial.hideOnPointerDown ?? false;
   const setVisible = vi.fn();
   const api = createHoverIntent({
     setVisible,
@@ -38,6 +43,8 @@ function createHarness(
     interactive: () => interactive,
     hideDelayMs: () => hideDelayMs,
     showDelayMs: () => showDelayMs,
+    hideOnPointerDown: () => hideOnPointerDown,
+    blockShow: () => blockShow,
   });
   return {
     api,
@@ -46,6 +53,7 @@ function createHarness(
     setHideDelay: (ms) => { hideDelayMs = ms; },
     setShowDelay: (ms) => { showDelayMs = ms; },
     setShouldShow: (v) => { shouldShow = v; },
+    setBlockShow: (v) => { blockShow = v; },
   };
 }
 
@@ -280,6 +288,103 @@ describe('createHoverIntent', () => {
 
     vi.advanceTimersByTime(1000);
     expect(h.setVisible).not.toHaveBeenCalled();
+  });
+
+  // ─── Contract: pointerdown dismissal + suppression ──────────────────────
+
+  it('pointerdown is a no-op unless hideOnPointerDown is set', () => {
+    const h = createHarness();
+    h.api.onTriggerEnter();
+    h.setVisible.mockClear();
+
+    h.api.onTriggerPointerDown();
+    expect(h.setVisible).not.toHaveBeenCalled();
+  });
+
+  it('hideOnPointerDown: pressing on the trigger hides the panel', () => {
+    const h = createHarness({ hideOnPointerDown: true });
+    h.api.onTriggerEnter();
+    h.setVisible.mockClear();
+
+    h.api.onTriggerPointerDown();
+    expect(h.setVisible).toHaveBeenCalledWith(false);
+  });
+
+  it('hideOnPointerDown: a click landing BEFORE the show-delay fires kills the pending show', () => {
+    // The exact failure the suppress flag exists for. Hiding alone cannot stop
+    // a show that has not happened yet.
+    const h = createHarness({ hideOnPointerDown: true, showDelayMs: 350 });
+    h.api.onTriggerEnter();          // arm show at t=0
+    vi.advanceTimersByTime(100);
+    h.api.onTriggerPointerDown();    // user clicks at t=100, opening a menu
+
+    vi.advanceTimersByTime(1000);
+    expect(h.setVisible.mock.calls.filter((c) => c[0] === true)).toHaveLength(0);
+  });
+
+  it('hideOnPointerDown: suppression survives a re-enter without a leave', () => {
+    // mouseenter can fire again without an intervening leave (e.g. the click
+    // re-laid-out the trigger under a stationary pointer).
+    const h = createHarness({ hideOnPointerDown: true });
+    h.api.onTriggerEnter();
+    h.api.onTriggerPointerDown();
+    h.setVisible.mockClear();
+
+    h.api.onTriggerEnter();
+    expect(h.setVisible.mock.calls.filter((c) => c[0] === true)).toHaveLength(0);
+  });
+
+  it('hideOnPointerDown: leaving and re-entering clears the suppression', () => {
+    const h = createHarness({ hideOnPointerDown: true });
+    h.api.onTriggerEnter();
+    h.api.onTriggerPointerDown();
+    h.api.onTriggerLeave();
+    h.setVisible.mockClear();
+
+    h.api.onTriggerEnter();
+    expect(h.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  // ─── Contract: blockShow veto (top-layer surface open) ──────────────────
+
+  it('blockShow suppresses the immediate show path', () => {
+    const h = createHarness({ blockShow: true });
+    h.api.onTriggerEnter();
+    expect(h.setVisible).not.toHaveBeenCalled();
+  });
+
+  it('blockShow is re-evaluated when a deferred show fires, not when it is armed', () => {
+    const h = createHarness({ showDelayMs: 350, blockShow: false });
+    h.api.onTriggerEnter();          // armed while nothing was open
+    h.setBlockShow(true);            // a popover opens during the rest delay
+
+    vi.advanceTimersByTime(400);
+    expect(h.setVisible).not.toHaveBeenCalled();
+  });
+
+  it('blockShow releasing lets the next enter show normally (no latched state)', () => {
+    const h = createHarness({ blockShow: true });
+    h.api.onTriggerEnter();
+    expect(h.setVisible).not.toHaveBeenCalled();
+
+    h.api.onTriggerLeave();
+    h.setBlockShow(false);
+    h.setVisible.mockClear();
+
+    h.api.onTriggerEnter();
+    expect(h.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  // ─── Contract: hideNow is an unconditional external dismissal ───────────
+
+  it('hideNow hides immediately and cancels both pending timers', () => {
+    const h = createHarness({ interactive: true, showDelayMs: 350 });
+    h.api.onTriggerEnter();          // pending show
+    h.api.hideNow();
+    expect(h.setVisible).toHaveBeenLastCalledWith(false);
+
+    vi.advanceTimersByTime(1000);
+    expect(h.setVisible.mock.calls.filter((c) => c[0] === true)).toHaveLength(0);
   });
 
   // ─── Contract: re-arming an existing armed hide resets the timer ────────

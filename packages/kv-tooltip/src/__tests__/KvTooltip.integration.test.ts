@@ -292,6 +292,40 @@ describe('KvTooltip (integration)', () => {
     dispose();
   });
 
+  // ─── Dismissal: pointerdown wiring ──────────────────────────────────────
+
+  it('hideOnPointerDown: pointerdown on the trigger hides the panel', () => {
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      hideOnPointerDown: true,
+    });
+    const trigger = getTrigger(container);
+
+    fire(trigger, 'mouseenter');
+    expect(getPanel()).not.toBeNull();
+
+    // Solid delegates pointerdown at the document, so the event must bubble.
+    trigger.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(getPanel()).toBeNull();
+
+    dispose();
+  });
+
+  it('without hideOnPointerDown, pointerdown leaves the panel up (0.1.x behaviour)', () => {
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+    });
+    const trigger = getTrigger(container);
+
+    fire(trigger, 'mouseenter');
+    trigger.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(getPanel()).not.toBeNull();
+
+    dispose();
+  });
+
   // ─── Disabled gate works through the helper ─────────────────────────────
 
   it('disabled prop suppresses panel even on trigger mouseenter', () => {
