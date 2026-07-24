@@ -55,6 +55,25 @@ export function TriStateChipPage(): JSX.Element {
         The transitions are pure helpers (<code>cycleTriState</code>, <code>applyTriState</code>,{' '}
         <code>tristateOf</code>), so a store or a test can use them without rendering a chip.
       </p>
+      <Code cap="usage">{`
+import {
+  TriStateChip, applyTriState, tristateOf,
+  EMPTY_TRI_STATE, type TriStateValue,
+} from '@cujuju/solidjs-tri-state-chip';
+import '@cujuju/solidjs-tri-state-chip/styles.css';
+
+const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
+
+<For each={TAGS}>{(tag) => (
+  <TriStateChip
+    label={tag}
+    value={tristateOf(value(), tag)}
+    onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
+  />
+)}</For>
+
+// value() -> { included: ['calls'], excluded: ['puts'] }
+`}</Code>
 
       <h2>Click each chip twice to cycle it fully</h2>
       <p class="note">
@@ -83,25 +102,6 @@ export function TriStateChipPage(): JSX.Element {
           <TriStateChip label="frozen" value="included" onCycle={() => {}} disabled />
         </Card>
       </div>
-      <Code cap="usage">{`
-import {
-  TriStateChip, applyTriState, tristateOf,
-  EMPTY_TRI_STATE, type TriStateValue,
-} from '@cujuju/solidjs-tri-state-chip';
-import '@cujuju/solidjs-tri-state-chip/styles.css';
-
-const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
-
-<For each={TAGS}>{(tag) => (
-  <TriStateChip
-    label={tag}
-    value={tristateOf(value(), tag)}
-    onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
-  />
-)}</For>
-
-// value() -> { included: ['calls'], excluded: ['puts'] }
-`}</Code>
 
       <h2>Indicators — how the state is shown</h2>
       <p class="note">
