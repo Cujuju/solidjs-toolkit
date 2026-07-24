@@ -16,6 +16,15 @@
     --pnp-btn-hover-bg: rgba(255, 255, 255, 0.06);
     --pnp-btn-hover-text: #e2e8f0;
     --pnp-btn-active-bg: rgba(255, 255, 255, 0.12);
+    /* Disabled glyph colour: the muted text faded toward the surface by
+       `--pnp-disabled-opacity`. Derived rather than hard-coded so a consumer
+       that retints `--pnp-text-muted` / `--pnp-bg` keeps a coherent disabled
+       state, and so the existing opacity token still controls the amount. */
+    --pnp-btn-disabled-text: color-mix(
+      in srgb,
+      var(--pnp-text-muted) calc(var(--pnp-disabled-opacity) * 100%),
+      var(--pnp-bg)
+    );
   }
 }
 
@@ -104,8 +113,16 @@
   background: var(--pnp-btn-active-bg);
 }
 
+/* Disabled dims the FOREGROUND, never the element.
+   `opacity` on the element dims its background too, so a disabled button
+   becomes see-through — harmless inline (the page behind it is the same card)
+   but wrong in the portalled pop-out, where whatever the panel floats over
+   shows straight through the button. The mix keeps `--pnp-disabled-opacity`
+   meaningful (it is still "how faded", 0..1) while the button stays opaque:
+   the glyph is blended toward the surface colour instead of the surface being
+   made translucent. */
 .cpnp-btn:disabled {
-  opacity: var(--pnp-disabled-opacity);
+  color: var(--pnp-btn-disabled-text);
   cursor: not-allowed;
 }
 
@@ -233,6 +250,14 @@
     --pnp-popout-z: 1000;
     --pnp-popout-pad: 0px;
     --pnp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    /* The panel must paint its OWN surface. It is portalled to <body> and
+       floats over arbitrary page content, so any pixel it does not paint —
+       the corner slivers left by its radius, any `--pnp-popout-pad` gutter,
+       and anything showing through a translucent child — is page bleed. A
+       box-shadow without a background is a contradiction: the shadow claims
+       a surface that was never drawn. Mirrors `--pdp-popout-bg/-border` in
+       pill-date-picker, which already got this right. */
+    --pnp-popout-bg: var(--pnp-bg);
   }
 }
 
@@ -254,6 +279,11 @@
   z-index: var(--pnp-popout-z);
   padding: var(--pnp-popout-pad);
   border-radius: var(--pnp-radius);
+  /* Surface only, no border: with `--pnp-popout-pad: 0` the children sit flush
+     to the panel edge and already carry their own 1px borders, so a panel
+     border would double that edge — and it would grow the measured panel box
+     the pop-out positioner aligns against. */
+  background: var(--pnp-popout-bg);
   box-shadow: var(--pnp-popout-shadow);
   /* The panel is its own layer; it must not inherit a clipped/parent stacking
      context's text alignment or wrapping. */
