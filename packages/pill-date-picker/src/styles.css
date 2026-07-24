@@ -30,6 +30,11 @@
     /* Row states */
     --pdp-row-hover-bg: rgba(255, 255, 255, 0.07);
     --pdp-row-selected-bg: rgba(99, 102, 241, 0.18);
+    /* Selection rail — 3px matches select-flyout and the tri-state chip's rail
+       indicator, so every "this is the chosen one" stripe in the toolkit is the
+       same weight. */
+    --pdp-rail-width: 3px;
+    --pdp-rail-color: #6366f1;
 
     /* DTE urgency ramp. Referenced by DEFAULT_DTE_RAMP, so a consuming app re-themes the
        colours from its own stylesheet without ever passing the `dteRamp` prop. Neutral,
@@ -109,7 +114,32 @@
   border: 1px solid var(--pdp-popout-border);
   border-radius: var(--pdp-radius);
   box-shadow: var(--pdp-popout-shadow);
-  padding: 3px;
+  /* Vertical only: a horizontal inset would float the selection rail in from
+     the pop-out's edge instead of running flush against it. */
+  padding: 3px 0;
+  /* The UA scrollbar is painted for a light page and lands as a bright slab on
+     a dark pop-out. Transparent track, translucent thumb, full width (a thin
+     scrollbar is harder to grab). Matches glass-menu and editable-list-flyout. */
+  scrollbar-width: auto;
+  scrollbar-color: var(--pdp-scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
+}
+
+.cpdp-popout::-webkit-scrollbar,
+.cpdp-popout::-webkit-scrollbar-track,
+.cpdp-popout::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.cpdp-popout::-webkit-scrollbar-thumb {
+  background: var(--pdp-scrollbar-thumb, rgba(255, 255, 255, 0.22));
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+.cpdp-popout::-webkit-scrollbar-thumb:hover {
+  background: var(--pdp-scrollbar-thumb-hover, rgba(255, 255, 255, 0.34));
+  background-clip: padding-box;
   outline: none;
   white-space: nowrap;
 }
@@ -120,7 +150,10 @@
   justify-content: space-between;
   gap: 12px;
   padding: 4px 7px;
-  border-radius: 4px;
+  /* Square and full-bleed so the selection rail below reaches the pop-out's
+     own edge — a rounded row rounds the ENDS of an inset-shadow rail with it,
+     turning a stripe into a lozenge. Matches select-flyout. */
+  border-radius: 0;
   cursor: pointer;
   color: var(--pdp-text);
   font-family: monospace;
@@ -132,8 +165,14 @@
   background: var(--pdp-row-hover-bg);
 }
 
+/* Selection RAIL down the inline-start edge, painted with an inset box-shadow
+   so it occupies no layout. Same treatment as select-flyout's selected option,
+   so a selected row reads identically wherever the toolkit shows a list in a
+   pop-out. `currentColor` would be the row's text colour here, so the rail
+   takes the accent explicitly. */
 .cpdp-row[data-selected] {
   background: var(--pdp-row-selected-bg);
+  box-shadow: inset var(--pdp-rail-width) 0 0 var(--pdp-rail-color);
 }
 
 .cpdp-row-date {

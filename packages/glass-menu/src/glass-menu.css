@@ -100,13 +100,16 @@
      scroll container every one of them inherits (select, chip, context menu,
      editable list). Standard properties first; the WebKit pseudo-elements
      below cover engines that do not honour them yet. */
-  scrollbar-width: thin;
+  scrollbar-width: auto;
   scrollbar-color: var(--glass-menu-scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
 }
 
 .cujuju-glass-menu-body::-webkit-scrollbar {
-  width: var(--glass-menu-scrollbar-size, 10px);
-  height: var(--glass-menu-scrollbar-size, 10px);
+  background: transparent;
+}
+
+.cujuju-glass-menu-body::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .cujuju-glass-menu-body::-webkit-scrollbar-track {

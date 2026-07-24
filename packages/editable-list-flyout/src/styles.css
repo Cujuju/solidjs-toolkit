@@ -21,7 +21,13 @@
   --cuj-elf-popover-border: 1px solid rgba(255, 255, 255, 0.12);
   --cuj-elf-popover-radius: 8px;
   --cuj-elf-popover-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  --cuj-elf-popover-padding: 6px;
+  /* Vertical only: a horizontal inset would float the active row's selection
+     rail in from the panel edge instead of running flush against it. */
+  --cuj-elf-popover-padding: 6px 0;
+  /* Selection rail — 3px matches select-flyout, pill-date-picker and the
+     tri-state chip's rail, so every such stripe is the same weight. */
+  --cuj-elf-rail-width: 3px;
+  --cuj-elf-rail-color: #3b82f6;
   --cuj-elf-popover-min-width: 220px;
   --cuj-elf-popover-max-height: 60vh;
 
@@ -65,6 +71,46 @@
   overflow-y: auto;
   max-height: var(--cuj-elf-popover-max-height);
   min-width: 0;
+  /* The UA scrollbar is painted for a light page and lands as a bright slab on
+     a dark panel. Transparent track, translucent thumb, full width (a thin
+     scrollbar is harder to grab). Matches glass-menu and pill-date-picker. */
+  scrollbar-width: auto;
+  scrollbar-color: var(--cuj-elf-scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
+}
+
+[data-cuj-elf='list']::-webkit-scrollbar,
+[data-cuj-elf='list']::-webkit-scrollbar-track,
+[data-cuj-elf='list']::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+[data-cuj-elf='list']::-webkit-scrollbar-thumb {
+  background: var(--cuj-elf-scrollbar-thumb, rgba(255, 255, 255, 0.22));
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+[data-cuj-elf='list']::-webkit-scrollbar-thumb:hover {
+  background: var(--cuj-elf-scrollbar-thumb-hover, rgba(255, 255, 255, 0.34));
+  background-clip: padding-box;
+}
+
+/* Selection RAIL on the active row — the same stripe select-flyout and
+   pill-date-picker use, so "this is the chosen one" looks identical wherever
+   the toolkit lists rows in a pop-out.
+
+   Scoped to rows INSIDE this flyout, via the stable `[data-cuj-elr=…]`
+   attributes editable-list-row publishes for exactly this. A standalone
+   EditableListRow keeps its own rounded, inset look; only the in-flyout
+   presentation goes full-bleed and square, which is what lets the rail run
+   flush to the panel edge instead of floating in from it. */
+[data-cuj-elf='list'] [data-cuj-elr='row'] {
+  border-radius: 0;
+}
+
+[data-cuj-elf='list'] [data-cuj-elr='row'][data-active='true'] {
+  box-shadow: inset var(--cuj-elf-rail-width) 0 0 var(--cuj-elf-rail-color);
 }
 
 [data-cuj-elf='empty'] {
