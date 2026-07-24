@@ -1,5 +1,6 @@
 import { For, Show, createMemo, createSignal, useContext, type JSX } from 'solid-js';
 import {
+  ACCORDION_LAYOUT_VERSION,
   AccordionGroupContext,
   type AccordionGroupApi,
   type AccordionMode,
@@ -33,6 +34,17 @@ export interface AccordionGroupProps {
   reorderable?: boolean;
   /** Show splitters between adjacent open panels. Default true. */
   resizable?: boolean;
+
+  /** Cap on simultaneously open panels. Opening past it evicts the least recently
+   *  opened UNPINNED panel. Leaves and pinned panels never count as victims — see
+   *  `evictForCap`. Omit for no cap. */
+  maxOpen?: number;
+
+  /** Chrome scale. `compact` shrinks header/rail/padding tokens for dense docks.
+   *  Surfaces as `data-density`; the whole implementation is CSS. */
+  density?: 'comfortable' | 'compact';
+  /** Animate columns/panels opening and closing. Surfaces as `data-animated`. */
+  animated?: boolean;
 
   /** Persist open + pinned + order + sizes under this localStorage key. Ephemeral if
    *  omitted. NESTED groups need their OWN key — state is per-group, not per-tree. */
@@ -200,6 +212,34 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     for (const id of prev) if (!next.includes(id)) props.onChange(id, false);
   };
 
+  /**
+   * Enforce `maxOpen` by evicting least-recently-opened panels.
+   *
+   * `openList` is insertion-ordered, so its FRONT is the least recently opened —
+   * that is the whole reason open membership is stored as an ordered array now that
+   * the on-screen sequence comes from `order` instead. Eviction skips pinned panels
+   * and leaves: the pin's entire job in this control is to survive bulk operations,
+   * and a leaf is the result of a selection rather than a panel competing for space.
+   *
+   * If every open panel is exempt the cap simply does not bind — refusing to open the
+   * new panel would be a worse failure than briefly exceeding a soft limit, because
+   * the user's click would appear to do nothing.
+   */
+  const evictForCap = (next: readonly string[], justOpened: string): readonly string[] => {
+    const cap = props.maxOpen;
+    if (cap === undefined || cap <= 0) return next;
+    const result = [...next];
+    const countable = (): string[] => result.filter((v) => !isLeaf(v));
+    while (countable().length > cap) {
+      const victim = result.find(
+        (v) => v !== justOpened && !isLeaf(v) && !pinned().has(v),
+      );
+      if (victim === undefined) return result;
+      result.splice(result.indexOf(victim), 1);
+    }
+    return result;
+  };
+
   const setOpen = (id: string, want: boolean): void => {
     const current = openList();
     if (!want) {
@@ -216,7 +256,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       moveTo(id, orderIds().length - 1);
     };
     if (policy() === 'multi' || isLeaf(id)) {
-      commitOpen([...current, id]);
+      commitOpen(evictForCap([...current, id], id));
       placeLast();
       return;
     }
@@ -225,7 +265,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     // implicitly exempt: a detail pane is the RESULT of the selection being made in
     // the columns, so auto-collapsing it on the next click would destroy the very
     // thing the click produced.
-    commitOpen([...current.filter((v) => pinned().has(v) || isLeaf(v)), id]);
+    commitOpen(evictForCap([...current.filter((v) => pinned().has(v) || isLeaf(v)), id], id));
     placeLast();
   };
 
@@ -335,6 +375,31 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       commitOpen(openList().filter((id) => pinned().has(id) || isLeaf(id)));
     },
 
+    getLayout: () => ({
+      version: ACCORDION_LAYOUT_VERSION,
+      open: [...openList()],
+      pinned: [...pinned()],
+      order: [...orderIds()],
+      sizes: { ...sizes() },
+    }),
+
+    setLayout: (layout) => {
+      // All-or-nothing. A layout from an older shape could be missing a field the
+      // group now depends on, and a half-restored dock is harder to diagnose than
+      // one that visibly fell back to defaults.
+      if (layout.version !== ACCORDION_LAYOUT_VERSION) return false;
+      setOrderIds([...layout.order]);
+      setPinnedSet(new Set(layout.pinned));
+      setSizesRaw({ ...layout.sizes });
+      // Routed through commitOpen so consumers still hear onChange for every panel
+      // the restore opened or closed — a restore is a state change like any other.
+      commitOpen([...layout.open]);
+      persist();
+      props.onOrderChange?.(orderIds());
+      props.onSizeChange?.(sizes());
+      return true;
+    },
+
     moveTo,
     moveBy: (id, delta) => {
       const from = orderIds().indexOf(id);
@@ -423,6 +488,8 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         data-rail-side={railSide()}
         data-mode={mode()}
         data-policy={policy()}
+        data-density={props.density ?? 'comfortable'}
+        data-animated={props.animated ? 'true' : 'false'}
         data-depth={depth}
         data-resizing={resize.resizing() ? 'true' : 'false'}
         role="region"

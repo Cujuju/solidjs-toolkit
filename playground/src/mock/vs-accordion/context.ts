@@ -97,6 +97,29 @@ export interface PanelMeta {
   isLeaf: boolean;
 }
 
+/**
+ * The complete user-owned arrangement of a group, as a plain serialisable object.
+ *
+ * This is the SAME shape the group persists to localStorage, deliberately: a saved
+ * workspace and an auto-persisted session are the same data, so there is one
+ * migration story rather than two. `version` exists so a consumer that stored a
+ * layout server-side can be told, later, that the shape moved on.
+ */
+export interface AccordionLayout {
+  version: number;
+  /** Which panels are open. Membership; sequence lives in `order`. */
+  open: string[];
+  pinned: string[];
+  order: string[];
+  /** Explicit px sizes, by panel id. Absent id = automatic sizing. */
+  sizes: Record<string, number>;
+}
+
+/** Bumped when `AccordionLayout`'s shape changes incompatibly. A stored layout with
+ *  a different version is IGNORED rather than half-applied — a partly-restored dock
+ *  is harder to diagnose than one that obviously fell back to defaults. */
+export const ACCORDION_LAYOUT_VERSION = 1;
+
 export interface AccordionGroupApi {
   orientation: Accessor<AccordionOrientation>;
   railSide: Accessor<AccordionRailSide>;
@@ -159,6 +182,13 @@ export interface AccordionGroupApi {
   beginResize: (id: string, e: PointerEvent) => void;
   /** True while a splitter drag is live — used to suppress transitions/selection. */
   resizing: Accessor<boolean>;
+
+  /** Snapshot the current arrangement — for named workspaces, server-side sync, or
+   *  an undo stack. Pure data; safe to JSON.stringify. */
+  getLayout: () => AccordionLayout;
+  /** Restore a snapshot. A layout whose `version` does not match is ignored and
+   *  reported false, rather than being partially applied. */
+  setLayout: (layout: AccordionLayout) => boolean;
 
   /** Panels self-register so the group can apply `defaultOpen` in declaration order,
    *  render the rail in `horizontal`, and drive roving keyboard focus. */
