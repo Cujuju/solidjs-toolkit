@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-seg-buttons",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Segmented button control for SolidJS — controlled or uncontrolled, size presets, full a11y, RTL-ready.",
   "type": "module",
   "main": "./dist/index.js",

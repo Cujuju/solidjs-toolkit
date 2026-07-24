@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-pill-toggle",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "iOS-style pill toggle for SolidJS — icons, loading/readOnly, press effects, a11y switch role.",
   "type": "module",
   "main": "./dist/index.js",

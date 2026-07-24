@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-editable-list-row",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Editable list row primitive for SolidJS — inline rename, delete-with-confirm, selection variants, drag-reorder pass-through, leading icon/control slot.",
   "type": "module",
   "main": "./dist/index.js",

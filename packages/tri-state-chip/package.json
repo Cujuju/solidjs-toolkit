@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-tri-state-chip",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tri-state filter chip for SolidJS — include / exclude / neutral cycling, theme via CSS vars, plus pure state helpers (cycleTriState, applyTriState, tristateOf).",
   "type": "module",
   "main": "./dist/index.js",

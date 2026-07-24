@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-select-flyout",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Keyboard-accessible <select> replacement for SolidJS — roving focus, type-ahead, ARIA combobox/listbox, rendered through an anchored glass-menu panel so backdrop-filter actually applies.",
   "type": "module",
   "main": "./dist/index.js",

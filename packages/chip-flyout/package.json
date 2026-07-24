@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-chip-flyout",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Filter flyout primitive for SolidJS — a trigger button opening a Portal'd glass menu of tri-state or multi-select chips, with optional server-backed typeahead.",
   "type": "module",
   "main": "./dist/index.js",

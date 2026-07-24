@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-glass-menu",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Glass-surfaced menu shell for SolidJS — a header (title + action slot + close button) over a scrollable body, styled with the .glass-menu surface.",
   "type": "module",
   "main": "./dist/index.js",
