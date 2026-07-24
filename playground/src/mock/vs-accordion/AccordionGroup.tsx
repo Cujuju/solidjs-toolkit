@@ -3,6 +3,7 @@ import {
   AccordionGroupContext,
   type AccordionGroupApi,
   type AccordionMode,
+  type AccordionOpenPlacement,
   type AccordionOrientation,
   type AccordionPolicy,
   type AccordionRailSide,
@@ -24,6 +25,8 @@ export interface AccordionGroupProps {
   mode?: AccordionMode;
   /** See `AccordionPolicy`. Default `single` — the accordion behaviour. */
   policy?: AccordionPolicy;
+  /** See `AccordionOpenPlacement`. Default `in-order` — a stable rail. */
+  openPlacement?: AccordionOpenPlacement;
 
   /** Drag a rail button (or a vertical header) to reorder the panels. Default true.
    *  Alt+Up/Alt+Down does the same thing from the keyboard, always. */
@@ -103,6 +106,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const railSide = (): AccordionRailSide => props.railSide ?? 'left';
   const mode = (): AccordionMode => props.mode ?? 'natural';
   const policy = (): AccordionPolicy => props.policy ?? 'single';
+  const openPlacement = (): AccordionOpenPlacement => props.openPlacement ?? 'in-order';
   const reorderable = (): boolean => props.reorderable ?? true;
   const resizable = (): boolean => props.resizable ?? true;
 
@@ -115,15 +119,15 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const hydrated = persisted !== null;
 
   /**
-   * Open state is an ORDERED ARRAY, not a Set.
+   * Open MEMBERSHIP. Kept as an array rather than a Set only so persistence has a
+   * stable serialisation; the on-screen sequence does NOT come from here.
    *
-   * In `horizontal` orientation this order is directly visible: it is the
-   * left-to-right column order, and the user's mental model is "the one I opened
-   * last appeared on the right". A Set would technically preserve insertion order,
-   * but the `single`-policy rebuild below constructs a fresh collection each time —
-   * with a Set it is far too easy to write `new Set([id, ...survivors])` and
-   * silently re-sort the user's columns on every click. An explicit array makes the
-   * append-vs-prepend decision impossible to make by accident.
+   * That sequence is `orderIds` — one order, rendered twice (rail + columns). It is
+   * the reason dragging a rail button moves its column and dragging a column moves
+   * its rail button: there is nothing to keep in sync, because there is only one
+   * thing. An earlier draft made open-order the column order and left the rail on
+   * declaration order, which meant the two representations disagreed the moment
+   * anything was dragged — two orders is a bug surface, not a feature.
    */
   const [openList, setOpenList] = createSignal<readonly string[]>(persisted?.open ?? []);
   const [pinned, setPinnedSet] = createSignal<ReadonlySet<string>>(
@@ -181,10 +185,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const visualOpenIds = createMemo<readonly string[]>(() => {
     const open = openList();
     const leafIds = open.filter((id) => isLeaf(id));
-    const normal =
-      orientation() === 'horizontal'
-        ? open.filter((id) => !isLeaf(id))
-        : orderIds().filter((id) => open.includes(id) && !isLeaf(id));
+    const normal = orderIds().filter((id) => open.includes(id) && !isLeaf(id));
     return [...normal, ...leafIds];
   });
 
@@ -207,8 +208,16 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       return;
     }
     if (current.includes(id)) return;
+    // `append` placement moves the panel within THE order, so the rail follows the
+    // column. Deferred to a microtask-free direct call after the open commit so the
+    // order change and the open change land as one user-visible step.
+    const placeLast = (): void => {
+      if (openPlacement() !== 'append' || isLeaf(id)) return;
+      moveTo(id, orderIds().length - 1);
+    };
     if (policy() === 'multi' || isLeaf(id)) {
       commitOpen([...current, id]);
+      placeLast();
       return;
     }
     // single policy: every PINNED panel that was already open keeps its slot — and
@@ -217,6 +226,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     // the columns, so auto-collapsing it on the next click would destroy the very
     // thing the click produced.
     commitOpen([...current.filter((v) => pinned().has(v) || isLeaf(v)), id]);
+    placeLast();
   };
 
   const setSizes = (next: Record<string, number>): void => {
@@ -286,6 +296,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
 
     openOrder: openList,
     order: orderIds,
+    visualOpenIds,
     panels,
     leaves,
     meta: metaOf,

@@ -35,6 +35,24 @@ export type AccordionMode =
   /** Each open panel is as big as its content; the group (or its container) scrolls. */
   | 'natural';
 
+/**
+ * Where a newly-opened panel lands in the column sequence.
+ *
+ * There is exactly ONE order in this control — `AccordionGroupApi.order` — and both
+ * the rail and the columns render from it. That is what makes reordering the rail
+ * reorder the columns and vice versa: they are not two sequences kept in sync, they
+ * are one sequence read twice. This prop only decides whether OPENING a panel also
+ * moves it within that sequence.
+ */
+export type AccordionOpenPlacement =
+  /** The panel appears in its rail slot. Opening never reorders anything, so the rail
+   *  is stable and a column's position is always predictable from its button's. */
+  | 'in-order'
+  /** The panel moves to the END of the order, so the most recently opened column is
+   *  always the outermost one. The cost is real and unavoidable given a single
+   *  sequence: the rail button moves too. */
+  | 'append';
+
 /** What opening one panel does to its siblings. */
 export type AccordionPolicy =
   /** True accordion — opening a panel auto-collapses its unpinned siblings. */
@@ -89,13 +107,16 @@ export interface AccordionGroupApi {
   /** Nesting depth of this group. 0 = outermost. Drives header indent. */
   depth: number;
 
-  /** Open panel ids, IN THE ORDER THEY WERE OPENED. Ordered rather than a set
-   *  because in `horizontal` orientation that order is the on-screen column order. */
+  /** Which panels are open. Membership only — for the on-screen SEQUENCE use
+   *  `order` (or `visualOpenIds`), which is the single source of truth for both the
+   *  rail and the columns. */
   openOrder: Accessor<readonly string[]>;
-  /** All registered panel ids in USER order — the rail's order and the vertical
-   *  header order, which the user can drag to change. Leaves are excluded: they are
-   *  pinned to the end by definition. */
+  /** THE order: every registered panel id, rail order and column order at once. The
+   *  user changes it by dragging either representation. Leaves are excluded — they
+   *  are terminal by definition. */
   order: Accessor<readonly string[]>;
+  /** Open panels in painted sequence — `order` filtered to open, leaves appended. */
+  visualOpenIds: Accessor<readonly string[]>;
   /** Registered panels (leaves excluded), already sorted into `order`. */
   panels: Accessor<readonly PanelMeta[]>;
   /** Registered leaves, in registration order. */
