@@ -364,13 +364,29 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   const hideDelayMs = (): number => props.hideDelayMs ?? 100;
   const showDelayMs = (): number => props.showDelayMs ?? 0;
 
-  // ── freezeOnShow: capture content + reference position at show time ───────
+  /**
+   * The panel's POSITION is pinned for the lifetime of a show when either the
+   * caller asked (`freezeOnShow`) or the panel is INTERACTIVE.
+   *
+   * Interactive forces it because a cursor-anchored panel is otherwise
+   * unreachable: the panel sits at cursor + `mouseOffsetX/Y`, and Solid
+   * propagates DELEGATED events (mousemove among them) out of a `<Portal>` to
+   * the logical JSX parent — this wrapper. So moving onto the panel fires the
+   * wrapper's `onMouseMove`, which moves the panel to the new cursor position,
+   * which moves it out from under the pointer, forever. A panel you are meant
+   * to click cannot also be a moving target.
+   */
+  const positionFrozen = (): boolean => (props.freezeOnShow ?? false) || interactive();
+  /** CONTENT freezing stays opt-in — an interactive panel may still want live
+   *  values, it just may not move. */
+  const contentFrozen = (): boolean => props.freezeOnShow ?? false;
+
   // `on(visible, …)` runs its callback untracked, so taking the snapshot does
   // NOT subscribe this effect to the very sources it is snapshotting.
   const [frozen, setFrozen] = createSignal<FrozenSnapshot | null>(null);
   createEffect(
     on(visible, (v) => {
-      if (!v || !(props.freezeOnShow ?? false)) {
+      if (!v || !positionFrozen()) {
         setFrozen(null);
         return;
       }
@@ -382,7 +398,10 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   // Each of these reads the live source ONLY when nothing is frozen — reading
   // it unconditionally (e.g. `frozen()?.x ?? mouse().x`) would re-subscribe
   // the panel to the ticking source and defeat the freeze.
-  const panelEntries = (): Array<[string, string]> => frozen()?.entries ?? filtered();
+  const panelEntries = (): Array<[string, string]> => {
+    const f = frozen();
+    return f && contentFrozen() ? f.entries : filtered();
+  };
   const panelX = (): number => { const f = frozen(); return f ? f.x : mouse().x; };
   const panelY = (): number => { const f = frozen(); return f ? f.y : mouse().y; };
   const panelAnchor = (): KvTooltipAnchor | undefined => {
@@ -436,7 +455,17 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
         setMouse({ x: e.clientX, y: e.clientY });
         hoverIntent.onTriggerEnter();
       }}
-      onMouseMove={(e) => setMouse({ x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => {
+        // Ignore moves that originated INSIDE the panel. Solid propagates
+        // delegated events out of the `<Portal>` to this logical parent, so
+        // without this guard the panel re-positions itself to a cursor that is
+        // already on top of it — and walks away from the pointer. The
+        // `positionFrozen` rule above is the primary fix; this keeps the
+        // tracking honest for any future unfrozen-but-hoverable configuration.
+        const target = e.target as Element | null;
+        if (target?.closest?.('.ckv-panel')) return;
+        setMouse({ x: e.clientX, y: e.clientY });
+      }}
       onMouseLeave={hoverIntent.onTriggerLeave}
       onPointerDown={hoverIntent.onTriggerPointerDown}
     >
