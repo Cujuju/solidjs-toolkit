@@ -334,6 +334,65 @@ code { font-family: var(--mono); color: var(--text); }
   color: var(--accent);
 }
 
+/* ── Glyph-free tri-state chip variants ──────────────────────────────────
+   Each carries the state WITHOUT a character in the text flow, so there is
+   no column to reserve and no blank to fill: the chip is exactly as wide as
+   its label in every state. Playground-only until one is chosen. */
+
+/* 1. Typographic — the X becomes a strike through the label. "Excluded" is
+      literally crossed out; text-decoration costs zero layout width. */
+.demo-chip-strike[data-state='excluded'] .ctc-chip-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+/* 2. Typographic, both marked — adds an underline for included so the
+      include/neutral distinction is not carried by colour alone (WCAG 1.4.1). */
+.demo-chip-marks[data-state='excluded'] .ctc-chip-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.demo-chip-marks[data-state='included'] .ctc-chip-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+}
+
+/* 3. Corner badge — the glyph survives, but out of flow, overhanging the
+      chip's own corner where nothing else is drawn. */
+.demo-chip-badge { position: relative; }
+.demo-chip-badge[data-state='included']::after,
+.demo-chip-badge[data-state='excluded']::after {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  font-size: 9px;
+  line-height: 13px;
+  text-align: center;
+  color: var(--surface);
+  pointer-events: none;
+}
+.demo-chip-badge[data-state='included']::after {
+  content: '✓';
+  background: var(--ctc-color-included);
+}
+.demo-chip-badge[data-state='excluded']::after {
+  content: '✗';
+  background: var(--ctc-color-excluded);
+}
+
+/* 4. Inner rail — a stripe painted inside the chip's existing padding via
+      inset box-shadow, which never participates in layout. */
+.demo-chip-rail[data-state='included'] {
+  box-shadow: inset 3px 0 0 var(--ctc-color-included);
+}
+.demo-chip-rail[data-state='excluded'] {
+  box-shadow: inset 3px 0 0 var(--ctc-color-excluded);
+}
+
 /* A surface to right-click / drop a menu onto. */
 .canvas {
   width: 100%;

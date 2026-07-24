@@ -31,6 +31,39 @@ const NEUTRAL_GLYPHS = [
   { id: 'small-ring', cap: '◦ small ring', glyph: '◦ ' },
 ] as const;
 
+/**
+ * Glyph-FREE variants. Each carries the state without a character in the text
+ * flow, so no column is reserved and the chip is the same width in every
+ * state — with nothing to fill while unselected.
+ */
+const GLYPHLESS = [
+  { id: 'strike', cap: 'strike the excluded label', cls: 'demo-chip-strike' },
+  { id: 'marks', cap: 'underline included / strike excluded', cls: 'demo-chip-marks' },
+  { id: 'badge', cap: 'corner badge (out of flow)', cls: 'demo-chip-badge' },
+  { id: 'rail', cap: 'inner rail (inset shadow)', cls: 'demo-chip-rail' },
+  { id: 'colour', cap: 'colour + tint only (today, glyphs off)', cls: '' },
+] as const;
+
+/** A row of chips wired to its own independent state, with no glyphs at all. */
+function GlyphlessRow(props: { cls: string }): JSX.Element {
+  const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
+  return (
+    <For each={TAGS.slice(0, 3)}>
+      {(tag) => (
+        <TriStateChip
+          label={tag}
+          value={tristateOf(value(), tag)}
+          onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
+          class={props.cls}
+          includePrefix=""
+          excludePrefix=""
+          neutralPrefix=""
+        />
+      )}
+    </For>
+  );
+}
+
 /** A row of chips wired to its own independent state. */
 function ChipRow(props: {
   include: string;
@@ -90,6 +123,24 @@ export function TriStateChipPage(): JSX.Element {
         <Card cap="disabled">
           <TriStateChip label="frozen" value="included" onCycle={() => {}} disabled />
         </Card>
+      </div>
+
+      <h2>No glyph column at all</h2>
+      <p class="note">
+        The reserved column exists only because the state mark was assumed to be a CHARACTER IN
+        THE TEXT FLOW. Carry the state some other way and the problem dissolves: every chip below
+        has <code>includePrefix=""</code> / <code>excludePrefix=""</code>, so there is no column,
+        nothing to reserve, nothing blank while unselected — and the chip is exactly as wide as its
+        label in all three states. <b>Click twice to cycle.</b> Nothing here moves, ever.
+      </p>
+      <div class="row">
+        <For each={GLYPHLESS}>
+          {(v) => (
+            <Card cap={v.cap}>
+              <GlyphlessRow cls={v.cls} />
+            </Card>
+          )}
+        </For>
       </div>
 
       <h2>Glyph set</h2>
