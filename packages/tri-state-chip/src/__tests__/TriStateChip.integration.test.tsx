@@ -57,28 +57,29 @@ describe('TriStateChip rendering', () => {
     expect(findChip().getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('renders default include prefix when state=included', () => {
+  it('renders default include prefix when indicator=glyph, state=included', () => {
     dispose = render(
-      () => <TriStateChip label="X" value="included" onCycle={() => {}} />,
+      () => <TriStateChip label="X" value="included" indicator="glyph" onCycle={() => {}} />,
       document.body,
     );
     expect(findChip().textContent).toBe('✓ X');
   });
 
-  it('renders default exclude prefix when state=excluded', () => {
+  it('renders default exclude prefix when indicator=glyph, state=excluded', () => {
     dispose = render(
-      () => <TriStateChip label="X" value="excluded" onCycle={() => {}} />,
+      () => <TriStateChip label="X" value="excluded" indicator="glyph" onCycle={() => {}} />,
       document.body,
     );
     expect(findChip().textContent).toBe('✗ X');
   });
 
-  it('omits prefix when prefix prop is empty string', () => {
+  it('omits prefix when prefix prop is empty string (glyph mode)', () => {
     dispose = render(
       () => (
         <TriStateChip
           label="X"
           value="included"
+          indicator="glyph"
           includePrefix=""
           onCycle={() => {}}
         />
@@ -88,12 +89,13 @@ describe('TriStateChip rendering', () => {
     expect(findChip().textContent).toBe('X');
   });
 
-  it('custom prefix is rendered verbatim', () => {
+  it('custom prefix is rendered verbatim (glyph mode)', () => {
     dispose = render(
       () => (
         <TriStateChip
           label="X"
           value="excluded"
+          indicator="glyph"
           excludePrefix="(NO) "
           onCycle={() => {}}
         />
@@ -121,12 +123,21 @@ describe('TriStateChip rendering', () => {
     }
   });
 
-  it('default indicator is glyph and keeps the reserved prefix', () => {
+  it('default indicator is strike — no prefix column, label is the text', () => {
     dispose = render(
-      () => <TriStateChip label="X" value="included" onCycle={() => {}} />,
+      () => <TriStateChip label="X" value="excluded" onCycle={() => {}} />,
       document.body,
     );
-    expect(findChip().getAttribute('data-indicator')).toBe('glyph');
+    expect(findChip().getAttribute('data-indicator')).toBe('strike');
+    expect(findChip().querySelector('.ctc-chip-prefix')).toBeNull();
+    expect(findChip().textContent).toBe('X');
+  });
+
+  it('glyph indicator keeps the reserved prefix column', () => {
+    dispose = render(
+      () => <TriStateChip label="X" value="included" indicator="glyph" onCycle={() => {}} />,
+      document.body,
+    );
     expect(findChip().querySelector('.ctc-chip-prefix')).not.toBeNull();
   });
 

@@ -32,6 +32,10 @@
   --pdp-popout-bg: var(--surface);
   --pdp-popout-border: var(--border);
   --pdp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+
+  /* @cujuju/solidjs-tri-state-chip — chips sit on the card body (--surface),
+     so the strike's dead-space halo must match that to read as a clean gap. */
+  --ctc-surface: var(--surface);
 }
 
 * { box-sizing: border-box; }

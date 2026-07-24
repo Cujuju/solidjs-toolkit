@@ -38,11 +38,22 @@
 
     /* States. */
     --ctc-disabled-opacity: 0.5;
-    --ctc-focus-ring: 2px solid #6366f1;
-    --ctc-focus-ring-offset: 2px;
+    /* Focus ring HIDDEN by default (user directive). Set to the thin inset
+       ring `1px solid #6366f1` to opt back in; the offset is already inset so
+       the ring hugs the chip instead of drawing a detached halo. Keyboard
+       users lose the visible focus cue while this is `none` — a deliberate,
+       documented a11y tradeoff the consumer re-enables per surface. */
+    --ctc-focus-ring: none;
+    --ctc-focus-ring-offset: -1px;
 
-    /* Glyph-free indicator tunables (see the indicator rules below). */
-    --ctc-strike-thickness: 1.5px;
+    /* Glyph-free indicator tunables (see the indicator rules below).
+       `--ctc-line-thickness` is shared by the strike and the underline. The
+       strike is drawn as its own line with `--ctc-strike-gap` of dead space
+       punched around it in `--ctc-strike-gap-color` (default: the chip's
+       resolved surface; override to match yours). */
+    --ctc-line-thickness: 1px;
+    --ctc-strike-gap: 2px;
+    --ctc-strike-gap-color: var(--ctc-surface, #0f172a);
     --ctc-underline-offset: 3px;
     --ctc-badge-size: 13px;
     --ctc-badge-text: var(--ctc-bg-page, #0b1220);
@@ -131,19 +142,34 @@
    set by the component; the reserved-column markup above renders only for the
    default `glyph` indicator. */
 
-/* strike / marks — the mark is drawn ON the label with text-decoration, which
-   costs zero layout width. Excluded is literally crossed out. */
-.ctc-chip[data-indicator="strike"][data-state="excluded"] .ctc-chip-label,
-.ctc-chip[data-indicator="marks"][data-state="excluded"] .ctc-chip-label {
-  text-decoration: line-through;
-  text-decoration-thickness: var(--ctc-strike-thickness);
+/* strike / marks — the mark is drawn ON the label at zero layout width. The
+   strike is a pseudo-element line (not `text-decoration: line-through`) so it
+   can carry a `--ctc-strike-gap` of DEAD SPACE: a band of the surface colour
+   punched above and below the line via box-shadow spread, so the line reads as
+   floating clear of the glyphs rather than welded through them. */
+.ctc-chip[data-indicator="strike"] .ctc-chip-label,
+.ctc-chip[data-indicator="marks"] .ctc-chip-label {
+  position: relative;
+}
+.ctc-chip[data-indicator="strike"][data-state="excluded"] .ctc-chip-label::after,
+.ctc-chip[data-indicator="marks"][data-state="excluded"] .ctc-chip-label::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: var(--ctc-line-thickness);
+  transform: translateY(-50%);
+  background: currentColor;
+  /* The dead space: a gap-coloured halo around the thin line. */
+  box-shadow: 0 0 0 var(--ctc-strike-gap) var(--ctc-strike-gap-color);
 }
 /* marks additionally underlines included, so include vs neutral is not
-   distinguished by colour alone (WCAG 1.4.1 — colour is not the only cue). */
+   distinguished by colour alone (WCAG 1.4.1 — colour is not the only cue).
+   Underline stays `text-decoration` (thin, no dead space asked for). */
 .ctc-chip[data-indicator="marks"][data-state="included"] .ctc-chip-label {
   text-decoration: underline;
   text-underline-offset: var(--ctc-underline-offset);
-  text-decoration-thickness: var(--ctc-strike-thickness);
+  text-decoration-thickness: var(--ctc-line-thickness);
 }
 
 /* badge — a small disc pinned to the top-inline-end corner, out of flow. The

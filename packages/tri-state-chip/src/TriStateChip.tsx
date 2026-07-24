@@ -29,12 +29,14 @@ export interface TriStateChipProps {
   /**
    * How the chip signals its state.
    *
-   * - `glyph` (default) — a leading `✓ ` / `✗ ` in the text flow, in a
-   *   reserved column so width is stable. The neutral state has no glyph, so
-   *   the column sits blank unless `neutralPrefix` fills it.
-   * - `strike` — no glyph at all; the EXCLUDED label is struck through. The
-   *   chip is exactly its label's width in every state, nothing reserved,
-   *   nothing blank. Included stays tint-only.
+   * - `strike` (default) — no glyph at all; the EXCLUDED label is struck
+   *   through. The chip is exactly its label's width in every state, nothing
+   *   reserved, nothing blank. Included stays tint-only.
+   * - `glyph` — a leading `✓ ` / `✗ ` in the text flow, in a fixed-width
+   *   column so width is stable. The neutral state has no glyph and its label
+   *   is centred; a glyph offsets the label to the right. `neutralPrefix` can
+   *   fill the neutral state with a mark (which then keeps it offset, not
+   *   centred).
    * - `marks` — `strike`, plus an underline on the INCLUDED label, so
    *   include / neutral is not distinguished by colour alone (WCAG 1.4.1).
    * - `badge` — a small ✓ / ✗ disc pinned to the chip's top-INLINE-end
@@ -44,8 +46,8 @@ export interface TriStateChipProps {
    *   with an inset shadow so it never occupies layout.
    * - `tint` — background + text colour only, no glyph and no decoration.
    *
-   * Every non-`glyph` indicator carries the state WITHOUT a character in the
-   * text flow, so none of them reserve a column or need a neutral mark.
+   * Every indicator except `glyph` carries the state WITHOUT a character in
+   * the text flow, so none of them reserve a column or need a neutral mark.
    */
   indicator?: 'glyph' | 'strike' | 'marks' | 'badge' | 'rail' | 'tint';
   /** ARIA label override. When omitted the chip relies on its visible text. */
@@ -68,6 +70,12 @@ const DEFAULT_EXCLUDE_PREFIX = '✗ ';
 /** Empty by default: adding a neutral mark to every existing consumer's
  *  unselected chips would be a visual change they did not ask for. */
 const DEFAULT_NEUTRAL_PREFIX = '';
+
+/** Default state indicator. `strike` — no glyph column, the excluded label is
+ *  crossed out — is the chosen resting look: no reserved width, nothing blank
+ *  in the neutral state, and the chip is exactly its label's width. Opt into
+ *  the leading `glyph` (or any other) via the `indicator` prop. */
+const DEFAULT_INDICATOR = 'strike' as const;
 
 /**
  * A single tri-state filter chip — one button that cycles through
@@ -96,7 +104,7 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
   const neutralPrefix = (): string =>
     props.neutralPrefix ?? DEFAULT_NEUTRAL_PREFIX;
   const indicator = (): NonNullable<TriStateChipProps['indicator']> =>
-    props.indicator ?? 'glyph';
+    props.indicator ?? DEFAULT_INDICATOR;
 
   /** Glyph for the CURRENT state. */
   const prefixGlyph = (): string =>
