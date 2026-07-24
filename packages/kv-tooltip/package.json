@@ -1,7 +1,7 @@
 {
   "name": "@cujuju/solidjs-kv-tooltip",
-  "version": "0.1.0",
-  "description": "Mouse-follow key-value tooltip for SolidJS — viewport-clamped with hysteresis, Portal-rendered, extraContent slot.",
+  "version": "0.2.0",
+  "description": "Mouse-follow or rect-anchored key-value tooltip for SolidJS — viewport-clamped with hysteresis, Portal-rendered, extraContent slot.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -35,7 +35,9 @@
     "tooltip",
     "hover",
     "portal",
-    "viewport-clamp"
+    "viewport-clamp",
+    "anchored",
+    "placement"
   ],
   "peerDependencies": {
     "solid-js": ">=1.7.0"
