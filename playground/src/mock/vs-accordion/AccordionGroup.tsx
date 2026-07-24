@@ -13,6 +13,7 @@ import {
 import { Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
 import { createResize, DEFAULT_MIN_SIZE_PX } from './resize';
+import { createPanelMenu } from './panelMenu';
 import { createReorderList } from './vendor/createReorderList';
 
 export interface AccordionGroupProps {
@@ -538,10 +539,16 @@ function RailButton(props: { group: AccordionGroupApi; meta: PanelMeta }): JSX.E
   const pinned = (): boolean => props.group.isPinned(props.meta.id);
   const onKeyDown = createActivatorKeyDown(props.group, () => props.meta.id);
   const dragProps = (): Record<string, unknown> => props.group.reorderItemProps(props.meta.id);
+  // The id is passed as an accessor: this button is rendered from a <For> over
+  // reactive metadata, so a snapshot would bind the menu to whichever panel held
+  // the slot at mount and act on the wrong one after a reorder.
+  const menu = createPanelMenu(props.group, () => props.meta.id);
 
   return (
+    <>
     <button
       {...dragProps()}
+      {...menu.triggerProps}
       ref={(el) => {
         props.group.setHeaderEl(props.meta.id, el);
         // The reorder primitive registers its own node via `itemProps.ref`; Solid
@@ -574,5 +581,7 @@ function RailButton(props: { group: AccordionGroupApi; meta: PanelMeta }): JSX.E
         <span class="vsa-rail-count">{props.meta.count()}</span>
       </Show>
     </button>
+    {menu.element}
+    </>
   );
 }

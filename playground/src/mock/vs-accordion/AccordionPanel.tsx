@@ -2,6 +2,7 @@ import { Show, createMemo, createUniqueId, onCleanup, onMount, type JSX } from '
 import { useAccordionGroup, type AccordionGroupApi } from './context';
 import { Chevron, Close, Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
+import { createPanelMenu } from './panelMenu';
 import { Splitter } from './Splitter';
 
 export interface AccordionPanelProps {
@@ -65,6 +66,9 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   const closable = (): boolean => props.closable ?? horizontal();
 
   const onKeyDown = createActivatorKeyDown(group, () => props.id);
+  /** One menu instance per panel, attached to whichever chrome this orientation
+   *  renders — the header row (vertical) or the column title bar (horizontal). */
+  const menu = createPanelMenu(group, () => props.id);
   const dragProps = (): Record<string, unknown> =>
     horizontal() ? {} : group.reorderItemProps(props.id);
 
@@ -134,7 +138,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     >
       {/* VERTICAL: the activator is a full-width header bar above the content. */}
       <Show when={!horizontal()}>
-        <div class="vsa-header-row">
+        <div class="vsa-header-row" {...menu.triggerProps}>
           <button
             {...dragProps()}
             ref={(el) => {
@@ -177,7 +181,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           title bar — the place the pin and the close affordance have to live, since
           a rail button is too narrow to carry either. */}
       <Show when={horizontal() && open()}>
-        <div class="vsa-col-bar">
+        <div class="vsa-col-bar" {...menu.triggerProps}>
           <Show when={props.icon}>
             <span class="vsa-icon">{props.icon}</span>
           </Show>
@@ -216,6 +220,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       </Show>
 
       <Splitter id={props.id} />
+      {menu.element}
     </div>
   );
 }
