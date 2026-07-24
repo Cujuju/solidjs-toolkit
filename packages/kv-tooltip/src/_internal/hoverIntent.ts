@@ -14,8 +14,9 @@
  *
  * State machine:
  *
- *   trigger enter  → cancel pending hide; setVisible(true) (if shouldShow)
- *   trigger leave  → if interactive: arm hide; else: hide immediately
+ *   trigger enter  → cancel pending hide; arm show (or show now if no delay)
+ *   trigger leave  → cancel pending show; if interactive: arm hide;
+ *                    else: hide immediately
  *   panel   enter  → if interactive: cancel pending hide
  *   panel   leave  → if interactive: arm hide
  *
@@ -73,6 +74,34 @@
  * Long-Term Mouse Movement Behaviour" (CHI 2017) — typical mouse
  * velocities during purposive interaction land in the 100-300 px/s range
  * for the median user.
+ *
+ * ─── Why showDelayMs has NO non-zero default ────────────────────────────
+ *
+ * The hide delay above is derivable from geometry this module owns: the
+ * gap between trigger and panel is `mouseOffsetX/Y`, so traversal time
+ * follows from the same velocity figures. The SHOW delay is not. It is a
+ * rest-intent threshold — "how long must the pointer sit still before we
+ * believe the user meant to hover this?" — and the answer depends on
+ * things only the consumer knows:
+ *
+ *   - trigger DENSITY. A row of adjacent hover targets needs a real delay,
+ *     because a pointer crossing five of them on the way somewhere else
+ *     would otherwise flash five tooltips. An isolated info icon needs
+ *     none: there is nothing to pass through.
+ *   - trigger SIZE. Crossing a 40px cell at the same 200 px/s that gives
+ *     t ≈ 100ms across the panel gap takes t ≈ 200ms — so the delay that
+ *     suppresses a pass-through is a function of the consumer's layout,
+ *     not of this module's offsets.
+ *   - whether the tooltip is the primary affordance or a progressive
+ *     disclosure. A delay on the former reads as lag; on the latter it
+ *     reads as restraint.
+ *
+ * Picking a number here would encode one consumer's layout as everyone's
+ * default and would be a silent behaviour change for every 0.1.x caller.
+ * So the default is 0 — show immediately, exactly as before — and the
+ * consumer sets a value derived from ITS densest case. Values in the
+ * 200-500ms band are typical for a dense grid; the same Müller velocity
+ * figures let a consumer derive its own from cell width / pointer speed.
  */
 
 export interface HoverIntentOptions {
@@ -80,6 +109,12 @@ export interface HoverIntentOptions {
   shouldShow: () => boolean;
   interactive: () => boolean;
   hideDelayMs: () => number;
+  /**
+   * Rest delay (ms) before showing. Optional; absent or <= 0 means show
+   * immediately, which is the 0.1.x behaviour. See the header for why this
+   * has no derived default.
+   */
+  showDelayMs?: () => number;
 }
 
 export interface HoverIntentApi {
@@ -87,17 +122,25 @@ export interface HoverIntentApi {
   onTriggerLeave: () => void;
   onPanelEnter: () => void;
   onPanelLeave: () => void;
-  /** Cancels any pending hide timer — call from component cleanup. */
+  /** Cancels any pending show/hide timer — call from component cleanup. */
   cleanup: () => void;
 }
 
 export function createHoverIntent(opts: HoverIntentOptions): HoverIntentApi {
   let hideTimer: ReturnType<typeof setTimeout> | undefined;
+  let showTimer: ReturnType<typeof setTimeout> | undefined;
 
   const cancelHide = (): void => {
     if (hideTimer !== undefined) {
       clearTimeout(hideTimer);
       hideTimer = undefined;
+    }
+  };
+
+  const cancelShow = (): void => {
+    if (showTimer !== undefined) {
+      clearTimeout(showTimer);
+      showTimer = undefined;
     }
   };
 
@@ -109,12 +152,33 @@ export function createHoverIntent(opts: HoverIntentOptions): HoverIntentApi {
     }, opts.hideDelayMs());
   };
 
+  /** The single place visibility is asserted — every show gate lives here. */
+  const show = (): void => {
+    if (opts.shouldShow()) opts.setVisible(true);
+  };
+
   return {
     onTriggerEnter: (): void => {
       cancelHide();
-      if (opts.shouldShow()) opts.setVisible(true);
+      const delay = opts.showDelayMs?.() ?? 0;
+      if (delay <= 0) {
+        show();
+        return;
+      }
+      // Rest-delay: the panel appears only once the pointer has stayed on the
+      // trigger for `delay`. A pointer passing THROUGH leaves first, which
+      // cancels this timer, so it never flashes a panel.
+      cancelShow();
+      showTimer = setTimeout(() => {
+        showTimer = undefined;
+        show();
+      }, delay);
     },
     onTriggerLeave: (): void => {
+      // Unconditional: a pending show must die on leave in BOTH interactive
+      // and non-interactive mode, otherwise the panel appears after the
+      // pointer has already gone.
+      cancelShow();
       if (opts.interactive()) armHide();
       else opts.setVisible(false);
     },
@@ -124,6 +188,9 @@ export function createHoverIntent(opts: HoverIntentOptions): HoverIntentApi {
     onPanelLeave: (): void => {
       if (opts.interactive()) armHide();
     },
-    cleanup: cancelHide,
+    cleanup: (): void => {
+      cancelHide();
+      cancelShow();
+    },
   };
 }

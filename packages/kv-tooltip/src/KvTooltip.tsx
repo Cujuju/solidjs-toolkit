@@ -205,6 +205,21 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
   hideDelayMs?: number;
 
   /**
+   * Rest delay (ms) on the way IN: the panel appears only after the pointer
+   * has stayed on the trigger this long, so a pointer passing THROUGH a dense
+   * row of triggers never flashes a tooltip behind it. Cancelled by leaving
+   * the trigger.
+   *
+   * Default 0 / undefined = show immediately (0.1.x behaviour). There is
+   * deliberately no derived default — the right value depends on the
+   * consumer's trigger density and size, not on this package's geometry. See
+   * the derivation in `_internal/hoverIntent.ts`.
+   *
+   * Applies in both interactive and non-interactive mode.
+   */
+  showDelayMs?: number;
+
+  /**
    * Snapshot the panel's content AND its reference position at show time, and
    * hold both until the panel hides.
    *
@@ -253,6 +268,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   const shouldShow = (): boolean => !(props.disabled ?? false) && (filtered().length > 0 || props.extraContent !== undefined);
   const interactive = (): boolean => props.interactive ?? false;
   const hideDelayMs = (): number => props.hideDelayMs ?? 100;
+  const showDelayMs = (): number => props.showDelayMs ?? 0;
 
   // ── freezeOnShow: capture content + reference position at show time ───────
   // `on(visible, …)` runs its callback untracked, so taking the snapshot does
@@ -291,6 +307,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     shouldShow,
     interactive,
     hideDelayMs,
+    showDelayMs,
   });
   onCleanup(hoverIntent.cleanup);
 

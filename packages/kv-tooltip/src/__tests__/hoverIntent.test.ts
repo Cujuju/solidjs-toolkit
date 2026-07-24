@@ -15,12 +15,21 @@ interface Harness {
   setVisible: ReturnType<typeof vi.fn>;
   setInteractive: (v: boolean) => void;
   setHideDelay: (ms: number) => void;
+  setShowDelay: (ms: number) => void;
   setShouldShow: (v: boolean) => void;
 }
 
-function createHarness(initial: { interactive?: boolean; hideDelayMs?: number; shouldShow?: boolean } = {}): Harness {
+function createHarness(
+  initial: {
+    interactive?: boolean;
+    hideDelayMs?: number;
+    showDelayMs?: number;
+    shouldShow?: boolean;
+  } = {},
+): Harness {
   let interactive = initial.interactive ?? false;
   let hideDelayMs = initial.hideDelayMs ?? 100;
+  let showDelayMs = initial.showDelayMs ?? 0;
   let shouldShow = initial.shouldShow ?? true;
   const setVisible = vi.fn();
   const api = createHoverIntent({
@@ -28,12 +37,14 @@ function createHarness(initial: { interactive?: boolean; hideDelayMs?: number; s
     shouldShow: () => shouldShow,
     interactive: () => interactive,
     hideDelayMs: () => hideDelayMs,
+    showDelayMs: () => showDelayMs,
   });
   return {
     api,
     setVisible,
     setInteractive: (v) => { interactive = v; },
     setHideDelay: (ms) => { hideDelayMs = ms; },
+    setShowDelay: (ms) => { showDelayMs = ms; },
     setShouldShow: (v) => { shouldShow = v; },
   };
 }
@@ -179,6 +190,92 @@ describe('createHoverIntent', () => {
     h.setVisible.mockClear();
 
     h.api.onTriggerLeave();
+    h.api.cleanup();
+
+    vi.advanceTimersByTime(1000);
+    expect(h.setVisible).not.toHaveBeenCalled();
+  });
+
+  // ─── Contract: showDelayMs defers the show and dies on leave ────────────
+
+  it('showDelayMs=0 (default) shows synchronously — 0.1.x behaviour preserved', () => {
+    const h = createHarness();
+    h.api.onTriggerEnter();
+    expect(h.setVisible).toHaveBeenCalledTimes(1);
+    expect(h.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('showDelayMs defers the show until the pointer has rested that long', () => {
+    const h = createHarness({ showDelayMs: 350 });
+    h.api.onTriggerEnter();
+    expect(h.setVisible).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(349);
+    expect(h.setVisible).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(h.setVisible).toHaveBeenCalledTimes(1);
+    expect(h.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('a pointer passing THROUGH never shows: leave before the delay cancels it', () => {
+    const h = createHarness({ showDelayMs: 350 });
+    h.api.onTriggerEnter();
+    vi.advanceTimersByTime(100);   // pointer crosses the trigger…
+    h.api.onTriggerLeave();        // …and is gone before the rest threshold
+
+    vi.advanceTimersByTime(1000);
+    expect(h.setVisible.mock.calls.filter((c) => c[0] === true)).toHaveLength(0);
+  });
+
+  it('interactive: leave during a pending show cancels it rather than arming a hide-of-nothing', () => {
+    const h = createHarness({ showDelayMs: 350, interactive: true });
+    h.api.onTriggerEnter();
+    vi.advanceTimersByTime(100);
+    h.api.onTriggerLeave();
+
+    vi.advanceTimersByTime(1000);
+    // The hide timer may fire a redundant setVisible(false); what must never
+    // happen is a setVisible(true) after the pointer left.
+    expect(h.setVisible.mock.calls.filter((c) => c[0] === true)).toHaveLength(0);
+  });
+
+  it('re-entering during a pending show restarts the rest timer (not stacks)', () => {
+    const h = createHarness({ showDelayMs: 350 });
+    h.api.onTriggerEnter();        // arm at t=0
+    vi.advanceTimersByTime(300);
+    h.api.onTriggerEnter();        // re-enter at t=300 → restart
+
+    vi.advanceTimersByTime(349);   // t=649: the FIRST timer's 350 would have fired
+    expect(h.setVisible).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);     // t=650 = 300 + 350
+    expect(h.setVisible).toHaveBeenCalledTimes(1);
+    expect(h.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('showDelayMs accessor is read at enter time, not at construction', () => {
+    const h = createHarness({ showDelayMs: 350 });
+    h.setShowDelay(50);
+    h.api.onTriggerEnter();
+
+    vi.advanceTimersByTime(49);
+    expect(h.setVisible).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(h.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('shouldShow is re-checked when the deferred show fires, not when it is armed', () => {
+    const h = createHarness({ showDelayMs: 350, shouldShow: true });
+    h.api.onTriggerEnter();
+    h.setShouldShow(false);        // entries emptied out during the delay
+
+    vi.advanceTimersByTime(400);
+    expect(h.setVisible).not.toHaveBeenCalled();
+  });
+
+  it('cleanup() cancels a pending show so the deferred callback never fires', () => {
+    const h = createHarness({ showDelayMs: 350 });
+    h.api.onTriggerEnter();
     h.api.cleanup();
 
     vi.advanceTimersByTime(1000);
