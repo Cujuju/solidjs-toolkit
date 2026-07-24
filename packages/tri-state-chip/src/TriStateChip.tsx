@@ -41,8 +41,8 @@ export interface TriStateChipProps {
    *   own colour with no line inside it, so the excluded label is severed
    *   rather than crossed out. Adds no ink to the chip.
    * - `hatch` — diagonal hazard stripes across the whole EXCLUDED chip, the
-   *   barricade-tape idiom. Marks the control rather than the word: the
-   *   label itself is left untouched and stays on top of the stripes.
+   *   barricade-tape idiom. Marks the control rather than the word — nothing
+   *   is drawn on the label itself; the stripes simply run across it.
    * - `marks` — `strike`, plus an underline on the INCLUDED label, so
    *   include / neutral is not distinguished by colour alone (WCAG 1.4.1).
    * - `badge` — a small ✓ / ✗ disc pinned to the chip's top-INLINE-end

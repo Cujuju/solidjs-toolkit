@@ -287,14 +287,13 @@
    every state. `border-radius: inherit` keeps the tape inside the chip's
    corners; `pointer-events: none` keeps it out of hit-testing.
 
-   The label is given `position: relative` so it stacks ABOVE the stripes.
-   Painting tape over the text is the more literal hazard look but costs
-   legibility at 10-13px, and a chip whose label you cannot read has stopped
-   being a chip. */
+   The tape runs OVER the label, not behind it — the literal barricade look,
+   where the stripes cross the text the way tape crosses a door. That works
+   here only because the stripe colour is a low-strength tint: the glyphs stay
+   readable through it. If a consumer raises `--ctc-hatch-color` toward opaque,
+   the label goes with it; give the label `position: relative` in that case and
+   it stacks back above the stripes. */
 .ctc-chip[data-indicator="hatch"] {
-  position: relative;
-}
-.ctc-chip[data-indicator="hatch"] .ctc-chip-label {
   position: relative;
 }
 .ctc-chip[data-indicator="hatch"][data-state="excluded"]::before {
