@@ -1,6 +1,6 @@
-import { createSignal, type JSX } from 'solid-js';
+import { createSignal, createMemo, onCleanup, For, type JSX } from 'solid-js';
 import { KvTooltip, KvTooltipPanel } from '@cujuju/solidjs-kv-tooltip';
-import { Card, ClipBox } from '../ui';
+import { Card, ClipBox, EdgeRight, ScrollBox } from '../ui';
 
 const QUOTE = {
   Bid: '412.18',
@@ -28,6 +28,33 @@ export function KvTooltipPage(): JSX.Element {
   // a simple hover target (a virtualised table row, a canvas hit-test).
   const [at, setAt] = createSignal<{ x: number; y: number } | null>(null);
   const [disabled, setDisabled] = createSignal(false);
+
+  // ── 0.2.0 demos ───────────────────────────────────────────────────────────
+  // Anchors are read through accessors, not captured once, so the rect stays
+  // honest across resize and scroll.
+  let anchorFieldA: HTMLDivElement | undefined;
+  let anchorFieldB: HTMLDivElement | undefined;
+  let anchorFieldC: HTMLDivElement | undefined;
+  let fakeMenu: HTMLDivElement | undefined;
+
+  /** The native popover is positioned under the field it belongs to, like a real select menu. */
+  const [menuAt, setMenuAt] = createSignal({ top: 0, left: 0 });
+  const menuTop = (): number => menuAt().top;
+  const menuLeft = (): number => menuAt().left;
+  const positionMenu = (): void => {
+    const r = anchorFieldA?.getBoundingClientRect();
+    if (r) setMenuAt({ top: r.bottom + 4, left: r.left });
+  };
+
+  /** A quote that ticks 10x/s — the exact source shape `freezeOnShow` exists for. */
+  const [tick, setTick] = createSignal(0);
+  const timer = setInterval(() => setTick((n) => n + 1), 100);
+  onCleanup(() => clearInterval(timer));
+  const ticking = createMemo(() => ({
+    ...QUOTE,
+    Last: (412.2 + (tick() % 20) / 100).toFixed(2),
+    Tick: String(tick()),
+  }));
 
   return (
     <>
@@ -146,6 +173,148 @@ export function KvTooltipPage(): JSX.Element {
         <code>hysteresisPx</code> past the boundary before it will flip back, so a one-pixel cursor
         tremor cannot oscillate it.
       </p>
+
+      <h2>Anchored placement <small>(0.2.0)</small></h2>
+      <p class="note">
+        The tooltip takes a SIDE OF THE TRIGGER'S RECT instead of following the cursor, so a
+        menu can take the other side and neither covers the other. This is not a z-index
+        problem: the anchored-popover menu paints in the browser TOP LAYER, which no
+        stacking-context z-index can beat. Placement is the only fix.
+      </p>
+      <div class="row">
+        <Card cap="tooltip ABOVE the field, menu BELOW it — hover, then click">
+          <div ref={anchorFieldA} style={{ display: 'inline-block' }}>
+            <KvTooltip
+              entries={QUOTE}
+              anchor={() => anchorFieldA?.getBoundingClientRect() ?? null}
+              placement="above-start"
+              hideOnPointerDown
+              suppressWhileTopLayerOpen
+            >
+              <span class="strike" style={{ 'margin-left': '0' }}>
+                SPY ▾
+              </span>
+            </KvTooltip>
+          </div>
+          <button
+            class="demo-btn"
+            onClick={() => {
+              const el = fakeMenu;
+              if (!el) return;
+              if (el.matches(':popover-open')) {
+                el.hidePopover();
+              } else {
+                positionMenu();
+                el.showPopover();
+              }
+            }}
+          >
+            toggle the menu
+          </button>
+          {/* A real native popover — the actual top-layer surface the tooltip must dodge. */}
+          <div
+            ref={fakeMenu}
+            popover="manual"
+            style={{
+              margin: '0',
+              position: 'fixed',
+              background: 'var(--panel, #1e293b)',
+              border: '1px solid var(--border, #334155)',
+              'border-radius': '5px',
+              padding: '6px 10px',
+              inset: 'auto',
+              top: `${menuTop()}px`,
+              left: `${menuLeft()}px`,
+            }}
+          >
+            a native [popover] menu — top layer
+          </div>
+        </Card>
+
+        <Card cap="near the TOP edge — above-start must flip BELOW, not slide onto the anchor">
+          <div ref={anchorFieldB} style={{ display: 'inline-block' }}>
+            <KvTooltip
+              entries={QUOTE}
+              anchor={() => anchorFieldB?.getBoundingClientRect() ?? null}
+              placement="above-start"
+            >
+              <span class="strike" style={{ 'margin-left': '0' }}>
+                TOP-EDGE
+              </span>
+            </KvTooltip>
+          </div>
+          <p class="note">
+            Scroll this page so the trigger sits near the top of the window, then hover. The
+            old clamp had no flip here — it slid the panel down onto its own anchor.
+          </p>
+        </Card>
+
+        <Card cap="below-end near the RIGHT edge — start-align switches to end-align">
+          <EdgeRight>
+            <div ref={anchorFieldC} style={{ display: 'inline-block' }}>
+              <KvTooltip
+                entries={LONG}
+                maxWidth={260}
+                anchor={() => anchorFieldC?.getBoundingClientRect() ?? null}
+                placement="below-start"
+              >
+                <span class="strike" style={{ 'margin-left': '0' }}>
+                  RIGHT-EDGE
+                </span>
+              </KvTooltip>
+            </div>
+          </EdgeRight>
+        </Card>
+      </div>
+
+      <h2>Delay, freeze, dismissal <small>(0.2.0)</small></h2>
+      <div class="row">
+        <Card cap="showDelayMs — sweep across the row; nothing flashes">
+          <For each={['AAPL', 'MSFT', 'GOOG', 'AMZN', 'META']}>
+            {(sym) => (
+              <KvTooltip entries={QUOTE} showDelayMs={350}>
+                <span class="strike">{sym}</span>
+              </KvTooltip>
+            )}
+          </For>
+          <p class="note">
+            Pass the cursor straight through and no panel appears. Rest on one for 350ms and it
+            does. Compare with the un-delayed row above, which flashes five panels.
+          </p>
+        </Card>
+
+        <Card cap="freezeOnShow — the Last value ticks 10x/s">
+          <KvTooltip entries={ticking()} freezeOnShow>
+            <span class="strike" style={{ 'margin-left': '0' }}>
+              FROZEN
+            </span>
+          </KvTooltip>
+          <KvTooltip entries={ticking()}>
+            <span class="strike">LIVE</span>
+          </KvTooltip>
+          <p class="note">
+            FROZEN captures the quote at hover and holds it — no re-measure, no twitch. LIVE is
+            the 0.1.0 behaviour: the panel re-measures and repositions on every tick.
+          </p>
+        </Card>
+
+        <Card cap="hideOnScroll — inside a real scroll container">
+          <ScrollBox fill={14}>
+            <KvTooltip entries={QUOTE} hideOnScroll>
+              <span class="strike" style={{ 'margin-left': '0' }}>
+                ROW-1
+              </span>
+            </KvTooltip>
+            <KvTooltip entries={QUOTE}>
+              <span class="strike">ROW-2 (stays)</span>
+            </KvTooltip>
+          </ScrollBox>
+          <p class="note">
+            Open ROW-1's tooltip and scroll: it dismisses. ROW-2's is stranded mid-air over
+            unrelated rows — the 0.1.0 behaviour.
+          </p>
+        </Card>
+      </div>
 
       <h2>
         Controlled panel <small>(caller owns x/y + visibility)</small>
