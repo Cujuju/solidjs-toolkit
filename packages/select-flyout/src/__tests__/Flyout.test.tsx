@@ -122,13 +122,22 @@ describe('Flyout', () => {
     expect(getTrigger().getAttribute('aria-expanded')).toBe('true');
     const opts = getOptions();
     expect(opts).toHaveLength(FRUITS.length);
+    // An option's text is its LABEL and nothing else. The selection marker is
+    // drawn in CSS off the `-option-selected` class, so it never lands in
+    // textContent — selecting a row must not change what copying it yields,
+    // and a text query for "Apple" must not have to know about a bullet.
     expect(opts.map((o) => o.textContent?.trim())).toEqual([
-      '•Apple',
+      'Apple',
       'Banana',
       'Cherry',
       'Date',
       'Elderberry',
     ]);
+    // Selection is carried by ARIA + the class, which is what actually
+    // conveys it to assistive tech and to the stylesheet.
+    expect(opts[0].getAttribute('aria-selected')).toBe('true');
+    expect(opts[0].className).toContain('cujuju-select-flyout-option-selected');
+    expect(opts[1].getAttribute('aria-selected')).toBe('false');
   });
 
   it('clicking an option fires onChange with that value and closes the panel', async () => {

@@ -40,7 +40,6 @@ import {
   createUniqueId,
   onCleanup,
   For,
-  Show,
   type JSX,
 } from 'solid-js';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
@@ -415,9 +414,14 @@ export function Flyout(props: FlyoutProps): JSX.Element {
                       if (!opt.disabled) setFocusedIndex(index());
                     }}
                   >
-                    <span class="cujuju-select-flyout-check" aria-hidden="true">
-                      <Show when={isSelected()}>•</Show>
-                    </span>
+                    {/* Selection marker. The glyph is DRAWN in CSS off the
+                        `-option-selected` class rather than rendered as a
+                        character here: a text triangle (▸ / ▶) has erratic
+                        font coverage and vertical metrics, and on several
+                        platforms ▶ resolves to an emoji. The span is always
+                        present so every row reserves the same marker column
+                        and the labels stay aligned. */}
+                    <span class="cujuju-select-flyout-check" aria-hidden="true" />
                     <span>{opt.label}</span>
                   </button>
                 </li>

@@ -122,6 +122,19 @@
 }
 
 .cujuju-select-flyout-option {
+  /* Marker geometry. Half-height + width, because the border trick builds the
+     triangle from two vertical borders (each `-marker-h` tall) and one
+     horizontal one (`-marker-w` long) — so the drawn glyph is
+     2 x -marker-h tall and -marker-w wide. 4/5px reads as a crisp arrowhead
+     against a 13px label. */
+  --cujuju-select-flyout-marker-h: 4px;
+  --cujuju-select-flyout-marker-w: 5px;
+  /* OPTICAL nudge, not a fudge. Centring the marker geometrically leaves it
+     looking high, because a line box reserves descender space the text may not
+     use: measured against "5 minutes" (no descenders at all, ink descent 0),
+     the ink centre sits 0.5px BELOW the box centre at 13px. Expressed in em so
+     it tracks the font size — 0.04em is that measured 0.5px at 13px. */
+  --cujuju-select-flyout-marker-nudge: 0.04em;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -156,6 +169,8 @@
   cursor: not-allowed;
 }
 
+/* Selection marker column — reserved on EVERY row so labels stay aligned
+   whether or not the row is the selected one. */
 .cujuju-select-flyout-check {
   width: 14px;
   height: 14px;
@@ -163,4 +178,24 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+/* The marker itself: a triangle pointing AT the label it marks, drawn with
+   the border trick rather than set as a character. A text triangle depends on
+   the host font having the glyph at sane metrics — ▸ and ▶ vary widely, and ▶
+   resolves to an emoji on several platforms. Borders are crisp at any size,
+   take `currentColor` (so the marker is automatically the selected row's own
+   colour), and cost no font lookup. */
+.cujuju-select-flyout-option-selected .cujuju-select-flyout-check::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width:
+    var(--cujuju-select-flyout-marker-h) 0
+    var(--cujuju-select-flyout-marker-h)
+    var(--cujuju-select-flyout-marker-w);
+  border-color: transparent transparent transparent currentColor;
+  position: relative;
+  top: var(--cujuju-select-flyout-marker-nudge);
 }
