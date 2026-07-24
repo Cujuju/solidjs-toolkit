@@ -24,6 +24,17 @@ const RESIZE_ACTIVATE_PX = 0;
  *  impossible to grab again. */
 export const DEFAULT_MIN_SIZE_PX = 60;
 
+/**
+ * How far PAST a panel's minimum the pointer must travel before the drag is read as
+ * "collapse this" rather than "make it as small as allowed".
+ *
+ * It has to be a deliberate overshoot, not a hair past the floor: a panel already
+ * clamped at its minimum sits under a pointer that is still moving, so a 1px trigger
+ * would collapse panels every time someone dragged firmly to the edge. Wide enough
+ * to require intent, short enough to discover by accident once.
+ */
+const COLLAPSE_OVERDRAG_PX = 40;
+
 export interface ResizeHost {
   /** Growth axis: 'x' for horizontal columns, 'y' for vertical fill panels. */
   axis: Accessor<'x' | 'y'>;
@@ -37,15 +48,26 @@ export interface ResizeHost {
   minSizeOf: (id: string) => number;
   sizes: Accessor<Readonly<Record<string, number>>>;
   setSizes: (next: Record<string, number>) => void;
+  /** Close a panel that was dragged past its minimum. Returns false when the panel
+   *  refuses (a leaf, or a consumer-controlled pane), in which case the drag just
+   *  clamps as usual. */
+  collapse: (id: string) => boolean;
+  /** Whether `id` may be collapsed by overdrag at all. */
+  canCollapse: (id: string) => boolean;
 }
 
 export interface ResizeApi {
   begin: (id: string, e: PointerEvent) => void;
   resizing: Accessor<boolean>;
+  /** The panel that will collapse if the pointer is released now, or null. Drives the
+   *  pre-commit affordance — collapsing on release with no warning would feel like
+   *  the control lost the panel. */
+  collapseCandidate: Accessor<string | null>;
 }
 
 export function createResize(host: ResizeHost): ResizeApi {
   const [resizing, setResizing] = createSignal(false);
+  const [collapseCandidate, setCollapseCandidate] = createSignal<string | null>(null);
 
   const begin = (id: string, e: PointerEvent): void => {
     const ids = host.visualOpenIds();
@@ -87,6 +109,20 @@ export function createResize(host: ResizeHost): ResizeApi {
       // "the other panel keeps shrinking past its minimum" bug.
       const delta = Math.max(minA - startA, Math.min(raw, startB - minB));
       host.setSizes({ ...host.sizes(), [id]: startA + delta, [nextId]: startB - delta });
+
+      // Overdrag → collapse. Measured against the UNCLAMPED movement, because once a
+      // panel is pinned at its minimum the clamped size stops changing and could
+      // never express "keep going". Committed on release, not here: collapsing
+      // mid-drag would yank the boundary out from under the pointer.
+      const wantA = startA + raw;
+      const wantB = startB - raw;
+      if (wantA < minA - COLLAPSE_OVERDRAG_PX && host.canCollapse(id)) {
+        setCollapseCandidate(id);
+      } else if (wantB < minB - COLLAPSE_OVERDRAG_PX && host.canCollapse(nextId)) {
+        setCollapseCandidate(nextId);
+      } else {
+        setCollapseCandidate(null);
+      }
     };
 
     const onUp = (ev: PointerEvent): void => {
@@ -94,6 +130,17 @@ export function createResize(host: ResizeHost): ResizeApi {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      const victim = collapseCandidate();
+      if (victim !== null) {
+        host.collapse(victim);
+        // Drop the collapsed panel's explicit size: it will be reopened later at the
+        // mode's automatic size, which is what the user expects from a panel they
+        // deliberately squashed away — not the 1px sliver they squashed it to.
+        const next = { ...host.sizes() };
+        delete next[victim];
+        host.setSizes(next);
+      }
+      setCollapseCandidate(null);
       setResizing(false);
     };
 
@@ -104,5 +151,5 @@ export function createResize(host: ResizeHost): ResizeApi {
     e.stopPropagation();
   };
 
-  return { begin, resizing };
+  return { begin, resizing, collapseCandidate };
 }

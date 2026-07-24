@@ -182,6 +182,8 @@ export interface AccordionGroupApi {
   beginResize: (id: string, e: PointerEvent) => void;
   /** True while a splitter drag is live — used to suppress transitions/selection. */
   resizing: Accessor<boolean>;
+  /** Panel that will collapse to the rail if the splitter is released now. */
+  collapseCandidate: Accessor<string | null>;
 
   /** Snapshot the current arrangement — for named workspaces, server-side sync, or
    *  an undo stack. Pure data; safe to JSON.stringify. */

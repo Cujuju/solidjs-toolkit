@@ -302,6 +302,14 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     minSizeOf: (id) => metaOf(id)?.minSize() ?? DEFAULT_MIN_SIZE_PX,
     sizes,
     setSizes,
+    // A leaf's visibility belongs to the consumer, so the dock must not close one
+    // behind its back; it clamps at the minimum instead.
+    canCollapse: (id) => !isLeaf(id),
+    collapse: (id) => {
+      if (isLeaf(id)) return false;
+      setOpen(id, false);
+      return true;
+    },
   });
 
   /**
@@ -412,6 +420,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     resetSizes: () => setSizes({}),
     beginResize: resize.begin,
     resizing: resize.resizing,
+    collapseCandidate: resize.collapseCandidate,
 
     register: (meta, defaultOpen) => {
       setMetaMap((prev) => {
@@ -492,6 +501,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         data-animated={props.animated ? 'true' : 'false'}
         data-depth={depth}
         data-resizing={resize.resizing() ? 'true' : 'false'}
+        data-collapse-candidate={resize.collapseCandidate() ?? undefined}
         role="region"
         aria-label={props.ariaLabel}
         style={props.height !== undefined ? { height: props.height } : undefined}
