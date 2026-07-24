@@ -91,13 +91,16 @@
     );
     /* `cut` — the INVERSE strike: the knockout with no line inside it. The
        label is broken by a band of the chip's own colour and nothing is drawn
-       on top, so the word reads as severed rather than crossed out. 2px is the
-       floor, not a taste call: a 1px gap is a single device row of near-chip
-       colour and disappears into the glyph antialiasing at every size the chip
-       ships (10-13px). It is its own token, not `--ctc-strike-thickness`,
-       because the two are opposite quantities — thinner ink is better, thinner
-       gap is worse. */
-    --ctc-cut-thickness: 2px;
+       on top, so the word reads as severed rather than crossed out.
+
+       1px — the thinnest possible cut: exactly one device row of the chip's
+       own composite erased out of the glyphs, nothing around it. It is still
+       its own token, not `--ctc-strike-thickness`, because the two are
+       opposite quantities: for a line thinner is crisper, for a gap thinner is
+       fainter, so they will not want to move together. Raise it if the cut
+       reads too subtle at small sizes — at 10px the glyph strokes are thin
+       enough that a single erased row can disappear into their antialiasing. */
+    --ctc-cut-thickness: 1px;
     --ctc-underline-thickness: 1px;
     --ctc-underline-offset: 3px;
     --ctc-badge-size: 13px;
