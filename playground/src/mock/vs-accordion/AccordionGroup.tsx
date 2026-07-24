@@ -334,6 +334,53 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
   });
 
+  /**
+   * Reorder driven by dragging a COLUMN (its title bar) rather than a rail button.
+   *
+   * A second primitive instance rather than a second mode on the first, because the
+   * two drags disagree on both inputs: the rail drags every registered panel along
+   * the Y axis, while columns drag only the OPEN ones along X. Trying to serve both
+   * from one instance would mean swapping its `ids` and `axis` mid-gesture.
+   *
+   * The result still lands in the one shared `order`, so dragging a column moves its
+   * rail button — the coupling is not extra work here, it is the absence of work.
+   */
+  const draggableColumnIds = (): string[] => visualOpenIds().filter((id) => !isLeaf(id));
+
+  /**
+   * Apply a move made in the OPEN subsequence back onto the full order.
+   *
+   * Closed panels keep their absolute slots: they are not visible on screen, so a
+   * drag between two columns carries no information about where a closed panel
+   * should end up, and silently relocating one would surprise the user the next time
+   * they opened it. Only the open ids are permuted, into the same positions they
+   * already occupied.
+   */
+  const moveOpenTo = (fromIndex: number, toIndex: number): void => {
+    const visual = draggableColumnIds();
+    const moved = visual[fromIndex];
+    if (moved === undefined) return;
+    const nextVisual = [...visual];
+    nextVisual.splice(fromIndex, 1);
+    nextVisual.splice(Math.max(0, Math.min(toIndex, nextVisual.length)), 0, moved);
+
+    const openSlots = new Set(visual);
+    let cursor = 0;
+    const nextOrder = orderIds().map((id) => (openSlots.has(id) ? nextVisual[cursor++] : id));
+    commitOrder(nextOrder);
+  };
+
+  const columnReorder = createReorderList({
+    ids: draggableColumnIds,
+    // Columns lie along the group's main axis, which is horizontal. `row-reverse`
+    // for a right-docked rail is handled by the primitive measuring real rects —
+    // it reads positions, not declaration order, so the mirror needs no special case.
+    axis: 'x',
+    skipSelector: REORDER_SKIP_SELECTOR,
+    stopPropagation: false,
+    onReorder: moveOpenTo,
+  });
+
   const api: AccordionGroupApi = {
     orientation,
     railSide,
@@ -485,6 +532,10 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
 
     reorderItemProps: (id) =>
       reorderable() ? (reorder.itemProps(id) as Record<string, unknown>) : {},
+    reorderColumnProps: (id) =>
+      reorderable() && orientation() === 'horizontal'
+        ? (columnReorder.itemProps(id) as Record<string, unknown>)
+        : {},
     reorderActiveId: reorder.activeId,
   };
 

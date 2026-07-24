@@ -71,6 +71,9 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   const menu = createPanelMenu(group, () => props.id);
   const dragProps = (): Record<string, unknown> =>
     horizontal() ? {} : group.reorderItemProps(props.id);
+  /** Horizontal only: the column title bar is the column's own drag handle. */
+  const columnDragProps = (): Record<string, unknown> =>
+    horizontal() ? group.reorderColumnProps(props.id) : {};
 
   /** Latches once the panel has ever been open — the gate for `lazyMount`. */
   const everOpen = createMemo<boolean>((prev) => prev || open(), false);
@@ -181,7 +184,15 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           title bar — the place the pin and the close affordance have to live, since
           a rail button is too narrow to carry either. */}
       <Show when={horizontal() && open()}>
-        <div class="vsa-col-bar" {...menu.triggerProps}>
+        <div
+          class="vsa-col-bar"
+          {...columnDragProps()}
+          {...menu.triggerProps}
+          ref={(el) => {
+            const viaDrag = columnDragProps().ref as ((e: HTMLElement) => void) | undefined;
+            viaDrag?.(el);
+          }}
+        >
           <Show when={props.icon}>
             <span class="vsa-icon">{props.icon}</span>
           </Show>

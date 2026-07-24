@@ -206,6 +206,9 @@ export interface AccordionGroupApi {
 
   /** Drag-reorder plumbing, spread onto whichever element is the panel's activator. */
   reorderItemProps: (id: string) => Record<string, unknown>;
+  /** Drag-reorder plumbing for the COLUMN itself (its title bar), horizontal only.
+   *  Lands in the same `order`, so dragging a column moves its rail button too. */
+  reorderColumnProps: (id: string) => Record<string, unknown>;
   reorderActiveId: Accessor<string | null>;
 }
 
