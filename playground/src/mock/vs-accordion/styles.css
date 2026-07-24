@@ -45,6 +45,9 @@
     /* Grab width of a splitter, centred on the boundary it moves. Wider than the
        1px line it paints, because a 1px pointer target is a usability defect. */
     --vsa-splitter-hit: 7px;
+    /* Flex order for consumer children that are not panels. Must sort after every
+       panel (whose orders run 1..N) and before the filler. */
+    --vsa-extra-order: 9998;
     /* Flex order for the trailing filler. Any value above the largest panel count a
        group will realistically hold; the filler must sort after every column. */
     --vsa-filler-order: 9999;
@@ -265,6 +268,21 @@
 /* Fill mode: the filler soaks up leftover space ONLY when nothing is open, so a
    collapsed dock stacks its headers at the start. `:has` is what lets this be a
    real rule instead of a magic flex weight fudged to out-grow the panels. */
+/* ARBITRARY CONSUMER CHILDREN (a toolbar, a status strip — anything that is not a
+   panel, the rail or the filler).
+
+   Panels carry an explicit flex `order` of 1..N so the user can drag them into a
+   new sequence. That silently promoted every other child to the FRONT of the
+   group, because an element with no `order` sits at 0 and 0 sorts before 1 — so a
+   toolbar declared last in the markup jumped above the first panel.
+
+   The rule is: unordered content keeps its authored position relative to the
+   panels, which means "after them". Just below the filler, so the filler still
+   soaks up the slack at the very end. */
+.vsa-group > *:not(.vsa-panel):not(.vsa-rail):not(.vsa-filler) {
+  order: var(--vsa-extra-order);
+}
+
 .vsa-filler {
   flex: 0 0 0;
   /* Open columns carry `order: openIndex + 1`, so a filler left at the default 0

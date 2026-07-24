@@ -71,11 +71,32 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   /** One menu instance per panel, attached to whichever chrome this orientation
    *  renders — the header row (vertical) or the column title bar (horizontal). */
   const menu = createPanelMenu(group, () => props.id);
-  const dragProps = (): Record<string, unknown> =>
-    horizontal() ? {} : group.reorderItemProps(props.id);
-  /** Horizontal only: the column title bar is the column's own drag handle. */
-  const columnDragProps = (): Record<string, unknown> =>
-    horizontal() ? group.reorderColumnProps(props.id) : {};
+  /**
+   * The drag ITEM is the whole panel; the header (or column title bar) is only the
+   * HANDLE.
+   *
+   * These were the same element at first — the primitive's `itemProps` bundles the
+   * ref and the pointerdown together, so spreading it on the header registered the
+   * HEADER as the thing being dragged. The reorder engine then measured header
+   * rects and translated a lone 26px bar over a layout that never moved, which in
+   * `fill` mode (where a panel's height is flex-derived, not content-derived) looked
+   * like nothing was happening at all. Splitting them means the engine measures and
+   * moves the panels — the things the user is actually rearranging.
+   */
+  const dragItem = (): Record<string, unknown> =>
+    horizontal() ? group.reorderColumnProps(props.id) : group.reorderItemProps(props.id);
+
+  /** Just the gesture starter, for the handle element. */
+  const dragHandle = (): Record<string, unknown> => {
+    const onPointerDown = dragItem().onPointerDown;
+    return onPointerDown === undefined ? {} : { onPointerDown };
+  };
+
+  /** Ref + drag classes + the engine's id attribute, for the panel element. */
+  const dragItemAttrs = (): Record<string, unknown> => {
+    const { ref: _ref, onPointerDown: _down, ...rest } = dragItem();
+    return rest;
+  };
 
   /** Latches once the panel has ever been open — the gate for `lazyMount`. */
   const everOpen = createMemo<boolean>((prev) => prev || open(), false);
@@ -122,7 +143,13 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
 
   return (
     <div
-      ref={(el) => group.setPanelEl(props.id, el)}
+      {...dragItemAttrs()}
+      ref={(el) => {
+        group.setPanelEl(props.id, el);
+        // The reorder primitive registers its node through `itemProps.ref`; Solid
+        // lets the later ref win, so it is invoked explicitly rather than dropped.
+        (dragItem().ref as ((e: HTMLElement) => void) | undefined)?.(el);
+      }}
       class={`vsa-panel ${props.class ?? ''}`.trim()}
       data-open={open() ? 'true' : 'false'}
       data-pinned={pinned() ? 'true' : 'false'}
@@ -146,12 +173,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       <Show when={!horizontal()}>
         <div class="vsa-header-row" {...menu.triggerProps}>
           <button
-            {...dragProps()}
-            ref={(el) => {
-              group.setHeaderEl(props.id, el);
-              const viaDrag = dragProps().ref as ((e: HTMLElement) => void) | undefined;
-              viaDrag?.(el);
-            }}
+            {...dragHandle()}
+            ref={(el) => group.setHeaderEl(props.id, el)}
             id={headerId}
             type="button"
             class={`vsa-header ${props.headerClass ?? ''}`.trim()}
@@ -190,15 +213,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           title bar — the place the pin and the close affordance have to live, since
           a rail button is too narrow to carry either. */}
       <Show when={horizontal() && open()}>
-        <div
-          class="vsa-col-bar"
-          {...columnDragProps()}
-          {...menu.triggerProps}
-          ref={(el) => {
-            const viaDrag = columnDragProps().ref as ((e: HTMLElement) => void) | undefined;
-            viaDrag?.(el);
-          }}
-        >
+        <div class="vsa-col-bar" {...dragHandle()} {...menu.triggerProps}>
           <Show when={props.icon}>
             <span class="vsa-icon">{props.icon}</span>
           </Show>
