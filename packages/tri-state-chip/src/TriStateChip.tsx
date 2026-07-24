@@ -29,7 +29,12 @@ export interface TriStateChipProps {
   /**
    * How the chip signals its state.
    *
-   * - `strike` (default) — no glyph at all; the EXCLUDED label is struck
+   * - `hatch` (default) — diagonal hazard stripes across the whole EXCLUDED
+   *   chip, the barricade-tape idiom. Marks the control rather than the word —
+   *   nothing is drawn on the label itself. Geometry is tunable per chip via
+   *   `hatchAngle` / `hatchStripeWidth` / `hatchGapWidth`, or app-wide via the
+   *   matching `--ctc-hatch-*` custom properties.
+   * - `strike` — no glyph at all; the EXCLUDED label is struck
    *   through. The chip is exactly its label's width in every state, nothing
    *   reserved, nothing blank. Included stays tint-only.
    * - `glyph` — a leading `✓ ` / `✗ ` in the text flow, in a fixed-width
@@ -40,9 +45,6 @@ export interface TriStateChipProps {
    * - `cut` — the INVERSE strike: the same band, but painted in the chip's
    *   own colour with no line inside it, so the excluded label is severed
    *   rather than crossed out. Adds no ink to the chip.
-   * - `hatch` — diagonal hazard stripes across the whole EXCLUDED chip, the
-   *   barricade-tape idiom. Marks the control rather than the word — nothing
-   *   is drawn on the label itself; the stripes simply run across it.
    * - `marks` — `strike`, plus an underline on the INCLUDED label, so
    *   include / neutral is not distinguished by colour alone (WCAG 1.4.1).
    * - `badge` — a small ✓ / ✗ disc pinned to the chip's top-INLINE-end
@@ -56,6 +58,25 @@ export interface TriStateChipProps {
    * the text flow, so none of them reserve a column or need a neutral mark.
    */
   indicator?: 'glyph' | 'strike' | 'cut' | 'hatch' | 'marks' | 'badge' | 'rail' | 'tint';
+  /**
+   * Hatch geometry, per chip. These write the `--ctc-hatch-*` custom
+   * properties inline, so they are the same knobs a stylesheet would set —
+   * just reachable from a callsite that themes one chip differently from its
+   * neighbours (a legend, a demo, a density toggle). Set them at `:root` for
+   * an app-wide look and leave these alone.
+   *
+   * Values are CSS strings, not numbers, because each one is a real CSS
+   * quantity with a unit that matters: `'-45deg'` vs `'45deg'`, and a bar the
+   * caller may well want in `em` so it tracks the chip's font size. A bare
+   * number would have to guess `px` and would quietly bar `em`/`%`.
+   *
+   * Only consulted by `indicator="hatch"`; harmless otherwise.
+   */
+  hatchAngle?: string;
+  /** Bar width, e.g. `'4px'`. See {@link TriStateChipProps.hatchAngle}. */
+  hatchStripeWidth?: string;
+  /** Space between bars, e.g. `'6px'`. See {@link TriStateChipProps.hatchAngle}. */
+  hatchGapWidth?: string;
   /** ARIA label override. When omitted the chip relies on its visible text. */
   ariaLabel?: string;
   /** Extra class appended to the root. */
@@ -77,11 +98,14 @@ const DEFAULT_EXCLUDE_PREFIX = '✗ ';
  *  unselected chips would be a visual change they did not ask for. */
 const DEFAULT_NEUTRAL_PREFIX = '';
 
-/** Default state indicator. `strike` — no glyph column, the excluded label is
- *  crossed out — is the chosen resting look: no reserved width, nothing blank
- *  in the neutral state, and the chip is exactly its label's width. Opt into
- *  the leading `glyph` (or any other) via the `indicator` prop. */
-const DEFAULT_INDICATOR = 'strike' as const;
+/** Default state indicator. `hatch` — diagonal tape across the excluded chip —
+ *  marks the CONTROL rather than the word, which is what makes it the right
+ *  resting look: no glyph column, no reserved width, nothing blank in the
+ *  neutral state, the chip is exactly its label's width, AND the label itself
+ *  is never defaced, so legibility does not depend on tuning a mark against
+ *  the text. Opt into `strike`, `cut`, the leading `glyph`, or any other via
+ *  the `indicator` prop. */
+const DEFAULT_INDICATOR = 'hatch' as const;
 
 /**
  * A single tri-state filter chip — one button that cycles through
@@ -111,6 +135,25 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
     props.neutralPrefix ?? DEFAULT_NEUTRAL_PREFIX;
   const indicator = (): NonNullable<TriStateChipProps['indicator']> =>
     props.indicator ?? DEFAULT_INDICATOR;
+
+  /**
+   * The hatch props, as inline custom properties.
+   *
+   * Each one is emitted ONLY when supplied — writing `--ctc-hatch-angle:
+   * undefined` would be dropped by the DOM anyway, but writing an empty string
+   * would not: it would set the property to the empty value and invalidate
+   * every `var()` that reads it, collapsing the gradient. Omission has to stay
+   * omission so the stylesheet's own value survives.
+   */
+  const hatchVars = (): JSX.CSSProperties => ({
+    ...(props.hatchAngle !== undefined ? { '--ctc-hatch-angle': props.hatchAngle } : {}),
+    ...(props.hatchStripeWidth !== undefined
+      ? { '--ctc-hatch-stripe-width': props.hatchStripeWidth }
+      : {}),
+    ...(props.hatchGapWidth !== undefined
+      ? { '--ctc-hatch-gap-width': props.hatchGapWidth }
+      : {}),
+  });
 
   /** Glyph for the CURRENT state. */
   const prefixGlyph = (): string =>
@@ -148,7 +191,10 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       aria-pressed={ariaPressed()}
       aria-label={props.ariaLabel}
       disabled={props.disabled}
-      style={props.style}
+      // `style` first: the named hatch props are the more specific statement,
+      // so if a caller sets both, the prop wins over a raw custom property in
+      // `style`.
+      style={{ ...props.style, ...hatchVars() }}
       onClick={handleClick}
       {...(props.dataAttr ?? {})}
     >

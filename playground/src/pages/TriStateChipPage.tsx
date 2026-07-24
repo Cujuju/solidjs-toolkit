@@ -16,9 +16,9 @@ const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
  * blank in the neutral state, and the chip is exactly its label's width.
  */
 const INDICATORS = [
-  { id: 'strike', cap: 'strike — the default; excluded is crossed out' },
+  { id: 'hatch', cap: 'hatch — the default; hazard tape across the chip' },
+  { id: 'strike', cap: 'strike — excluded is crossed out' },
   { id: 'cut', cap: 'cut — inverse strike: the knockout, no line' },
-  { id: 'hatch', cap: 'hatch — diagonal hazard tape across the chip' },
   { id: 'marks', cap: 'marks — + underline on included (not colour alone)' },
   { id: 'badge', cap: 'badge — corner disc, out of flow' },
   { id: 'rail', cap: 'rail — inline-start stripe' },
@@ -110,6 +110,31 @@ function HatchRow(props: { vars: Record<string, string> }): JSX.Element {
   );
 }
 
+/**
+ * The same starts-excluded row, but driven by the PROPS rather than by tokens
+ * on a wrapper — so the two mechanisms can be compared directly on one page.
+ */
+function HatchPropRow(props: { angle: string; stripe: string; gap: string }): JSX.Element {
+  const [value, setValue] = createSignal<TriStateValue>({
+    included: [],
+    excluded: [TAGS[0]],
+  });
+  return (
+    <For each={TAGS.slice(0, 3)}>
+      {(tag) => (
+        <TriStateChip
+          label={tag}
+          value={tristateOf(value(), tag)}
+          onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
+          hatchAngle={props.angle}
+          hatchStripeWidth={props.stripe}
+          hatchGapWidth={props.gap}
+        />
+      )}
+    </For>
+  );
+}
+
 export function TriStateChipPage(): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
 
@@ -172,7 +197,7 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
       <h2>Indicators — how the state is shown</h2>
       <p class="note">
         Every chip below is the same width in all three states, so a row never reflows when you
-        click. <code>strike</code> is the default; the rest are one prop away.
+        click. <code>hatch</code> is the default; the rest are one prop away.
       </p>
       <div class="row">
         <For each={INDICATORS}>
@@ -184,12 +209,12 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
         </For>
       </div>
       <Code cap="picking an indicator">{`
-// 'strike' is the DEFAULT — omit the prop to get it.
+// 'hatch' is the DEFAULT — omit the prop to get it.
 <TriStateChip label="puts" value={s} onCycle={f} />
 
 // Any other treatment is one prop:
 <TriStateChip label="puts" value={s} onCycle={f} indicator="badge" />
-//   'strike' | 'cut' | 'hatch' | 'marks' | 'badge' | 'rail' | 'tint'
+//   'hatch' | 'strike' | 'cut' | 'marks' | 'badge' | 'rail' | 'tint'
 //                                                   -> no glyph column
 //   'glyph'                                         -> leading ✓ / ✗ column
 
@@ -213,6 +238,41 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
           )}
         </For>
       </div>
+      <h2>Hatch geometry from the callsite</h2>
+      <p class="note">
+        The same three knobs as props, for when one chip has to differ from its neighbours
+        without a stylesheet. They write the custom properties inline, so props and CSS are the
+        same mechanism — set the tokens at <code>:root</code> for an app-wide look and reach for
+        the props only for a one-off.
+      </p>
+      <div class="row">
+        <Card cap="hatchStripeWidth='1px' hatchGapWidth='3px'">
+          <HatchPropRow angle="45deg" stripe="1px" gap="3px" />
+        </Card>
+        <Card cap="hatchAngle='-45deg' hatchStripeWidth='6px'">
+          <HatchPropRow angle="-45deg" stripe="6px" gap="6px" />
+        </Card>
+        <Card cap="hatchAngle='90deg' — vertical bars">
+          <HatchPropRow angle="90deg" stripe="3px" gap="7px" />
+        </Card>
+        <Card cap="hatchAngle='0deg' — horizontal bars">
+          <HatchPropRow angle="0deg" stripe="3px" gap="7px" />
+        </Card>
+      </div>
+      <Code cap="the props">{`
+// Per chip. Values are CSS strings, so 'em' and '%' work as well as 'px'.
+<TriStateChip
+  label="puts" value={s} onCycle={f}
+  hatchAngle="-45deg"
+  hatchStripeWidth="4px"
+  hatchGapWidth="6px"
+/>
+
+// Omitted props write NOTHING — the stylesheet's value survives. That is
+// why they are optional strings and not defaulted in the component: a
+// default here would silently outrank every :root token you set.
+`}</Code>
+
       <Code cap="the hatch tokens">{`
 /* Tape BEHIND the label (default) or ACROSS it. The label is
    position:relative with an auto z-index, so tape at 1 covers it and

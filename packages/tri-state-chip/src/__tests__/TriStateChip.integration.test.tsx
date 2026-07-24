@@ -107,9 +107,19 @@ describe('TriStateChip rendering', () => {
 
   it('glyph-free indicators render no prefix and no glyph in textContent', () => {
     // The whole point of a non-glyph indicator: the state is carried by CSS
-    // (strike/badge/rail), never by a character in the flow, so the chip's
-    // text is exactly the label in every state.
-    for (const indicator of ['strike', 'marks', 'badge', 'rail', 'tint'] as const) {
+    // (hatch/strike/cut/badge/rail), never by a character in the flow, so the
+    // chip's text is exactly the label in every state. Every member of the
+    // union except `glyph` belongs in this list — a new indicator that forgets
+    // to appear here is exactly the kind that quietly reintroduces a glyph.
+    for (const indicator of [
+      'hatch',
+      'strike',
+      'cut',
+      'marks',
+      'badge',
+      'rail',
+      'tint',
+    ] as const) {
       dispose?.();
       dispose = render(
         () => (
@@ -123,14 +133,48 @@ describe('TriStateChip rendering', () => {
     }
   });
 
-  it('default indicator is strike — no prefix column, label is the text', () => {
+  it('default indicator is hatch — no prefix column, label is the text', () => {
     dispose = render(
       () => <TriStateChip label="X" value="excluded" onCycle={() => {}} />,
       document.body,
     );
-    expect(findChip().getAttribute('data-indicator')).toBe('strike');
+    expect(findChip().getAttribute('data-indicator')).toBe('hatch');
     expect(findChip().querySelector('.ctc-chip-prefix')).toBeNull();
     expect(findChip().textContent).toBe('X');
+  });
+
+  it('hatch geometry props write the matching custom properties', () => {
+    dispose = render(
+      () => (
+        <TriStateChip
+          label="X"
+          value="excluded"
+          onCycle={() => {}}
+          hatchAngle="-45deg"
+          hatchStripeWidth="4px"
+          hatchGapWidth="6px"
+        />
+      ),
+      document.body,
+    );
+    const style = findChip().style;
+    expect(style.getPropertyValue('--ctc-hatch-angle')).toBe('-45deg');
+    expect(style.getPropertyValue('--ctc-hatch-stripe-width')).toBe('4px');
+    expect(style.getPropertyValue('--ctc-hatch-gap-width')).toBe('6px');
+  });
+
+  it('omitted hatch props write NOTHING, so the stylesheet value survives', () => {
+    // The failure this guards: emitting an empty string instead of omitting
+    // the declaration. `--ctc-hatch-angle: ''` is not "unset" — it invalidates
+    // every var() that reads it and collapses the gradient to nothing.
+    dispose = render(
+      () => <TriStateChip label="X" value="excluded" onCycle={() => {}} hatchAngle="-45deg" />,
+      document.body,
+    );
+    const style = findChip().style;
+    expect(style.getPropertyValue('--ctc-hatch-angle')).toBe('-45deg');
+    expect(style.getPropertyValue('--ctc-hatch-stripe-width')).toBe('');
+    expect(style.getPropertyValue('--ctc-hatch-gap-width')).toBe('');
   });
 
   it('glyph indicator keeps the reserved prefix column', () => {
