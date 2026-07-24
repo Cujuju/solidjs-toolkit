@@ -1,7 +1,61 @@
 import { createSignal, createMemo, createEffect, onCleanup, For, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { createClampedPosition } from './clamp';
+import {
+  createClampedPosition,
+  DEFAULT_ANCHOR_GAP_PX,
+  type KvTooltipPlacement,
+} from './clamp';
 import { createHoverIntent } from './_internal/hoverIntent';
+
+/**
+ * An anchor is either a rect captured by the caller, or an accessor that
+ * re-measures on demand. Prefer the accessor form: the position recomputes on
+ * viewport resize and on any scroll (see `clamp.ts`), and only the accessor
+ * form can return a fresh rect at that moment. A bare `DOMRect` is a snapshot
+ * and will go stale if the anchor element moves.
+ */
+export type KvTooltipAnchor = DOMRect | (() => DOMRect | null);
+
+/** Resolve either anchor form to a rect (or `null` when unset / unmounted). */
+function resolveAnchor(anchor: KvTooltipAnchor | undefined): DOMRect | null {
+  if (anchor === undefined) return null;
+  return typeof anchor === 'function' ? anchor() : anchor;
+}
+
+/**
+ * Anchored-placement props. Shared by the hover wrapper and the controlled
+ * panel — one declaration so the two entry points can never drift apart on
+ * what anchoring means.
+ *
+ * Why anchoring exists at all: a panel placed at a cursor POINT can only be
+ * kept clear of a surface that opens from the same trigger by luck. Anchoring
+ * to the trigger's RECT lets the tooltip take one side (say, above) while a
+ * menu takes the other (below), so neither can cover the other. That matters
+ * specifically because the native Popover API paints in the browser TOP LAYER:
+ * this Portal-rendered panel is normal stacking content and can never paint
+ * above an open popover at any z-index. Placement, not z-index, is the fix.
+ */
+export interface KvTooltipAnchoringProps {
+  /**
+   * Anchor the panel to a rect instead of to `x`/`y`. When supplied, `x`/`y`
+   * are ignored and `hysteresisPx` is bypassed (a static rect cannot flicker).
+   * Prefer the accessor form so the rect is re-read on resize / scroll.
+   */
+  anchor?: KvTooltipAnchor;
+  /**
+   * Which side of the `anchor` the panel takes, and how it aligns along that
+   * side. Default `'cursor'` = the 0.1.0 mouse-follow behaviour. Supplying an
+   * `anchor` while leaving this at `'cursor'` resolves to `'below-start'`.
+   * Overflow flips to the opposite side of the RECT — never onto it.
+   */
+  placement?: KvTooltipPlacement;
+  /**
+   * Gap between the anchor's edge and the panel's facing edge. Default 4,
+   * matching `DEFAULT_POPOVER_OFFSET_PX` in `@cujuju/solidjs-anchored-popover`
+   * so a tooltip and a popover on the same trigger share one offset grid.
+   */
+  anchorGapPx?: number;
+}
 
 // ── Filter helper ──────────────────────────────────────────────────────────
 function filterEntries(
@@ -14,7 +68,7 @@ function filterEntries(
 }
 
 // ── Shared tooltip panel (internal) ─────────────────────────────────────────
-interface TooltipContentProps {
+interface TooltipContentProps extends KvTooltipAnchoringProps {
   entries: Array<[string, string]>;
   x: number;
   y: number;
@@ -65,16 +119,19 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
     }
   });
 
-  const pos = createClampedPosition(
-    () => props.x,
-    () => props.y,
-    () => size().w || 150,
-    () => size().h || 100,
-    props.hysteresisPx,
-    props.edgePadPx,
-    props.mouseOffsetX,
-    props.mouseOffsetY,
-  );
+  const pos = createClampedPosition({
+    getX: () => props.x,
+    getY: () => props.y,
+    getW: () => size().w || 150,
+    getH: () => size().h || 100,
+    hysteresisPx: props.hysteresisPx,
+    edgePadPx: props.edgePadPx,
+    mouseOffsetX: props.mouseOffsetX,
+    mouseOffsetY: props.mouseOffsetY,
+    getAnchorRect: () => resolveAnchor(props.anchor),
+    getPlacement: () => props.placement ?? 'cursor',
+    getAnchorGapPx: () => props.anchorGapPx ?? DEFAULT_ANCHOR_GAP_PX,
+  });
 
   const panelStyle = (): JSX.CSSProperties => ({
     top: `${pos().y}px`,
@@ -113,7 +170,7 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
 }
 
 // ── Wrapper mode: hover-triggered ──────────────────────────────────────────
-export interface KvTooltipProps {
+export interface KvTooltipProps extends KvTooltipAnchoringProps {
   entries: Record<string, string>;
   children: JSX.Element;
 
@@ -207,6 +264,9 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
           portalTarget={props.portalTarget}
           onPanelMouseEnter={hoverIntent.onPanelEnter}
           onPanelMouseLeave={hoverIntent.onPanelLeave}
+          anchor={props.anchor}
+          placement={props.placement}
+          anchorGapPx={props.anchorGapPx}
         />
       </Show>
     </span>
@@ -214,8 +274,13 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
 }
 
 // ── Controlled mode: caller owns x/y + visibility ──────────────────────────
-export interface KvTooltipPanelProps {
+export interface KvTooltipPanelProps extends KvTooltipAnchoringProps {
   entries: Record<string, string>;
+  /**
+   * Cursor / reference coordinates in viewport space. Ignored while `anchor`
+   * resolves to a rect; still required so a caller can drop `anchor` at
+   * runtime (unmounted anchor element) and fall back to point placement.
+   */
   x: number;
   y: number;
 
@@ -263,6 +328,9 @@ export function KvTooltipPanel(props: KvTooltipPanelProps): JSX.Element {
         ariaLabel={props.ariaLabel}
         panelClass={props.panelClass}
         portalTarget={props.portalTarget}
+        anchor={props.anchor}
+        placement={props.placement}
+        anchorGapPx={props.anchorGapPx}
       />
     </Show>
   );
