@@ -338,6 +338,32 @@ code { font-family: var(--mono); color: var(--text); }
   color: var(--accent);
 }
 
+/* ── Source snippet shown beside a live demo ─────────────────────────────── */
+.code {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  overflow: hidden;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.code-cap {
+  padding: 6px 8px;
+  font: 10px/1.4 var(--mono);
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.code pre {
+  margin: 0;
+  padding: 12px;
+  font: 11px/1.6 var(--mono);
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+  tab-size: 2;
+}
+
 /* A surface to right-click / drop a menu onto. */
 .canvas {
   width: 100%;

@@ -29,6 +29,25 @@ export function Note(props: { children: JSX.Element }): JSX.Element {
   return <p class="note">{props.children}</p>;
 }
 
+/**
+ * Copy-pasteable source next to the live control it produces.
+ *
+ * The playground's job is not only "does it look right" but "how do I get
+ * this" — a demo whose markup is only visible by reading the page's own
+ * source makes the reader reverse-engineer the API. Pair every non-obvious
+ * demo with the snippet that renders it.
+ */
+export function Code(props: { children: string; cap?: string }): JSX.Element {
+  return (
+    <div class="code">
+      <Show when={props.cap}>
+        <div class="code-cap">{props.cap}</div>
+      </Show>
+      <pre>{props.children.replace(/^\n/, '').replace(/\s+$/, '')}</pre>
+    </div>
+  );
+}
+
 export function H2(props: { children: JSX.Element }): JSX.Element {
   return <h2>{props.children}</h2>;
 }

@@ -6,7 +6,7 @@ import {
   EMPTY_TRI_STATE,
   type TriStateValue,
 } from '@cujuju/solidjs-tri-state-chip';
-import { Card } from '../ui';
+import { Card, Code } from '../ui';
 
 const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
 
@@ -101,6 +101,31 @@ export function TriStateChipPage(): JSX.Element {
       </p>
 
       <h2>Click each chip twice to cycle it fully</h2>
+      <p class="note">
+        The chip is pure presentation — the value lives in your store, and the three helpers do
+        the transitions. This is the whole integration:
+      </p>
+      <div class="row">
+        <Code cap="usage">{`
+import {
+  TriStateChip, applyTriState, tristateOf,
+  EMPTY_TRI_STATE, type TriStateValue,
+} from '@cujuju/solidjs-tri-state-chip';
+import '@cujuju/solidjs-tri-state-chip/styles.css';
+
+const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
+
+<For each={TAGS}>{(tag) => (
+  <TriStateChip
+    label={tag}
+    value={tristateOf(value(), tag)}
+    onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
+  />
+)}</For>
+
+// value() -> { included: ['calls'], excluded: ['puts'] }
+`}</Code>
+      </div>
       <div class="row">
         <Card cap="the three states">
           <For each={TAGS}>
@@ -142,6 +167,30 @@ export function TriStateChipPage(): JSX.Element {
             </Card>
           )}
         </For>
+      </div>
+      <div class="row">
+        <Code cap="picking an indicator">{`
+// 'strike' is the DEFAULT — omit the prop to get it.
+<TriStateChip label="puts" value={s} onCycle={f} />
+
+// Any other treatment is one prop:
+<TriStateChip label="puts" value={s} onCycle={f} indicator="badge" />
+//   'strike' | 'marks' | 'badge' | 'rail' | 'tint'  -> no glyph, no column
+//   'glyph'                                         -> leading ✓ / ✗ column
+`}</Code>
+        <Code cap="the strike knockout — tokens">{`
+/* The strike is a thin line wrapped in a KNOCKOUT: a band of the chip's
+   own colour that erases the glyphs either side, so the line reads as cut
+   THROUGH the word. The knockout is composited from the same tint the chip
+   paints, so the two cannot drift apart. */
+:root {
+  --ctc-surface: #0f172a;        /* what the chip SITS ON — required, the
+                                    knockout is composited against it */
+  --ctc-tint-strength: 15%;      /* shared by the state fills + the knockout */
+  --ctc-strike-thickness: 2px;   /* the visible line */
+  --ctc-strike-knockout-width: 2px;  /* dead space each side of it */
+}
+`}</Code>
       </div>
 
       <h2>Glyph set</h2>
