@@ -57,6 +57,41 @@
     color var(--ctc-transition);
 }
 
+/* Glyph column. Present in every state; empty while unselected. `min-width`
+   (not `width`) so an over-long custom prefix grows rather than clipping. */
+/* Glyph column — present in every state, empty while unselected.
+   Its width is MEASURED, not guessed: both possible prefixes are rendered as
+   hidden sizers in the same single grid cell as the visible glyph, so the
+   cell resolves to max(include, exclude) in whatever font the consumer ships.
+   A reserved `min-width` constant would have to out-guess the glyph's real
+   advance, and silently starts jittering again in any font where it guesses
+   low. `pre` keeps the trailing space in the default `'+ '` / `'− '`, which
+   is part of the prefix contract rather than incidental markup. */
+.ctc-chip-prefix {
+  display: inline-grid;
+}
+
+.ctc-chip-prefix > * {
+  grid-area: 1 / 1;
+  white-space: pre;
+  text-align: center;
+}
+
+/* The sizers' text comes from `content`, fed by inline custom properties the
+   component sets from the prefix props. Keeping it out of the DOM as text is
+   the point — see the markup comment. */
+.ctc-chip-prefix-sizer {
+  visibility: hidden;
+}
+
+.ctc-chip-prefix-sizer[data-sizer="include"]::before {
+  content: var(--ctc-sizer-include, "");
+}
+
+.ctc-chip-prefix-sizer[data-sizer="exclude"]::before {
+  content: var(--ctc-sizer-exclude, "");
+}
+
 .ctc-chip:hover:not(:disabled) {
   border: var(--ctc-border-hover);
 }
