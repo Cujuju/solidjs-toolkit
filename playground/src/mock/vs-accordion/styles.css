@@ -53,7 +53,124 @@
        to the nested GROUP rather than to each header, so a sub-tree indents as a unit. */
     --vsa-indent: 14px;
 
+    /* ── Chrome metrics ───────────────────────────────────────────────────
+       Every glyph size, gap and hit box below is a token for ONE reason:
+       `data-density` re-scales the dock by overriding tokens, and a hard-coded
+       px anywhere in the rules would force density to ship a duplicate rule to
+       reach it. The defaults are exactly the values these rules already used,
+       so tokenising them changes nothing on screen. */
+
+    /* Inline gap inside an activator, between glyph, label and badge. */
+    --vsa-gap: 5px;
+    /* Gap between the parts of a header ROW (activator ↔ tail) and between
+       consumer action slots — one step tighter than --vsa-gap because those
+       parts are already separated by their own padding. */
+    --vsa-gap-sm: 4px;
+    /* Gap between adjacent icon BUTTONS in the header tail. Tighter again: each
+       button carries a 20px hit box around a 12–13px glyph, so the visual gap is
+       already ~7px wider than the declared value. */
+    --vsa-gap-xs: 2px;
+
+    /* Chevron and close glyph. One token: they are the same visual weight and
+       must stay the same size or the header reads lopsided. */
+    --vsa-icon-size: 12px;
+    /* Pin glyph. Deliberately 1px larger than --vsa-icon-size — it is rendered
+       rotated 45°, which shrinks its apparent bounding box. */
+    --vsa-pin-size: 13px;
+    /* Pin marker on a rail button. Smaller than --vsa-pin-size because there it
+       is a status dot, not a control — it is not clickable on the rail. */
+    --vsa-rail-pin-size: 11px;
+    /* Hit box of the pin/close buttons. Larger than the glyph so the target is
+       forgiving; must stay <= --vsa-header-height or the header row grows. */
+    --vsa-btn-size: 20px;
+    --vsa-btn-radius: 3px;
+
+    /* Count badge. Its line-height is what sets the pill's height, so it is a
+       token in its own right rather than a multiple of the font size. */
+    --vsa-badge-size: 10px;
+    --vsa-badge-pad-x: 5px;
+    --vsa-badge-line: 15px;
+    /* Any radius at or above half the pill's height rounds the ends fully; 999px
+       is the idiomatic "never think about it again" value. */
+    --vsa-pill-radius: 999px;
+
+    /* Block padding of a rail button — the vertical rhythm of the rail strip. */
+    --vsa-rail-btn-pad-block: 9px;
+    /* Cap on a ROTATED rail label's length before it ellipses. Expressed on the
+       label's own inline axis (see .vsa-rail-label), so it is a length along the
+       rail, not a width. */
+    --vsa-rail-label-max: 190px;
+    /* Trailing padding of a column title bar. Tighter than --vsa-header-pad-x
+       because the tail that sits there is icon buttons, which carry their own
+       padding around the glyph. */
+    --vsa-col-bar-pad-end: 4px;
+
     --vsa-duration: 140ms;
+    /* Open/close GEOMETRY, kept separate from --vsa-duration on purpose: a
+       colour or opacity fade at 140ms reads as instant-but-soft, while a box
+       travelling a whole column width in 140ms reads as a jump. 180ms also
+       matches @cujuju/solidjs-collapsible's --cl-animation-duration, so the two
+       controls' expand animations stay in step when a page uses both. */
+    --vsa-open-duration: 180ms;
+  }
+
+  /* ── Density ────────────────────────────────────────────────────────────
+     `comfortable` IS the :root block above — there is no rule for it, because a
+     second block restating the same values is the duplication this token layer
+     exists to avoid.
+
+     `compact` is a pure TOKEN OVERRIDE: not one rule below is density-aware, so
+     the whole variant is this block. Roughly a 0.78 scale on the chrome, with
+     two deliberate exceptions called out inline.
+
+     Declared on the GROUP, so it beats the inherited :root value regardless of
+     layers (a declaration on the element always wins over inheritance) — while
+     a consumer targeting `.vsa-group` unlayered still beats this, which is the
+     same contract the :root defaults carry.
+
+     KNOWN LIMIT: density INHERITS into nested groups. A nested group that
+     declares `comfortable` inside a `compact` parent stays compact, because
+     undoing it would mean also declaring the comfortable scale on the group —
+     which would break the `:root`-override contract for every consumer. Density
+     is a whole-dock choice here, not a per-level one. */
+  .vsa-group[data-density='compact'] {
+    --vsa-header-height: 20px;
+    --vsa-header-pad-x: 6px;
+    --vsa-content-pad: 6px;
+    /* 11px is the floor: below it UI text stops being comfortably readable, so
+       the type scales less than the boxes around it. */
+    --vsa-title-size: 11px;
+
+    --vsa-rail-width: 32px;
+    --vsa-rail-label-max: 150px;
+    --vsa-rail-btn-pad-block: 6px;
+    --vsa-indent: 10px;
+
+    /* EXCEPTION — the splitter is a POINTER TARGET, not chrome. Scaling it with
+       everything else would make a dense dock harder to drive, which is the
+       opposite of what density is for; it gives up 1px and no more. */
+    --vsa-splitter-hit: 6px;
+
+    --vsa-gap: 4px;
+    --vsa-gap-sm: 3px;
+    --vsa-gap-xs: 1px;
+
+    --vsa-icon-size: 11px;
+    --vsa-pin-size: 12px;
+    --vsa-rail-pin-size: 10px;
+    /* Still clears the 11px glyph and still fits inside the 20px header. */
+    --vsa-btn-size: 16px;
+
+    --vsa-badge-size: 9px;
+    --vsa-badge-pad-x: 4px;
+    --vsa-badge-line: 13px;
+
+    --vsa-col-bar-pad-end: 3px;
+
+    /* NOT overridden: --vsa-col-width / --vsa-col-min-width. A column's width is
+       sized to the CONSUMER'S content, not to the chrome, so shrinking it with
+       density would silently reflow their panels. Same for the colour, radius
+       and duration tokens — density is a scale, not a theme. */
   }
 }
 
@@ -83,6 +200,30 @@
   flex-direction: row-reverse;
 }
 
+/* RTL — `railSide` is PHYSICAL and must not flip.
+   "Dock it on the right of my screen" is a statement about the screen, not about
+   reading order: the consumer picked that edge because of what else is on the
+   page. `flex-direction: row` is NOT physical though — it follows `direction`,
+   so under RTL a plain `row` would put the rail on the RIGHT and `row-reverse`
+   on the left, silently mirroring the dock.
+   Inverting the two keywords under :dir(rtl) pins the rail back to the physical
+   edge the consumer asked for. Everything downstream (flex `order`, the resize
+   sign in resize.ts, the physical borders below) then sees the same geometry it
+   sees in LTR, so no other rule needs an RTL branch.
+
+   `:dir()` rather than `[dir='rtl']`: it reads the element's resolved
+   directionality, so it also covers `dir="auto"` and a `dir` set on any
+   ancestor. It cannot see a `direction: rtl` applied from CSS alone with no
+   `dir` attribute — that is the documented way to do RTL wrong (HTML requires
+   the attribute), and no selector in CSS can match it. */
+.vsa-group[data-orientation='horizontal'][data-rail-side='left']:dir(rtl) {
+  flex-direction: row-reverse;
+}
+
+.vsa-group[data-orientation='horizontal'][data-rail-side='right']:dir(rtl) {
+  flex-direction: row;
+}
+
 /* A nested group is not a separate card — it is content INSIDE a panel. Drop the
    chrome so the hierarchy reads as one dock, and indent the whole sub-tree. */
 .vsa-group .vsa-group {
@@ -91,8 +232,11 @@
   background: transparent;
 }
 
+/* LOGICAL, not physical: a tree indents away from the edge the reader starts at,
+   so in RTL the sub-tree steps in from the right. This is the one place in the
+   control where "start" means reading order rather than a docking edge. */
 .vsa-group[data-orientation='vertical'] .vsa-group[data-orientation='vertical'] {
-  padding-left: var(--vsa-indent);
+  padding-inline-start: var(--vsa-indent);
 }
 
 /* Fill mode: a nested group must consume the parent panel's remaining space rather
@@ -162,11 +306,16 @@
   /* The inherited page style insets its thumb with a 3px transparent border, which
      on a 6px track leaves nothing visible. Reset to a plain thumb. */
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--vsa-pill-radius);
 }
 
 /* The rail's edge faces the columns, so which physical side it lives on flips with
    the dock side. */
+/* STAYS PHYSICAL. `border-inline-start/end` would flip this edge under RTL, but
+   the rail does not move under RTL (see the :dir(rtl) flex-direction rules), so
+   the edge facing the columns is the same physical edge in both directions. The
+   logical property would be the wrong meaning here, not the modern spelling of
+   the right one. */
 .vsa-group[data-rail-side='left'] > .vsa-rail {
   border-right: 1px solid var(--vsa-border);
 }
@@ -179,10 +328,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: var(--vsa-gap);
   flex: 0 0 auto;
   width: 100%;
-  padding: 9px 0;
+  padding-block: var(--vsa-rail-btn-pad-block);
+  padding-inline: 0;
   border: 0;
   background: transparent;
   color: var(--vsa-text-muted);
@@ -206,6 +356,10 @@
    is a sign change rather than a second set of border/padding rules. It sits on the
    rail's OUTER edge — away from the columns — so it never reads as part of the
    column's own frame. */
+/* STAYS PHYSICAL, and cannot be otherwise: the offsets of `box-shadow` are always
+   physical x/y — there is no logical spelling to convert to. The sign is chosen
+   from `data-rail-side`, which does not flip under RTL, so the marker keeps
+   hugging the same physical outer edge in both directions. */
 .vsa-group[data-rail-side='left'] .vsa-rail-btn[data-open='true'] {
   box-shadow: inset var(--vsa-rail-marker-width) 0 0 var(--vsa-accent);
 }
@@ -233,7 +387,15 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-height: 190px;
+  /* The cap is on the LABEL'S OWN inline axis, which `writing-mode` above has
+     already turned vertical — so `max-inline-size` resolves to a height here and
+     says what it means ("this much label, then ellipsis"), where `max-height`
+     only said where it landed. Logical properties resolve against the ELEMENT'S
+     writing mode, so this survives the element being re-rotated.
+     Under RTL the inline axis of `vertical-rl` runs bottom-to-top, which is the
+     correct reading direction for an RTL script rotated into the rail; that is a
+     property of the writing mode, so it needs no rule of its own. */
+  max-inline-size: var(--vsa-rail-label-max);
 }
 
 .vsa-rail-icon {
@@ -244,13 +406,14 @@
   /* Held upright inside the rotated button — a rotated number is unreadable at a
      glance, and the count exists to be glanced at. */
   writing-mode: horizontal-tb;
-  font-size: 10px;
+  font-size: var(--vsa-badge-size);
   font-variant-numeric: tabular-nums;
   color: var(--vsa-text-muted);
   background: rgba(255, 255, 255, 0.07);
-  border-radius: 999px;
-  padding: 0 5px;
-  line-height: 15px;
+  border-radius: var(--vsa-pill-radius);
+  padding-block: 0;
+  padding-inline: var(--vsa-badge-pad-x);
+  line-height: var(--vsa-badge-line);
 }
 
 .vsa-rail-pin {
@@ -259,8 +422,8 @@
 }
 
 .vsa-rail-pin .vsa-pin-icon {
-  width: 11px;
-  height: 11px;
+  width: var(--vsa-rail-pin-size);
+  height: var(--vsa-rail-pin-size);
 }
 
 /* ── Panel ──────────────────────────────────────────────────────────────── */
@@ -299,6 +462,11 @@
   cursor: col-resize;
 }
 
+/* STAYS PHYSICAL. The handle belongs on the edge that faces the NEXT column, and
+   which edge that is comes from `data-rail-side` — a physical dock choice that
+   RTL does not flip. `inset-inline-end` would move the handle to the left edge in
+   RTL while the column it resizes stayed put, so the user would be dragging the
+   boundary they can see with the handle for the boundary they cannot. */
 .vsa-group[data-orientation='horizontal'][data-rail-side='left'] .vsa-splitter {
   right: calc(var(--vsa-splitter-hit) / -2);
 }
@@ -307,10 +475,11 @@
   left: calc(var(--vsa-splitter-hit) / -2);
 }
 
-/* Vertical: a horizontal hairline on the panel's bottom edge. */
+/* Vertical: a horizontal hairline on the panel's bottom edge. Logical here only
+   because it is SYMMETRIC — both inline edges get 0, so the two spellings mean
+   the same thing and the logical one states the intent ("span the panel"). */
 .vsa-group[data-orientation='vertical'] .vsa-splitter {
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   height: var(--vsa-splitter-hit);
   bottom: calc(var(--vsa-splitter-hit) / -2);
   cursor: row-resize;
@@ -360,6 +529,9 @@
    `:first-of-type` cannot express "first column": the rail is also a div and comes
    first in the DOM, and visual order comes from flex `order` anyway, which no
    selector can read. Hence `data-col-first`, set by the panel. */
+/* STAYS PHYSICAL, for the same reason as the rail's own border: "rail-facing" is
+   decided by `data-rail-side`, which RTL does not flip. The `data-col-first`
+   reset below clears BOTH physical sides, so it needs no direction branch. */
 .vsa-group[data-orientation='horizontal'][data-rail-side='left'] > .vsa-panel {
   border-left: 1px solid var(--vsa-border);
 }
@@ -393,10 +565,13 @@
 .vsa-header-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--vsa-gap-sm);
   flex: 0 0 auto;
   min-height: var(--vsa-header-height);
-  padding: 0 var(--vsa-header-pad-x);
+  /* Symmetric, so logical and physical agree — spelled logically to say "the two
+     text edges", which is what --vsa-header-pad-x is measuring. */
+  padding-block: 0;
+  padding-inline: var(--vsa-header-pad-x);
   background: var(--vsa-header-bg);
   transition: background var(--vsa-duration) ease;
 }
@@ -412,7 +587,7 @@
 .vsa-header {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--vsa-gap);
   flex: 1 1 auto;
   min-width: 0;
   height: var(--vsa-header-height);
@@ -422,7 +597,11 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: left;
+  /* LOGICAL. A UA stylesheet centres button text; this is the reset that makes a
+     header read as a label. "Where the label starts" is reading order, so it must
+     follow the document direction — an RTL title left-aligned inside its own
+     header is the classic RTL tell. */
+  text-align: start;
   cursor: pointer;
 }
 
@@ -436,8 +615,8 @@
 }
 
 .vsa-chevron {
-  width: 12px;
-  height: 12px;
+  width: var(--vsa-icon-size);
+  height: var(--vsa-icon-size);
   flex: 0 0 auto;
   color: var(--vsa-text-muted);
   transition: transform var(--vsa-duration) ease, color var(--vsa-duration) ease;
@@ -446,6 +625,18 @@
 .vsa-panel[data-open='true'] > .vsa-header-row .vsa-chevron {
   transform: rotate(90deg);
   color: var(--vsa-text);
+}
+
+/* RTL: a COLLAPSED disclosure chevron points at the edge the content will unfold
+   from, which is the reading start — right in RTL, so the glyph must mirror. No
+   logical property can express this (SVG geometry has no direction awareness) and
+   a second glyph would be two things to keep in sync, so it is a mirror of the one
+   glyph — the same "one glyph, rotated" reasoning the icon itself is built on.
+   Deliberately lower specificity than the open rule above, which replaces the
+   transform outright: a chevron rotated to point DOWN is symmetric about the
+   vertical axis, so mirroring it would be a no-op anyway. */
+.vsa-chevron:dir(rtl) {
+  transform: scaleX(-1);
 }
 
 .vsa-icon {
@@ -464,27 +655,30 @@
 
 .vsa-count {
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: var(--vsa-badge-size);
   font-variant-numeric: tabular-nums;
   color: var(--vsa-text-muted);
   background: rgba(255, 255, 255, 0.07);
-  border-radius: 999px;
-  padding: 0 5px;
-  line-height: 15px;
+  border-radius: var(--vsa-pill-radius);
+  padding-block: 0;
+  padding-inline: var(--vsa-badge-pad-x);
+  line-height: var(--vsa-badge-line);
 }
 
 .vsa-header-tail {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--vsa-gap-xs);
   flex: 0 0 auto;
+  /* Already logical, and correctly so: the tail is pushed to the END of the
+     reading order, which is the left edge in RTL. */
   margin-inline-start: auto;
 }
 
 .vsa-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--vsa-gap-sm);
 }
 
 /* ── Column title bar (horizontal) ──────────────────────────────────────── */
@@ -492,10 +686,15 @@
 .vsa-col-bar {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--vsa-gap);
   flex: 0 0 auto;
   min-height: var(--vsa-header-height);
-  padding: 0 4px 0 var(--vsa-header-pad-x);
+  /* LOGICAL, and asymmetric: the wide pad is on the side the TITLE starts from
+     and the tight one on the side the icon buttons sit. Both of those are reading
+     order — the bar's own contents flow with the text, not with the dock edge —
+     so under RTL the pair swaps and the title keeps its breathing room. */
+  padding-block: 0;
+  padding-inline: var(--vsa-header-pad-x) var(--vsa-col-bar-pad-end);
   background: var(--vsa-header-bg-open);
   border-bottom: 1px solid var(--vsa-border);
 }
@@ -507,11 +706,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: var(--vsa-btn-size);
+  height: var(--vsa-btn-size);
   padding: 0;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--vsa-btn-radius);
   background: transparent;
   color: var(--vsa-text-muted);
   cursor: pointer;
@@ -549,8 +748,8 @@
 }
 
 .vsa-pin-icon {
-  width: 13px;
-  height: 13px;
+  width: var(--vsa-pin-size);
+  height: var(--vsa-pin-size);
   /* Unpinned reads as "pin lying down"; pinned snaps upright. Same glyph, so the
      control's identity does not change when its state does. */
   transform: rotate(45deg);
@@ -562,8 +761,8 @@
 }
 
 .vsa-close-icon {
-  width: 12px;
-  height: 12px;
+  width: var(--vsa-icon-size);
+  height: var(--vsa-icon-size);
 }
 
 /* ── Content ────────────────────────────────────────────────────────────── */
@@ -609,12 +808,215 @@
   padding: 0;
 }
 
+/* ── Open/close motion (opt-in) ─────────────────────────────────────────── */
+
+/* Everything below is gated on `data-animated="true"`, which defaults to false —
+   an un-opted-in group is byte-for-byte the layout it was before this section
+   existed. Nothing here changes a resting geometry; each rule only supplies the
+   OTHER end of a transition the control was already snapping between.
+
+   The two orientations need two different mechanisms, and neither is a choice of
+   taste — it follows from what the collapsed state IS in each:
+
+     horizontal  a collapsed panel is `display: none` (its activator is the rail
+                 button), so the open state can be given an interpolable
+                 zero-width start via @starting-style and grown from the rail.
+     vertical    a collapsed panel is still a visible header bar, so nothing may
+                 start from zero; the CONTENT has to be wiped open instead, which
+                 is the `grid-template-rows: 0fr -> 1fr` trick that
+                 @cujuju/solidjs-collapsible already uses (see
+                 packages/collapsible/src/styles.css — `max-height` cannot
+                 interpolate to a content height, an `fr` track can). */
+
+/* ── horizontal: a column grows out of the rail ──
+   `flex-basis` carries it in `natural` (the column has a declared width) and
+   `flex-grow` + `min-width` carry it in `fill` (the column has a share, not a
+   width) — all three are numbers/lengths, so all three interpolate. One rule
+   covers both modes because the property that is inert in a mode is identical at
+   both ends there and so never animates. */
+.vsa-group[data-animated='true'][data-orientation='horizontal'] > .vsa-panel[data-open='true'] {
+  transition:
+    flex-basis var(--vsa-open-duration) ease,
+    flex-grow var(--vsa-open-duration) ease,
+    min-width var(--vsa-open-duration) ease;
+  /* Stops the content REFLOWING while the column is narrower than its content
+     (the min-width floors below hold the inner layout still, which means the
+     inner boxes are wider than the panel for the length of the animation and
+     would otherwise spill over the neighbouring column).
+     `clip` rather than `hidden` because `hidden` would make the panel a scroll
+     container, and `overflow-clip-margin` is what keeps this from breaking the
+     splitter: that handle is deliberately positioned half OUTSIDE the panel
+     (`right: calc(hit / -2)`), so the clip region is expanded by exactly that
+     overhang. Without it, animating a column would silently halve its resize
+     hit area. */
+  overflow: clip;
+  overflow-clip-margin: calc(var(--vsa-splitter-hit) / 2);
+}
+
+/* The other end of the transition. A collapsed column is `display: none`, so it
+   has no before-change style to animate FROM — @starting-style is what supplies
+   one for an element entering the box tree. It also fires on first paint, so a
+   `defaultOpen` column animates in on mount, which is the same event from the
+   user's point of view.
+   Engines without @starting-style drop this at-rule and land on the final values
+   immediately: no animation, no breakage. */
+@starting-style {
+  .vsa-group[data-animated='true'][data-orientation='horizontal'] > .vsa-panel[data-open='true'] {
+    flex-basis: 0;
+    flex-grow: 0;
+    min-width: 0;
+  }
+}
+
+/* The "do not reflow while growing" floor, applied to the panel's in-flow
+   children rather than to the panel (the panel must be free to be narrow — that
+   IS the animation). Held still, the inner boxes keep one line-break layout for
+   the whole travel and the clip above reveals it; unheld, they rewrap at every
+   frame between zero and full width.
+
+   `fill` ONLY. The floor has to be a value the column can never REST below, or a
+   transient clip becomes a permanent one, and `fill` is the only mode that
+   guarantees one: its panels carry `min-width: var(--vsa-col-min-width)` in CSS,
+   which a user-dragged inline `flex` cannot get under.
+   `natural` has no such floor — its columns are draggable down to
+   DEFAULT_MIN_SIZE_PX (60px in resize.ts), well below --vsa-col-width — so a
+   fixed inner min-width there would silently clip ~170px off every column the
+   user narrowed, for as long as animation stayed enabled. It gets the clip and
+   nothing else, which is the other mitigation and the cheap one to be right
+   about. */
+.vsa-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
+  > .vsa-panel
+  > .vsa-col-bar,
+.vsa-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
+  > .vsa-panel
+  > .vsa-content {
+  /* The floor is the column's OUTER width, so it has to be measured the same way
+     — asserted locally rather than assumed from a page reset, because getting it
+     wrong here does not misalign anything, it silently clips the content by twice
+     --vsa-content-pad for as long as animation is enabled. */
+  box-sizing: border-box;
+  min-width: var(--vsa-col-min-width);
+}
+
+/* CLOSING a column is deliberately NOT animated, and this is a correctness
+   decision rather than an omission. A closed panel's `openIndex` is -1, so the
+   inline style clamps its flex `order` to 1 — the head of the column strip. Keep
+   a closing column in the box tree and it TELEPORTS to sit against the rail and
+   then shrinks, which reads as a different panel closing. Letting it disappear
+   under the existing `display: none` is the honest behaviour until the group can
+   hold a last-known order (see the note at the end of this section). */
+
+/* ── vertical + natural: wipe the content open ──
+   The panel becomes the grid container itself: row 1 is the header bar, row 2 is
+   the content, and row 2 is what travels 0fr -> 1fr. The sibling package puts
+   this on a dedicated wrapper element; there is no wrapper in this markup, and
+   the panel is the only box that (a) survives the collapse and (b) has exactly
+   these two children, the splitter being absolutely positioned and therefore not
+   a grid item.
+   @supports because the trick needs a 0fr track to be legal — the same gate, and
+   the same rationale, as the collapsible package's block. */
+@supports (grid-template-rows: 0fr) {
+  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .vsa-panel {
+    display: grid;
+    grid-template-rows: auto 0fr;
+    transition: grid-template-rows var(--vsa-open-duration) ease;
+  }
+
+  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .vsa-panel[data-open='true'] {
+    grid-template-rows: auto 1fr;
+  }
+
+  /* The collapsed content has to stay in the BOX TREE for the row to have
+     anything to interpolate: an empty 1fr track in a content-sized panel
+     resolves to zero, so without this the close would snap and only the open
+     would animate.
+     This is NOT a hole in the "collapsed means invisible" contract that the
+     `.vsa-content[hidden]` rule above states — `visibility: hidden` keeps the
+     content out of the accessibility tree and out of tab order exactly as
+     `display: none` did. What it does NOT do is remove the box, and unlike
+     `display` it INTERPOLATES: a visibility transition holds `visible` for the
+     whole duration and flips at the end, so a closing panel's content stays on
+     screen while its row shrinks instead of vanishing a frame early.
+     `block` matches what the visible state resolves to in a `natural` group. The
+     one case it does not is a `natural` group nested INSIDE a `fill` one, because
+     the fill content rule matches by descendant rather than by child and hands it
+     `flex` — such a panel re-lays-out its content once as the close starts.
+     Left alone deliberately: tightening that selector to a child combinator is a
+     layout change to non-animated groups, which is not this phase's to make. */
+  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .vsa-panel
+    > .vsa-content[hidden] {
+    display: block !important;
+    visibility: hidden;
+  }
+
+  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .vsa-panel
+    > .vsa-content {
+    transition: visibility var(--vsa-open-duration);
+    /* Overrides the `auto` this control gives content everywhere else, and only
+       safely HERE: in `natural` mode the content box is sized to its own content,
+       so it has nothing to scroll in a resting state — the only moment it is ever
+       smaller than its content is mid-wipe, which is precisely the moment a
+       scrollbar must not flash in and out. */
+    overflow: hidden;
+  }
+}
+
+/* ── vertical + fill: not animated, and this is the reason ──
+   A `fill` panel's height is its flex share: `flex: 0 0 auto` collapsed,
+   `flex: 1 1 0` open. `auto` is a keyword, so `flex-basis` steps rather than
+   interpolates and a transition would POP at the halfway point — worse than the
+   snap it replaced. Rejected alternatives:
+     - Pin the collapsed basis to `var(--vsa-header-height)` so both ends are
+       lengths. Rejected: the header row is min-height, not height, so a consumer
+       whose `actions` are taller than the token would get a clipped header the
+       moment they turned animation on.
+     - `min-height: min-content` on the panel instead of the token. Rejected: the
+       min-content contribution of the content item is its own min-content height
+       (`min-height: 0` removes the automatic minimum, it does not remove the
+       contribution), so a collapsed panel would refuse to collapse.
+     - Wipe the content row as `natural` does, leaving the panel's box to snap.
+       Rejected: the box reaches full height on frame 1 while the row is still
+       partway, so the panel paints a growing empty gap under its own content.
+   The honest fix is a measured collapsed height, which needs script — see the
+   note below. `interpolate-size: allow-keywords` will make the flex-basis
+   version legal once it is not Chromium-only. */
+
+/* ── What this section could NOT do from CSS alone ──
+   Both gaps above want the same one-line change in
+   /mnt/e/Development/Projects/solidjs-toolkit/playground/src/mock/vs-accordion/AccordionPanel.tsx,
+   and neither is made here because that file is owned elsewhere:
+     1. Wrap `.vsa-content` in a `<div class="vsa-content-wrapper">` (exactly the
+        element @cujuju/solidjs-collapsible has) and move `hidden` onto the
+        wrapper. That gives the vertical wipe a dedicated clipping box, which
+        removes the `display: block !important` override here AND lets `fill`
+        mode animate its own height.
+     2. Keep the panel's `order` at its LAST open index while it is closing
+        (`data-closing`, or clamping `openIndex` to its previous value) so a
+        horizontal column can be animated shut without teleporting to the rail.
+   The column title bar also unmounts on close (`<Show when={horizontal() &&
+   open()}>`), so even with (2) a closing column would shrink empty unless that
+   Show is widened. */
+
 @media (prefers-reduced-motion: reduce) {
   .vsa-chevron,
   .vsa-pin,
   .vsa-pin-icon,
   .vsa-header-row,
   .vsa-rail-btn {
+    transition: none !important;
+  }
+
+  /* The open/close motion above is geometry — a whole column travelling its own
+     width, a panel's content wiping open. That is the exact class of movement
+     this query exists to suppress, so the opt-in is overruled here and the
+     control lands on its resting layout immediately. The @starting-style block
+     becomes inert on its own once there is no transition to start. */
+  .vsa-group[data-animated='true'] > .vsa-panel,
+  .vsa-group[data-animated='true'] > .vsa-panel > .vsa-content {
     transition: none !important;
   }
 }
