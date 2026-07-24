@@ -17,6 +17,7 @@ const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
  */
 const INDICATORS = [
   { id: 'strike', cap: 'strike — the default; excluded is crossed out' },
+  { id: 'cut', cap: 'cut — inverse strike: the knockout, no line' },
   { id: 'marks', cap: 'marks — + underline on included (not colour alone)' },
   { id: 'badge', cap: 'badge — corner disc, out of flow' },
   { id: 'rail', cap: 'rail — inline-start stripe' },
@@ -26,7 +27,7 @@ const INDICATORS = [
 
 /** A row of chips wired to its own independent state. */
 function ChipRow(props: {
-  indicator?: 'glyph' | 'strike' | 'marks' | 'badge' | 'rail' | 'tint';
+  indicator?: 'glyph' | 'strike' | 'cut' | 'marks' | 'badge' | 'rail' | 'tint';
   count?: number;
 }): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
@@ -123,7 +124,7 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
 
 // Any other treatment is one prop:
 <TriStateChip label="puts" value={s} onCycle={f} indicator="badge" />
-//   'strike' | 'marks' | 'badge' | 'rail' | 'tint'  -> no glyph, no column
+//   'strike' | 'cut' | 'marks' | 'badge' | 'rail' | 'tint'  -> no glyph column
 //   'glyph'                                         -> leading ✓ / ✗ column
 
 // glyph mode: the bare (neutral) label is CENTRED; a ✓/✗ offsets it right.
@@ -147,6 +148,7 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   --ctc-tint-strength: 15%;          /* shared by state fills + knockout */
   --ctc-strike-thickness: 1px;       /* the visible line */
   --ctc-strike-knockout-width: 2px;  /* dead space each side of it */
+  --ctc-cut-thickness: 2px;          /* indicator="cut": the gap, no line */
 
   --ctc-color-included: #10b981;
   --ctc-color-excluded: #f43f5e;

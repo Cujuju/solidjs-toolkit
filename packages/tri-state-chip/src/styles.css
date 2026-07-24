@@ -83,6 +83,15 @@
       var(--ctc-color-excluded) var(--ctc-tint-strength-hover),
       var(--ctc-surface)
     );
+    /* `cut` — the INVERSE strike: the knockout with no line inside it. The
+       label is broken by a band of the chip's own colour and nothing is drawn
+       on top, so the word reads as severed rather than crossed out. 2px is the
+       floor, not a taste call: a 1px gap is a single device row of near-chip
+       colour and disappears into the glyph antialiasing at every size the chip
+       ships (10-13px). It is its own token, not `--ctc-strike-thickness`,
+       because the two are opposite quantities — thinner ink is better, thinner
+       gap is worse. */
+    --ctc-cut-thickness: 2px;
     --ctc-underline-thickness: 1px;
     --ctc-underline-offset: 3px;
     --ctc-badge-size: 13px;
@@ -178,6 +187,7 @@
    punched above and below the line via box-shadow spread, so the line reads as
    floating clear of the glyphs rather than welded through them. */
 .ctc-chip[data-indicator="strike"] .ctc-chip-label,
+.ctc-chip[data-indicator="cut"] .ctc-chip-label,
 .ctc-chip[data-indicator="marks"] .ctc-chip-label {
   position: relative;
 }
@@ -212,6 +222,27 @@
 .ctc-chip[data-indicator="marks"][data-state="excluded"]:hover:not(:disabled) .ctc-chip-label::after {
   box-shadow: 0 0 0 var(--ctc-strike-knockout-width) var(--ctc-strike-knockout-hover);
 }
+/* cut — the strike with the line removed. Same geometry, same auto-margin
+   centring, but the band IS the knockout: it repaints the chip's own composite
+   over the glyphs and stops. Nothing is added to the label, so there is no
+   "how thick is the line" question to get wrong — the only ink on screen is
+   the label's own, minus the rows the cut erases. */
+.ctc-chip[data-indicator="cut"][data-state="excluded"] .ctc-chip-label::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  /* See the strike rule above: layout centring, not a transform, so the band
+     lands on the device grid instead of smearing across two rows. */
+  inset-block: 0;
+  margin-block: auto;
+  height: var(--ctc-cut-thickness);
+  background: var(--ctc-strike-knockout);
+}
+
+.ctc-chip[data-indicator="cut"][data-state="excluded"]:hover:not(:disabled) .ctc-chip-label::after {
+  background: var(--ctc-strike-knockout-hover);
+}
+
 /* marks additionally underlines included, so include vs neutral is not
    distinguished by colour alone (WCAG 1.4.1 — colour is not the only cue).
    Underline stays `text-decoration` (thin, no dead space asked for). */

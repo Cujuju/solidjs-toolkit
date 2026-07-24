@@ -37,6 +37,9 @@ export interface TriStateChipProps {
    *   is centred; a glyph offsets the label to the right. `neutralPrefix` can
    *   fill the neutral state with a mark (which then keeps it offset, not
    *   centred).
+   * - `cut` — the INVERSE strike: the same band, but painted in the chip's
+   *   own colour with no line inside it, so the excluded label is severed
+   *   rather than crossed out. Adds no ink to the chip.
    * - `marks` — `strike`, plus an underline on the INCLUDED label, so
    *   include / neutral is not distinguished by colour alone (WCAG 1.4.1).
    * - `badge` — a small ✓ / ✗ disc pinned to the chip's top-INLINE-end
@@ -49,7 +52,7 @@ export interface TriStateChipProps {
    * Every indicator except `glyph` carries the state WITHOUT a character in
    * the text flow, so none of them reserve a column or need a neutral mark.
    */
-  indicator?: 'glyph' | 'strike' | 'marks' | 'badge' | 'rail' | 'tint';
+  indicator?: 'glyph' | 'strike' | 'cut' | 'marks' | 'badge' | 'rail' | 'tint';
   /** ARIA label override. When omitted the chip relies on its visible text. */
   ariaLabel?: string;
   /** Extra class appended to the root. */
