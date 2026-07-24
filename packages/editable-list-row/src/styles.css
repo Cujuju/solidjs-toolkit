@@ -12,7 +12,12 @@
 [data-cuj-elr] {
   --cuj-elr-bg-active: rgba(59, 130, 246, 0.1);
   --cuj-elr-bg-hover: rgba(59, 130, 246, 0.05);
-  --cuj-elr-bg-rename-input: #fff;
+  /* Derived from the row's own text colour, NOT a hard-coded #fff. The row
+     itself is `transparent` (it inherits the host surface), so a literal white
+     fill made the rename field flash bright against every dark theme. A faint
+     wash of `currentColor` reads as a recessed field on both light and dark
+     without the package having to know the host's surface colour. */
+  --cuj-elr-bg-rename-input: color-mix(in srgb, currentColor 8%, transparent);
   --cuj-elr-border-rename: #3b82f6;
   --cuj-elr-icon-fg: #6b7280;
   --cuj-elr-icon-fg-hover: #111827;

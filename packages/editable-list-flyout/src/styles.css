@@ -11,8 +11,14 @@
  */
 
 [data-cuj-elf] {
-  --cuj-elf-popover-bg: #fff;
-  --cuj-elf-popover-border: 1px solid rgba(0, 0, 0, 0.1);
+  /* Dark by default, matching the rest of the toolkit (kv-tooltip #0f172a,
+     pill-number-picker / collapsible #1e293b). This package shipped a
+     light-theme `#fff` panel while every sibling defaulted dark, so the
+     flyout flashed a white card in an otherwise dark app. A floating panel
+     must be opaque, so unlike the inputs it cannot derive from currentColor
+     — it has to pick a side, and the toolkit's side is dark. */
+  --cuj-elf-popover-bg: #1e293b;
+  --cuj-elf-popover-border: 1px solid rgba(255, 255, 255, 0.12);
   --cuj-elf-popover-radius: 8px;
   --cuj-elf-popover-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   --cuj-elf-popover-padding: 6px;
@@ -30,7 +36,13 @@
   --cuj-elf-footer-fg: #6b7280;
   --cuj-elf-footer-fg-hover: #111827;
   --cuj-elf-footer-bg-hover: rgba(59, 130, 246, 0.05);
-  --cuj-elf-footer-input-bg: #fff;
+  /* Derived from the footer's own text colour, NOT a hard-coded #fff — the
+     add-input flashed bright white against every dark theme. A faint wash of
+     `currentColor` reads as a recessed field on light and dark alike, without
+     the package having to know the host's surface colour. Matches
+     `--cuj-elr-bg-rename-input` in editable-list-row, which is the same
+     click-to-edit affordance. */
+  --cuj-elf-footer-input-bg: color-mix(in srgb, currentColor 8%, transparent);
   --cuj-elf-footer-input-border: 1px solid #3b82f6;
   --cuj-elf-footer-icon-size: 14px;
 }
