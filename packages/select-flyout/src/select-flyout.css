@@ -75,6 +75,30 @@
    This primitive intentionally doesn't virtualize — consumers keep
    option counts modest. */
 .cujuju-select-flyout-panel {
+  /* OPAQUE popout. GlassMenu's surface is intentionally translucent
+     (`--user-menu-tint-alpha` 35%, so cover art / body content tints through)
+     — right for a media menu, wrong for a plain select floating over arbitrary
+     content, where it reads as a rendering bug.
+
+     `--surface-glass-menu-tint` is declared on :root, so its nested
+     `var(--user-menu-tint-alpha)` is baked at 35% there and merely inherits
+     down — overriding the alpha on this panel would NOT recompute it. So the
+     tint is RE-DECLARED here (recomputed on the panel from the same darken /
+     saturate / surface knobs) but WITHOUT the final transparent composite, so
+     it is fully solid. GlassMenu paints `background: var(--surface-glass-menu-
+     tint)` on this very element, so the local value wins; every other glass
+     surface still resolves the translucent :root value.
+
+     Set `background` DIRECTLY to a dedicated opaque token. Note: GlassMenu
+     re-declares `--color-surface` ON THIS ELEMENT to a translucent white-alpha
+     menu-input colour, so deriving the fill from `--color-surface` here yields
+     a translucent grey — that dead end cost a debugging pass. The dedicated
+     `--cujuju-select-flyout-panel-bg` sidesteps it: it defaults to the glass
+     default surface (#16213e, opaque) and a themed host overrides it to its
+     own opaque menu colour. Backdrop blur is redundant behind a solid fill —
+     dropped. Unlayered, so it beats GlassMenu's `@layer`ed background. */
+  background: var(--cujuju-select-flyout-panel-bg, #16213e);
+  backdrop-filter: none;
   z-index: var(--z-flyout);
   min-width: 160px;
   max-height: 320px;
