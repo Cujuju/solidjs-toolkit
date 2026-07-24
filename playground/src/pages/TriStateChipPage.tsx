@@ -16,12 +16,13 @@ const GLYPH_SETS = [
   { id: 'check-cross', cap: '✓ / ✗', include: '✓ ', exclude: '✗ ' },
   { id: 'check-times', cap: '✓ / ×', include: '✓ ', exclude: '× ' },
   { id: 'check-ballot', cap: '✔ / ✘ (heavy)', include: '✔ ', exclude: '✘ ' },
-  { id: 'circled', cap: '⊕ / ⊖ (one family)', include: '⊕ ', exclude: '⊖ ' },
 ] as const;
 
 /** Candidate NEUTRAL glyphs — what the unselected state shows. */
 const NEUTRAL_GLYPHS = [
   { id: 'none', cap: 'none', glyph: '' },
+  { id: 'underscore', cap: '_ underscore', glyph: '_ ' },
+  { id: 'underscore-wide', cap: '＿ full-width', glyph: '＿' },
   { id: 'ring', cap: '○ ring', glyph: '○ ' },
   { id: 'dot', cap: '· dot', glyph: '· ' },
   { id: 'small-ring', cap: '◦ small ring', glyph: '◦ ' },
@@ -32,7 +33,6 @@ function ChipRow(props: {
   include: string;
   exclude: string;
   neutral: string;
-  mode: 'reserve' | 'overlay';
 }): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   return (
@@ -45,7 +45,6 @@ function ChipRow(props: {
           includePrefix={props.include}
           excludePrefix={props.exclude}
           neutralPrefix={props.neutral}
-          prefixMode={props.mode}
         />
       )}
     </For>
@@ -54,8 +53,7 @@ function ChipRow(props: {
 
 export function TriStateChipPage(): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
-  const [neutral, setNeutral] = createSignal<string>('○ ');
-  const [mode, setMode] = createSignal<'reserve' | 'overlay'>('reserve');
+  const [neutral, setNeutral] = createSignal<string>('_ ');
 
   return (
     <>
@@ -91,20 +89,17 @@ export function TriStateChipPage(): JSX.Element {
         </Card>
       </div>
 
-      <h2>Glyph set + spacing mode</h2>
+      <h2>Glyph set</h2>
       <p class="note">
-        Two questions at once. <b>Which glyph pair</b> reads as include / exclude, and{' '}
-        <b>where the glyph lives</b>. In <code>reserve</code> the glyph sits in the layout in a
-        column as wide as the widest of the three glyphs — the chip is the same width in every
-        state, but the column is visibly blank when the neutral glyph is <code>none</code>. In{' '}
-        <code>overlay</code> the glyph is out of flow inside the chip's own padding: no column, no
-        blank, and the chip measures exactly as if it had no glyph at all — but the glyph only has
-        the padding to live in. <b>Click any chip twice to cycle it through all three states</b> and
-        watch whether the row shifts.
+        The glyph column is reserved in every state, so all three states measure the same and a
+        row never reflows on click. The only open question is what fills it: which pair reads as
+        include / exclude, and what the <b>unselected</b> state shows. An underscore is the
+        placeholder idiom — it sits on the baseline like a blank waiting to be filled, rather than
+        asserting a mark of its own. <b>Click any chip twice to cycle it fully.</b>
       </p>
 
       <div class="row">
-        <Card cap="neutral glyph (the unselected state)">
+        <Card cap="neutral glyph (the unselected state)" wide>
           <For each={NEUTRAL_GLYPHS}>
             {(n) => (
               <button
@@ -117,31 +112,13 @@ export function TriStateChipPage(): JSX.Element {
             )}
           </For>
         </Card>
-        <Card cap="spacing mode">
-          <For each={['reserve', 'overlay'] as const}>
-            {(m) => (
-              <button
-                class="demo-btn"
-                data-active={mode() === m ? 'true' : undefined}
-                onClick={() => setMode(m)}
-              >
-                {m}
-              </button>
-            )}
-          </For>
-        </Card>
       </div>
 
       <div class="row">
         <For each={GLYPH_SETS}>
           {(set) => (
             <Card cap={set.cap}>
-              <ChipRow
-                include={set.include}
-                exclude={set.exclude}
-                neutral={neutral()}
-                mode={mode()}
-              />
+              <ChipRow include={set.include} exclude={set.exclude} neutral={neutral()} />
             </Card>
           )}
         </For>
@@ -162,7 +139,6 @@ export function TriStateChipPage(): JSX.Element {
                 value={state}
                 onCycle={() => {}}
                 neutralPrefix={neutral()}
-                prefixMode={mode()}
               />
             </Card>
           )}
