@@ -631,6 +631,9 @@ function RailButton(props: { group: AccordionGroupApi; meta: PanelMeta }): JSX.E
       <Show when={props.meta.count() !== undefined}>
         <span class="vsa-rail-count">{props.meta.count()}</span>
       </Show>
+      <Show when={props.meta.badge()}>
+        <span class="vsa-badge" data-badge={props.meta.badge()} aria-hidden="true" />
+      </Show>
     </button>
     {menu.element}
     </>

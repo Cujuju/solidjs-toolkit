@@ -1,5 +1,5 @@
 import { Show, createMemo, createUniqueId, onCleanup, onMount, type JSX } from 'solid-js';
-import { useAccordionGroup, type AccordionGroupApi } from './context';
+import { useAccordionGroup, type AccordionGroupApi, type PanelBadge } from './context';
 import { Chevron, Close, Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
 import { createPanelMenu } from './panelMenu';
@@ -15,6 +15,8 @@ export interface AccordionPanelProps {
 
   /** Trailing count badge, e.g. `Errors (3)`. */
   count?: number;
+  /** State dot on the rail button and header — "needs attention", no number. */
+  badge?: PanelBadge;
   /** Leading glyph. Shown in the vertical header AND on the rail button. */
   icon?: JSX.Element;
   /** Shorter label for the rail button, when the full title is too long rotated. */
@@ -88,6 +90,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         title: () => props.title,
         railLabel: () => props.railLabel,
         count: () => props.count,
+        badge: () => props.badge,
         icon: () => props.icon,
         tooltip: () => props.tooltip,
         accent: () => props.accent,
@@ -165,6 +168,9 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
             <span class="vsa-title">{props.title}</span>
             <Show when={props.count !== undefined}>
               <span class="vsa-count">{props.count}</span>
+            </Show>
+            <Show when={props.badge}>
+              <span class="vsa-badge" data-badge={props.badge} aria-hidden="true" />
             </Show>
           </button>
 

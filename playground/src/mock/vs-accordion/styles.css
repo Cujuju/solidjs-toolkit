@@ -87,6 +87,19 @@
 
     /* Count badge. Its line-height is what sets the pill's height, so it is a
        token in its own right rather than a multiple of the font size. */
+    /* State-dot diameter. Smaller than the count pill's line box: it must read as
+       a status light beside the label, not compete with it for the eye. */
+    --vsa-badge-dot-size: 7px;
+    /* Severity colours. Deliberately NOT --vsa-accent for all four — a dot that is
+       always the accent colour cannot distinguish "done" from "broken". `info`
+       aliases the accent (see the rule below) so a themed dock stays coherent. */
+    --vsa-badge-success: #10b981;
+    --vsa-badge-warning: #f59e0b;
+    --vsa-badge-danger: #ef4444;
+    /* Resolved per-severity by the [data-badge] rules; this is the fallback for a
+       dot rendered with no recognised severity. */
+    --vsa-badge-color: var(--vsa-text-muted);
+
     --vsa-badge-size: 10px;
     --vsa-badge-pad-x: 5px;
     --vsa-badge-line: 15px;
@@ -663,6 +676,39 @@
   padding-block: 0;
   padding-inline: var(--vsa-badge-pad-x);
   line-height: var(--vsa-badge-line);
+}
+
+/* ── Badge ──────────────────────────────────────────────────────────────── */
+
+/* A state DOT, not a count. It carries no number on purpose: it answers "does this
+   need me?", which is a different question from "how many?", and a panel routinely
+   has an urgent state with a count of zero. Sized off the count badge's own token
+   so the two stay visually related when density rescales them. */
+.vsa-badge {
+  flex: 0 0 auto;
+  width: var(--vsa-badge-dot-size);
+  height: var(--vsa-badge-dot-size);
+  border-radius: var(--vsa-pill-radius);
+  background: var(--vsa-badge-color);
+}
+
+/* Severity is a closed set of named tokens rather than a free colour prop: a dock
+   whose panels each invented their own amber stops communicating urgency at all.
+   Consumers wanting brand colour have the per-panel `accent`. */
+.vsa-badge[data-badge='info'] {
+  --vsa-badge-color: var(--vsa-accent);
+}
+
+.vsa-badge[data-badge='success'] {
+  --vsa-badge-color: var(--vsa-badge-success);
+}
+
+.vsa-badge[data-badge='warning'] {
+  --vsa-badge-color: var(--vsa-badge-warning);
+}
+
+.vsa-badge[data-badge='danger'] {
+  --vsa-badge-color: var(--vsa-badge-danger);
 }
 
 .vsa-header-tail {

@@ -62,6 +62,13 @@ export type AccordionPolicy =
   | 'multi';
 
 /**
+ * Severity of a panel's state dot. Named rather than a free colour so a dock stays
+ * visually coherent and a consumer cannot invent a seventh shade of amber; a
+ * per-panel `accent` already exists for genuine branding.
+ */
+export type PanelBadge = 'info' | 'success' | 'warning' | 'danger';
+
+/**
  * A panel's chrome, registered with the group as ACCESSORS rather than values.
  *
  * This matters: in `horizontal` orientation the GROUP renders the rail button for
@@ -75,6 +82,15 @@ export interface PanelMeta {
   /** Short label for the rail button, when the full title is too long rotated. */
   railLabel: Accessor<string | JSX.Element | undefined>;
   count: Accessor<number | undefined>;
+  /**
+   * A state DOT, distinct from `count`.
+   *
+   * The two answer different questions and must not share a slot: a count says
+   * "how many", a badge says "something here needs you" — unsaved edits, a failed
+   * connection — which has no number and often coexists with a count of zero.
+   * Collapsing them would force a consumer to fake a number to get attention.
+   */
+  badge: Accessor<PanelBadge | undefined>;
   icon: Accessor<JSX.Element | undefined>;
   /** Native tooltip for the rail button / header. */
   tooltip: Accessor<string | undefined>;
