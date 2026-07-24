@@ -15,10 +15,12 @@
     --tp-dot-mixed: color-mix(in srgb, var(--tp-dot) 55%, transparent);
     --tp-disabled-opacity: 0.5;
     --tp-readonly-opacity: 0.85;
-    /* Focus ring HIDDEN by default (user directive). Opt in with
-       `--tp-focus-ring: 1px solid #6366f1` for the thin inset ring; the offset
-       is already inset (-1px). Keyboard users lose the cue while hidden. */
-    --tp-focus-ring: none;
+    /* Thin INSET focus ring (negative offset) that hugs the control, coloured
+       as a LIGHTENED version of the track the toggle is currently showing —
+       the off-state track, which is the neutral chrome of the control.
+       Override `--tp-focus-ring-color` for a brighter ring. */
+    --tp-focus-ring-color: color-mix(in srgb, var(--tp-off-bg) 45%, #fff);
+    --tp-focus-ring: 1px solid var(--tp-focus-ring-color);
     --tp-focus-ring-offset: -1px;
   }
 }

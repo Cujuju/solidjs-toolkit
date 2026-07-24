@@ -16,10 +16,11 @@
     --cl-header-padding: 0;
     --cl-content-padding: 0;
     --cl-animation-duration: 180ms;
-    /* Focus ring HIDDEN by default (user directive). Opt in with
-       `--cl-focus-ring: 1px solid #6366f1` for the thin inset ring; the offset
-       is already inset (-1px). Keyboard users lose the cue while hidden. */
-    --cl-focus-ring: none;
+    /* Thin INSET focus ring (negative offset) that hugs the header, coloured
+       as a LIGHTENED version of the control's own panel border rather than a
+       fixed accent. Override `--cl-focus-ring-color` for a brighter ring. */
+    --cl-focus-ring-color: color-mix(in srgb, var(--cl-panel-border) 45%, #fff);
+    --cl-focus-ring: 1px solid var(--cl-focus-ring-color);
     --cl-focus-ring-offset: -1px;
   }
 }

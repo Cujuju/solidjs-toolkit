@@ -13,10 +13,12 @@
     --seg-inactive-border: #334155;
     --seg-inactive-text: #94a3b8;
     --seg-disabled-opacity: 0.4;
-    /* Focus ring HIDDEN by default (user directive). Opt in with
-       `--seg-focus-ring: 1px solid #6366f1` for the thin inset ring; the offset
-       is already inset (-1px). Keyboard users lose the cue while hidden. */
-    --seg-focus-ring: none;
+    /* Thin INSET focus ring (negative offset) that hugs the button, coloured
+       as a LIGHTENED version of the control's own inactive border rather than
+       a fixed accent, so it never competes with the active segment's colour.
+       Override `--seg-focus-ring-color` for a brighter ring. */
+    --seg-focus-ring-color: color-mix(in srgb, var(--seg-inactive-border) 45%, #fff);
+    --seg-focus-ring: 1px solid var(--seg-focus-ring-color);
     --seg-focus-ring-offset: -1px;
     --seg-radius: 4px;
     --seg-hover-bg: rgba(255, 255, 255, 0.04);
