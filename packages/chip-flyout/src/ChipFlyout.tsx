@@ -321,10 +321,18 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
 
   function renderChip(opt: ChipOption): JSX.Element {
     const state = () => chipState(opt.value);
+    // The indicator is PINNED, not inherited. A tri-state chip has three
+    // states but only two are ever visible at rest, so include-vs-exclude has
+    // to be legible without clicking — `glyph` puts a ✓ / ✗ in the chip and
+    // makes the mode self-evident. `multi` is a plain on/off toggle, where a
+    // glyph column would be noise, so it takes `tint`. Leaving these to the
+    // chip's own default meant a change to that default silently removed this
+    // panel's only cue that it was tri-state at all.
     return (
       <TriStateChip
         label={opt.label}
         value={state()}
+        indicator={props.mode === 'multi' ? 'tint' : 'glyph'}
         nextState={props.mode === 'multi' ? multiNextState : undefined}
         onCycle={(next) => onChipCycle(opt.value, next)}
       />
