@@ -22,10 +22,32 @@ export interface TriStateChipProps {
   /** Glyph rendered before the label when state=`excluded`. Default `'− '`. */
   excludePrefix?: string;
   /** Glyph rendered before the label when state=`unselected`. Default `''`.
-   *  The glyph column is reserved in every state, so leaving this empty leaves
-   *  a visible blank where the glyph would go — supply a neutral mark
-   *  (e.g. `'_ '`) to fill it. */
+   *  Only consulted by the `glyph` indicator; the glyph column is reserved in
+   *  every state, so leaving this empty leaves a visible blank where the glyph
+   *  would go — supply a neutral mark (e.g. `'_ '`) to fill it. */
   neutralPrefix?: string;
+  /**
+   * How the chip signals its state.
+   *
+   * - `glyph` (default) — a leading `✓ ` / `✗ ` in the text flow, in a
+   *   reserved column so width is stable. The neutral state has no glyph, so
+   *   the column sits blank unless `neutralPrefix` fills it.
+   * - `strike` — no glyph at all; the EXCLUDED label is struck through. The
+   *   chip is exactly its label's width in every state, nothing reserved,
+   *   nothing blank. Included stays tint-only.
+   * - `marks` — `strike`, plus an underline on the INCLUDED label, so
+   *   include / neutral is not distinguished by colour alone (WCAG 1.4.1).
+   * - `badge` — a small ✓ / ✗ disc pinned to the chip's top-INLINE-end
+   *   corner, out of flow. Keeps a literal glyph at zero layout cost; can be
+   *   clipped by an ancestor with `overflow: hidden`.
+   * - `rail` — a coloured stripe down the chip's inline-start edge, painted
+   *   with an inset shadow so it never occupies layout.
+   * - `tint` — background + text colour only, no glyph and no decoration.
+   *
+   * Every non-`glyph` indicator carries the state WITHOUT a character in the
+   * text flow, so none of them reserve a column or need a neutral mark.
+   */
+  indicator?: 'glyph' | 'strike' | 'marks' | 'badge' | 'rail' | 'tint';
   /** ARIA label override. When omitted the chip relies on its visible text. */
   ariaLabel?: string;
   /** Extra class appended to the root. */
@@ -86,6 +108,8 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
     props.excludePrefix ?? DEFAULT_EXCLUDE_PREFIX;
   const neutralPrefix = (): string =>
     props.neutralPrefix ?? DEFAULT_NEUTRAL_PREFIX;
+  const indicator = (): NonNullable<TriStateChipProps['indicator']> =>
+    props.indicator ?? 'glyph';
 
   /** Glyph for the CURRENT state. */
   const prefixGlyph = (): string =>
@@ -95,9 +119,11 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
         ? excludePrefix()
         : neutralPrefix();
 
-  /** Whether this chip has a glyph column at all (see the slot comment). */
+  /** Whether the reserved glyph column renders. Only the `glyph` indicator
+   *  uses it, and only when at least one state supplies a mark. */
   const hasPrefix = (): boolean =>
-    includePrefix() !== '' || excludePrefix() !== '' || neutralPrefix() !== '';
+    indicator() === 'glyph' &&
+    (includePrefix() !== '' || excludePrefix() !== '' || neutralPrefix() !== '');
 
   // aria-pressed semantics: a tri-state toggle is best expressed as
   // 'true' (pressed/non-neutral) vs 'false' (neutral). The specific
@@ -112,6 +138,7 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       type="button"
       class={`ctc-chip ${props.class ?? ''}`.trim()}
       data-state={props.value}
+      data-indicator={indicator()}
       aria-pressed={ariaPressed()}
       aria-label={props.ariaLabel}
       disabled={props.disabled}

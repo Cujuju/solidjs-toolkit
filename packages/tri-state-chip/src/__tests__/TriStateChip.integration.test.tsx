@@ -103,6 +103,33 @@ describe('TriStateChip rendering', () => {
     expect(findChip().textContent).toBe('(NO) X');
   });
 
+  it('glyph-free indicators render no prefix and no glyph in textContent', () => {
+    // The whole point of a non-glyph indicator: the state is carried by CSS
+    // (strike/badge/rail), never by a character in the flow, so the chip's
+    // text is exactly the label in every state.
+    for (const indicator of ['strike', 'marks', 'badge', 'rail', 'tint'] as const) {
+      dispose?.();
+      dispose = render(
+        () => (
+          <TriStateChip label="X" value="excluded" indicator={indicator} onCycle={() => {}} />
+        ),
+        document.body,
+      );
+      expect(findChip().textContent).toBe('X');
+      expect(findChip().getAttribute('data-indicator')).toBe(indicator);
+      expect(findChip().querySelector('.ctc-chip-prefix')).toBeNull();
+    }
+  });
+
+  it('default indicator is glyph and keeps the reserved prefix', () => {
+    dispose = render(
+      () => <TriStateChip label="X" value="included" onCycle={() => {}} />,
+      document.body,
+    );
+    expect(findChip().getAttribute('data-indicator')).toBe('glyph');
+    expect(findChip().querySelector('.ctc-chip-prefix')).not.toBeNull();
+  });
+
   it('passes ariaLabel through', () => {
     dispose = render(
       () => (

@@ -37,15 +37,17 @@ const NEUTRAL_GLYPHS = [
  * state — with nothing to fill while unselected.
  */
 const GLYPHLESS = [
-  { id: 'strike', cap: 'strike the excluded label', cls: 'demo-chip-strike' },
-  { id: 'marks', cap: 'underline included / strike excluded', cls: 'demo-chip-marks' },
-  { id: 'badge', cap: 'corner badge (out of flow)', cls: 'demo-chip-badge' },
-  { id: 'rail', cap: 'inner rail (inset shadow)', cls: 'demo-chip-rail' },
-  { id: 'colour', cap: 'colour + tint only (today, glyphs off)', cls: '' },
+  { id: 'strike', cap: 'strike — cross out the excluded label' },
+  { id: 'marks', cap: 'marks — underline included / strike excluded' },
+  { id: 'badge', cap: 'badge — corner disc, out of flow' },
+  { id: 'rail', cap: 'rail — inline-start stripe (inset shadow)' },
+  { id: 'tint', cap: 'tint — colour only' },
 ] as const;
 
 /** A row of chips wired to its own independent state, with no glyphs at all. */
-function GlyphlessRow(props: { cls: string }): JSX.Element {
+function GlyphlessRow(props: {
+  indicator: 'strike' | 'marks' | 'badge' | 'rail' | 'tint';
+}): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   return (
     <For each={TAGS.slice(0, 3)}>
@@ -54,10 +56,7 @@ function GlyphlessRow(props: { cls: string }): JSX.Element {
           label={tag}
           value={tristateOf(value(), tag)}
           onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
-          class={props.cls}
-          includePrefix=""
-          excludePrefix=""
-          neutralPrefix=""
+          indicator={props.indicator}
         />
       )}
     </For>
@@ -128,16 +127,18 @@ export function TriStateChipPage(): JSX.Element {
       <h2>No glyph column at all</h2>
       <p class="note">
         The reserved column exists only because the state mark was assumed to be a CHARACTER IN
-        THE TEXT FLOW. Carry the state some other way and the problem dissolves: every chip below
-        has <code>includePrefix=""</code> / <code>excludePrefix=""</code>, so there is no column,
-        nothing to reserve, nothing blank while unselected — and the chip is exactly as wide as its
-        label in all three states. <b>Click twice to cycle.</b> Nothing here moves, ever.
+        THE TEXT FLOW. Carry the state some other way and the problem dissolves. Each row below is
+        a built-in <code>indicator</code> — <code>strike</code>, <code>marks</code>,{' '}
+        <code>badge</code>, <code>rail</code>, <code>tint</code> — none of which put a glyph in the
+        flow, so there is no column, nothing to reserve, nothing blank while unselected, and the
+        chip is exactly as wide as its label in all three states. <b>Click twice to cycle.</b>{' '}
+        Nothing here moves, ever.
       </p>
       <div class="row">
         <For each={GLYPHLESS}>
           {(v) => (
             <Card cap={v.cap}>
-              <GlyphlessRow cls={v.cls} />
+              <GlyphlessRow indicator={v.id} />
             </Card>
           )}
         </For>
