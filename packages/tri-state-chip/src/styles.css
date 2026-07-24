@@ -93,14 +93,15 @@
        label is broken by a band of the chip's own colour and nothing is drawn
        on top, so the word reads as severed rather than crossed out.
 
-       1px — the thinnest possible cut: exactly one device row of the chip's
-       own composite erased out of the glyphs, nothing around it. It is still
-       its own token, not `--ctc-strike-thickness`, because the two are
-       opposite quantities: for a line thinner is crisper, for a gap thinner is
-       fainter, so they will not want to move together. Raise it if the cut
-       reads too subtle at small sizes — at 10px the glyph strokes are thin
-       enough that a single erased row can disappear into their antialiasing. */
-    --ctc-cut-thickness: 1px;
+       The band is the WHOLE mark, so this token alone decides how loud the cut
+       is: 1px is the faintest it can be (one erased device row, which at the
+       10px `xs` size can vanish into the glyphs' own antialiasing), 2px reads
+       clearly at every size the chip ships, and past ~3px it stops looking
+       like a cut and starts looking like the label is missing a stripe.
+       Deliberately NOT sharing `--ctc-strike-thickness`: those are opposite
+       quantities — for a line thinner is crisper, for a gap thinner is fainter
+       — so the two will never want to move together. */
+    --ctc-cut-thickness: 2px;
     --ctc-underline-thickness: 1px;
     --ctc-underline-offset: 3px;
     --ctc-badge-size: 13px;
