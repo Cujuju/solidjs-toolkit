@@ -21,6 +21,24 @@ export interface TriStateChipProps {
   includePrefix?: string;
   /** Glyph rendered before the label when state=`excluded`. Default `'− '`. */
   excludePrefix?: string;
+  /** Glyph rendered before the label when state=`unselected`. Default `''`.
+   *  In `prefixMode="reserve"` the glyph column is reserved in every state, so
+   *  leaving this empty leaves a visible blank where the glyph would go —
+   *  supply a neutral mark (e.g. `'○ '`) to fill it. */
+  neutralPrefix?: string;
+  /**
+   * How the glyph occupies space.
+   *
+   * - `reserve` (default) — the glyph sits in the layout flow, in a column as
+   *   wide as the widest of the three glyphs. Width is identical in every
+   *   state, at the cost of a permanent column.
+   * - `overlay` — the glyph is taken OUT of flow and painted inside the chip's
+   *   existing start padding. The chip measures the same as a chip with no
+   *   glyph at all, in every state, and there is no column to leave blank. The
+   *   trade is that the glyph has only the padding to live in, so a wide
+   *   prefix will crowd the label.
+   */
+  prefixMode?: 'reserve' | 'overlay';
   /** ARIA label override. When omitted the chip relies on its visible text. */
   ariaLabel?: string;
   /** Extra class appended to the root. */
@@ -33,6 +51,9 @@ export interface TriStateChipProps {
 
 const DEFAULT_INCLUDE_PREFIX = '+ ';
 const DEFAULT_EXCLUDE_PREFIX = '− ';
+/** Empty by default: adding a neutral mark to every existing consumer's
+ *  unselected chips would be a visual change they did not ask for. */
+const DEFAULT_NEUTRAL_PREFIX = '';
 
 /**
  * Quote an arbitrary prefix as a CSS string literal for `content:`.
@@ -71,19 +92,21 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
     props.includePrefix ?? DEFAULT_INCLUDE_PREFIX;
   const excludePrefix = (): string =>
     props.excludePrefix ?? DEFAULT_EXCLUDE_PREFIX;
+  const neutralPrefix = (): string =>
+    props.neutralPrefix ?? DEFAULT_NEUTRAL_PREFIX;
+  const prefixMode = (): 'reserve' | 'overlay' => props.prefixMode ?? 'reserve';
 
-  /** Glyph for the CURRENT state — empty string while unselected, which is
-   *  what keeps the reserved slot present but blank. */
+  /** Glyph for the CURRENT state. */
   const prefixGlyph = (): string =>
     props.value === 'included'
       ? includePrefix()
       : props.value === 'excluded'
         ? excludePrefix()
-        : '';
+        : neutralPrefix();
 
   /** Whether this chip has a glyph column at all (see the slot comment). */
   const hasPrefix = (): boolean =>
-    includePrefix() !== '' || excludePrefix() !== '';
+    includePrefix() !== '' || excludePrefix() !== '' || neutralPrefix() !== '';
 
   // aria-pressed semantics: a tri-state toggle is best expressed as
   // 'true' (pressed/non-neutral) vs 'false' (neutral). The specific
@@ -105,33 +128,44 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       onClick={handleClick}
       {...(props.dataAttr ?? {})}
     >
-      {/* ONE prefix slot, rendered in every state — including `unselected`,
-          where it is empty. Rendering it conditionally made the chip's width
-          content-driven, so it grew the instant a glyph appeared and the whole
-          row of chips reflowed on click. The slot reserves its width in CSS
-          (`--ctc-prefix-width`), so all three states measure identically.
+      {/* ONE prefix slot, rendered in every state. Rendering it conditionally
+          made the chip's width content-driven, so it grew the instant a glyph
+          appeared and the whole row of chips reflowed on click.
 
-          Suppressed entirely when BOTH prefixes are empty: a consumer who
-          passes `includePrefix=""`/`excludePrefix=""` wants no glyph column at
-          all, and reserving space for one would be dead padding. */}
+          `reserve` keeps it in flow in a column as wide as the widest glyph;
+          `overlay` takes it out of flow into the start padding, so there is no
+          column to leave blank. Either way every state measures the same.
+
+          Suppressed entirely when ALL THREE prefixes are empty: that consumer
+          wants no glyph at all, and reserving space for one would be dead
+          padding. */}
       <Show when={hasPrefix()}>
         <span
           aria-hidden="true"
           class="ctc-chip-prefix"
+          data-mode={prefixMode()}
           style={{
             '--ctc-sizer-include': cssString(includePrefix()),
             '--ctc-sizer-exclude': cssString(excludePrefix()),
+            '--ctc-sizer-neutral': cssString(neutralPrefix()),
           }}
         >
-          {/* Sizers: both possible glyphs share the visible glyph's grid cell,
-              so the cell resolves to the WIDEST prefix and the chip measures
-              identically in all three states. They carry their text as CSS
-              `content` rather than as child text nodes on purpose — a hidden
-              text node still lands in `textContent`, so selecting and copying
-              a chip would yield "+ − calls", and text queries would match the
-              sizers. Pseudo-element content is not part of `textContent`. */}
-          <span class="ctc-chip-prefix-sizer" data-sizer="include" />
-          <span class="ctc-chip-prefix-sizer" data-sizer="exclude" />
+          {/* Sizers: all three possible glyphs share the visible glyph's grid
+              cell, so the cell resolves to the WIDEST prefix and the chip
+              measures identically in all three states. They carry their text
+              as CSS `content` rather than as child text nodes on purpose — a
+              hidden text node still lands in `textContent`, so selecting and
+              copying a chip would yield "+ − calls", and text queries would
+              match the sizers. Pseudo-element content is not part of
+              `textContent`.
+
+              Overlay mode needs no sizers: the glyph is out of flow, so there
+              is nothing to size. */}
+          <Show when={prefixMode() === 'reserve'}>
+            <span class="ctc-chip-prefix-sizer" data-sizer="include" />
+            <span class="ctc-chip-prefix-sizer" data-sizer="exclude" />
+            <span class="ctc-chip-prefix-sizer" data-sizer="neutral" />
+          </Show>
           <span class="ctc-chip-prefix-glyph">{prefixGlyph()}</span>
         </span>
       </Show>

@@ -24,6 +24,13 @@
 
     /* Layout. */
     --ctc-padding: 5px 10px;
+    /* Overlay mode only — where the out-of-flow glyph sits inside the chip's
+       start padding, and how big it is relative to the label. 3px keeps it
+       clear of the border without reaching the label across a 10px pad; 0.8em
+       buys the horizontal room that makes that possible. Both are inert in
+       the default `reserve` mode. */
+    --ctc-overlay-inset: 3px;
+    --ctc-overlay-glyph-size: 0.8em;
     --ctc-radius: 6px;
     --ctc-font-size: 0.875rem;
     --ctc-font-weight: 500;
@@ -39,6 +46,9 @@
 
 .ctc-chip {
   box-sizing: border-box;
+  /* Positioning context for `prefixMode="overlay"`'s out-of-flow glyph.
+     Inert in `reserve` mode. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--ctc-gap);
@@ -90,6 +100,28 @@
 
 .ctc-chip-prefix-sizer[data-sizer="exclude"]::before {
   content: var(--ctc-sizer-exclude, "");
+}
+
+.ctc-chip-prefix-sizer[data-sizer="neutral"]::before {
+  content: var(--ctc-sizer-neutral, "");
+}
+
+/* ── Overlay mode ────────────────────────────────────────────────────────
+   The glyph leaves the flow entirely and is painted inside the chip's own
+   start padding. The chip then measures exactly as if it had no glyph — the
+   same in all three states — and there is no reserved column to sit blank
+   while unselected. The glyph gets only the padding to live in, so it is set
+   a touch smaller than the label; a prefix wider than the padding will crowd
+   the label rather than push it. */
+.ctc-chip-prefix[data-mode="overlay"] {
+  position: absolute;
+  inset-inline-start: var(--ctc-overlay-inset);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--ctc-overlay-glyph-size);
+  line-height: 1;
+  /* Decorative and out of flow — never intercept the chip's own click. */
+  pointer-events: none;
 }
 
 .ctc-chip:hover:not(:disabled) {
