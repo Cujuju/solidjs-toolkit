@@ -184,6 +184,29 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
         </span>
       </Show>
       <span class="ctc-chip-label">{props.label}</span>
+      {/* Trailing MIRROR of the glyph column, same reserved width, never a
+          visible glyph. It makes the two side columns symmetric, so the label
+          is CENTERED in every state instead of shoved right by a lone leading
+          column — the neutral chip stopped looking indented. Because both
+          columns are always present, the label's centre never moves: the glyph
+          simply appears in the left column on include/exclude without nudging
+          the label. Only rendered alongside the prefix (same `hasPrefix` gate)
+          so a glyph-free chip pays nothing. */}
+      <Show when={hasPrefix()}>
+        <span
+          aria-hidden="true"
+          class="ctc-chip-prefix ctc-chip-suffix"
+          style={{
+            '--ctc-sizer-include': cssString(includePrefix()),
+            '--ctc-sizer-exclude': cssString(excludePrefix()),
+            '--ctc-sizer-neutral': cssString(neutralPrefix()),
+          }}
+        >
+          <span class="ctc-chip-prefix-sizer" data-sizer="include" />
+          <span class="ctc-chip-prefix-sizer" data-sizer="exclude" />
+          <span class="ctc-chip-prefix-sizer" data-sizer="neutral" />
+        </span>
+      </Show>
     </button>
   );
 }
