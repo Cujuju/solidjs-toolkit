@@ -78,6 +78,14 @@
   transform: translateY(-50%);
   color: var(--color-text-secondary, #94a3b8);
   pointer-events: none;
+  /* `flex` so the box hugs the icon. As a block, this span held the icon in an
+     INLINE formatting context, which reserves baseline descender space beneath
+     it — the box came out 17px tall around a 14px glyph, so centring the BOX
+     (top 50% + translateY(-50%)) still left the glyph 1.5px high. Flex removes
+     the descender gap, so box centre and glyph centre are the same point. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cujuju-select-flyout-label {
