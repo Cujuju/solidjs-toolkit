@@ -18,6 +18,7 @@ import { createRailOverflow, RAIL_ITEM_ATTR } from './railOverflow';
 import { RailOverflowMenu } from './RailOverflowMenu';
 import { createRailPan } from './railPan';
 import { createAutoHide, type AutoHideApi } from './autoHide';
+import { createTearOff, type TearOffController } from './tearOff';
 import { createReorderList } from './vendor/createReorderList';
 
 export interface AccordionGroupProps {
@@ -96,6 +97,11 @@ export interface AccordionGroupProps {
   onChange?: (id: string, open: boolean) => void;
   onPinChange?: (id: string, pinned: boolean) => void;
   onOrderChange?: (order: readonly string[]) => void;
+  onTearOff?: (id: string) => void;
+  onDock?: (id: string) => void;
+  /** A tear-off that could not happen — a blocked popup, most often. The dock has
+   *  no opinion about how a host reports that, so it does not report it itself. */
+  onTearOffError?: (id: string, reason: string) => void;
   onSizeChange?: (sizes: Readonly<Record<string, number>>) => void;
 }
 
@@ -113,6 +119,11 @@ interface PersistedState {
  * skip is inverted: everything drags except controls explicitly opted out.
  */
 const REORDER_SKIP_SELECTOR = '[data-no-drag]';
+
+/** Shared empty array for the torn-off accessor before the controller exists.
+ *  A fresh `[]` per call would be a new identity every read and defeat memo
+ *  equality downstream. */
+const EMPTY_IDS: readonly string[] = [];
 
 function readPersisted(key: string | undefined): PersistedState | null {
   if (key === undefined) return null;
@@ -421,6 +432,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    * lie than constructing a half-populated api object.
    */
   let autoHideApi: AutoHideApi | undefined;
+  let tearOffApi: TearOffController | undefined;
 
   const api: AccordionGroupApi = {
     orientation,
@@ -567,6 +579,14 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
 
     headerElOf: (id) => headerEls().get(id),
+    tornOff: () => tearOffApi?.tornOff() ?? EMPTY_IDS,
+    isTornOff: (id) => tearOffApi?.isTornOff(id) ?? false,
+    tearOff: (id) => {
+      const result = tearOffApi?.tearOff(id);
+      return result === undefined ? { ok: false, reason: 'unavailable' } : result;
+    },
+    dock: (id) => tearOffApi?.dock(id),
+    tearOffMountFor: (id) => tearOffApi?.mountFor(id),
     isFlyout: (id) => autoHideApi?.isFlyout(id) ?? false,
     flyoutMountFor: (id) => autoHideApi?.flyoutMountFor(id),
     density: () => props.density ?? 'comfortable',
@@ -625,6 +645,21 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   });
 
   autoHideApi = autoHide;
+
+  tearOffApi = createTearOff({
+    // The OS window chrome is a torn-off panel's ONLY label, so a non-string title
+    // (a JSX badge row, say) has to degrade to something identifiable rather than
+    // to "[object Object]". The id is the honest fallback: it is unique and it is
+    // what the author named the panel.
+    titleOf: (id) => {
+      const title = metaOf(id)?.title();
+      return typeof title === 'string' ? title : id;
+    },
+    storageKey: props.storageKey === undefined ? undefined : `${props.storageKey}:tearoff`,
+    onTearOff: (id) => props.onTearOff?.(id),
+    onDock: (id) => props.onDock?.(id),
+    onError: (id, reason) => props.onTearOffError?.(id, reason),
+  });
 
   props.apiRef?.(api);
 

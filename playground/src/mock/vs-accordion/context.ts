@@ -215,6 +215,19 @@ export interface AccordionGroupApi {
   /** The focusable element for a panel is the vertical header in `vertical` and the
    *  rail button in `horizontal`, so whichever one renders claims the ref. */
   setHeaderEl: (id: string, el: HTMLElement | null) => void;
+  /** Panels currently rendering into their own window. */
+  tornOff: Accessor<readonly string[]>;
+  isTornOff: (id: string) => boolean;
+  /** Pop a panel into its own window. MUST be called synchronously from the user
+   *  gesture — window.open needs transient user activation, which an await or a
+   *  timeout spends. Returns the outcome rather than throwing: a blocked popup is
+   *  an ordinary result of the user's browser settings, not an exception. */
+  tearOff: (id: string) => { ok: boolean; reason?: string };
+  /** Bring a panel home and close its window. */
+  dock: (id: string) => void;
+  /** Where a torn-off panel's content should mount, or undefined when it is in
+   *  this document. */
+  tearOffMountFor: (id: string) => HTMLElement | undefined;
   /** True when the panel is currently an auto-hide OVERLAY rather than a docked
    *  column. Its column collapses to nothing while this holds. */
   isFlyout: (id: string) => boolean;

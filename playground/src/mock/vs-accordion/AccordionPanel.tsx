@@ -55,6 +55,10 @@ export interface AccordionPanelProps {
 
   /** Skip rendering children until first opened — for expensive content. */
   lazyMount?: boolean;
+  /** Offer the pop-out-to-a-window affordance on this panel's title bar. Default
+   *  false: a panel whose content assumes it shares a document with the dock (a
+   *  chart syncing to a sibling, say) should not advertise it. */
+  tearOffable?: boolean;
 
   class?: string;
   headerClass?: string;
@@ -112,8 +116,34 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
 
   /** Flyout host wins when the panel is an overlay; otherwise the content lives in
    *  its column. Undefined only until the inline host's ref has fired. */
+  /**
+   * Mount precedence: a popup WINDOW outranks a flyout overlay outranks the panel's
+   * own column.
+   *
+   * The order is not arbitrary. Torn-off is the most explicit state the user can
+   * put a panel in — they moved it to another window — so nothing in this document
+   * may claim the content back while that holds. A flyout is transient by
+   * definition and yields to it.
+   */
   const contentMount = (): HTMLElement | undefined =>
-    group.flyoutMountFor(props.id) ?? inlineHost();
+    group.tearOffMountFor(props.id) ?? group.flyoutMountFor(props.id) ?? inlineHost();
+
+  /**
+   * Portal calls this with every container it creates, including the replacement it
+   * builds when `mount` changes — so it is where the container's box learns where
+   * it landed. In a popup the container IS the window's content area; in this
+   * document it must not exist as far as layout is concerned.
+   */
+  const decorateContainer = (container: HTMLElement): void => {
+    if (group.isTornOff(props.id)) {
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.flex = '1 1 auto';
+      container.style.minHeight = '0';
+      return;
+    }
+    container.style.display = 'contents';
+  };
 
   /** Latches once the panel has ever been open — the gate for `lazyMount`. */
   const everOpen = createMemo<boolean>((prev) => prev || open(), false);
@@ -245,6 +275,22 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
               <div class="vsa-actions">{props.actions}</div>
             </Show>
             <PanelPinButton group={group} id={props.id} shown={pinnable()} pinned={pinned()} />
+            <Show when={props.tearOffable ?? false}>
+              <button
+                type="button"
+                class="vsa-tearoff"
+                data-no-drag
+                aria-pressed={group.isTornOff(props.id)}
+                title={group.isTornOff(props.id) ? 'Dock this panel' : 'Open in a new window'}
+                /* Synchronous in the click handler on purpose: window.open needs
+                   transient user activation, and an await or a timeout spends it. */
+                onClick={() =>
+                  group.isTornOff(props.id) ? group.dock(props.id) : group.tearOff(props.id)
+                }
+              >
+                {group.isTornOff(props.id) ? '⤓' : '⤢'}
+              </button>
+            </Show>
             <Show when={closable()}>
               <CloseButton onClick={() => group.setOpen(props.id, false)} />
             </Show>
@@ -279,10 +325,14 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         role="region"
         aria-labelledby={headerId}
         class={`vsa-content ${props.contentClass ?? ''}`.trim()}
-        hidden={!open() || group.isFlyout(props.id)}
+        hidden={!open() || group.isFlyout(props.id) || group.isTornOff(props.id)}
       />
       <Show when={shouldRender() && contentMount()}>
-        {(mount) => <Portal mount={mount()}>{props.children}</Portal>}
+        {(mount) => (
+          <Portal mount={mount()} ref={decorateContainer}>
+            {props.children}
+          </Portal>
+        )}
       </Show>
 
       <Splitter id={props.id} />

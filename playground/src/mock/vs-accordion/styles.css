@@ -766,7 +766,8 @@
 /* ── Pin + close ────────────────────────────────────────────────────────── */
 
 .vsa-pin,
-.vsa-close {
+.vsa-close,
+.vsa-tearoff {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -796,7 +797,8 @@
 }
 
 .vsa-pin:hover,
-.vsa-close:hover {
+.vsa-close:hover,
+.vsa-tearoff:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--vsa-text);
 }
@@ -806,7 +808,8 @@
 }
 
 .vsa-pin:focus-visible,
-.vsa-close:focus-visible {
+.vsa-close:focus-visible,
+.vsa-tearoff:focus-visible {
   outline: 1px solid var(--vsa-accent);
   outline-offset: -1px;
 }
@@ -822,6 +825,12 @@
 
 .vsa-pin[aria-pressed='true'] .vsa-pin-icon {
   transform: rotate(0deg);
+}
+
+/* Torn-off state is persistent and consequential — the panel is in another
+   window — so unlike the pin it stays lit without needing hover to be legible. */
+.vsa-tearoff[aria-pressed='true'] {
+  color: var(--vsa-accent);
 }
 
 .vsa-close-icon {
