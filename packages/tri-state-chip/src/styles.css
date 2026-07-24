@@ -65,7 +65,7 @@
        `--ctc-strike-knockout` is the composite the chip actually renders —
        the excluded tint over `--ctc-surface` — so the punched band is
        indistinguishable from the chip around it. */
-    --ctc-strike-thickness: 2px;
+    --ctc-strike-thickness: 1px;
     --ctc-strike-knockout-width: 2px;
     --ctc-strike-knockout: color-mix(
       in srgb,
