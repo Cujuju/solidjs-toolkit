@@ -105,18 +105,19 @@
     /* `hatch` — diagonal hazard stripes across the whole excluded chip, the
        barricade-tape / "this control is barred" idiom. Geometry is three
        tokens so the tape can be re-pitched without touching the gradient.
-       2px bar / 3px space at 45deg is a period of 5px measured along the
-       gradient normal, which is ~7px along the chip's horizontal — dense
-       enough to read as tape rather than as a few stray lines at the 10-13px
-       chip sizes, open enough that the stripes never merge into a wash.
+       4px bar / 6px space at 45deg is a period of 10px measured along the
+       gradient normal — roughly 14px along the chip's horizontal, so a chip
+       carries two or three full bars: unmistakably tape, rather than either a
+       couple of stray lines or a dense wash. Bar and space are kept at the
+       same 2:3 duty cycle at any pitch; scale both together to zoom the tape,
+       raise only the bar to make it heavier.
        The colour is the excluded tint at a LOWER strength than the chip's own
-       fill, because the stripes sit on top of that fill and the two
-       multiply. */
+       fill, because the stripes sit over that fill and the two multiply. */
     --ctc-hatch-angle: 45deg;
-    --ctc-hatch-stripe-width: 2px;
-    --ctc-hatch-gap-width: 3px;
-    /* Tape ACROSS the label (1) or BEHIND it (0) — see the hatch rules. */
-    --ctc-hatch-tape-z: 1;
+    --ctc-hatch-stripe-width: 4px;
+    --ctc-hatch-gap-width: 6px;
+    /* Tape BEHIND the label (0) or ACROSS it (1) — see the hatch rules. */
+    --ctc-hatch-tape-z: 0;
     --ctc-hatch-color: color-mix(in srgb, var(--ctc-color-excluded) 30%, transparent);
     --ctc-hatch-color-hover: color-mix(in srgb, var(--ctc-color-excluded) 45%, transparent);
     --ctc-underline-thickness: 1px;
@@ -292,10 +293,13 @@
    Which side of the LABEL the tape lands on is `--ctc-hatch-tape-z`, because
    both readings are legitimate and neither is a bug: tape ACROSS the text is
    the literal barricade (a door taped shut), tape BEHIND it is the legible
-   one. Default is across — it only works because the stripe colour is a
-   low-strength tint the glyphs read through, so a consumer who raises
-   `--ctc-hatch-color` toward opaque should flip this token rather than fight
-   the contrast.
+   one. Default is BEHIND, and that follows from the pitch: at the shipped 4px
+   bar the stripes are wider than a glyph stroke at the 10-13px sizes this chip
+   renders at, so crossing the text would break the letterforms rather than
+   veil them. The barricade reading survives regardless — the tape spans the
+   whole chip either way, it just passes under the word. Flip to 1 for the
+   literal look; that is safe at a thin bar and a low `--ctc-hatch-color`, and
+   progressively less so as either goes up.
 
    It works by z-index because the label is `position: relative` with an AUTO
    z-index, which paints at the same level as z-index 0 but later in tree

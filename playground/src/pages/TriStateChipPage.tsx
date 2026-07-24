@@ -34,31 +34,31 @@ const INDICATORS = [
  */
 const HATCH_VARIANTS = [
   {
-    cap: 'tape ACROSS the label (default)',
+    cap: 'the default — 4px / 6px, tape behind the label',
     vars: {},
   },
   {
-    cap: 'tape BEHIND the label',
-    vars: { '--ctc-hatch-tape-z': '0' },
+    cap: 'tape ACROSS the label — breaks glyphs at this bar width',
+    vars: { '--ctc-hatch-tape-z': '1' },
   },
   {
-    cap: 'double bar — 4px stripe, same 3px gap',
-    vars: { '--ctc-hatch-stripe-width': '4px' },
+    cap: 'tighter — 2px stripe, 3px gap (same 2:3 duty cycle)',
+    vars: { '--ctc-hatch-stripe-width': '2px', '--ctc-hatch-gap-width': '3px' },
   },
   {
-    cap: 'double pitch — 4px stripe, 6px gap',
-    vars: { '--ctc-hatch-stripe-width': '4px', '--ctc-hatch-gap-width': '6px' },
+    cap: 'heavier bar — 6px stripe, same 6px gap',
+    vars: { '--ctc-hatch-stripe-width': '6px' },
   },
   {
     cap: '−45° — tape leans the other way',
     vars: { '--ctc-hatch-angle': '-45deg' },
   },
   {
-    cap: '−45°, double bar, behind the label',
+    cap: 'tighter + across, which is where across still works',
     vars: {
-      '--ctc-hatch-angle': '-45deg',
-      '--ctc-hatch-stripe-width': '4px',
-      '--ctc-hatch-tape-z': '0',
+      '--ctc-hatch-stripe-width': '2px',
+      '--ctc-hatch-gap-width': '3px',
+      '--ctc-hatch-tape-z': '1',
     },
   },
 ] as const;
@@ -214,16 +214,19 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
         </For>
       </div>
       <Code cap="the hatch tokens">{`
-/* Tape ACROSS the label (default) or BEHIND it. The label is
+/* Tape BEHIND the label (default) or ACROSS it. The label is
    position:relative with an auto z-index, so tape at 1 covers it and
-   tape at 0 ties on level and loses the tie-break to tree order. */
---ctc-hatch-tape-z: 1;      /* 0 = behind the text */
+   tape at 0 ties on level and loses the tie-break to tree order.
+   Behind is the default because a 4px bar is wider than a glyph
+   stroke at 10-13px — across it, the letterforms break rather than
+   veil. Thin the bar first if you want the literal taped-door look. */
+--ctc-hatch-tape-z: 0;      /* 1 = over the text */
 
 --ctc-hatch-angle: 45deg;         /* -45deg leans the other way */
---ctc-hatch-stripe-width: 2px;    /* the bar   */
---ctc-hatch-gap-width: 3px;       /* the space */
+--ctc-hatch-stripe-width: 4px;    /* the bar   */
+--ctc-hatch-gap-width: 6px;       /* the space */
 
-/* Scale BOTH to keep the duty cycle and just zoom the tape;
+/* Scale BOTH to keep the 2:3 duty cycle and just zoom the tape;
    raise only the bar to make it heavier at the same pitch. */
 `}</Code>
 
@@ -245,10 +248,11 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   --ctc-strike-knockout-width: 0.5px;/* dead space each side of it */
   --ctc-cut-thickness: 2px;          /* indicator="cut": the gap, no line */
 
-  /* indicator="hatch": the hazard tape. Bar / space / pitch. */
+  /* indicator="hatch": the hazard tape. Bar / space / lean / layer. */
   --ctc-hatch-angle: 45deg;
-  --ctc-hatch-stripe-width: 2px;
-  --ctc-hatch-gap-width: 3px;
+  --ctc-hatch-stripe-width: 4px;
+  --ctc-hatch-gap-width: 6px;
+  --ctc-hatch-tape-z: 0;
   --ctc-hatch-color: color-mix(in srgb, var(--ctc-color-excluded) 30%, transparent);
 
   --ctc-color-included: #10b981;
