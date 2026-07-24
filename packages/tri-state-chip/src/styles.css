@@ -10,14 +10,24 @@
     --ctc-border: 1px solid currentColor;
     --ctc-border-hover: 1px solid #6366f1;
 
+    /* Opaque colour BEHIND the chip. The strike's knockout has to repaint the
+       chip's own surface to punch a gap in the label, and a translucent fill
+       cannot hide the glyphs underneath — so the knockout is composited
+       against this. Set it to whatever the chip actually sits on. */
+    --ctc-surface: #0f172a;
+    /* Fill strength of the include/exclude tint. Shared by the state
+       backgrounds AND the strike knockout, so the knockout is by construction
+       the same colour the chip renders — they cannot drift apart. */
+    --ctc-tint-strength: 15%;
+
     /* Included — emerald accent. */
-    --ctc-bg-included: rgba(16, 185, 129, 0.15);
+    --ctc-bg-included: color-mix(in srgb, var(--ctc-color-included) var(--ctc-tint-strength), transparent);
     --ctc-color-included: #10b981;
     --ctc-border-included: 1px solid #10b981;
     --ctc-bg-included-hover: rgba(16, 185, 129, 0.25);
 
     /* Excluded — rose accent. */
-    --ctc-bg-excluded: rgba(244, 63, 94, 0.15);
+    --ctc-bg-excluded: color-mix(in srgb, var(--ctc-color-excluded) var(--ctc-tint-strength), transparent);
     --ctc-color-excluded: #f43f5e;
     --ctc-border-excluded: 1px solid #f43f5e;
     --ctc-bg-excluded-hover: rgba(244, 63, 94, 0.25);
@@ -38,22 +48,31 @@
 
     /* States. */
     --ctc-disabled-opacity: 0.5;
-    /* Focus ring HIDDEN by default (user directive). Set to the thin inset
-       ring `1px solid #6366f1` to opt back in; the offset is already inset so
-       the ring hugs the chip instead of drawing a detached halo. Keyboard
-       users lose the visible focus cue while this is `none` — a deliberate,
-       documented a11y tradeoff the consumer re-enables per surface. */
-    --ctc-focus-ring: none;
+    /* Thin INSET focus ring, coloured as a LIGHTENED version of the control
+       itself rather than a fixed accent — on a chip that means the current
+       state's own colour (neutral/emerald/rose) lifted toward white, so the
+       ring always belongs to the chip it is on. Override
+       `--ctc-focus-ring-color` for a brighter, higher-contrast ring. */
+    --ctc-focus-ring-color: color-mix(in srgb, currentColor 55%, #fff);
+    --ctc-focus-ring: 1px solid var(--ctc-focus-ring-color);
     --ctc-focus-ring-offset: -1px;
 
     /* Glyph-free indicator tunables (see the indicator rules below).
-       `--ctc-line-thickness` is shared by the strike and the underline. The
-       strike is drawn as its own line with `--ctc-strike-gap` of dead space
-       punched around it in `--ctc-strike-gap-color` (default: the chip's
-       resolved surface; override to match yours). */
-    --ctc-line-thickness: 1px;
-    --ctc-strike-gap: 2px;
-    --ctc-strike-gap-color: var(--ctc-surface, #0f172a);
+
+       The strike is a thin line wrapped in a KNOCKOUT: a band of the chip's
+       own colour that erases the label glyphs on either side of the line, so
+       the line reads as cut through the word rather than laid on top of it.
+       `--ctc-strike-knockout` is the composite the chip actually renders —
+       the excluded tint over `--ctc-surface` — so the punched band is
+       indistinguishable from the chip around it. */
+    --ctc-strike-thickness: 2px;
+    --ctc-strike-knockout-width: 2px;
+    --ctc-strike-knockout: color-mix(
+      in srgb,
+      var(--ctc-color-excluded) var(--ctc-tint-strength),
+      var(--ctc-surface)
+    );
+    --ctc-underline-thickness: 1px;
     --ctc-underline-offset: 3px;
     --ctc-badge-size: 13px;
     --ctc-badge-text: var(--ctc-bg-page, #0b1220);
@@ -157,11 +176,15 @@
   position: absolute;
   inset-inline: 0;
   top: 50%;
-  height: var(--ctc-line-thickness);
+  height: var(--ctc-strike-thickness);
   transform: translateY(-50%);
   background: currentColor;
-  /* The dead space: a gap-coloured halo around the thin line. */
-  box-shadow: 0 0 0 var(--ctc-strike-gap) var(--ctc-strike-gap-color);
+  /* The KNOCKOUT. A box-shadow spread paints `--ctc-strike-knockout` on every
+     side of the line; the ::after stacks above the label's text, so that band
+     erases the glyphs it covers and leaves clean chip surface hugging the
+     line. Same trick as a knocked-out icon slash: wide background-coloured
+     stroke first, thin coloured stroke on top. */
+  box-shadow: 0 0 0 var(--ctc-strike-knockout-width) var(--ctc-strike-knockout);
 }
 /* marks additionally underlines included, so include vs neutral is not
    distinguished by colour alone (WCAG 1.4.1 — colour is not the only cue).
@@ -169,7 +192,7 @@
 .ctc-chip[data-indicator="marks"][data-state="included"] .ctc-chip-label {
   text-decoration: underline;
   text-underline-offset: var(--ctc-underline-offset);
-  text-decoration-thickness: var(--ctc-line-thickness);
+  text-decoration-thickness: var(--ctc-underline-thickness);
 }
 
 /* badge — a small disc pinned to the top-inline-end corner, out of flow. The
