@@ -14,6 +14,10 @@ import { Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
 import { createResize, DEFAULT_MIN_SIZE_PX } from './resize';
 import { createPanelMenu } from './panelMenu';
+import { createRailOverflow, RAIL_ITEM_ATTR } from './railOverflow';
+import { RailOverflowMenu } from './RailOverflowMenu';
+import { createRailPan } from './railPan';
+import { createAutoHide, type AutoHideApi } from './autoHide';
 import { createReorderList } from './vendor/createReorderList';
 
 export interface AccordionGroupProps {
@@ -40,6 +44,25 @@ export interface AccordionGroupProps {
    *  opened UNPINNED panel. Leaves and pinned panels never count as victims — see
    *  `evictForCap`. Omit for no cap. */
   maxOpen?: number;
+
+  /**
+   * Unpinned panels open as a transient OVERLAY anchored to their rail button
+   * instead of a docked column; pinning promotes one to a real column. This is
+   * what turns the pin from "exempt from auto-collapse" into "make this
+   * permanent". `horizontal` only. Default false.
+   */
+  autoHide?: boolean;
+  /** With `autoHide`, also open a flyout on hover. Default false — hover is
+   *  unavailable to keyboard and touch, so it is an accelerator, never the only
+   *  way in. */
+  hoverToOpen?: boolean;
+  /**
+   * What the rail does when its buttons do not fit.
+   * `menu` collapses the overflow into a `⋯` menu; `pan` leaves them reachable by
+   * dragging the rail. A 40px strip cannot carry a legible scrollbar, which is why
+   * there is no third option.
+   */
+  railOverflow?: 'menu' | 'pan';
 
   /** Chrome scale. `compact` shrinks header/rail/padding tokens for dense docks.
    *  Surfaces as `data-density`; the whole implementation is CSS. */
@@ -153,7 +176,17 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   );
   const [metaMap, setMetaMap] = createSignal<ReadonlyMap<string, PanelMeta>>(new Map());
 
-  const headerEls = new Map<string, HTMLElement>();
+  /**
+   * Activator elements, REACTIVELY.
+   *
+   * A plain Map was enough while these only served `moveFocus`, which reads them
+   * inside an event handler long after mount. An anchored flyout reads one during
+   * render — before the rail button's ref callback has fired — so a non-reactive
+   * read returns undefined once and never corrects itself, leaving the popover
+   * anchored to nothing. The signal is what lets the anchor re-resolve when the
+   * ref lands.
+   */
+  const [headerEls, setHeaderEls] = createSignal<ReadonlyMap<string, HTMLElement>>(new Map());
   const panelEls = new Map<string, HTMLElement>();
 
   const persist = (): void => {
@@ -381,6 +414,14 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     onReorder: moveOpenTo,
   });
 
+  /**
+   * Late-bound: `createAutoHide` needs the finished `api` to read group state, and
+   * `api` needs the auto-hide answers. One of the two has to be resolved after the
+   * other is built, and a mutable reference read through a closure is the smaller
+   * lie than constructing a half-populated api object.
+   */
+  let autoHideApi: AutoHideApi | undefined;
+
   const api: AccordionGroupApi = {
     orientation,
     railSide,
@@ -498,7 +539,12 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         next.delete(id);
         return next;
       });
-      headerEls.delete(id);
+      setHeaderEls((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
       panelEls.delete(id);
       // The ORDER entry deliberately survives: a panel that unmounts and remounts
       // (a route change, a `<Show>`) must come back where the user put it, not at
@@ -506,9 +552,24 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
 
     setHeaderEl: (id, el) => {
-      if (el === null) headerEls.delete(id);
-      else headerEls.set(id, el);
+      setHeaderEls((prev) => {
+        if (el === null) {
+          if (!prev.has(id)) return prev;
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        }
+        if (prev.get(id) === el) return prev;
+        const next = new Map(prev);
+        next.set(id, el);
+        return next;
+      });
     },
+
+    headerElOf: (id) => headerEls().get(id),
+    isFlyout: (id) => autoHideApi?.isFlyout(id) ?? false,
+    flyoutMountFor: (id) => autoHideApi?.flyoutMountFor(id),
+    density: () => props.density ?? 'comfortable',
 
     setPanelEl: (id, el) => {
       if (el === null) panelEls.delete(id);
@@ -527,7 +588,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         // than by making the user reverse direction at each end.
         target = (from + delta + order.length) % order.length;
       }
-      headerEls.get(order[target].id)?.focus();
+      headerEls().get(order[target].id)?.focus();
     },
 
     reorderItemProps: (id) =>
@@ -538,6 +599,32 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         : {},
     reorderActiveId: reorder.activeId,
   };
+
+  const [railEl, setRailEl] = createSignal<HTMLElement | undefined>();
+  const overflowStrategy = (): 'menu' | 'pan' => props.railOverflow ?? 'menu';
+
+  const railOverflow = createRailOverflow({
+    railEl,
+    ids: () => panels().map((m) => m.id),
+    enabled: () => orientation() === 'horizontal' && overflowStrategy() === 'menu',
+  });
+
+  createRailPan({
+    railEl,
+    group: api,
+    // The two strategies are mutually exclusive by construction: under `menu` the
+    // rail never overflows, so there is nothing to pan and the listeners are not
+    // attached at all rather than attached and inert.
+    enabled: () => orientation() === 'horizontal' && overflowStrategy() === 'pan',
+  });
+
+  const autoHide: AutoHideApi = createAutoHide({
+    group: api,
+    enabled: () => props.autoHide === true,
+    hoverToOpen: () => props.hoverToOpen === true,
+  });
+
+  autoHideApi = autoHide;
 
   props.apiRef?.(api);
 
@@ -563,8 +650,30 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
             activator lives in ONE stacked strip regardless of where (or whether) its
             column is rendered, which a per-panel header physically cannot do. */}
         <Show when={orientation() === 'horizontal'}>
-          <div class="vsa-rail" role="tablist" aria-orientation="vertical">
-            <For each={api.panels()}>{(meta) => <RailButton group={api} meta={meta} />}</For>
+          <div
+            ref={setRailEl}
+            class="vsa-rail"
+            role="tablist"
+            aria-orientation="vertical"
+            data-overflow={overflowStrategy()}
+          >
+            <For each={railOverflow.visibleIds()}>
+              {(id) => {
+                const meta = (): PanelMeta | undefined => api.meta(id);
+                return (
+                  <Show when={meta()}>
+                    {(m) => <RailButton group={api} meta={m()} autoHide={autoHide} />}
+                  </Show>
+                );
+              }}
+            </For>
+            <Show when={railOverflow.hasOverflow()}>
+              <RailOverflowMenu
+                group={api}
+                ids={railOverflow.overflowIds}
+                onMeasure={railOverflow.setTriggerExtent}
+              />
+            </Show>
           </div>
         </Show>
 
@@ -574,6 +683,10 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
             the rail) sits flush at the start of the group instead of being stretched
             apart by the flex container. */}
         <div class="vsa-filler" aria-hidden="true" />
+
+        {/* Every open flyout's popover lives here. Rendered once, inside the group,
+            so it inherits the group's token scope for anything not portalled. */}
+        {autoHide.element}
       </div>
     </AccordionGroupContext.Provider>
   );
@@ -585,7 +698,11 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
  * Reads its label through the meta ACCESSORS rather than a snapshot, so a count that
  * ticks or a title that changes updates on the rail — see `PanelMeta`.
  */
-function RailButton(props: { group: AccordionGroupApi; meta: PanelMeta }): JSX.Element {
+function RailButton(props: {
+  group: AccordionGroupApi;
+  meta: PanelMeta;
+  autoHide: AutoHideApi;
+}): JSX.Element {
   const open = (): boolean => props.group.isOpen(props.meta.id);
   const pinned = (): boolean => props.group.isPinned(props.meta.id);
   const onKeyDown = createActivatorKeyDown(props.group, () => props.meta.id);
@@ -599,7 +716,10 @@ function RailButton(props: { group: AccordionGroupApi; meta: PanelMeta }): JSX.E
     <>
     <button
       {...dragProps()}
+      {...props.autoHide.railHoverProps(props.meta.id)}
       {...menu.triggerProps}
+      {...{ [RAIL_ITEM_ATTR]: props.meta.id }}
+      data-flyout={props.autoHide.isFlyout(props.meta.id) ? 'true' : 'false'}
       ref={(el) => {
         props.group.setHeaderEl(props.meta.id, el);
         // The reorder primitive registers its own node via `itemProps.ref`; Solid

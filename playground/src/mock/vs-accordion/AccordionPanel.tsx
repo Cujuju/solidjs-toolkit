@@ -1,4 +1,13 @@
-import { Show, createMemo, createUniqueId, onCleanup, onMount, type JSX } from 'solid-js';
+import {
+  Show,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  onCleanup,
+  onMount,
+  type JSX,
+} from 'solid-js';
+import { Portal } from 'solid-js/web';
 import { useAccordionGroup, type AccordionGroupApi, type PanelBadge } from './context';
 import { Chevron, Close, Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
@@ -97,6 +106,14 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     const { ref: _ref, onPointerDown: _down, ...rest } = dragItem();
     return rest;
   };
+
+  /** The panel's own inline content box — the default Portal target. */
+  const [inlineHost, setInlineHost] = createSignal<HTMLElement | undefined>();
+
+  /** Flyout host wins when the panel is an overlay; otherwise the content lives in
+   *  its column. Undefined only until the inline host's ref has fired. */
+  const contentMount = (): HTMLElement | undefined =>
+    group.flyoutMountFor(props.id) ?? inlineHost();
 
   /** Latches once the panel has ever been open — the gate for `lazyMount`. */
   const everOpen = createMemo<boolean>((prev) => prev || open(), false);
@@ -239,16 +256,33 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           text selection or an in-flight edit inside a panel survives the user
           looking at a sibling. `hidden` keeps it out of the a11y tree and out of
           tab order without unmounting. */}
-      <Show when={shouldRender()}>
-        <div
-          id={contentId}
-          role="region"
-          aria-labelledby={headerId}
-          class={`vsa-content ${props.contentClass ?? ''}`.trim()}
-          hidden={!open()}
-        >
-          {props.children}
-        </div>
+      {/*
+        ONE Portal whose mount toggles — never a <Show> swapping an inline branch
+        for a portalled one.
+
+        Portal caches its children memo and reads `mount` inside an effect, so
+        changing the mount MOVES the existing nodes and keeps the reactive graph
+        intact. Swapping branches would re-evaluate the children and destroy
+        exactly the scroll position and in-flight edits that this panel's
+        stay-mounted-while-collapsed rule exists to protect — the same mechanism
+        the tear-off module documents for popup windows.
+
+        That is why the docked case portals too, into an empty host div right here
+        rather than rendering directly: it makes docked and flying-out the SAME
+        code path with a different mount, so promoting a flyout to a column cannot
+        remount anything. A plain `mount={undefined}` would not do — Portal
+        defaults to document.body.
+      */}
+      <div
+        ref={setInlineHost}
+        id={contentId}
+        role="region"
+        aria-labelledby={headerId}
+        class={`vsa-content ${props.contentClass ?? ''}`.trim()}
+        hidden={!open() || group.isFlyout(props.id)}
+      />
+      <Show when={shouldRender() && contentMount()}>
+        {(mount) => <Portal mount={mount()}>{props.children}</Portal>}
       </Show>
 
       <Splitter id={props.id} />

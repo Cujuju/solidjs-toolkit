@@ -215,6 +215,18 @@ export interface AccordionGroupApi {
   /** The focusable element for a panel is the vertical header in `vertical` and the
    *  rail button in `horizontal`, so whichever one renders claims the ref. */
   setHeaderEl: (id: string, el: HTMLElement | null) => void;
+  /** True when the panel is currently an auto-hide OVERLAY rather than a docked
+   *  column. Its column collapses to nothing while this holds. */
+  isFlyout: (id: string) => boolean;
+  /** Where a flying-out panel's content should mount, or undefined when it belongs
+   *  inline in its own column. */
+  flyoutMountFor: (id: string) => HTMLElement | undefined;
+  /** The panel's activator element, reactively — an anchored flyout resolves this
+   *  during render, before the ref has fired. */
+  headerElOf: (id: string) => HTMLElement | undefined;
+  /** The group's density, exposed so a PORTALLED surface (a flyout leaves
+   *  `.vsa-group` and stops inheriting its token overrides) can restate it. */
+  density: Accessor<'comfortable' | 'compact'>;
   /** The panel's outer element — measured when seeding a resize. */
   setPanelEl: (id: string, el: HTMLElement | null) => void;
   /** Move DOM focus to another header/rail button in THIS group. `delta` is ±1, or an edge. */
