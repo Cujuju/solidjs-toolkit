@@ -19,18 +19,23 @@
        backgrounds AND the strike knockout, so the knockout is by construction
        the same colour the chip renders — they cannot drift apart. */
     --ctc-tint-strength: 15%;
+    /* Hover fill strength. Its own token because the strike knockout has to be
+       composited at whichever strength the chip is CURRENTLY painting — a
+       knockout mixed at the resting 15% shows up as a dark band across a chip
+       hovered at 25%, which is what made a 1px line look thick. */
+    --ctc-tint-strength-hover: 25%;
 
     /* Included — emerald accent. */
     --ctc-bg-included: color-mix(in srgb, var(--ctc-color-included) var(--ctc-tint-strength), transparent);
     --ctc-color-included: #10b981;
     --ctc-border-included: 1px solid #10b981;
-    --ctc-bg-included-hover: rgba(16, 185, 129, 0.25);
+    --ctc-bg-included-hover: color-mix(in srgb, var(--ctc-color-included) var(--ctc-tint-strength-hover), transparent);
 
     /* Excluded — rose accent. */
     --ctc-bg-excluded: color-mix(in srgb, var(--ctc-color-excluded) var(--ctc-tint-strength), transparent);
     --ctc-color-excluded: #f43f5e;
     --ctc-border-excluded: 1px solid #f43f5e;
-    --ctc-bg-excluded-hover: rgba(244, 63, 94, 0.25);
+    --ctc-bg-excluded-hover: color-mix(in srgb, var(--ctc-color-excluded) var(--ctc-tint-strength-hover), transparent);
 
     /* Layout. */
     /* Fixed width of the leading glyph column (glyph indicator). Sized to hold
@@ -66,10 +71,16 @@
        the excluded tint over `--ctc-surface` — so the punched band is
        indistinguishable from the chip around it. */
     --ctc-strike-thickness: 1px;
-    --ctc-strike-knockout-width: 2px;
+    --ctc-strike-knockout-width: 1px;
     --ctc-strike-knockout: color-mix(
       in srgb,
       var(--ctc-color-excluded) var(--ctc-tint-strength),
+      var(--ctc-surface)
+    );
+    /* Same composite at the hover strength — see `--ctc-tint-strength-hover`. */
+    --ctc-strike-knockout-hover: color-mix(
+      in srgb,
+      var(--ctc-color-excluded) var(--ctc-tint-strength-hover),
       var(--ctc-surface)
     );
     --ctc-underline-thickness: 1px;
@@ -185,6 +196,13 @@
      line. Same trick as a knocked-out icon slash: wide background-coloured
      stroke first, thin coloured stroke on top. */
   box-shadow: 0 0 0 var(--ctc-strike-knockout-width) var(--ctc-strike-knockout);
+}
+
+/* Hover repaints the chip a step stronger, so the knockout has to follow or it
+   reads as a dark bar sitting across the label. */
+.ctc-chip[data-indicator="strike"][data-state="excluded"]:hover:not(:disabled) .ctc-chip-label::after,
+.ctc-chip[data-indicator="marks"][data-state="excluded"]:hover:not(:disabled) .ctc-chip-label::after {
+  box-shadow: 0 0 0 var(--ctc-strike-knockout-width) var(--ctc-strike-knockout-hover);
 }
 /* marks additionally underlines included, so include vs neutral is not
    distinguished by colour alone (WCAG 1.4.1 — colour is not the only cue).
