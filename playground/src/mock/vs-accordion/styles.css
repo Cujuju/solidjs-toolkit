@@ -1,0 +1,620 @@
+/* vs-accordion (MOCK) — Visual Studio style collapsible panel dock.
+
+   Two orientations share one state machine:
+     vertical   — headers stack down, panels grow downward (classic accordion)
+     horizontal — collapsed panels are buttons in a left RAIL, open panels grow
+                  out to the right as columns, in the order they were opened
+
+   Defaults live in @layer so an unlayered consumer override wins without
+   specificity games — same contract as @cujuju/solidjs-collapsible. */
+
+@layer cujuju-defaults {
+  :root {
+    --vsa-bg: #1a1f2e;
+    --vsa-header-bg: #252d3f;
+    --vsa-header-bg-hover: #2c3548;
+    --vsa-header-bg-open: #2f3a52;
+    --vsa-border: #2a2e37;
+    --vsa-text: #e6e9ef;
+    --vsa-text-muted: #8b93a1;
+    --vsa-accent: #4da3ff;
+    --vsa-radius: 4px;
+
+    --vsa-header-height: 26px;
+    --vsa-header-pad-x: 8px;
+    --vsa-content-pad: 8px;
+    --vsa-title-size: 12px;
+    --vsa-title-weight: 600;
+
+    /* Horizontal orientation. The rail is wide enough that a scrollbar inside it
+       does not sit on top of the rotated labels — at 30px it did exactly that with
+       a full-width UA scrollbar. Paired with `scrollbar-width: thin` below, which
+       is the actual fix; the extra width is the belt to that suspenders. */
+    --vsa-rail-width: 40px;
+    /* Width of the rail's own scrollbar, for engines that only honour the WebKit
+       pseudo-elements. */
+    --vsa-rail-scrollbar-width: 6px;
+    /* Width of an open column under mode="natural". `fill` ignores this and splits
+       the available width instead. */
+    --vsa-col-width: 230px;
+    /* Floor for a column under mode="fill", so N open columns degrade to a
+       horizontal scroll rather than shrinking into unreadable slivers. */
+    --vsa-col-min-width: 150px;
+    /* Accent stripe marking the active rail button. */
+    --vsa-rail-marker-width: 2px;
+    /* Grab width of a splitter, centred on the boundary it moves. Wider than the
+       1px line it paints, because a 1px pointer target is a usability defect. */
+    --vsa-splitter-hit: 7px;
+    /* Flex order for the trailing filler. Any value above the largest panel count a
+       group will realistically hold; the filler must sort after every column. */
+    --vsa-filler-order: 9999;
+
+    /* Left offset added per nesting level (vertical orientation). One value, applied
+       to the nested GROUP rather than to each header, so a sub-tree indents as a unit. */
+    --vsa-indent: 14px;
+
+    --vsa-duration: 140ms;
+  }
+}
+
+/* ── Group ──────────────────────────────────────────────────────────────── */
+
+.vsa-group {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--vsa-bg);
+  border: 1px solid var(--vsa-border);
+  border-radius: var(--vsa-radius);
+  overflow: hidden;
+  color: var(--vsa-text);
+}
+
+.vsa-group[data-orientation='horizontal'] {
+  flex-direction: row;
+}
+
+/* Rail docked right: mirror the main axis and the whole thing follows. `order`
+   values are unchanged, so the same open-order sequence now reads right-to-left and
+   a column still emerges from its own button. The state machine knows nothing about
+   which edge the rail is on — this is one declaration, not a second layout. */
+.vsa-group[data-orientation='horizontal'][data-rail-side='right'] {
+  flex-direction: row-reverse;
+}
+
+/* A nested group is not a separate card — it is content INSIDE a panel. Drop the
+   chrome so the hierarchy reads as one dock, and indent the whole sub-tree. */
+.vsa-group .vsa-group {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.vsa-group[data-orientation='vertical'] .vsa-group[data-orientation='vertical'] {
+  padding-left: var(--vsa-indent);
+}
+
+/* Fill mode: a nested group must consume the parent panel's remaining space rather
+   than its own content size, or the inner accordion cannot flex. */
+.vsa-content > .vsa-group[data-mode='fill'] {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* ── Filler ─────────────────────────────────────────────────────────────── */
+
+/* Fill mode: the filler soaks up leftover space ONLY when nothing is open, so a
+   collapsed dock stacks its headers at the start. `:has` is what lets this be a
+   real rule instead of a magic flex weight fudged to out-grow the panels. */
+.vsa-filler {
+  flex: 0 0 0;
+  /* Open columns carry `order: openIndex + 1`, so a filler left at the default 0
+     would land BETWEEN the rail and the first column and — in horizontal+natural,
+     where it grows — shove every column to the far edge. It must sort after any
+     column, hence a value above any plausible panel count. */
+  order: var(--vsa-filler-order);
+}
+
+.vsa-group[data-mode='fill']:not(:has(> .vsa-panel[data-open='true'])) > .vsa-filler {
+  flex: 1 1 auto;
+}
+
+/* Vertical + natural is content-height; the consumer owns the scroll container, so
+   there is nothing for a filler to do. */
+.vsa-group[data-orientation='vertical'][data-mode='natural'] > .vsa-filler {
+  display: none;
+}
+
+/* Horizontal + natural: columns are a fixed width, so the filler is what stops the
+   last column from being stretched across the leftover width. */
+.vsa-group[data-orientation='horizontal'][data-mode='natural'] > .vsa-filler {
+  flex: 1 1 auto;
+}
+
+/* ── Rail (horizontal orientation only) ─────────────────────────────────── */
+
+.vsa-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 0 auto;
+  /* Before the columns regardless of DOM position — the columns carry positive
+     `order` values so they can sit in open-order. */
+  order: -1;
+  width: var(--vsa-rail-width);
+  background: var(--vsa-header-bg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* A 40px strip cannot afford a full-width scrollbar — it lands on top of the
+     rotated labels. `scrollbar-width` INHERITS, so a host page that set a fat
+     scrollbar on :root (the playground does) reaches in here unless this overrides
+     it explicitly. */
+  scrollbar-width: thin;
+}
+
+.vsa-rail::-webkit-scrollbar {
+  width: var(--vsa-rail-scrollbar-width);
+}
+
+.vsa-rail::-webkit-scrollbar-thumb {
+  /* The inherited page style insets its thumb with a 3px transparent border, which
+     on a 6px track leaves nothing visible. Reset to a plain thumb. */
+  border: 0;
+  border-radius: 999px;
+}
+
+/* The rail's edge faces the columns, so which physical side it lives on flips with
+   the dock side. */
+.vsa-group[data-rail-side='left'] > .vsa-rail {
+  border-right: 1px solid var(--vsa-border);
+}
+
+.vsa-group[data-rail-side='right'] > .vsa-rail {
+  border-left: 1px solid var(--vsa-border);
+}
+
+.vsa-rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 9px 0;
+  border: 0;
+  background: transparent;
+  color: var(--vsa-text-muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--vsa-duration) ease, color var(--vsa-duration) ease;
+}
+
+.vsa-rail-btn:hover {
+  background: var(--vsa-header-bg-hover);
+  color: var(--vsa-text);
+}
+
+.vsa-rail-btn[data-open='true'] {
+  background: var(--vsa-header-bg-open);
+  color: var(--vsa-text);
+}
+
+/* Active marker as an INSET SHADOW, not a border: it costs no layout box, so it
+   cannot shift the label when a button activates, and flipping it to the other edge
+   is a sign change rather than a second set of border/padding rules. It sits on the
+   rail's OUTER edge — away from the columns — so it never reads as part of the
+   column's own frame. */
+.vsa-group[data-rail-side='left'] .vsa-rail-btn[data-open='true'] {
+  box-shadow: inset var(--vsa-rail-marker-width) 0 0 var(--vsa-accent);
+}
+
+.vsa-group[data-rail-side='right'] .vsa-rail-btn[data-open='true'] {
+  box-shadow: inset calc(-1 * var(--vsa-rail-marker-width)) 0 0 var(--vsa-accent);
+}
+
+.vsa-rail-btn:focus {
+  outline: none;
+}
+
+.vsa-rail-btn:focus-visible {
+  outline: 1px solid var(--vsa-accent);
+  outline-offset: -2px;
+}
+
+.vsa-rail-label {
+  /* Rotated label, reading top-to-bottom — Visual Studio's auto-hide tab strip.
+     Icon-only (VS Code's activity bar) was rejected for a general-purpose control:
+     it needs an icon per panel, which the consumer may not have. */
+  writing-mode: vertical-rl;
+  font-size: var(--vsa-title-size);
+  font-weight: var(--vsa-title-weight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 190px;
+}
+
+.vsa-rail-icon {
+  display: inline-flex;
+}
+
+.vsa-rail-count {
+  /* Held upright inside the rotated button — a rotated number is unreadable at a
+     glance, and the count exists to be glanced at. */
+  writing-mode: horizontal-tb;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vsa-text-muted);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 15px;
+}
+
+.vsa-rail-pin {
+  display: inline-flex;
+  color: var(--vsa-accent);
+}
+
+.vsa-rail-pin .vsa-pin-icon {
+  width: 11px;
+  height: 11px;
+}
+
+/* ── Panel ──────────────────────────────────────────────────────────────── */
+
+.vsa-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  /* Anchor for the absolutely-positioned splitter on the trailing edge. */
+  position: relative;
+}
+
+/* ── Splitter ───────────────────────────────────────────────────────────── */
+
+.vsa-splitter {
+  position: absolute;
+  z-index: 2;
+  background: transparent;
+  transition: background var(--vsa-duration) ease;
+}
+
+.vsa-splitter:hover,
+.vsa-group[data-resizing='true'] .vsa-splitter {
+  background: var(--vsa-accent);
+}
+
+/* Horizontal: a vertical hairline on the column's trailing edge — which is the
+   RIGHT edge with the rail on the left, and the LEFT edge when mirrored. The handle
+   is `--vsa-splitter-hit` wide but centred on the boundary, so the grab target is
+   forgiving without the visible line being thick. */
+.vsa-group[data-orientation='horizontal'] .vsa-splitter {
+  top: 0;
+  bottom: 0;
+  width: var(--vsa-splitter-hit);
+  cursor: col-resize;
+}
+
+.vsa-group[data-orientation='horizontal'][data-rail-side='left'] .vsa-splitter {
+  right: calc(var(--vsa-splitter-hit) / -2);
+}
+
+.vsa-group[data-orientation='horizontal'][data-rail-side='right'] .vsa-splitter {
+  left: calc(var(--vsa-splitter-hit) / -2);
+}
+
+/* Vertical: a horizontal hairline on the panel's bottom edge. */
+.vsa-group[data-orientation='vertical'] .vsa-splitter {
+  left: 0;
+  right: 0;
+  height: var(--vsa-splitter-hit);
+  bottom: calc(var(--vsa-splitter-hit) / -2);
+  cursor: row-resize;
+}
+
+/* A live resize must not leave the pointer painting a text selection across every
+   panel it crosses. */
+.vsa-group[data-resizing='true'] {
+  user-select: none;
+}
+
+/* ── Reorder drag ───────────────────────────────────────────────────────── */
+
+/* Applied by the reorder primitive to the item under the pointer. Lifted above its
+   neighbours and dimmed slightly so the insertion gap reads as a gap. */
+.reorder-active {
+  z-index: 5;
+  opacity: 0.9;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* Separator on the JOIN, not on each panel's bottom edge — `:last-of-type` cannot
+   be used to strip the trailing rule here because the group's own filler element
+   is also a div, so the last PANEL is never the last element of its type. */
+.vsa-group[data-orientation='vertical'] > .vsa-panel + .vsa-panel {
+  border-top: 1px solid var(--vsa-border);
+}
+
+/* Fill mode sizing: open panels split the leftover space evenly; a collapsed
+   panel is exactly its header bar. */
+.vsa-group[data-orientation='vertical'][data-mode='fill'] > .vsa-panel[data-open='true'] {
+  flex: 1 1 0;
+}
+
+.vsa-group[data-orientation='vertical'][data-mode='fill'] > .vsa-panel[data-open='false'] {
+  flex: 0 0 auto;
+}
+
+/* Horizontal: a collapsed panel has no on-screen presence at all — its activator is
+   the rail button, which the GROUP renders. */
+.vsa-group[data-orientation='horizontal'] > .vsa-panel[data-open='false'] {
+  display: none;
+}
+
+/* Column separators sit on each column's RAIL-FACING side, and the column hard
+   against the rail drops its own — otherwise it doubles up with the rail's edge.
+   `:first-of-type` cannot express "first column": the rail is also a div and comes
+   first in the DOM, and visual order comes from flex `order` anyway, which no
+   selector can read. Hence `data-col-first`, set by the panel. */
+.vsa-group[data-orientation='horizontal'][data-rail-side='left'] > .vsa-panel {
+  border-left: 1px solid var(--vsa-border);
+}
+
+.vsa-group[data-orientation='horizontal'][data-rail-side='right'] > .vsa-panel {
+  border-right: 1px solid var(--vsa-border);
+}
+
+.vsa-group[data-orientation='horizontal'] > .vsa-panel[data-col-first='true'] {
+  border-left: 0;
+  border-right: 0;
+}
+
+.vsa-group[data-orientation='horizontal'][data-mode='fill'] > .vsa-panel[data-open='true'] {
+  flex: 1 1 0;
+  min-width: var(--vsa-col-min-width);
+}
+
+.vsa-group[data-orientation='horizontal'][data-mode='natural'] > .vsa-panel[data-open='true'] {
+  flex: 0 0 var(--vsa-col-width);
+}
+
+/* A leaf is the end of the chain, so it gets a slightly recessed surface — the
+   visual cue that it is a destination rather than another folder to walk into. */
+.vsa-leaf {
+  background: color-mix(in srgb, var(--vsa-bg) 82%, #000);
+}
+
+/* ── Header (vertical) ──────────────────────────────────────────────────── */
+
+.vsa-header-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-height: var(--vsa-header-height);
+  padding: 0 var(--vsa-header-pad-x);
+  background: var(--vsa-header-bg);
+  transition: background var(--vsa-duration) ease;
+}
+
+.vsa-header-row:hover {
+  background: var(--vsa-header-bg-hover);
+}
+
+.vsa-panel[data-open='true'] > .vsa-header-row {
+  background: var(--vsa-header-bg-open);
+}
+
+.vsa-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--vsa-header-height);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vsa-header:focus {
+  outline: none;
+}
+
+.vsa-header:focus-visible {
+  outline: 1px solid var(--vsa-accent);
+  outline-offset: -2px;
+}
+
+.vsa-chevron {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  color: var(--vsa-text-muted);
+  transition: transform var(--vsa-duration) ease, color var(--vsa-duration) ease;
+}
+
+.vsa-panel[data-open='true'] > .vsa-header-row .vsa-chevron {
+  transform: rotate(90deg);
+  color: var(--vsa-text);
+}
+
+.vsa-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--vsa-text-muted);
+}
+
+.vsa-title {
+  font-size: var(--vsa-title-size);
+  font-weight: var(--vsa-title-weight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vsa-count {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vsa-text-muted);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 15px;
+}
+
+.vsa-header-tail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.vsa-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Column title bar (horizontal) ──────────────────────────────────────── */
+
+.vsa-col-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-height: var(--vsa-header-height);
+  padding: 0 4px 0 var(--vsa-header-pad-x);
+  background: var(--vsa-header-bg-open);
+  border-bottom: 1px solid var(--vsa-border);
+}
+
+/* ── Pin + close ────────────────────────────────────────────────────────── */
+
+.vsa-pin,
+.vsa-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vsa-text-muted);
+  cursor: pointer;
+  transition: opacity var(--vsa-duration) ease, color var(--vsa-duration) ease;
+}
+
+.vsa-pin {
+  /* Hidden until the row is hovered or the pin is engaged/focused. A pin on every
+     header at all times turns the dock into a wall of icons; the pinned ones are
+     the only ones carrying information at rest. */
+  opacity: 0;
+}
+
+.vsa-header-row:hover .vsa-pin,
+.vsa-col-bar:hover .vsa-pin,
+.vsa-pin:focus-visible,
+.vsa-pin[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.vsa-pin:hover,
+.vsa-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--vsa-text);
+}
+
+.vsa-pin[aria-pressed='true'] {
+  color: var(--vsa-accent);
+}
+
+.vsa-pin:focus-visible,
+.vsa-close:focus-visible {
+  outline: 1px solid var(--vsa-accent);
+  outline-offset: -1px;
+}
+
+.vsa-pin-icon {
+  width: 13px;
+  height: 13px;
+  /* Unpinned reads as "pin lying down"; pinned snaps upright. Same glyph, so the
+     control's identity does not change when its state does. */
+  transform: rotate(45deg);
+  transition: transform var(--vsa-duration) ease;
+}
+
+.vsa-pin[aria-pressed='true'] .vsa-pin-icon {
+  transform: rotate(0deg);
+}
+
+.vsa-close-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* ── Content ────────────────────────────────────────────────────────────── */
+
+.vsa-content {
+  min-height: 0;
+  min-width: 0;
+  padding: var(--vsa-content-pad);
+  overflow: auto;
+}
+
+/* Fill mode: the content box must be a flex parent so a nested group (or any
+   flex:1 child) can claim the panel's remaining space.
+
+   The `:not([hidden])` is LOAD-BEARING, not decoration. A collapsed panel carries
+   the `hidden` attribute, whose UA `display: none` is the weakest rule in the
+   cascade — any author `display` beats it. This selector is (0,3,0) and a bare
+   `.vsa-content[hidden]` is (0,2,0), so without the guard a fill-mode panel went on
+   painting its content after being collapsed. Every rule below that sets `display`
+   on `.vsa-content` must carry the same guard. */
+.vsa-group[data-mode='fill'] .vsa-content:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
+/* Horizontal columns are always full-height regardless of mode. */
+.vsa-group[data-orientation='horizontal'] > .vsa-panel > .vsa-content:not([hidden]) {
+  flex: 1 1 auto;
+}
+
+/* Belt and suspenders: the guards above are the root fix, but this makes a
+   collapsed panel's content unpaintable even if some future rule sets `display`
+   without one. `!important` is deliberate — "collapsed means invisible" is the
+   control's contract, not a style preference to be negotiated by specificity. */
+.vsa-content[hidden] {
+  display: none !important;
+}
+
+/* A nested group supplies its own padding via the indent, so the panel wrapping
+   it should not double up. */
+.vsa-content:has(> .vsa-group) {
+  padding: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vsa-chevron,
+  .vsa-pin,
+  .vsa-pin-icon,
+  .vsa-header-row,
+  .vsa-rail-btn {
+    transition: none !important;
+  }
+}
