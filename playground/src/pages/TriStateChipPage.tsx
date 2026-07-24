@@ -10,47 +10,28 @@ import { Card, Code } from '../ui';
 
 const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
 
-/** Candidate glyph sets, for picking one live rather than from a screenshot. */
-const GLYPH_SETS = [
-  { id: 'check-cross', cap: '✓ / ✗ (default)', include: '✓ ', exclude: '✗ ' },
-  { id: 'check-ballot', cap: '✔ / ✘ (heavy)', include: '✔ ', exclude: '✘ ' },
-  { id: 'plus-minus', cap: '+ / − (former default)', include: '+ ', exclude: '− ' },
-] as const;
-
-/** Candidate NEUTRAL glyphs — what the unselected state shows. */
-const NEUTRAL_GLYPHS = [
-  { id: 'none', cap: 'none', glyph: '' },
-  { id: 'underscore', cap: '_ underscore', glyph: '_ ' },
-  { id: 'underscore-wide', cap: '＿ full-width', glyph: '＿' },
-  // Only available now that '−' no longer means "excluded": a dash reads as
-  // "not set" and sits at the same optical height as ✓/✗, so cycling does not
-  // hop the glyph up and down the way an underscore does.
-  { id: 'dash', cap: '– dash', glyph: '– ' },
-  { id: 'ring', cap: '○ ring', glyph: '○ ' },
-  { id: 'dot', cap: '· dot', glyph: '· ' },
-  { id: 'small-ring', cap: '◦ small ring', glyph: '◦ ' },
-] as const;
-
 /**
- * Glyph-FREE variants. Each carries the state without a character in the text
- * flow, so no column is reserved and the chip is the same width in every
- * state — with nothing to fill while unselected.
+ * The built-in state indicators. Everything except `glyph` carries the state
+ * WITHOUT a character in the text flow, so no column is reserved, nothing sits
+ * blank in the neutral state, and the chip is exactly its label's width.
  */
-const GLYPHLESS = [
-  { id: 'strike', cap: 'strike — cross out the excluded label' },
-  { id: 'marks', cap: 'marks — underline included / strike excluded' },
+const INDICATORS = [
+  { id: 'strike', cap: 'strike — the default; excluded is crossed out' },
+  { id: 'marks', cap: 'marks — + underline on included (not colour alone)' },
   { id: 'badge', cap: 'badge — corner disc, out of flow' },
-  { id: 'rail', cap: 'rail — inline-start stripe (inset shadow)' },
+  { id: 'rail', cap: 'rail — inline-start stripe' },
   { id: 'tint', cap: 'tint — colour only' },
+  { id: 'glyph', cap: 'glyph — leading ✓ / ✗ in a fixed column' },
 ] as const;
 
-/** A row of chips wired to its own independent state, with no glyphs at all. */
-function GlyphlessRow(props: {
-  indicator: 'strike' | 'marks' | 'badge' | 'rail' | 'tint';
+/** A row of chips wired to its own independent state. */
+function ChipRow(props: {
+  indicator?: 'glyph' | 'strike' | 'marks' | 'badge' | 'rail' | 'tint';
+  count?: number;
 }): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   return (
-    <For each={TAGS.slice(0, 3)}>
+    <For each={TAGS.slice(0, props.count ?? 3)}>
       {(tag) => (
         <TriStateChip
           label={tag}
@@ -63,69 +44,23 @@ function GlyphlessRow(props: {
   );
 }
 
-/** A row of chips wired to its own independent state. */
-function ChipRow(props: {
-  include: string;
-  exclude: string;
-  neutral: string;
-}): JSX.Element {
-  const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
-  return (
-    <For each={TAGS.slice(0, 3)}>
-      {(tag) => (
-        <TriStateChip
-          label={tag}
-          value={tristateOf(value(), tag)}
-          onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
-          includePrefix={props.include}
-          excludePrefix={props.exclude}
-          neutralPrefix={props.neutral}
-        />
-      )}
-    </For>
-  );
-}
-
 export function TriStateChipPage(): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
-  const [neutral, setNeutral] = createSignal<string>('_ ');
 
   return (
     <>
       <h1>@cujuju/solidjs-tri-state-chip</h1>
       <p class="note">
         One chip, three states: <b>unselected</b> → <b>included</b> → <b>excluded</b> → back.
-        The state transitions are pure helpers (<code>cycleTriState</code>,{' '}
-        <code>applyTriState</code>, <code>tristateOf</code>), so a store or a test can use them
-        without rendering a chip.
+        The transitions are pure helpers (<code>cycleTriState</code>, <code>applyTriState</code>,{' '}
+        <code>tristateOf</code>), so a store or a test can use them without rendering a chip.
       </p>
 
       <h2>Click each chip twice to cycle it fully</h2>
       <p class="note">
-        The chip is pure presentation — the value lives in your store, and the three helpers do
-        the transitions. This is the whole integration:
+        The chip is pure presentation — the value lives in your store and the helpers do the
+        transitions.
       </p>
-      <div class="row">
-        <Code cap="usage">{`
-import {
-  TriStateChip, applyTriState, tristateOf,
-  EMPTY_TRI_STATE, type TriStateValue,
-} from '@cujuju/solidjs-tri-state-chip';
-import '@cujuju/solidjs-tri-state-chip/styles.css';
-
-const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
-
-<For each={TAGS}>{(tag) => (
-  <TriStateChip
-    label={tag}
-    value={tristateOf(value(), tag)}
-    onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
-  />
-)}</For>
-
-// value() -> { included: ['calls'], excluded: ['puts'] }
-`}</Code>
-      </div>
       <div class="row">
         <Card cap="the three states">
           <For each={TAGS}>
@@ -148,28 +83,41 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
           <TriStateChip label="frozen" value="included" onCycle={() => {}} disabled />
         </Card>
       </div>
+      <Code cap="usage">{`
+import {
+  TriStateChip, applyTriState, tristateOf,
+  EMPTY_TRI_STATE, type TriStateValue,
+} from '@cujuju/solidjs-tri-state-chip';
+import '@cujuju/solidjs-tri-state-chip/styles.css';
 
-      <h2>No glyph column at all</h2>
+const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
+
+<For each={TAGS}>{(tag) => (
+  <TriStateChip
+    label={tag}
+    value={tristateOf(value(), tag)}
+    onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
+  />
+)}</For>
+
+// value() -> { included: ['calls'], excluded: ['puts'] }
+`}</Code>
+
+      <h2>Indicators — how the state is shown</h2>
       <p class="note">
-        The reserved column exists only because the state mark was assumed to be a CHARACTER IN
-        THE TEXT FLOW. Carry the state some other way and the problem dissolves. Each row below is
-        a built-in <code>indicator</code> — <code>strike</code>, <code>marks</code>,{' '}
-        <code>badge</code>, <code>rail</code>, <code>tint</code> — none of which put a glyph in the
-        flow, so there is no column, nothing to reserve, nothing blank while unselected, and the
-        chip is exactly as wide as its label in all three states. <b>Click twice to cycle.</b>{' '}
-        Nothing here moves, ever.
+        Every chip below is the same width in all three states, so a row never reflows when you
+        click. <code>strike</code> is the default; the rest are one prop away.
       </p>
       <div class="row">
-        <For each={GLYPHLESS}>
+        <For each={INDICATORS}>
           {(v) => (
             <Card cap={v.cap}>
-              <GlyphlessRow indicator={v.id} />
+              <ChipRow indicator={v.id} />
             </Card>
           )}
         </For>
       </div>
-      <div class="row">
-        <Code cap="picking an indicator">{`
+      <Code cap="picking an indicator">{`
 // 'strike' is the DEFAULT — omit the prop to get it.
 <TriStateChip label="puts" value={s} onCycle={f} />
 
@@ -177,77 +125,37 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
 <TriStateChip label="puts" value={s} onCycle={f} indicator="badge" />
 //   'strike' | 'marks' | 'badge' | 'rail' | 'tint'  -> no glyph, no column
 //   'glyph'                                         -> leading ✓ / ✗ column
+
+// glyph mode: the bare (neutral) label is CENTRED; a ✓/✗ offsets it right.
+// Give the neutral state its own mark if you want one:
+<TriStateChip … indicator="glyph" neutralPrefix="– " />
 `}</Code>
-        <Code cap="the strike knockout — tokens">{`
-/* The strike is a thin line wrapped in a KNOCKOUT: a band of the chip's
-   own colour that erases the glyphs either side, so the line reads as cut
-   THROUGH the word. The knockout is composited from the same tint the chip
-   paints, so the two cannot drift apart. */
+
+      <h2>Theming</h2>
+      <p class="note">
+        Colours, the tint strength and the strike geometry are all custom properties.{' '}
+        <code>--ctc-surface</code> is the one you must set: the strike's knockout is composited
+        against it.
+      </p>
+      <Code cap="tokens">{`
+/* The strike is a thin line wrapped in a KNOCKOUT — a band of the chip's own
+   colour that erases the glyphs either side, so the line reads as cut THROUGH
+   the word. The knockout is composited from the same tint the chip paints, so
+   the two cannot drift apart. */
 :root {
-  --ctc-surface: #0f172a;        /* what the chip SITS ON — required, the
-                                    knockout is composited against it */
-  --ctc-tint-strength: 15%;      /* shared by the state fills + the knockout */
-  --ctc-strike-thickness: 2px;   /* the visible line */
+  --ctc-surface: #0f172a;            /* what the chip SITS ON — required */
+  --ctc-tint-strength: 15%;          /* shared by state fills + knockout */
+  --ctc-strike-thickness: 1px;       /* the visible line */
   --ctc-strike-knockout-width: 2px;  /* dead space each side of it */
+
+  --ctc-color-included: #10b981;
+  --ctc-color-excluded: #f43f5e;
+
+  /* Focus ring: a LIGHTENED version of the chip's own state colour.
+     Override for a brighter one. */
+  --ctc-focus-ring-color: color-mix(in srgb, currentColor 55%, #fff);
 }
 `}</Code>
-      </div>
-
-      <h2>Glyph set</h2>
-      <p class="note">
-        The glyph column is reserved in every state, so all three states measure the same and a
-        row never reflows on click. The only open question is what fills it: which pair reads as
-        include / exclude, and what the <b>unselected</b> state shows. An underscore is the
-        placeholder idiom — it sits on the baseline like a blank waiting to be filled, rather than
-        asserting a mark of its own. <b>Click any chip twice to cycle it fully.</b>
-      </p>
-
-      <div class="row">
-        <Card cap="neutral glyph (the unselected state)" wide>
-          <For each={NEUTRAL_GLYPHS}>
-            {(n) => (
-              <button
-                class="demo-btn"
-                data-active={neutral() === n.glyph ? 'true' : undefined}
-                onClick={() => setNeutral(n.glyph)}
-              >
-                {n.cap}
-              </button>
-            )}
-          </For>
-        </Card>
-      </div>
-
-      <div class="row">
-        <For each={GLYPH_SETS}>
-          {(set) => (
-            <Card cap={set.cap}>
-              <ChipRow include={set.include} exclude={set.exclude} neutral={neutral()} />
-            </Card>
-          )}
-        </For>
-      </div>
-
-      <h2>Width stability — the thing that was broken</h2>
-      <p class="note">
-        Every chip below is pinned to one state, same label, so their widths are directly
-        comparable. They must all measure the same regardless of state; before the fix the
-        unselected chip was 50.02px against 58.20px selected, so a row reflowed on every click.
-      </p>
-      <div class="row">
-        <For each={['unselected', 'included', 'excluded'] as const}>
-          {(state) => (
-            <Card cap={state}>
-              <TriStateChip
-                label="sample"
-                value={state}
-                onCycle={() => {}}
-                neutralPrefix={neutral()}
-              />
-            </Card>
-          )}
-        </For>
-      </div>
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { createSignal, createMemo, onCleanup, For, type JSX } from 'solid-js';
 import { KvTooltip, KvTooltipPanel } from '@cujuju/solidjs-kv-tooltip';
-import { Card, ClipBox, EdgeRight, ScrollBox } from '../ui';
+import { Code, Card, ClipBox, EdgeRight, ScrollBox } from '../ui';
 
 const QUOTE = {
   Bid: '412.18',
@@ -65,6 +65,28 @@ export function KvTooltipPage(): JSX.Element {
         sits right on an edge. Two entry points: the <code>KvTooltip</code> hover wrapper, and the
         bare <code>KvTooltipPanel</code> for when there is no DOM element to hover.
       </p>
+      <Code cap="usage">{`
+import { KvTooltip, KvTooltipPanel } from '@cujuju/solidjs-kv-tooltip';
+import '@cujuju/solidjs-kv-tooltip/styles.css';
+
+// Wrapper mode — hover the child, the panel follows the cursor:
+<KvTooltip entries={{ Bid: '412.18', Ask: '412.20' }}>
+  <span>SPY</span>
+</KvTooltip>
+
+// interactive: the panel stops following so you can mouse INTO it.
+<KvTooltip entries={quote} interactive hideDelayMs={220}
+  extraContent={<button onClick={…}>a real button</button>}>
+  <span>QQQ</span>
+</KvTooltip>
+
+// Controlled mode — you own visibility and position:
+<KvTooltipPanel entries={quote} x={pos().x} y={pos().y} />
+
+// Anchored instead of cursor-following:
+<KvTooltipPanel entries={quote} x={0} y={0}
+  anchor={() => el?.getBoundingClientRect() ?? null} placement="above-start" />
+`}</Code>
 
       <h2>Hover wrapper</h2>
       <div class="row">
@@ -249,7 +271,7 @@ export function KvTooltipPage(): JSX.Element {
           </p>
         </Card>
 
-        <Card cap="below-end near the RIGHT edge — start-align switches to end-align">
+        <Card cap="below-start at the RIGHT viewport edge — start-align switches to end-align" wide>
           <EdgeRight>
             <div ref={anchorFieldC} style={{ display: 'inline-block' }}>
               <KvTooltip
@@ -270,7 +292,10 @@ export function KvTooltipPage(): JSX.Element {
       <h2>Delay, freeze, dismissal <small>(0.2.0)</small></h2>
       <div class="row">
         <Card cap="showDelayMs — sweep across the row; nothing flashes">
-          <For each={['AAPL', 'MSFT', 'GOOG', 'AMZN', 'META']}>
+          {/* Labels are unique across the whole page on purpose — a duplicate
+              symbol makes a "hover the first match" check silently target the
+              wrong card. */}
+          <For each={['SW-1', 'SW-2', 'SW-3', 'SW-4', 'SW-5']}>
             {(sym) => (
               <KvTooltip entries={QUOTE} showDelayMs={350}>
                 <span class="strike">{sym}</span>

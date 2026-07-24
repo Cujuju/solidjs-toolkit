@@ -1,6 +1,6 @@
 import { For, createSignal, type JSX } from 'solid-js';
 import { EditableListRow } from '@cujuju/solidjs-editable-list-row';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 interface Item { id: string; name: string; checked: boolean }
 
@@ -29,6 +29,23 @@ export function EditableListRowPage(): JSX.Element {
         rename and delete handlers below are artificially slow (400ms) so the busy state is
         visible.
       </p>
+      <Code cap="usage">{`
+import EditableListRow from '@cujuju/solidjs-editable-list-row';
+
+<EditableListRow
+  id={it.id}
+  name={it.name}
+  active={active() === it.id}
+  onActivate={() => setActive(it.id)}
+  selection={{
+    kind: 'checkbox',
+    checked: it.checked,
+    onToggle: (next) => …,
+  }}
+  onRename={(name) => …}
+  onDelete={() => …}
+/>
+`}</Code>
 
       <h2>Rows</h2>
       <div class="row">

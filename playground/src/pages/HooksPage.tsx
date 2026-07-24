@@ -5,7 +5,7 @@ import {
   createLocalStorage,
   createMediaQuery,
 } from '@cujuju/solidjs-hooks';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 /** Long enough that the debounced value visibly lags the raw one while typing. */
 const DEBOUNCE_MS = 400;
@@ -31,6 +31,20 @@ export function HooksPage(): JSX.Element {
         <code>createAfterPaint</code>, <code>createOutsideScrollDismiss</code>. Four of them are
         live below.
       </p>
+      <Code cap="usage">{`
+import {
+  createClickOutside, createEscapeKey, createHotkey,
+  createLocalStorage, createMediaQuery, createDebounce,
+} from '@cujuju/solidjs-hooks';
+
+createClickOutside(() => panelEl, () => setOpen(false));
+createEscapeKey(() => setOpen(false));
+createHotkey('mod+k', () => openPalette());
+
+const [theme, setTheme] = createLocalStorage('app:theme', 'dark');
+const isNarrow = createMediaQuery('(max-width: 700px)');
+const debounced = createDebounce(query, 200);
+`}</Code>
 
       <h2>Live</h2>
       <div class="row">

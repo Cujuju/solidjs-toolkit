@@ -8,6 +8,7 @@ import {
   ScrollBox,
   createEventLog,
   type EventLogApi,
+  Code,
 } from '../ui';
 
 const PLACEMENTS: AnchoredPlacement[] = [
@@ -88,6 +89,23 @@ export function AnchoredPopoverPage(): JSX.Element {
         <code>select-flyout</code> and <code>editable-list-flyout</code>, so everything found on
         this page is inherited by both.
       </p>
+      <Code cap="usage">{`
+import AnchoredPopover from '@cujuju/solidjs-anchored-popover';
+
+const [open, setOpen] = createSignal(false);
+const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
+
+<button ref={setAnchor} onClick={() => setOpen((o) => !o)}>open</button>
+<AnchoredPopover
+  open={open}                       // accessor, not a boolean
+  anchor={anchor}                   // accessor of the element to hang off
+  onDismiss={() => setOpen(false)}  // Escape OR outside-pointerdown
+  placement="below-start"           // above/below/left/right + -start/-end
+  offsetPx={4}
+>
+  <div class="my-panel">…</div>
+</AnchoredPopover>
+`}</Code>
 
       <h2>1 · Variants</h2>
       <p class="note">

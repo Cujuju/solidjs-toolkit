@@ -1,6 +1,6 @@
 import { For, createSignal, type JSX } from 'solid-js';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 const ROWS = ['SPY', 'QQQ', 'NVDA', 'AAPL', 'TSLA', 'AMD', 'META', 'COIN'];
 
@@ -19,6 +19,21 @@ export function GlassMenuPage(): JSX.Element {
         <code>select-flyout</code> put INSIDE their own positioned shells, so the surface is
         defined in exactly one place and every menu in the app looks the same by construction.
       </p>
+      <Code cap="usage">{`
+import { GlassMenu } from '@cujuju/solidjs-glass-menu';
+
+<GlassMenu
+  title="Panel settings"
+  onClose={() => setOpen(false)}
+  headerDivider
+  style={{ width: '240px' }}
+>
+  <div style={{ padding: '10px 12px' }}>…</div>
+</GlassMenu>
+
+// Pair with AnchoredPopover when it needs to hang off a trigger:
+// <AnchoredPopover …><GlassMenu …/></AnchoredPopover>
+`}</Code>
 
       <h2>The surface, standing still</h2>
       <div class="row">

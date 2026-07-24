@@ -1,6 +1,6 @@
 import { createSignal, type JSX } from 'solid-js';
 import { SegGroup, SegButton } from '@cujuju/solidjs-seg-buttons';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 export function SegButtonsPage(): JSX.Element {
   const [side, setSide] = createSignal<'buy' | 'sell'>('buy');
@@ -16,6 +16,23 @@ export function SegButtonsPage(): JSX.Element {
         <code> reserveBoldWidth</code> stops the group from twitching when the active label goes
         bold — the width is reserved for the bold text up front.
       </p>
+      <Code cap="usage">{`
+import { SegGroup, SegButton } from '@cujuju/solidjs-seg-buttons';
+import '@cujuju/solidjs-seg-buttons/styles.css';
+
+const [side, setSide] = createSignal('buy');
+
+<SegGroup value={side()} onChange={setSide} role="radiogroup" ariaLabel="Side">
+  <SegButton value="buy" label="Buy" />
+  <SegButton value="sell" label="Sell" />
+</SegGroup>
+
+// reserveBoldWidth stops the row shifting when the active label goes bold:
+<SegGroup value={tf()} onChange={setTf} ariaLabel="Timeframe">
+  <SegButton value="1D" label="1D" reserveBoldWidth />
+  <SegButton value="1M" label="1M" reserveBoldWidth />
+</SegGroup>
+`}</Code>
 
       <h2>Grouped (radiogroup)</h2>
       <div class="row">

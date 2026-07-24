@@ -1,6 +1,6 @@
 import { createSignal, type JSX } from 'solid-js';
 import { PillToggle } from '@cujuju/solidjs-pill-toggle';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 export function PillTogglePage(): JSX.Element {
   const [a, setA] = createSignal(true);
@@ -14,6 +14,20 @@ export function PillTogglePage(): JSX.Element {
         A switch. Four sizes, an indeterminate state (a group where only some children are on),
         a loading state, and colour overrides per instance.
       </p>
+      <Code cap="usage">{`
+import { PillToggle } from '@cujuju/solidjs-pill-toggle';
+import '@cujuju/solidjs-pill-toggle/styles.css';
+
+const [on, setOn] = createSignal(false);
+
+<PillToggle enabled={on()} onToggle={() => setOn((v) => !v)} ariaLabel="Live" />
+
+// Other states:
+<PillToggle enabled={false} indeterminate onToggle={…} ariaLabel="mixed" />
+<PillToggle enabled onToggle={…} disabled  ariaLabel="disabled" />
+<PillToggle enabled onToggle={…} readOnly  ariaLabel="read-only" />
+<PillToggle enabled onToggle={…} loading   ariaLabel="loading" />
+`}</Code>
 
       <h2>Sizes</h2>
       <div class="row">

@@ -12,6 +12,7 @@ import {
   EventLog,
   ScrollBox,
   createEventLog,
+  Code,
 } from '../ui';
 
 const BROKERS: ChipOption[] = [
@@ -52,6 +53,24 @@ export function ChipFlyoutPage(): JSX.Element {
         unselected → included → excluded) and <b>multi</b> (a two-state toggle). It is the one
         floating surface in this toolkit that <b>gets scroll right</b> — see section 2.
       </p>
+      <Code cap="usage">{`
+import {
+  ChipFlyout, EMPTY_TRI_STATE, type ChipOption, type TriStateValue,
+} from '@cujuju/solidjs-chip-flyout';
+
+const BROKERS: ChipOption[] = [{ id: 'ibkr', label: 'IBKR' }, …];
+const [tri, setTri] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
+
+<ChipFlyout
+  mode="tri-state"                  // or "multi"
+  label="Broker"
+  panelTitle="Filter by broker"
+  options={BROKERS}
+  value={tri()}
+  onChange={setTri}
+  onOpenChange={(open) => …}
+/>
+`}</Code>
 
       <h2>1 · Variants</h2>
       <div class="row">

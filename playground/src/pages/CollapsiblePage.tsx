@@ -1,6 +1,6 @@
 import { createSignal, type JSX } from 'solid-js';
 import { Collapsible } from '@cujuju/solidjs-collapsible';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 function Filler(props: { n: number }): JSX.Element {
   return (
@@ -24,6 +24,23 @@ export function CollapsiblePage(): JSX.Element {
         <code> useCollapsible</code> hook is exported separately for consumers that want the
         state machine without this chrome.
       </p>
+      <Code cap="usage">{`
+import { Collapsible } from '@cujuju/solidjs-collapsible';
+
+<Collapsible title="Positions" count={4} defaultOpen>
+  <MyRows />
+</Collapsible>
+
+// 'panel' variant + remembered open/closed state across reloads:
+<Collapsible
+  title="Greeks"
+  variant="panel"
+  storageKey="app:collapsible:greeks"
+  defaultOpen
+>
+  <MyRows />
+</Collapsible>
+`}</Code>
 
       <h2>Variants</h2>
       <div class="row">

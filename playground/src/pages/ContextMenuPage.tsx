@@ -7,6 +7,7 @@ import {
   EventLog,
   ScrollBox,
   createEventLog,
+  Code,
 } from '../ui';
 
 export function ContextMenuPage(): JSX.Element {
@@ -95,6 +96,23 @@ export function ContextMenuPage(): JSX.Element {
         element — it is anchored to the POINT you right-clicked, which is what makes its scroll
         behaviour (below) interesting.
       </p>
+      <Code cap="usage">{`
+import { ContextMenu, type ContextMenuEntry } from '@cujuju/solidjs-context-menu';
+
+const [at, setAt] = createSignal<{ x: number; y: number } | null>(null);
+const items: ContextMenuEntry[] = [
+  { kind: 'item', label: 'Close position', onSelect: () => … },
+  { kind: 'divider' },
+  { kind: 'item', label: 'Delete', danger: true, onSelect: () => … },
+];
+
+<div onContextMenu={(e) => { e.preventDefault(); setAt({ x: e.clientX, y: e.clientY }); }}>
+  right-click me
+</div>
+<Show when={at()}>
+  <ContextMenu items={items} x={at()!.x} y={at()!.y} onClose={() => setAt(null)} />
+</Show>
+`}</Code>
 
       <h2>1 · Variants</h2>
       <p class="note">

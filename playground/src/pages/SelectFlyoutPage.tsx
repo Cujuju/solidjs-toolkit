@@ -7,6 +7,7 @@ import {
   EventLog,
   ScrollBox,
   createEventLog,
+  Code,
 } from '../ui';
 
 const TIMEFRAMES: FlyoutOption[] = [
@@ -55,6 +56,22 @@ export function SelectFlyoutPage(): JSX.Element {
         from <code>@cujuju/solidjs-anchored-popover</code> — <b>which means its scroll bug is this
         package's scroll bug</b>.
       </p>
+      <Code cap="usage">{`
+import { Flyout, type FlyoutOption } from '@cujuju/solidjs-select-flyout';
+import '@cujuju/solidjs-select-flyout/select-flyout.css';
+
+const TIMEFRAMES: FlyoutOption[] = [
+  { value: '1m', label: '1 minute' },
+  { value: '1w', label: '1 week (history only)', disabled: true },
+];
+const [tf, setTf] = createSignal('5m');
+
+<Flyout options={TIMEFRAMES} value={tf()} onChange={setTf} ariaLabel="Timeframe" />
+
+// Empty / placeholder / disabled all supported:
+<Flyout options={[]} value="" onChange={…} placeholder="No options" />
+<Flyout options={TIMEFRAMES} value={tf()} onChange={…} disabled />
+`}</Code>
 
       <h2>1 · Variants</h2>
       <div class="row">

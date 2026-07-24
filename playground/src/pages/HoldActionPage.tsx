@@ -1,6 +1,6 @@
 import { createSignal, type JSX } from 'solid-js';
 import { useHoldAction, HoldIndicator } from '@cujuju/solidjs-hold-action';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 /** How long the user must hold before the destructive action fires. Long enough that it cannot
  *  be an accident, short enough that it does not feel punitive. */
@@ -47,6 +47,20 @@ export function HoldActionPage(): JSX.Element {
         cancel-on-leave, click suppression after completion); <code>HoldIndicator</code> is one
         way to draw it. Hold a button for {HOLD_MS}ms.
       </p>
+      <Code cap="usage">{`
+import { useHoldAction, HoldIndicator } from '@cujuju/solidjs-hold-action';
+
+const hold = useHoldAction({
+  durationMs: 900,                     // long enough not to be an accident
+  onComplete: () => deleteForever(),
+  suppressClickAfterComplete: true,    // the release must not also "click"
+});
+
+<button {...hold.handlers}>
+  Hold to delete
+  <HoldIndicator progress={hold.progress} />
+</button>
+`}</Code>
 
       <h2>Shapes</h2>
       <div class="row">

@@ -1,6 +1,6 @@
 import { For, createSignal, type JSX } from 'solid-js';
 import { PillNumberPicker, type PnpLayout } from '@cujuju/solidjs-pill-number-picker';
-import { Card, ClipBox, EdgeRight, ScrollBox, Tall } from '../ui';
+import { Code, Card, ClipBox, EdgeRight, ScrollBox, Tall } from '../ui';
 
 /** Every arrangement of [value][+][−] the control supports. The `v-` prefixed two stack the
  *  buttons vertically beside the value. */
@@ -101,6 +101,23 @@ export function PillNumberPickerPage(): JSX.Element {
         auto-repeat with acceleration, a change/finish commit contract, formatted display, and
         spinbutton a11y.
       </p>
+      <Code cap="usage">{`
+import { PillNumberPicker } from '@cujuju/solidjs-pill-number-picker';
+import '@cujuju/solidjs-pill-number-picker/styles.css';
+
+const [qty, setQty] = createSignal(1);
+
+<PillNumberPicker
+  value={qty()}
+  onChange={setQty}
+  min={1}
+  max={100}
+  size="md"          // xs | sm | md
+  editable           // click the value to type it
+  collapsible        // collapse to the value; click to expand a pop-out
+  layout="value-inc-dec"
+/>
+`}</Code>
 
       <h2>
         collapse <small>(click a number)</small>

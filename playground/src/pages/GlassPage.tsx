@@ -1,6 +1,6 @@
 import type { JSX } from 'solid-js';
 import { MenuTintSection } from '@cujuju/solidjs-glass';
-import { Card } from '../ui';
+import { Code, Card } from '../ui';
 
 const STORAGE_KEY = 'playground:menuTint';
 
@@ -15,6 +15,21 @@ export function GlassPage(): JSX.Element {
         surface in the toolkit. Drag a slider and watch the panels above it change — the tint is
         global by construction, because it lives on <code>:root</code>.
       </p>
+      <Code cap="usage">{`
+import { MenuTintSection } from '@cujuju/solidjs-glass';
+import '@cujuju/solidjs-glass/glass.css';
+
+// Surfaces are CLASSES, not components — put them on your own element:
+<div class="glass-panel">a panel on the glass surface</div>
+<div class="glass-menu">the smoked-glass menu surface</div>
+
+// The five tint knobs, as a ready-made settings section:
+<MenuTintSection storageKey="app:menuTint" />
+
+// …or drive them yourself:
+// :root { --user-menu-tint-darken: 35%; --user-menu-tint-alpha: 35%;
+//         --user-menu-tint-saturate: 1; --user-menu-tint-blur: 10px; }
+`}</Code>
 
       <h2>The surfaces</h2>
       <div class="row">

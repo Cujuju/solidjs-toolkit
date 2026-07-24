@@ -30,21 +30,21 @@ export function Note(props: { children: JSX.Element }): JSX.Element {
 }
 
 /**
- * Copy-pasteable source next to the live control it produces.
+ * Copy-pasteable source for the control above it, COLLAPSED by default.
  *
  * The playground's job is not only "does it look right" but "how do I get
  * this" — a demo whose markup is only visible by reading the page's own
- * source makes the reader reverse-engineer the API. Pair every non-obvious
- * demo with the snippet that renders it.
+ * source makes the reader reverse-engineer the API. But usage text is
+ * reference material, not something to scroll past on every visit, so it
+ * stays shut until asked for. `<details>` gives that for free, keyboard- and
+ * screen-reader-accessible, with no state to wire.
  */
-export function Code(props: { children: string; cap?: string }): JSX.Element {
+export function Code(props: { children: string; cap?: string; open?: boolean }): JSX.Element {
   return (
-    <div class="code">
-      <Show when={props.cap}>
-        <div class="code-cap">{props.cap}</div>
-      </Show>
+    <details class="code" open={props.open}>
+      <summary>{props.cap ?? 'usage'}</summary>
       <pre>{props.children.replace(/^\n/, '').replace(/\s+$/, '')}</pre>
-    </div>
+    </details>
   );
 }
 

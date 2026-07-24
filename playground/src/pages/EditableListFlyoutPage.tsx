@@ -8,6 +8,7 @@ import {
   ScrollBox,
   createEventLog,
   type EventLogApi,
+  Code,
 } from '../ui';
 
 interface Watchlist { id: string; name: string; symbols: number }
@@ -102,6 +103,23 @@ export function EditableListFlyoutPage(): JSX.Element {
         built on <code>anchored-popover</code>, it inherits that package's scroll behaviour —
         see section 2.
       </p>
+      <Code cap="usage">{`
+import EditableListFlyout from '@cujuju/solidjs-editable-list-flyout';
+
+<EditableListFlyout
+  open={open}
+  anchor={anchor}
+  onDismiss={() => setOpen(false)}
+  items={items()}                    // [{ id, name }, …]
+  aria-label="Watchlists"
+  itemConfig={(item) => ({
+    trailingLabel: () => <span>{item.symbols}</span>,
+  })}
+  onRename={(id, name) => …}
+  onDelete={(id) => …}
+  onAdd={(name) => …}
+/>
+`}</Code>
 
       <h2>1 · Variants</h2>
       <p class="note">

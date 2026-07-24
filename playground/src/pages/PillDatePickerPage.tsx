@@ -1,6 +1,6 @@
 import { For, createSignal, type JSX } from 'solid-js';
 import { PillDatePicker } from '@cujuju/solidjs-pill-date-picker';
-import { Card, ClipBox, EdgeRight, ScrollBox, Tall } from '../ui';
+import { Code, Card, ClipBox, EdgeRight, ScrollBox, Tall } from '../ui';
 
 /**
  * A realistic expiration ladder, built off the REAL today so the DTEs on screen are live.
@@ -123,6 +123,21 @@ export function PillDatePickerPage(): JSX.Element {
         hover tooltip; expanded it is a portalled ladder showing both. The ladder below is
         built off the real today, so the DTEs are live.
       </p>
+      <Code cap="usage">{`
+import { PillDatePicker } from '@cujuju/solidjs-pill-date-picker';
+import '@cujuju/solidjs-pill-date-picker/styles.css';
+
+const DATES = [{ value: '2026-08-21', label: 'Aug 21', dte: 29 }, …];
+const [v, setV] = createSignal(DATES[0].value);
+
+<PillDatePicker
+  items={DATES}
+  value={v()}
+  onChange={setV}
+  size="md"            // xs | sm | md
+  ariaLabel="Expiration"
+/>
+`}</Code>
 
       <h2>
         Collapsed vs expanded <small>(hover a pill for the DTE; click to open the ladder)</small>
