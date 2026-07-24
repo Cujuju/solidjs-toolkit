@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
-import { createComponent } from 'solid-js';
+import { createComponent, createSignal } from 'solid-js';
 import { KvTooltip } from '../KvTooltip';
 
 /**
@@ -180,6 +180,116 @@ describe('KvTooltip (integration)', () => {
       expect(panel!.getAttribute('data-interactive')).toBe('true');
       dispose();
     }
+  });
+
+  // ─── Anchored placement: the rect wins over the cursor point ────────────
+
+  it('anchor + placement position the panel from the rect, ignoring the cursor', () => {
+    // jsdom reports offsetWidth/offsetHeight as 0, so the panel falls back to
+    // its 150x100 assumed size — enough to prove which reference was used.
+    const ASSUMED_H = 100;
+    const GAP = 4; // DEFAULT_ANCHOR_GAP_PX
+    const rect = { top: 400, bottom: 424, left: 300, right: 420 } as DOMRect;
+
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      anchor: rect,
+      placement: 'above-start',
+    });
+
+    fire(getTrigger(container), 'mouseenter');   // fires at clientX/Y = 100
+    fire(getTrigger(container), 'mousemove');
+    const panel = getPanel();
+    expect(panel).not.toBeNull();
+    expect(panel!.style.top).toBe(`${rect.top - ASSUMED_H - GAP}px`);
+    expect(panel!.style.left).toBe(`${rect.left}px`);
+
+    dispose();
+  });
+
+  it('anchor near the top edge flips below the rect instead of onto it', () => {
+    const GAP = 4;
+    const rect = { top: 10, bottom: 34, left: 300, right: 420 } as DOMRect;
+
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      anchor: rect,
+      placement: 'above-start',
+    });
+
+    fire(getTrigger(container), 'mouseenter');
+    const panel = getPanel();
+    expect(panel!.style.top).toBe(`${rect.bottom + GAP}px`);
+
+    dispose();
+  });
+
+  // ─── freezeOnShow: content + position held for the life of one show ──────
+
+  it('freezeOnShow holds the entries captured at show time while a live source ticks', () => {
+    const [quote, setQuote] = createSignal({ Bid: '1.00' });
+    const { dispose, container } = renderTooltip({
+      get entries() { return quote(); },
+      children: 'trigger',
+      freezeOnShow: true,
+    });
+
+    fire(getTrigger(container), 'mouseenter');
+    expect(getPanel()!.textContent).toContain('1.00');
+
+    setQuote({ Bid: '2.00' });                       // source ticks under a stationary cursor
+    expect(getPanel()!.textContent).toContain('1.00'); // held
+    expect(getPanel()!.textContent).not.toContain('2.00');
+
+    // Hiding releases the freeze; the next show captures the current value.
+    fire(getTrigger(container), 'mouseleave');
+    expect(getPanel()).toBeNull();
+    fire(getTrigger(container), 'mouseenter');
+    expect(getPanel()!.textContent).toContain('2.00');
+
+    dispose();
+  });
+
+  it('without freezeOnShow the panel still tracks a live entries source (0.1.0 behaviour)', () => {
+    const [quote, setQuote] = createSignal({ Bid: '1.00' });
+    const { dispose, container } = renderTooltip({
+      get entries() { return quote(); },
+      children: 'trigger',
+    });
+
+    fire(getTrigger(container), 'mouseenter');
+    expect(getPanel()!.textContent).toContain('1.00');
+
+    setQuote({ Bid: '2.00' });
+    expect(getPanel()!.textContent).toContain('2.00');
+
+    dispose();
+  });
+
+  it('freezeOnShow holds the cursor point captured at show time', () => {
+    const OFFSET_X = 12;
+    const OFFSET_Y = 16;
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      freezeOnShow: true,
+    });
+    const trigger = getTrigger(container);
+
+    fire(trigger, 'mouseenter');  // clientX/Y = 100 (see `fire`)
+    const frozenTop = getPanel()!.style.top;
+    const frozenLeft = getPanel()!.style.left;
+    expect(frozenLeft).toBe(`${100 + OFFSET_X}px`);
+    expect(frozenTop).toBe(`${100 + OFFSET_Y}px`);
+
+    // Move the cursor a long way — the panel must not follow.
+    trigger.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 500, clientY: 400 }));
+    expect(getPanel()!.style.left).toBe(frozenLeft);
+    expect(getPanel()!.style.top).toBe(frozenTop);
+
+    dispose();
   });
 
   // ─── Disabled gate works through the helper ─────────────────────────────

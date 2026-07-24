@@ -1,4 +1,4 @@
-import { createSignal, createMemo, createEffect, onCleanup, For, Show, type JSX } from 'solid-js';
+import { createSignal, createMemo, createEffect, on, onCleanup, For, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import {
   createClampedPosition,
@@ -204,12 +204,42 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    */
   hideDelayMs?: number;
 
+  /**
+   * Snapshot the panel's content AND its reference position at show time, and
+   * hold both until the panel hides.
+   *
+   * Why: `entries` is read reactively, so a live-ticking source (a streaming
+   * quote) re-runs the entries memo on every tick, which re-runs the panel's
+   * measure effect, which re-derives the clamped position — the panel visibly
+   * re-measures and twitches under a stationary cursor. Consumers were
+   * working around this downstream by snapshotting the object before passing
+   * it in; that workaround belongs here, where the measure effect actually
+   * lives.
+   *
+   * What is frozen: the filtered entry list, the cursor point, and the
+   * resolved anchor rect. What is NOT frozen: `extraContent` (the consumer
+   * owns its own reactivity) and the viewport clamp itself — a frozen panel
+   * still re-clamps on resize/scroll, it just re-clamps from held inputs, so
+   * it cannot drift off-screen while held.
+   *
+   * Default `false` = 0.1.0 live-follow behaviour.
+   */
+  freezeOnShow?: boolean;
+
   ariaLabel?: string;
   role?: 'tooltip' | 'status';
 
   class?: string;
   panelClass?: string;
   portalTarget?: HTMLElement;
+}
+
+/** Content + reference position held for the lifetime of one show, per `freezeOnShow`. */
+interface FrozenSnapshot {
+  entries: Array<[string, string]>;
+  x: number;
+  y: number;
+  anchor: DOMRect | null;
 }
 
 export function KvTooltip(props: KvTooltipProps): JSX.Element {
@@ -223,6 +253,34 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   const shouldShow = (): boolean => !(props.disabled ?? false) && (filtered().length > 0 || props.extraContent !== undefined);
   const interactive = (): boolean => props.interactive ?? false;
   const hideDelayMs = (): number => props.hideDelayMs ?? 100;
+
+  // ── freezeOnShow: capture content + reference position at show time ───────
+  // `on(visible, …)` runs its callback untracked, so taking the snapshot does
+  // NOT subscribe this effect to the very sources it is snapshotting.
+  const [frozen, setFrozen] = createSignal<FrozenSnapshot | null>(null);
+  createEffect(
+    on(visible, (v) => {
+      if (!v || !(props.freezeOnShow ?? false)) {
+        setFrozen(null);
+        return;
+      }
+      const m = mouse();
+      setFrozen({ entries: filtered(), x: m.x, y: m.y, anchor: resolveAnchor(props.anchor) });
+    }),
+  );
+
+  // Each of these reads the live source ONLY when nothing is frozen — reading
+  // it unconditionally (e.g. `frozen()?.x ?? mouse().x`) would re-subscribe
+  // the panel to the ticking source and defeat the freeze.
+  const panelEntries = (): Array<[string, string]> => frozen()?.entries ?? filtered();
+  const panelX = (): number => { const f = frozen(); return f ? f.x : mouse().x; };
+  const panelY = (): number => { const f = frozen(); return f ? f.y : mouse().y; };
+  const panelAnchor = (): KvTooltipAnchor | undefined => {
+    const f = frozen();
+    // A frozen null anchor means "was never anchored" — stay in cursor mode
+    // rather than falling back to the live prop, which would unfreeze it.
+    return f ? (f.anchor ?? undefined) : props.anchor;
+  };
 
   // Hover-intent state machine — extracted to _internal/hoverIntent.ts so the
   // logic is unit-testable without mounting JSX. Non-interactive callers see
@@ -240,16 +298,24 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     <span
       class={props.class}
       style={{ position: 'relative', display: 'inline', overflow: 'hidden', 'text-overflow': 'ellipsis' }}
-      onMouseEnter={hoverIntent.onTriggerEnter}
+      onMouseEnter={(e) => {
+        // Seed the cursor point from the ENTER event, not the last mousemove.
+        // Without this the panel's first frame uses a stale point (or 0,0 on
+        // the very first hover) until a mousemove corrects it — invisible in
+        // live-follow mode, but `freezeOnShow` would capture that stale point
+        // and hold it for the whole show.
+        setMouse({ x: e.clientX, y: e.clientY });
+        hoverIntent.onTriggerEnter();
+      }}
       onMouseMove={(e) => setMouse({ x: e.clientX, y: e.clientY })}
       onMouseLeave={hoverIntent.onTriggerLeave}
     >
       {props.children}
       <Show when={visible() && shouldShow()}>
         <TooltipContent
-          entries={filtered()}
-          x={mouse().x}
-          y={mouse().y}
+          entries={panelEntries()}
+          x={panelX()}
+          y={panelY()}
           extraContent={props.extraContent}
           hysteresisPx={props.hysteresisPx ?? 20}
           edgePadPx={props.edgePadPx ?? 8}
@@ -264,7 +330,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
           portalTarget={props.portalTarget}
           onPanelMouseEnter={hoverIntent.onPanelEnter}
           onPanelMouseLeave={hoverIntent.onPanelLeave}
-          anchor={props.anchor}
+          anchor={panelAnchor()}
           placement={props.placement}
           anchorGapPx={props.anchorGapPx}
         />
