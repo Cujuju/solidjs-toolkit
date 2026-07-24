@@ -26,6 +26,43 @@ const INDICATORS = [
   { id: 'glyph', cap: 'glyph — leading ✓ / ✗ in a fixed column' },
 ] as const;
 
+/**
+ * The `hatch` tape is entirely token-driven, so every variation below is the
+ * SAME indicator with different custom properties — no second component, no
+ * second code path. Each entry is exactly the override you would paste into
+ * your own stylesheet.
+ */
+const HATCH_VARIANTS = [
+  {
+    cap: 'tape ACROSS the label (default)',
+    vars: {},
+  },
+  {
+    cap: 'tape BEHIND the label',
+    vars: { '--ctc-hatch-tape-z': '0' },
+  },
+  {
+    cap: 'double bar — 4px stripe, same 3px gap',
+    vars: { '--ctc-hatch-stripe-width': '4px' },
+  },
+  {
+    cap: 'double pitch — 4px stripe, 6px gap',
+    vars: { '--ctc-hatch-stripe-width': '4px', '--ctc-hatch-gap-width': '6px' },
+  },
+  {
+    cap: '−45° — tape leans the other way',
+    vars: { '--ctc-hatch-angle': '-45deg' },
+  },
+  {
+    cap: '−45°, double bar, behind the label',
+    vars: {
+      '--ctc-hatch-angle': '-45deg',
+      '--ctc-hatch-stripe-width': '4px',
+      '--ctc-hatch-tape-z': '0',
+    },
+  },
+] as const;
+
 /** A row of chips wired to its own independent state. */
 function ChipRow(props: {
   indicator?: 'glyph' | 'strike' | 'cut' | 'hatch' | 'marks' | 'badge' | 'rail' | 'tint';
@@ -43,6 +80,33 @@ function ChipRow(props: {
         />
       )}
     </For>
+  );
+}
+
+/**
+ * A hatch row that STARTS with one chip excluded — the variants differ only in
+ * the excluded state, so a row you have to click twice before it shows anything
+ * is useless for comparing them side by side. The other two chips stay live so
+ * the transition is still there to click through.
+ */
+function HatchRow(props: { vars: Record<string, string> }): JSX.Element {
+  const [value, setValue] = createSignal<TriStateValue>({
+    included: [],
+    excluded: [TAGS[0]],
+  });
+  return (
+    <div class="hatch-variant" style={props.vars}>
+      <For each={TAGS.slice(0, 3)}>
+        {(tag) => (
+          <TriStateChip
+            label={tag}
+            value={tristateOf(value(), tag)}
+            onCycle={(next) => setValue((v) => applyTriState(v, tag, next))}
+            indicator="hatch"
+          />
+        )}
+      </For>
+    </div>
   );
 }
 
@@ -132,6 +196,35 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
 // glyph mode: the bare (neutral) label is CENTRED; a ✓/✗ offsets it right.
 // Give the neutral state its own mark if you want one:
 <TriStateChip … indicator="glyph" neutralPrefix="– " />
+`}</Code>
+
+      <h2>Hatch variants — all one indicator, all tokens</h2>
+      <p class="note">
+        Every card below is <code>indicator="hatch"</code> with a different set of custom
+        properties. The first chip in each row starts <b>excluded</b> so the tape is visible
+        without clicking; the other two are live.
+      </p>
+      <div class="row">
+        <For each={HATCH_VARIANTS}>
+          {(v) => (
+            <Card cap={v.cap}>
+              <HatchRow vars={v.vars} />
+            </Card>
+          )}
+        </For>
+      </div>
+      <Code cap="the hatch tokens">{`
+/* Tape ACROSS the label (default) or BEHIND it. The label is
+   position:relative with an auto z-index, so tape at 1 covers it and
+   tape at 0 ties on level and loses the tie-break to tree order. */
+--ctc-hatch-tape-z: 1;      /* 0 = behind the text */
+
+--ctc-hatch-angle: 45deg;         /* -45deg leans the other way */
+--ctc-hatch-stripe-width: 2px;    /* the bar   */
+--ctc-hatch-gap-width: 3px;       /* the space */
+
+/* Scale BOTH to keep the duty cycle and just zoom the tape;
+   raise only the bar to make it heavier at the same pitch. */
 `}</Code>
 
       <h2>Theming</h2>

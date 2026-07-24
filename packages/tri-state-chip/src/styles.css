@@ -115,6 +115,8 @@
     --ctc-hatch-angle: 45deg;
     --ctc-hatch-stripe-width: 2px;
     --ctc-hatch-gap-width: 3px;
+    /* Tape ACROSS the label (1) or BEHIND it (0) — see the hatch rules. */
+    --ctc-hatch-tape-z: 1;
     --ctc-hatch-color: color-mix(in srgb, var(--ctc-color-excluded) 30%, transparent);
     --ctc-hatch-color-hover: color-mix(in srgb, var(--ctc-color-excluded) 45%, transparent);
     --ctc-underline-thickness: 1px;
@@ -287,19 +289,31 @@
    every state. `border-radius: inherit` keeps the tape inside the chip's
    corners; `pointer-events: none` keeps it out of hit-testing.
 
-   The tape runs OVER the label, not behind it — the literal barricade look,
-   where the stripes cross the text the way tape crosses a door. That works
-   here only because the stripe colour is a low-strength tint: the glyphs stay
-   readable through it. If a consumer raises `--ctc-hatch-color` toward opaque,
-   the label goes with it; give the label `position: relative` in that case and
-   it stacks back above the stripes. */
+   Which side of the LABEL the tape lands on is `--ctc-hatch-tape-z`, because
+   both readings are legitimate and neither is a bug: tape ACROSS the text is
+   the literal barricade (a door taped shut), tape BEHIND it is the legible
+   one. Default is across — it only works because the stripe colour is a
+   low-strength tint the glyphs read through, so a consumer who raises
+   `--ctc-hatch-color` toward opaque should flip this token rather than fight
+   the contrast.
+
+   It works by z-index because the label is `position: relative` with an AUTO
+   z-index, which paints at the same level as z-index 0 but later in tree
+   order. So tape at 1 wins over the label; tape at 0 ties on level and loses
+   the tie-break to the label, which comes after it in the tree. Both stay
+   inside the chip's stacking context, so neither can escape behind the chip's
+   own background the way a negative z-index would. */
 .ctc-chip[data-indicator="hatch"] {
+  position: relative;
+}
+.ctc-chip[data-indicator="hatch"] .ctc-chip-label {
   position: relative;
 }
 .ctc-chip[data-indicator="hatch"][data-state="excluded"]::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: var(--ctc-hatch-tape-z);
   border-radius: inherit;
   pointer-events: none;
   background: repeating-linear-gradient(

@@ -171,6 +171,12 @@ code { font-family: var(--mono); color: var(--text); }
 /* Spans the row — used by the right-viewport-edge box, which is meaningless in a narrow card. */
 .card--wide { flex: 1 1 100%; }
 
+/* The hatch-variant rows carry their token overrides on a wrapper element, so
+   that wrapper — not the chips — is the card body's flex item and has to lay
+   the chips out itself. Same gap as the body so a variant card is
+   indistinguishable in rhythm from a plain one. */
+.hatch-variant { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
 /* ── State matrix (Tier 2). Every state side by side, because drift is only visible next to
    a sibling that did not drift. ─────────────────────────────────────────────── */
 .grid {
