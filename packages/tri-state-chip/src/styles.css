@@ -71,7 +71,13 @@
        the excluded tint over `--ctc-surface` — so the punched band is
        indistinguishable from the chip around it. */
     --ctc-strike-thickness: 1px;
-    --ctc-strike-knockout-width: 1px;
+    /* Half a pixel of dead space each side, so the whole mark is 2px of
+       interruption instead of 3px. At DPR 1 the browser composites this as one
+       row at ~half alpha rather than a full row — the knockout is a near-chip
+       colour anyway (1/255 off the chip's own fill), so a half-strength band of
+       it is exactly the intended near-invisible separation. At DPR 2 it is a
+       true device row. */
+    --ctc-strike-knockout-width: 0.5px;
     --ctc-strike-knockout: color-mix(
       in srgb,
       var(--ctc-color-excluded) var(--ctc-tint-strength),

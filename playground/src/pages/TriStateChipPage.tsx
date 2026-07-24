@@ -147,7 +147,7 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   --ctc-surface: #0f172a;            /* what the chip SITS ON — required */
   --ctc-tint-strength: 15%;          /* shared by state fills + knockout */
   --ctc-strike-thickness: 1px;       /* the visible line */
-  --ctc-strike-knockout-width: 2px;  /* dead space each side of it */
+  --ctc-strike-knockout-width: 0.5px;/* dead space each side of it */
   --ctc-cut-thickness: 2px;          /* indicator="cut": the gap, no line */
 
   --ctc-color-included: #10b981;
