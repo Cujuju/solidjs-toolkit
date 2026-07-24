@@ -62,7 +62,7 @@ describe('TriStateChip rendering', () => {
       () => <TriStateChip label="X" value="included" onCycle={() => {}} />,
       document.body,
     );
-    expect(findChip().textContent).toBe('+ X');
+    expect(findChip().textContent).toBe('✓ X');
   });
 
   it('renders default exclude prefix when state=excluded', () => {
@@ -70,7 +70,7 @@ describe('TriStateChip rendering', () => {
       () => <TriStateChip label="X" value="excluded" onCycle={() => {}} />,
       document.body,
     );
-    expect(findChip().textContent).toBe('− X');
+    expect(findChip().textContent).toBe('✗ X');
   });
 
   it('omits prefix when prefix prop is empty string', () => {

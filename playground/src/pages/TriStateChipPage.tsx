@@ -12,10 +12,9 @@ const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
 
 /** Candidate glyph sets, for picking one live rather than from a screenshot. */
 const GLYPH_SETS = [
-  { id: 'plus-minus', cap: '+ / − (current)', include: '+ ', exclude: '− ' },
-  { id: 'check-cross', cap: '✓ / ✗', include: '✓ ', exclude: '✗ ' },
-  { id: 'check-times', cap: '✓ / ×', include: '✓ ', exclude: '× ' },
+  { id: 'check-cross', cap: '✓ / ✗ (default)', include: '✓ ', exclude: '✗ ' },
   { id: 'check-ballot', cap: '✔ / ✘ (heavy)', include: '✔ ', exclude: '✘ ' },
+  { id: 'plus-minus', cap: '+ / − (former default)', include: '+ ', exclude: '− ' },
 ] as const;
 
 /** Candidate NEUTRAL glyphs — what the unselected state shows. */
@@ -23,6 +22,10 @@ const NEUTRAL_GLYPHS = [
   { id: 'none', cap: 'none', glyph: '' },
   { id: 'underscore', cap: '_ underscore', glyph: '_ ' },
   { id: 'underscore-wide', cap: '＿ full-width', glyph: '＿' },
+  // Only available now that '−' no longer means "excluded": a dash reads as
+  // "not set" and sits at the same optical height as ✓/✗, so cycling does not
+  // hop the glyph up and down the way an underscore does.
+  { id: 'dash', cap: '– dash', glyph: '– ' },
   { id: 'ring', cap: '○ ring', glyph: '○ ' },
   { id: 'dot', cap: '· dot', glyph: '· ' },
   { id: 'small-ring', cap: '◦ small ring', glyph: '◦ ' },

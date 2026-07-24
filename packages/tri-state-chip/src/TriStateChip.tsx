@@ -36,8 +36,13 @@ export interface TriStateChipProps {
   dataAttr?: Record<string, string>;
 }
 
-const DEFAULT_INCLUDE_PREFIX = '+ ';
-const DEFAULT_EXCLUDE_PREFIX = '− ';
+/* ✓ / ✗ rather than + / −: the chip answers "is this in or out", which is a
+   yes/no, not an arithmetic operation. `+`/`−` also read as "add another" /
+   "remove one" on a control that toggles a single item. The ballot X (U+2717)
+   is the deliberate pair for the check — a multiplication sign (U+00D7) is
+   lighter and reads as an operator rather than a rejection. */
+const DEFAULT_INCLUDE_PREFIX = '✓ ';
+const DEFAULT_EXCLUDE_PREFIX = '✗ ';
 /** Empty by default: adding a neutral mark to every existing consumer's
  *  unselected chips would be a visual change they did not ask for. */
 const DEFAULT_NEUTRAL_PREFIX = '';
