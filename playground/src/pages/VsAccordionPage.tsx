@@ -1,8 +1,9 @@
-import { For, createEffect, createSignal, type JSX } from 'solid-js';
+import { For, Show, createEffect, createSignal, type JSX } from 'solid-js';
 import {
   AccordionGroup,
   AccordionLeaf,
   AccordionPanel,
+  Breadcrumb,
   useAccordionGroup,
   type AccordionGroupApi,
   type AccordionRailSide,
@@ -38,6 +39,38 @@ const FOLDERS = [
   { name: 'hooks', files: ['useDock.ts', 'useResize.ts'] },
   { name: 'utils', files: ['format.ts', 'clamp.ts', 'ids.ts', 'dates.ts'] },
 ];
+
+/**
+ * Symbols per file, for the CHAINED-leaf demo (file → symbol).
+ *
+ * Deliberately not every file: a chain that always continues never shows the user
+ * where it ENDS, and "this leaf is terminal for this selection" is half of what
+ * the chain is demonstrating.
+ */
+const SYMBOLS: Record<string, string[]> = {
+  'AppShell.tsx': ['<AppShell>', 'useShellLayout', 'SHELL_MIN_WIDTH'],
+  'Panel.tsx': ['<Panel>', '<PanelHeader>'],
+  'useDock.ts': ['useDock', 'DockState'],
+  'format.ts': ['formatPrice', 'formatQty'],
+};
+
+const symbolsFor = (file: string | null): string[] =>
+  file === null ? [] : (SYMBOLS[file] ?? []);
+
+/**
+ * Panels for the rail-overflow card.
+ *
+ * Twelve, which is enough that the tail cannot fit any dock height this page uses
+ * — the card is about the buttons that DON'T fit, so a count that merely might
+ * overflow would make the demo depend on the reader's window size.
+ */
+const OVERFLOW_PANEL_TITLES = [
+  'Watchlist', 'Positions', 'Orders', 'Chain', 'Risk', 'Alerts',
+  'Fills', 'Greeks', 'News', 'Notes', 'Scanner', 'Journal',
+];
+
+/** Rail labels are rotated into a 40px strip, so they are abbreviated. */
+const RAIL_LABEL_LENGTH = 4;
 
 /** Selectable row list — the "folder contents" of a Miller column. */
 function PickList(props: {
@@ -110,16 +143,47 @@ export function VsAccordionPage(): JSX.Element {
   const [dense, setDense] = createSignal(false);
   const [animated, setAnimated] = createSignal(true);
 
+  const [autoHide, setAutoHide] = createSignal(true);
+  const [hoverToOpen, setHoverToOpen] = createSignal(false);
+  const [railMode, setRailMode] = createSignal<'menu' | 'pan'>('menu');
+
   const [folder, setFolder] = createSignal<string | null>(null);
   const [file, setFile] = createSignal<string | null>(null);
+  const [symbol, setSymbol] = createSignal<string | null>(null);
   const files = (): string[] => FOLDERS.find((f) => f.name === folder())?.files ?? [];
+
+  /**
+   * A SIGNAL, not a `let`. The breadcrumb below renders from this group's API, and
+   * a plain variable assigned in `apiRef` would never notify the JSX that it had
+   * arrived — the bar would stay empty for the life of the page.
+   */
+  const [millerApi, setMillerApi] = createSignal<AccordionGroupApi>();
 
   /** The files column has no leaf-style controlled `open`, so the selection drives it
    *  through the group API — this is the wiring a real Miller browser owns. */
-  let millerApi: AccordionGroupApi | undefined;
   createEffect(() => {
-    millerApi?.setOpen('mc-files', folder() !== null);
+    millerApi()?.setOpen('mc-files', folder() !== null);
   });
+
+  /**
+   * Truncating the path closes columns, and the ones this browser owns as SIGNALS
+   * have to be cleared here — `<AccordionLeaf>` is controlled, so the breadcrumb
+   * deliberately cannot close a leaf behind the consumer's back. Clearing a level
+   * clears everything downstream of it, which is the same cascade the chain
+   * enforces structurally.
+   */
+  const truncateMiller = (closedIds: readonly string[]): void => {
+    if (closedIds.includes('mc-symbol')) setSymbol(null);
+    if (closedIds.includes('mc-detail')) {
+      setFile(null);
+      setSymbol(null);
+    }
+    if (closedIds.includes('mc-files')) {
+      setFolder(null);
+      setFile(null);
+      setSymbol(null);
+    }
+  };
 
   return (
     <>
@@ -343,6 +407,158 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
         </Card>
       </div>
 
+      <h2>Auto-hide — where the pin changes meaning</h2>
+      <p class="note">
+        <code>autoHide</code> turns the rail into a Visual Studio auto-hide dock. An
+        unpinned panel no longer opens as a column that pushes its siblings around: it
+        opens as a transient <b>overlay</b> anchored to its own rail button, floating
+        over the content and dismissing when you look away. <b>Pinning it promotes it
+        to a real docked column.</b>
+      </p>
+      <p class="note">
+        This is the one place the pin stops meaning "exempt from auto-collapse" and
+        starts meaning <b>"make this permanent"</b> — and the two readings are the same
+        idea seen from different sides. In both, the pin is what survives the next
+        thing you do. Toggle <code>autoHide</code> off and the identical panels go back
+        to being plain columns, which is the comparison worth making with both states
+        in front of you.
+      </p>
+      <div class="row">
+        <Card cap="autoHide — unpinned opens as an overlay, pinned docks" wide>
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'flex', gap: '6px', 'margin-bottom': '8px', 'flex-wrap': 'wrap' }}>
+              <button
+                class="demo-btn"
+                data-active={autoHide() ? '' : undefined}
+                onClick={() => setAutoHide((v) => !v)}
+              >
+                autoHide: {String(autoHide())}
+              </button>
+              <button
+                class="demo-btn"
+                data-active={hoverToOpen() ? '' : undefined}
+                disabled={!autoHide()}
+                title={
+                  autoHide()
+                    ? undefined
+                    : 'hoverToOpen only means anything while autoHide is on'
+                }
+                onClick={() => setHoverToOpen((v) => !v)}
+              >
+                hoverToOpen: {String(hoverToOpen())}
+              </button>
+            </div>
+            <AccordionGroup
+              orientation="horizontal"
+              mode="fill"
+              policy="multi"
+              autoHide={autoHide()}
+              hoverToOpen={hoverToOpen()}
+              height="320px"
+              ariaLabel="Auto-hide dock"
+              onChange={(id, open) => log.log(open ? 'open' : 'close', `hide:${id}`)}
+              onPinChange={(id, p) => log.log(p ? 'pin' : 'unpin', `hide:${id}`)}
+            >
+              <AccordionPanel id="ah-explorer" title="Solution Explorer" railLabel="EXPL" icon="📁" count={7}>
+                <Rows n={10} label="file" />
+              </AccordionPanel>
+              <AccordionPanel id="ah-props" title="Properties" railLabel="PROP" icon="⚙" count={12}>
+                <Rows n={12} label="prop" />
+              </AccordionPanel>
+              <AccordionPanel id="ah-toolbox" title="Toolbox" railLabel="TOOL" icon="🧰">
+                <Rows n={8} label="tool" />
+              </AccordionPanel>
+              <AccordionPanel id="ah-output" title="Output" railLabel="OUT" icon="📃">
+                <Rows n={14} label="line" />
+              </AccordionPanel>
+            </AccordionGroup>
+            <p class="note">
+              Click a rail button — the panel floats in over the content. Click elsewhere
+              and it goes away without you having to close it. Now <b>pin</b> it: it stops
+              floating and becomes a column that takes real space, and the next panel you
+              open floats over the remainder instead of displacing it. Unpin to send it
+              back to being transient. With <code>hoverToOpen</code> on, the flyout also
+              opens on hover — off by default, because a rail you cannot move the mouse
+              across without summoning panels is hostile.
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      <h2>Rail overflow — a menu, or a pannable strip</h2>
+      <p class="note">
+        Twelve panels do not fit in a 40px rail, and a scrollbar in a strip that narrow
+        lands on top of the rotated labels. Two strategies, one prop. Under
+        <code> railOverflow="menu"</code> the buttons that do not fit collapse into a
+        <code> ⋯</code> at the end of the rail; under <code>railOverflow="pan"</code> the
+        rail keeps scrolling but the scrollbar is replaced by a drag gesture and a fade
+        at each end.
+      </p>
+      <p class="note">
+        They are alternatives rather than companions, which is why it is one prop and
+        not two booleans: once the menu has absorbed everything that did not fit, the
+        rail no longer overflows, so there is nothing left to pan.
+      </p>
+      <div class="row">
+        <Card cap="12 panels in a short rail — switch the strategy" wide>
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'flex', gap: '6px', 'margin-bottom': '8px' }}>
+              <button
+                class="demo-btn"
+                data-active={railMode() === 'menu' ? '' : undefined}
+                onClick={() => setRailMode('menu')}
+              >
+                railOverflow: menu
+              </button>
+              <button
+                class="demo-btn"
+                data-active={railMode() === 'pan' ? '' : undefined}
+                onClick={() => setRailMode('pan')}
+              >
+                railOverflow: pan
+              </button>
+            </div>
+            <AccordionGroup
+              orientation="horizontal"
+              mode="natural"
+              policy="multi"
+              railOverflow={railMode()}
+              height="300px"
+              ariaLabel="Rail overflow demo"
+              onChange={(id, open) => log.log(open ? 'open' : 'close', `of:${id}`)}
+            >
+              <For each={OVERFLOW_PANEL_TITLES}>
+                {(title, i) => (
+                  <AccordionPanel
+                    id={`of-${i()}`}
+                    title={title}
+                    railLabel={title.slice(0, RAIL_LABEL_LENGTH).toUpperCase()}
+                    defaultOpen={i() === 0}
+                  >
+                    <Rows n={6} label="row" />
+                  </AccordionPanel>
+                )}
+              </For>
+            </AccordionGroup>
+            <p class="note">
+              <b>menu</b> — the tail collapses into <code>⋯</code>; open it and the panels
+              that did not fit are listed, with a checkmark on the ones already open. The
+              rail re-measures itself when the window, the density or the font changes, so
+              the cut never goes stale.
+            </p>
+            <p class="note">
+              <b>pan</b> — drag the rail to scroll it. <b>Middle-button drag</b> anywhere,
+              <b> Space held + drag</b> anywhere, or a <b>plain drag on empty rail
+              background</b> all pan. A plain drag <i>on a button</i> still <b>reorders</b>,
+              which is the whole reason pan needs a modifier: reorder is available always,
+              panning only once the rail overflows, so the always-available gesture keeps
+              the unmodified drag. A pan that actually moved swallows the click, so
+              panning across a button never opens it.
+            </p>
+          </div>
+        </Card>
+      </div>
+
       <h2>Miller columns — folders, then a headless leaf</h2>
       <p class="note">
         The dock used as a <b>browser</b>: pick a row in one column and the next column
@@ -352,16 +568,37 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
         collapsing it on the next click would destroy what the click produced). It still
         resizes and persists its width like any column.
       </p>
+      <p class="note">
+        A leaf is terminal, but terminal is not the same as LAST: give one a
+        <code> parentId</code> and it becomes a link in a <b>chain</b> — file → symbol —
+        while keeping everything that makes it a leaf. The dependency runs one way, so a
+        child is open only when its parent is: close the file and the symbol pane goes
+        with it, because a "references" column describing a file that is no longer open
+        is the UI asserting something false.
+      </p>
       <div class="row">
-        <Card cap="click a folder → a file → the detail leaf" wide>
+        <Card cap="click a folder → a file → a symbol → the chained leaves" wide>
           <div style={{ width: '100%' }}>
+            {/* Above the group, not inside it: in `horizontal` orientation anything
+                inside the group IS a column, so the bar would become one. This is why
+                <Breadcrumb> takes a `group` prop as well as reading context.
+
+                The <Show> is load-bearing, not defensive. `apiRef` fires while the
+                group renders, which is AFTER this sibling is created — so on the first
+                pass the signal is still undefined, and <Breadcrumb> treats a group it
+                can reach neither by prop nor by context as a usage error and throws.
+                Gating on the signal defers the breadcrumb's creation to the pass where
+                the API exists. */}
+            <Show when={millerApi()}>
+              {(api) => <Breadcrumb group={api()} onTruncate={truncateMiller} />}
+            </Show>
             <AccordionGroup
               orientation="horizontal"
               mode="natural"
               policy="multi"
               height="330px"
               reorderable={false}
-              apiRef={(a) => (millerApi = a)}
+              apiRef={setMillerApi}
               ariaLabel="Miller column browser"
               onChange={(id, open) => log.log(open ? 'open' : 'close', `miller:${id}`)}
             >
@@ -383,7 +620,14 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
                 count={files().length}
                 accent="#f59e0b"
               >
-                <PickList items={files()} selected={file()} onPick={setFile} />
+                <PickList
+                  items={files()}
+                  selected={file()}
+                  onPick={(name) => {
+                    setFile(name);
+                    setSymbol(null);
+                  }}
+                />
               </AccordionPanel>
 
               <AccordionLeaf
@@ -393,21 +637,94 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
                 icon="📄"
                 accent="#10b981"
                 defaultSize={260}
-                onClose={() => setFile(null)}
+                onClose={() => {
+                  setFile(null);
+                  setSymbol(null);
+                }}
               >
                 <div class="readout" style={{ padding: '6px 8px', 'line-height': '1.7' }}>
                   <div><b>{file()}</b></div>
                   <div>path — src/{folder()}/{file()}</div>
                   <div>size — 4.2 kB</div>
-                  <div>modified — 2 hours ago</div>
-                  <div>this pane is the LEAF: no rail button, always last</div>
+                </div>
+                <PickList items={symbolsFor(file())} selected={symbol()} onPick={setSymbol} />
+              </AccordionLeaf>
+
+              {/* The CHAINED leaf. `parentId` is what makes it a waypoint rather than a
+                  second terminal pane: it orders the columns and it makes the cascade
+                  structural, so this can never outlive the file it describes. */}
+              <AccordionLeaf
+                id="mc-symbol"
+                parentId="mc-detail"
+                open={symbol() !== null}
+                title={symbol() ?? ''}
+                icon="🔗"
+                accent="#a78bfa"
+                defaultSize={220}
+                onClose={() => setSymbol(null)}
+              >
+                <div class="readout" style={{ padding: '6px 8px', 'line-height': '1.7' }}>
+                  <div><b>{symbol()}</b></div>
+                  <div>declared in — {file()}</div>
+                  <div>references — 3</div>
+                  <div>this pane is a CHAINED leaf: parentId="mc-detail"</div>
                 </div>
               </AccordionLeaf>
             </AccordionGroup>
             <p class="note">
-              Selecting a folder opens the files column; selecting a file opens the leaf.
-              Close the leaf with its × — the consumer owns its <code>open</code>, so the
-              close handler is what clears the selection.
+              Selecting a folder opens the files column; a file opens the detail leaf; a
+              symbol inside it opens a second leaf beside the first. Close the detail leaf
+              and the symbol leaf goes with it — you never have to close the chain by
+              hand. (Only some files carry symbols, so the chain also visibly ENDS.)
+            </p>
+            <p class="note">
+              <b>Breadcrumb</b> — the bar above is the same open sequence read as a path.
+              Click a crumb to <b>truncate</b> the chain: every column after it closes.
+              The current location is plain text, not a button, because there is nothing
+              after it to truncate. A long path collapses its middle into a
+              <code> ⋯</code> you can click to expand rather than wrapping or scrolling,
+              since a bar that wraps changes the height of the chrome around it.
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      <p class="note">
+        The breadcrumb's rendering is yours: <code>renderCrumb</code> supplies each
+        crumb's content and <code>separator</code> replaces the divider. The wrapper —
+        the tab stop, <code>aria-current</code>, the click-to-truncate, the arrow-key
+        handler — stays with the component, so a custom look cannot cost the keyboard
+        story. Both bars below are bound to the SAME group as the browser above, so they
+        track it live.
+      </p>
+      <div class="row">
+        <Card cap="renderCrumb + separator — same path, different clothes" wide>
+          <div style={{ width: '100%' }}>
+            {/* Same deferral as the bar above — see the note there. */}
+            <Show when={millerApi()}>
+              {(api) => (
+                <Breadcrumb
+                  group={api()}
+                  onTruncate={truncateMiller}
+                  ariaLabel="Breadcrumb with custom crumbs"
+                  /* Inline expressions, not stored nodes: Solid wraps a prop expression
+                     in a getter, so each separator slot gets its own node. A variable
+                     holding one node would be moved to the last slot and appear once. */
+                  separator={<span style={{ opacity: 0.4 }}>/</span>}
+                  renderCrumb={(crumb) => (
+                    <span style={{ display: 'inline-flex', gap: '4px', 'align-items': 'center' }}>
+                      <span aria-hidden="true">{crumb.isLeaf ? '📄' : '📁'}</span>
+                      <span>{crumb.label}</span>
+                    </span>
+                  )}
+                />
+              )}
+            </Show>
+            <p class="note">
+              Pick a folder and a file above, then compare this bar with the default one.
+              Same path, same truncation, same keyboard behaviour — only the content of
+              each crumb and the divider differ. With nothing open both bars render
+              nothing at all rather than an empty strip.
             </p>
           </div>
         </Card>
@@ -649,6 +966,21 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
         persist, and report via <code>onSizeChange</code>. <code>resetSizes()</code> on
         the API hands sizing back to the mode. Turn it off with
         <code> resizable={'{false}'}</code>.
+      </p>
+      <p class="note">
+        <b>Collapse by overdrag</b> — keep pulling a splitter past a panel's minimum
+        instead of stopping at it. Once you overshoot the minimum by the collapse
+        margin the panel arms itself, and releasing there collapses it to the rail
+        rather than snapping it back. Try it on any horizontal card above: drag the
+        boundary of an open column hard into its neighbour and let go.
+      </p>
+      <p class="note">
+        This exists because the alternative is a dead zone. A splitter that simply
+        stops at <code>minSize</code> spends the rest of the drag ignoring the pointer,
+        which reads as the control having hung; carrying on past the floor turns that
+        wasted travel into the one gesture you actually wanted. The panel arms
+        <i> before</i> release, so overshooting and changing your mind is a drag back,
+        not an undo — nothing collapses until you let go.
       </p>
 
       <h2>Keyboard</h2>
