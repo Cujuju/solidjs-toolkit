@@ -326,6 +326,47 @@ describe('KvTooltip (integration)', () => {
     dispose();
   });
 
+  // ─── Dismissal: scroll ──────────────────────────────────────────────────
+
+  it('hideOnScroll: a scroll in a nested container dismisses the panel', () => {
+    // `scroll` does not bubble out of a nested scroller — the capture-phase
+    // window listener is what makes this case reachable at all.
+    const scroller = document.createElement('div');
+    document.body.appendChild(scroller);
+
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      hideOnScroll: true,
+    });
+
+    fire(getTrigger(container), 'mouseenter');
+    expect(getPanel()).not.toBeNull();
+
+    scroller.dispatchEvent(new Event('scroll'));   // bubbles: false, on purpose
+    expect(getPanel()).toBeNull();
+
+    dispose();
+    scroller.remove();
+  });
+
+  it('without hideOnScroll the panel survives a scroll (0.1.x behaviour)', () => {
+    const scroller = document.createElement('div');
+    document.body.appendChild(scroller);
+
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+    });
+
+    fire(getTrigger(container), 'mouseenter');
+    scroller.dispatchEvent(new Event('scroll'));
+    expect(getPanel()).not.toBeNull();
+
+    dispose();
+    scroller.remove();
+  });
+
   // ─── Disabled gate works through the helper ─────────────────────────────
 
   it('disabled prop suppresses panel even on trigger mouseenter', () => {

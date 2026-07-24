@@ -2,6 +2,8 @@ import { createSignal, createMemo, createEffect, on, onCleanup, For, Show, type 
 import { Portal } from 'solid-js/web';
 import {
   createClampedPosition,
+  ensureViewportListeners,
+  viewportScrollTick,
   DEFAULT_ANCHOR_GAP_PX,
   type KvTooltipPlacement,
 } from './clamp';
@@ -278,6 +280,24 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    */
   suppressWhileTopLayerOpen?: boolean;
 
+  /**
+   * Hide the panel when anything on the page scrolls.
+   *
+   * The panel is `position: fixed` at a point captured on hover, so scrolling
+   * a list underneath it strands it mid-air describing a row that has moved
+   * on. Scrolling produces no mouseleave, so nothing else dismisses it.
+   *
+   * This is the *hide* half of the scroll contract. The *recompute* half is
+   * unconditional and needs no prop: any position — anchored or cursor —
+   * re-derives on scroll, so an `anchor` passed as an accessor tracks its
+   * element down the page on its own. Reach for `hideOnScroll` when the
+   * content itself goes stale (a row tooltip whose row scrolled away), not
+   * merely to keep the geometry honest.
+   *
+   * Default `false` = 0.1.x behaviour (the panel stays put).
+   */
+  hideOnScroll?: boolean;
+
   ariaLabel?: string;
   role?: 'tooltip' | 'status';
 
@@ -350,6 +370,21 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
       (props.suppressWhileTopLayerOpen ?? false) && isTopLayerSurfaceOpen(),
   });
   onCleanup(hoverIntent.cleanup);
+
+  // ── hideOnScroll ──────────────────────────────────────────────────────────
+  // Installed here rather than in the panel because the panel only exists
+  // while visible, and the listener is shared process-wide anyway. `defer`
+  // skips the run at creation time — only a real scroll should dismiss.
+  ensureViewportListeners();
+  createEffect(
+    on(
+      viewportScrollTick,
+      () => {
+        if ((props.hideOnScroll ?? false) && visible()) hoverIntent.hideNow();
+      },
+      { defer: true },
+    ),
+  );
 
   return (
     <span
