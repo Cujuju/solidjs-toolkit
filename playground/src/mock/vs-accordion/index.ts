@@ -26,7 +26,24 @@ export {
   type AccordionMode,
   type AccordionOrientation,
   type AccordionPolicy,
+  type AccordionOpenPlacement,
   type AccordionRailSide,
+  type AccordionLayout,
+  type PanelBadge,
   type PanelMeta,
+  ACCORDION_LAYOUT_VERSION,
 } from './context';
+export {
+  createLeafChain,
+  bindLeafChain,
+  leafChainFor,
+  type LeafChain,
+} from './leafChain';
+export {
+  createTearOff,
+  TearOffOutlet,
+  type AccordionTearOffApi,
+  type TearOffController,
+  type TearOffResult,
+} from './tearOff';
 export { DEFAULT_MIN_SIZE_PX } from './resize';

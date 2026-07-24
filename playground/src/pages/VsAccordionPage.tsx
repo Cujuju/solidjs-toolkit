@@ -6,6 +6,7 @@ import {
   useAccordionGroup,
   type AccordionGroupApi,
   type AccordionRailSide,
+  type AccordionLayout,
   DEFAULT_MIN_SIZE_PX,
 } from '../mock/vs-accordion';
 import { Card, Code, EventLog, createEventLog } from '../ui';
@@ -26,6 +27,10 @@ function Rows(props: { n: number; label?: string }): JSX.Element {
     </div>
   );
 }
+
+/** Cap for the eviction demo. Two, not three: with three the eviction only fires
+ *  after four clicks, by which point it reads as a glitch rather than a rule. */
+const MAX_OPEN_DEMO = 2;
 
 /** Fake tree for the Miller-column demo. */
 const FOLDERS = [
@@ -99,6 +104,11 @@ export function VsAccordionPage(): JSX.Element {
   let natApi: AccordionGroupApi | undefined;
 
   const [railSide, setRailSide] = createSignal<AccordionRailSide>('left');
+
+  let capApi: AccordionGroupApi | undefined;
+  const [saved, setSaved] = createSignal<AccordionLayout | null>(null);
+  const [dense, setDense] = createSignal(false);
+  const [animated, setAnimated] = createSignal(true);
 
   const [folder, setFolder] = createSignal<string | null>(null);
   const [file, setFile] = createSignal<string | null>(null);
@@ -535,6 +545,86 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
             <p class="note">
               Nothing auto-collapses here, so the pin's ONLY job is to survive
               <code> collapse all</code>. Pin one, hit collapse all.
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      <h2>Layout snapshots, maxOpen, density, animation</h2>
+      <p class="note">
+        One dock, four features that are otherwise invisible. <b>Save</b> captures
+        <code> getLayout()</code> — open set, pins, order and sizes as one plain object —
+        and <b>restore</b> plays it back; a version mismatch is refused whole rather than
+        half-applied. <code>maxOpen={'{2}'}</code> caps the open columns: open a third and
+        the least-recently-opened UNPINNED one is evicted, so pinning is how you keep a
+        column through the churn. The toggles switch <code>density</code> and
+        <code> animated</code>, both of which are pure CSS.
+      </p>
+      <div class="row">
+        <Card cap="maxOpen=2 — pin one, then open others and watch eviction" wide>
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'flex', gap: '6px', 'margin-bottom': '8px', 'flex-wrap': 'wrap' }}>
+              <button class="demo-btn" onClick={() => setSaved(capApi?.getLayout() ?? null)}>
+                save layout
+              </button>
+              <button
+                class="demo-btn"
+                disabled={saved() === null}
+                onClick={() => {
+                  const l = saved();
+                  if (l !== null) capApi?.setLayout(l);
+                }}
+              >
+                restore layout
+              </button>
+              <button
+                class="demo-btn"
+                data-active={dense() ? '' : undefined}
+                onClick={() => setDense((v) => !v)}
+              >
+                density: {dense() ? 'compact' : 'comfortable'}
+              </button>
+              <button
+                class="demo-btn"
+                data-active={animated() ? '' : undefined}
+                onClick={() => setAnimated((v) => !v)}
+              >
+                animated: {String(animated())}
+              </button>
+              <span class="readout">
+                saved <b>{saved() === null ? 'none' : `${saved()?.open.length} open`}</b>
+              </span>
+            </div>
+            <AccordionGroup
+              apiRef={(a) => (capApi = a)}
+              orientation="horizontal"
+              mode="fill"
+              policy="multi"
+              maxOpen={MAX_OPEN_DEMO}
+              density={dense() ? 'compact' : 'comfortable'}
+              animated={animated()}
+              height="320px"
+              ariaLabel="Cap and layout demo"
+              onChange={(id, open) => log.log(open ? 'open' : 'close', `cap:${id}`)}
+              onPinChange={(id, p) => log.log(p ? 'pin' : 'unpin', `cap:${id}`)}
+            >
+              <AccordionPanel id="k-a" title="Watchlist" badge="info" count={5} defaultOpen>
+                <Rows n={8} label="sym" />
+              </AccordionPanel>
+              <AccordionPanel id="k-b" title="Positions" badge="success" count={2}>
+                <Rows n={8} label="pos" />
+              </AccordionPanel>
+              <AccordionPanel id="k-c" title="Orders" badge="warning">
+                <Rows n={8} label="ord" />
+              </AccordionPanel>
+              <AccordionPanel id="k-d" title="Errors" badge="danger" count={3}>
+                <Rows n={8} label="err" />
+              </AccordionPanel>
+            </AccordionGroup>
+            <p class="note">
+              The coloured dots are <code>badge</code> — a state dot, not a count. A panel
+              can carry an urgent badge and a count of zero, which is why they are separate
+              slots. Right-click any rail button or title bar for the context menu.
             </p>
           </div>
         </Card>
