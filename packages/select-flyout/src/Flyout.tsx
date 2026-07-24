@@ -414,14 +414,12 @@ export function Flyout(props: FlyoutProps): JSX.Element {
                       if (!opt.disabled) setFocusedIndex(index());
                     }}
                   >
-                    {/* Selection marker. The glyph is DRAWN in CSS off the
-                        `-option-selected` class rather than rendered as a
-                        character here: a text triangle (▸ / ▶) has erratic
-                        font coverage and vertical metrics, and on several
-                        platforms ▶ resolves to an emoji. The span is always
-                        present so every row reserves the same marker column
-                        and the labels stay aligned. */}
-                    <span class="cujuju-select-flyout-check" aria-hidden="true" />
+                    {/* No marker element. Selection is painted as a RAIL down
+                        the row's inline-start edge, drawn in CSS off the
+                        `-option-selected` class — so it costs no layout at
+                        all. A marker column had to be reserved on every row
+                        for the one row that uses it; the rail gives that width
+                        back to the labels. */}
                     <span>{opt.label}</span>
                   </button>
                 </li>

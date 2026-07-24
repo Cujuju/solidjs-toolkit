@@ -110,11 +110,13 @@
 }
 
 .cujuju-select-flyout-list {
-  /* The role="listbox" element. Reset UA <ul> defaults; lay options
-     out in a column. 4px inset keeps the self-rounded option rows off
-     the glass edge. */
+  /* The role="listbox" element. Reset UA <ul> defaults; lay options out in a
+     column. Rows are FULL-BLEED horizontally (vertical padding only): the
+     selection rail has to reach the panel's own edge, and a horizontal inset
+     would float it in from the side. Hover/focus fills go edge-to-edge for
+     the same reason, which is the usual menu idiom anyway. */
   margin: 0;
-  padding: 4px;
+  padding: 4px 0;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -127,14 +129,10 @@
      horizontal one (`-marker-w` long) — so the drawn glyph is
      2 x -marker-h tall and -marker-w wide. 4/5px reads as a crisp arrowhead
      against a 13px label. */
-  --cujuju-select-flyout-marker-h: 4px;
-  --cujuju-select-flyout-marker-w: 5px;
-  /* OPTICAL nudge, not a fudge. Centring the marker geometrically leaves it
-     looking high, because a line box reserves descender space the text may not
-     use: measured against "5 minutes" (no descenders at all, ink descent 0),
-     the ink centre sits 0.5px BELOW the box centre at 13px. Expressed in em so
-     it tracks the font size — 0.04em is that measured 0.5px at 13px. */
-  --cujuju-select-flyout-marker-nudge: 0.04em;
+  /* Width of the selection rail (see the `-option-selected` rule). 3px reads
+     clearly at a 13px label without crowding the text, and matches the rail
+     the tri-state chip uses so the two controls agree. */
+  --cujuju-select-flyout-rail-width: 3px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -142,7 +140,10 @@
   padding: 8px 12px;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-sm, 4px);
+  /* Square, deliberately. A rounded row rounds the ENDS of the inset-shadow
+     rail with it, so the rail reads as a floating lozenge instead of a stripe
+     running the full height of the row. */
+  border-radius: 0;
   color: var(--color-text, #e2e8f0);
   font-size: var(--font-size-sm, 13px);
   cursor: pointer;
@@ -169,33 +170,17 @@
   cursor: not-allowed;
 }
 
-/* Selection marker column — reserved on EVERY row so labels stay aligned
-   whether or not the row is the selected one. */
-.cujuju-select-flyout-check {
-  width: 14px;
-  height: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+/* Selection RAIL — a stripe down the selected row's inline-start edge, painted
+   with an inset box-shadow so it occupies no layout whatsoever.
 
-/* The marker itself: a triangle pointing AT the label it marks, drawn with
-   the border trick rather than set as a character. A text triangle depends on
-   the host font having the glyph at sane metrics — ▸ and ▶ vary widely, and ▶
-   resolves to an emoji on several platforms. Borders are crisp at any size,
-   take `currentColor` (so the marker is automatically the selected row's own
-   colour), and cost no font lookup. */
-.cujuju-select-flyout-option-selected .cujuju-select-flyout-check::before {
-  content: '';
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width:
-    var(--cujuju-select-flyout-marker-h) 0
-    var(--cujuju-select-flyout-marker-h)
-    var(--cujuju-select-flyout-marker-w);
-  border-color: transparent transparent transparent currentColor;
-  position: relative;
-  top: var(--cujuju-select-flyout-marker-nudge);
+   This replaced a marker column (a bullet, then a triangle). A column has to
+   be reserved on EVERY row so the labels stay aligned, purely so the ONE
+   selected row can put a glyph in it — the rail hands that width back to the
+   labels. It also sidesteps the whole optical-centring problem a glyph has,
+   since a full-height stripe has no baseline to agree with.
+
+   `currentColor` picks up the selected row's own colour, so the rail needs no
+   colour of its own and follows any host retheme automatically. */
+.cujuju-select-flyout-option-selected {
+  box-shadow: inset var(--cujuju-select-flyout-rail-width) 0 0 currentColor;
 }
