@@ -10,14 +10,15 @@
     --pnp-suffix-color: #64748b;
     --pnp-radius: 9999px;
     --pnp-disabled-opacity: 0.3;
-    /* 1px INSET (negative offset), not 2px outset. The ring is drawn just
-       inside the control's own border, so it follows the pill's radius on both
-       ends and cannot overlap a neighbouring button — the 2px/+2px version
-       drew a detached halo that crossed the pop-out panel and sat on top of
-       the adjacent stepper. Text inputs match :focus-visible even on a MOUSE
-       click (per spec), so this ring is on screen far more often than a
-       keyboard-only ring would be; it has to be quiet enough to live with. */
-    --pnp-focus-ring: 1px solid #6366f1;
+    /* Focus ring HIDDEN by default (user directive). Opt back in by setting
+       `--pnp-focus-ring: 1px solid #6366f1` — a 1px INSET ring (note the
+       negative offset) drawn just inside the control's border, so it follows
+       the pill's radius and never draws the detached halo the old 2px/+2px
+       version did (which crossed the pop-out and sat on the adjacent stepper).
+       Text inputs match :focus-visible even on a MOUSE click, so on this
+       control the ring would otherwise show constantly — the main reason the
+       default is off here. Keyboard-only users lose the cue while hidden. */
+    --pnp-focus-ring: none;
     --pnp-focus-ring-offset: -1px;
     --pnp-gap: 0;
     --pnp-btn-hover-bg: rgba(255, 255, 255, 0.06);

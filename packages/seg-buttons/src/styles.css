@@ -13,8 +13,11 @@
     --seg-inactive-border: #334155;
     --seg-inactive-text: #94a3b8;
     --seg-disabled-opacity: 0.4;
-    --seg-focus-ring: 2px solid #6366f1;
-    --seg-focus-ring-offset: 2px;
+    /* Focus ring HIDDEN by default (user directive). Opt in with
+       `--seg-focus-ring: 1px solid #6366f1` for the thin inset ring; the offset
+       is already inset (-1px). Keyboard users lose the cue while hidden. */
+    --seg-focus-ring: none;
+    --seg-focus-ring-offset: -1px;
     --seg-radius: 4px;
     --seg-hover-bg: rgba(255, 255, 255, 0.04);
     --seg-hover-text: #e2e8f0;

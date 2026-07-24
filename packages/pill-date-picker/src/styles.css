@@ -9,8 +9,12 @@
     --pdp-text-muted: #94a3b8;
     --pdp-radius: 6px;
     --pdp-disabled-opacity: 0.3;
-    --pdp-focus-ring: 2px solid #6366f1;
-    --pdp-focus-ring-offset: 2px;
+    /* Focus ring HIDDEN by default (user directive). Opt in with
+       `--pdp-focus-ring: 1px solid #6366f1` for the thin inset ring; the
+       offset is already inset (-1px) so it hugs the control. Keyboard users
+       lose the visible cue while hidden — a documented tradeoff. */
+    --pdp-focus-ring: none;
+    --pdp-focus-ring-offset: -1px;
     --pdp-hover-bg: rgba(255, 255, 255, 0.06);
 
     /* Pop-out surface */

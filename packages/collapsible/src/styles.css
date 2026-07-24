@@ -16,6 +16,11 @@
     --cl-header-padding: 0;
     --cl-content-padding: 0;
     --cl-animation-duration: 180ms;
+    /* Focus ring HIDDEN by default (user directive). Opt in with
+       `--cl-focus-ring: 1px solid #6366f1` for the thin inset ring; the offset
+       is already inset (-1px). Keyboard users lose the cue while hidden. */
+    --cl-focus-ring: none;
+    --cl-focus-ring-offset: -1px;
   }
 }
 
@@ -70,8 +75,8 @@
 }
 
 .ccl-header:focus-visible {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
+  outline: var(--cl-focus-ring);
+  outline-offset: var(--cl-focus-ring-offset);
 }
 
 /* Kill browser :active translate/inset some UAs apply to pressed buttons. */

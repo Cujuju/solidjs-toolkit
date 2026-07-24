@@ -15,8 +15,11 @@
     --tp-dot-mixed: color-mix(in srgb, var(--tp-dot) 55%, transparent);
     --tp-disabled-opacity: 0.5;
     --tp-readonly-opacity: 0.85;
-    --tp-focus-ring: 2px solid #6366f1;
-    --tp-focus-ring-offset: 2px;
+    /* Focus ring HIDDEN by default (user directive). Opt in with
+       `--tp-focus-ring: 1px solid #6366f1` for the thin inset ring; the offset
+       is already inset (-1px). Keyboard users lose the cue while hidden. */
+    --tp-focus-ring: none;
+    --tp-focus-ring-offset: -1px;
   }
 }
 
