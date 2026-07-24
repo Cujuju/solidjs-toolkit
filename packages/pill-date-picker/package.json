@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-pill-date-picker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compact expiration / DTE picker for SolidJS — collapsed pill with a hover DTE tooltip, portalled pop-out ladder, caller-supplied dates, deterministic DTE math.",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,7 +39,7 @@
     "popout"
   ],
   "peerDependencies": {
-    "@cujuju/solidjs-kv-tooltip": "workspace:*",
+    "@cujuju/solidjs-kv-tooltip": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -49,7 +49,7 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
-    "@cujuju/solidjs-kv-tooltip": "workspace:*",
+    "@cujuju/solidjs-kv-tooltip": "workspace:^",
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",
     "vite-plugin-solid": "^2.11.12",

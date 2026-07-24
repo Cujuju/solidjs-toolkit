@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-chip-flyout",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Filter flyout primitive for SolidJS — a trigger button opening a Portal'd glass menu of tri-state or multi-select chips, with optional server-backed typeahead.",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,9 +40,9 @@
     "popover"
   ],
   "peerDependencies": {
-    "@cujuju/solidjs-glass-menu": "workspace:*",
-    "@cujuju/solidjs-hooks": "workspace:*",
-    "@cujuju/solidjs-tri-state-chip": "workspace:*",
+    "@cujuju/solidjs-glass-menu": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
+    "@cujuju/solidjs-tri-state-chip": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -52,9 +52,9 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
-    "@cujuju/solidjs-glass-menu": "workspace:*",
-    "@cujuju/solidjs-hooks": "workspace:*",
-    "@cujuju/solidjs-tri-state-chip": "workspace:*",
+    "@cujuju/solidjs-glass-menu": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
+    "@cujuju/solidjs-tri-state-chip": "workspace:^",
     "@solidjs/testing-library": "^0.8.0",
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",

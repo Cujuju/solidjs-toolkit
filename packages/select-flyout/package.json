@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-select-flyout",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Keyboard-accessible <select> replacement for SolidJS — roving focus, type-ahead, ARIA combobox/listbox, rendered through an anchored glass-menu panel so backdrop-filter actually applies.",
   "type": "module",
   "main": "./dist/index.js",
@@ -41,9 +41,9 @@
     "glassmorphism"
   ],
   "peerDependencies": {
-    "@cujuju/solidjs-anchored-popover": "workspace:*",
-    "@cujuju/solidjs-glass-menu": "workspace:*",
-    "@cujuju/solidjs-hooks": "workspace:*",
+    "@cujuju/solidjs-anchored-popover": "workspace:^",
+    "@cujuju/solidjs-glass-menu": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -53,9 +53,9 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
-    "@cujuju/solidjs-anchored-popover": "workspace:*",
-    "@cujuju/solidjs-glass-menu": "workspace:*",
-    "@cujuju/solidjs-hooks": "workspace:*",
+    "@cujuju/solidjs-anchored-popover": "workspace:^",
+    "@cujuju/solidjs-glass-menu": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "@testing-library/jest-dom": "^6.9.1",
     "happy-dom": "^15.11.0",
     "vite-plugin-solid": "^2.11.12",

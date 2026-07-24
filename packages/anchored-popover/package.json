@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-anchored-popover",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Anchored popover primitive for SolidJS — HTML Popover API in manual mode, 8 placements, viewport clamping, parent/child popover coordination, wireable dismiss-skip.",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,7 +40,7 @@
     "flyout"
   ],
   "peerDependencies": {
-    "@cujuju/solidjs-hooks": "^2.0.0",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -50,7 +50,7 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
-    "@cujuju/solidjs-hooks": "workspace:*",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "@solidjs/testing-library": "^0.8.0",
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",

@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-context-menu",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Cursor-positioned context menu for SolidJS — nested submenus, slider / button-row / checkbox entries, viewport clamping, top-layer popover, styled with the .glass-menu surface.",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,8 +40,8 @@
     "glassmorphism"
   ],
   "peerDependencies": {
-    "@cujuju/solidjs-glass-menu": "workspace:*",
-    "@cujuju/solidjs-hooks": "workspace:*",
+    "@cujuju/solidjs-glass-menu": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -51,8 +51,8 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
-    "@cujuju/solidjs-glass-menu": "workspace:*",
-    "@cujuju/solidjs-hooks": "workspace:*",
+    "@cujuju/solidjs-glass-menu": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "@solidjs/testing-library": "^0.8.0",
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",

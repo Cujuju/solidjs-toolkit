@@ -31,7 +31,7 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-hooks':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../hooks
       '@solidjs/testing-library':
         specifier: ^0.8.0
@@ -56,13 +56,13 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-glass-menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../glass-menu
       '@cujuju/solidjs-hooks':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../hooks
       '@cujuju/solidjs-tri-state-chip':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../tri-state-chip
       '@solidjs/testing-library':
         specifier: ^0.8.0
@@ -106,10 +106,10 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-glass-menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../glass-menu
       '@cujuju/solidjs-hooks':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../hooks
       '@solidjs/testing-library':
         specifier: ^0.8.0
@@ -134,13 +134,13 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-anchored-popover':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../anchored-popover
       '@cujuju/solidjs-editable-list-row':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../editable-list-row
       '@cujuju/solidjs-hooks':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../hooks
       '@solidjs/testing-library':
         specifier: ^0.8.0
@@ -165,7 +165,7 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-hooks':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../hooks
       '@solidjs/testing-library':
         specifier: ^0.8.0
@@ -212,7 +212,7 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-glass':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../glass
       '@solidjs/testing-library':
         specifier: ^0.8.0
@@ -285,7 +285,7 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-kv-tooltip':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../kv-tooltip
       '@testing-library/jest-dom':
         specifier: ^6.9.1
@@ -364,13 +364,13 @@ importers:
         version: 1.9.12
     devDependencies:
       '@cujuju/solidjs-anchored-popover':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../anchored-popover
       '@cujuju/solidjs-glass-menu':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../glass-menu
       '@cujuju/solidjs-hooks':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../hooks
       '@testing-library/jest-dom':
         specifier: ^6.9.1

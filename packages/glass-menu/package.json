@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-glass-menu",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Glass-surfaced menu shell for SolidJS — a header (title + action slot + close button) over a scrollable body, styled with the .glass-menu surface.",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,7 +39,7 @@
     "glass"
   ],
   "peerDependencies": {
-    "@cujuju/solidjs-glass": "workspace:*",
+    "@cujuju/solidjs-glass": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -49,7 +49,7 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
-    "@cujuju/solidjs-glass": "workspace:*",
+    "@cujuju/solidjs-glass": "workspace:^",
     "@solidjs/testing-library": "^0.8.0",
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",

@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-editable-list-flyout",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Composed flyout primitive for SolidJS — anchored popover wrapping editable rows with built-in inline add affordance. Drop-in flyout-select with create/rename/delete.",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,9 +39,9 @@
     "inline-add"
   ],
   "peerDependencies": {
-    "@cujuju/solidjs-anchored-popover": "^0.1.0",
-    "@cujuju/solidjs-editable-list-row": "^0.1.0",
-    "@cujuju/solidjs-hooks": "^2.0.0",
+    "@cujuju/solidjs-anchored-popover": "workspace:^",
+    "@cujuju/solidjs-editable-list-row": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -51,9 +51,9 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
-    "@cujuju/solidjs-anchored-popover": "workspace:*",
-    "@cujuju/solidjs-editable-list-row": "workspace:*",
-    "@cujuju/solidjs-hooks": "workspace:*",
+    "@cujuju/solidjs-anchored-popover": "workspace:^",
+    "@cujuju/solidjs-editable-list-row": "workspace:^",
+    "@cujuju/solidjs-hooks": "workspace:^",
     "@solidjs/testing-library": "^0.8.0",
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",
