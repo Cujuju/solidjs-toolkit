@@ -102,6 +102,21 @@
        quantities — for a line thinner is crisper, for a gap thinner is fainter
        — so the two will never want to move together. */
     --ctc-cut-thickness: 2px;
+    /* `hatch` — diagonal hazard stripes across the whole excluded chip, the
+       barricade-tape / "this control is barred" idiom. Geometry is three
+       tokens so the tape can be re-pitched without touching the gradient.
+       2px bar / 3px space at 45deg is a period of 5px measured along the
+       gradient normal, which is ~7px along the chip's horizontal — dense
+       enough to read as tape rather than as a few stray lines at the 10-13px
+       chip sizes, open enough that the stripes never merge into a wash.
+       The colour is the excluded tint at a LOWER strength than the chip's own
+       fill, because the stripes sit on top of that fill and the two
+       multiply. */
+    --ctc-hatch-angle: 45deg;
+    --ctc-hatch-stripe-width: 2px;
+    --ctc-hatch-gap-width: 3px;
+    --ctc-hatch-color: color-mix(in srgb, var(--ctc-color-excluded) 30%, transparent);
+    --ctc-hatch-color-hover: color-mix(in srgb, var(--ctc-color-excluded) 45%, transparent);
     --ctc-underline-thickness: 1px;
     --ctc-underline-offset: 3px;
     --ctc-badge-size: 13px;
@@ -260,6 +275,53 @@
   text-decoration: underline;
   text-underline-offset: var(--ctc-underline-offset);
   text-decoration-thickness: var(--ctc-underline-thickness);
+}
+
+/* hatch — diagonal hazard stripes over the whole excluded chip, the way a
+   barricade tape or a disabled control is marked. Unlike strike/cut, which
+   mark the WORD, this marks the CONTROL: nothing is drawn on the label at all.
+
+   The stripes are painted by a `::before` covering the chip, NOT by a
+   background-image on the chip itself — the chip's `background` already
+   carries the state fill, and a gradient there would have to re-declare it on
+   every state. `border-radius: inherit` keeps the tape inside the chip's
+   corners; `pointer-events: none` keeps it out of hit-testing.
+
+   The label is given `position: relative` so it stacks ABOVE the stripes.
+   Painting tape over the text is the more literal hazard look but costs
+   legibility at 10-13px, and a chip whose label you cannot read has stopped
+   being a chip. */
+.ctc-chip[data-indicator="hatch"] {
+  position: relative;
+}
+.ctc-chip[data-indicator="hatch"] .ctc-chip-label {
+  position: relative;
+}
+.ctc-chip[data-indicator="hatch"][data-state="excluded"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    var(--ctc-hatch-angle),
+    var(--ctc-hatch-color) 0,
+    var(--ctc-hatch-color) var(--ctc-hatch-stripe-width),
+    transparent var(--ctc-hatch-stripe-width),
+    transparent calc(var(--ctc-hatch-stripe-width) + var(--ctc-hatch-gap-width))
+  );
+}
+
+/* Hover strengthens the tape in step with the chip's own fill, so the stripes
+   do not wash out as the background underneath them comes up. */
+.ctc-chip[data-indicator="hatch"][data-state="excluded"]:hover:not(:disabled)::before {
+  background: repeating-linear-gradient(
+    var(--ctc-hatch-angle),
+    var(--ctc-hatch-color-hover) 0,
+    var(--ctc-hatch-color-hover) var(--ctc-hatch-stripe-width),
+    transparent var(--ctc-hatch-stripe-width),
+    transparent calc(var(--ctc-hatch-stripe-width) + var(--ctc-hatch-gap-width))
+  );
 }
 
 /* badge — a small disc pinned to the top-inline-end corner, out of flow. The

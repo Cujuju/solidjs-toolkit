@@ -18,6 +18,7 @@ const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
 const INDICATORS = [
   { id: 'strike', cap: 'strike — the default; excluded is crossed out' },
   { id: 'cut', cap: 'cut — inverse strike: the knockout, no line' },
+  { id: 'hatch', cap: 'hatch — diagonal hazard tape across the chip' },
   { id: 'marks', cap: 'marks — + underline on included (not colour alone)' },
   { id: 'badge', cap: 'badge — corner disc, out of flow' },
   { id: 'rail', cap: 'rail — inline-start stripe' },
@@ -27,7 +28,7 @@ const INDICATORS = [
 
 /** A row of chips wired to its own independent state. */
 function ChipRow(props: {
-  indicator?: 'glyph' | 'strike' | 'cut' | 'marks' | 'badge' | 'rail' | 'tint';
+  indicator?: 'glyph' | 'strike' | 'cut' | 'hatch' | 'marks' | 'badge' | 'rail' | 'tint';
   count?: number;
 }): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
@@ -124,7 +125,8 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
 
 // Any other treatment is one prop:
 <TriStateChip label="puts" value={s} onCycle={f} indicator="badge" />
-//   'strike' | 'cut' | 'marks' | 'badge' | 'rail' | 'tint'  -> no glyph column
+//   'strike' | 'cut' | 'hatch' | 'marks' | 'badge' | 'rail' | 'tint'
+//                                                   -> no glyph column
 //   'glyph'                                         -> leading ✓ / ✗ column
 
 // glyph mode: the bare (neutral) label is CENTRED; a ✓/✗ offsets it right.
@@ -149,6 +151,12 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   --ctc-strike-thickness: 1px;       /* the visible line */
   --ctc-strike-knockout-width: 0.5px;/* dead space each side of it */
   --ctc-cut-thickness: 2px;          /* indicator="cut": the gap, no line */
+
+  /* indicator="hatch": the hazard tape. Bar / space / pitch. */
+  --ctc-hatch-angle: 45deg;
+  --ctc-hatch-stripe-width: 2px;
+  --ctc-hatch-gap-width: 3px;
+  --ctc-hatch-color: color-mix(in srgb, var(--ctc-color-excluded) 30%, transparent);
 
   --ctc-color-included: #10b981;
   --ctc-color-excluded: #f43f5e;
