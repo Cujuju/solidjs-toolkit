@@ -6,8 +6,19 @@
 
    Stable global classes, prefixed `cujuju-select-flyout-*`. Host theme
    tokens (`--color-*`, `--height-btn`, `--radius-*`, `--font-size-*`,
-   `--z-flyout`) are referenced directly — see the package README for
-   the full list a host must provide. */
+   `--z-flyout`) are referenced directly — see the package README for the
+   full list.
+
+   Every one of those now carries a FALLBACK. This package used to be the
+   only one in the toolkit that assumed a host design system, and a host
+   that supplied none got a broken control rather than an unstyled one:
+   `height: var(--height-btn)` with the token unset is an invalid
+   declaration, so the trigger collapsed to its 19px content height;
+   `--radius-btn` unset squared the corners; `--color-primary` unset killed
+   the open/focus rule and left the UA's own focus chrome showing through.
+   The result looked like a raw HTML control sitting next to styled ones.
+   The fallbacks are the toolkit's dark defaults, so the flyout is correct
+   out of the box and a host's tokens still win wherever they are set. */
 
 .cujuju-select-flyout-trigger {
   --cujuju-select-flyout-chevron-icon: 14px;
@@ -24,20 +35,30 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: var(--height-btn);
+  height: var(--height-btn, 28px);
   box-sizing: border-box;
   padding: 0 var(--cujuju-select-flyout-chevron-room) 0
     var(--cujuju-select-flyout-trigger-pad-left);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-btn);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-border, #334155);
+  border-radius: var(--radius-btn, 6px);
+  background: var(--color-surface, #1e293b);
+  color: var(--color-text, #e2e8f0);
+  font-size: var(--font-size-sm, 13px);
   font-family: inherit;
   cursor: pointer;
   position: relative;
   white-space: nowrap;
   text-align: left;
+}
+
+/* Hover — the trigger had NO hover state at all, so it read as inert next to
+   every other control in the toolkit. Lifts the surface and the border a step,
+   the same "lightened version of the control" idea the focus rings use. */
+.cujuju-select-flyout-trigger:hover:not(:disabled) {
+  background: var(--cujuju-select-flyout-trigger-bg-hover,
+    color-mix(in srgb, var(--color-text, #e2e8f0) 7%, var(--color-surface, #1e293b)));
+  border-color: var(--cujuju-select-flyout-trigger-border-hover,
+    color-mix(in srgb, var(--color-border, #334155) 55%, #fff));
 }
 
 .cujuju-select-flyout-trigger:disabled {
@@ -47,7 +68,7 @@
 
 .cujuju-select-flyout-trigger-open,
 .cujuju-select-flyout-trigger:focus-visible {
-  border-color: var(--color-primary);
+  border-color: var(--color-primary, #6366f1);
 }
 
 .cujuju-select-flyout-chevron {
@@ -55,7 +76,7 @@
   right: var(--cujuju-select-flyout-chevron-right);
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #94a3b8);
   pointer-events: none;
 }
 
@@ -66,7 +87,7 @@
 }
 
 .cujuju-select-flyout-placeholder {
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary, #94a3b8);
 }
 
 /* Sizing only — the glass surface, border-radius, and the scrollable
@@ -75,7 +96,7 @@
    This primitive intentionally doesn't virtualize — consumers keep
    option counts modest. */
 .cujuju-select-flyout-panel {
-  z-index: var(--z-flyout);
+  z-index: var(--z-flyout, 1000);
   min-width: 160px;
   max-height: 320px;
 }
@@ -100,9 +121,9 @@
   padding: 8px 12px;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-text, #e2e8f0);
+  font-size: var(--font-size-sm, 13px);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -110,16 +131,16 @@
 
 .cujuju-select-flyout-option:hover:not(:disabled),
 .cujuju-select-flyout-option-focused {
-  background: var(--color-surface-hover);
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
 }
 
 .cujuju-select-flyout-option-selected {
-  color: var(--color-primary);
+  color: var(--color-primary, #6366f1);
 }
 
 .cujuju-select-flyout-option-selected.cujuju-select-flyout-option:hover,
 .cujuju-select-flyout-option-selected.cujuju-select-flyout-option-focused {
-  background: var(--color-primary-alpha-10);
+  background: var(--color-primary-alpha-10, rgba(99, 102, 241, 0.14));
 }
 
 .cujuju-select-flyout-option:disabled {
