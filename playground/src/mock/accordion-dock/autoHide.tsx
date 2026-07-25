@@ -477,6 +477,22 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
           onPointerEnter={() => cancelLeave(id)}
           onPointerLeave={() => scheduleLeave(id)}
           onCommit={() => causes.set(id, 'click')}
+          /*
+           * A DELIBERATELY-opened flyout takes focus; a hover-opened one does not.
+           *
+           * Without this the flyout's content had no keyboard path at all. Focus
+           * stayed on the rail button, the popover is Portal'd to the end of
+           * <body> so it is nowhere near the button in tab order, and the first
+           * Tab moved focus to the next rail button — which `onFocusIn` reads as
+           * "you left" and dismisses. Every route in was also a route out.
+           *
+           * Hover is excluded because a pointer user has not committed to
+           * anything: yanking focus out from under them mid-traverse would move
+           * the caret while they are still deciding. `causes` records 'hover' only
+           * for a hover-open, so its ABSENCE is the deliberate case — click,
+           * Enter/Space on the rail button, or a restore.
+           */
+          autoFocus={causes.get(id) !== 'hover'}
         />
       )}
     </For>
@@ -518,7 +534,35 @@ function Flyout(props: {
   onPointerEnter: () => void;
   onPointerLeave: () => void;
   onCommit: () => void;
+  autoFocus: boolean;
 }): JSX.Element {
+  /** The popover's content element, once it exists — the whole flyout surface. */
+  let surface: HTMLElement | undefined;
+
+  /**
+   * Move focus in, once the popover is actually focusable.
+   *
+   * Driven by the primitive's `onShown` rather than by a frame of our own. A
+   * popover is `display: none` until it enters the top layer and unpositioned for a
+   * frame after that, and both states swallow `.focus()` silently — an element the
+   * browser will not paint is an element it will not focus. Every schedule this
+   * file could choose is a guess: the ref fires before the show, an effect created
+   * here runs before the primitive's (this component's body runs first), and a
+   * single `requestAnimationFrame` happened to land too early in Chromium.
+   *
+   * That was not theory — it was the first attempt, and it failed exactly that way:
+   * the flyout was visible and `:popover-open` by the time anything checked, and
+   * focus had never moved.
+   */
+  const focusSurface = (): void => {
+    if (!props.autoFocus) return;
+    // The surface itself rather than its first focusable child. The dialog
+    // pattern: a screen reader announces the panel's `aria-label`, and the user's
+    // next Tab enters the content in document order rather than starting from
+    // whichever control the chrome happens to render first (the pin, which is a
+    // decision, not a destination).
+    surface?.focus();
+  };
   // The anchor is READ REACTIVELY on every tracked change rather than captured:
   // the rail button's ref fires after this component first renders, and a
   // re-render of the rail (a reorder, a count change) can replace the element.
@@ -561,6 +605,7 @@ function Flyout(props: {
       anchor={() => anchor() ?? null}
       placement={placement()}
       onDismiss={props.onDismiss}
+      onShown={focusSurface}
       shouldSuppressDismiss={(target) => target.closest(DISMISS_SUPPRESS_SELECTOR) !== null}
       shellClass={FLYOUT_SHELL_CLASS}
       shellStyle={() => {
@@ -595,6 +640,11 @@ function Flyout(props: {
         the popover primitive. No removal: it is discarded with the popover.
       */
       contentRef={(el) => {
+        surface = el;
+        // Focusable programmatically but NOT in the tab sequence: the flyout is a
+        // destination for the focus move above and for a click, never something
+        // the user tabs into from the far end of the document.
+        el.tabIndex = -1;
         // A pointerdown anywhere on the surface promotes the peek to a
         // decision, so it stops closing when the pointer leaves. Bubble phase,
         // so the pin and close buttons' `stopPropagation` still pre-empts it.

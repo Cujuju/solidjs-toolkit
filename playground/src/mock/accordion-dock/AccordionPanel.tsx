@@ -86,7 +86,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   const horizontal = (): boolean => group.orientation() === 'horizontal';
   const closable = (): boolean => props.closable ?? horizontal();
 
-  const onKeyDown = createActivatorKeyDown(group, () => props.id);
+
   /**
    * See `trackedRef`: registration and its cleanup are one decision, so they are
    * one call. A bare `ref={(el) => setHeaderEl(id, el)}` leaks a detached node.
@@ -100,6 +100,11 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   /** One menu instance per panel, attached to whichever chrome this orientation
    *  renders — the header row (vertical) or the column title bar (horizontal). */
   const menu = createPanelMenu(group, () => props.id);
+  // One `onKeyDown` per element, so the menu binding lives inside the activator's
+  // key handler rather than competing with it — see `createActivatorKeyDown`.
+  const onKeyDown = createActivatorKeyDown(group, () => props.id, {
+    onMenu: (el) => menu.openAtElement(el),
+  });
   /**
    * The drag ITEM is the whole panel; the header (or column title bar) is only the
    * HANDLE.

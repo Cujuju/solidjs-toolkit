@@ -98,6 +98,21 @@ export interface AnchoredPopoverProps {
    *  carries `class` / `role` / `aria-label`). Useful when an external
    *  trigger button needs to wire `aria-controls`. */
   id?: string;
+  /**
+   * Fired once the popover is SHOWN and POSITIONED — after `showPopover()` and
+   * after the clamp has run.
+   *
+   * The distinction matters for anything that has to act on the element rather
+   * than merely render it. A popover is `display: none` until it enters the top
+   * layer and is unpositioned for a frame after that, and both states silently
+   * swallow `.focus()` — an element that cannot be painted cannot be focused. A
+   * consumer therefore cannot schedule that work itself: a ref fires too early, an
+   * effect created in the consumer's body runs before this component's, and one
+   * `requestAnimationFrame` is a guess that is right on some machines.
+   *
+   * Fires on every open, not just the first.
+   */
+  onShown?: () => void;
   /** Optional ref to the CONTENT element — the one carrying `class` /
    *  `role` / `aria-label`, i.e. the whole visible surface including
    *  any chrome the consumer renders around its main body.
@@ -266,6 +281,10 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
           parent.hidePopover();
           parent.showPopover();
         }
+        // Last, deliberately: a consumer moving focus into the panel must run
+        // after the panel is both painted and in its final position, or it
+        // focuses an element the browser still considers unrenderable.
+        props.onShown?.();
       });
     } else {
       if (el.matches(':popover-open')) {

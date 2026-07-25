@@ -295,6 +295,16 @@ export interface PanelMenu {
   /** Open at an explicit point, for callers that already own an `onContextMenu`
    *  (e.g. one that must also select the panel first). */
   openAt: (e: MouseEvent) => void;
+  /**
+   * Open anchored to an ELEMENT rather than a pointer — the keyboard path.
+   *
+   * A context menu reachable only by right-click is a set of commands a keyboard
+   * user cannot issue: on the rail button, "Pin", "Close Others" and both Move
+   * commands exist nowhere else in the chrome. Shift+F10 and the ContextMenu key
+   * are the platform bindings for exactly this, and they carry no coordinates —
+   * hence an element instead of an event.
+   */
+  openAtElement: (el: HTMLElement) => void;
   close: () => void;
   isOpen: Accessor<boolean>;
 }
@@ -319,6 +329,18 @@ export function createPanelMenu(
 
   const close = (): void => {
     setAt(null);
+  };
+
+  /**
+   * Where a menu opened from an element should appear: its bottom-left corner.
+   *
+   * Matches what a right-click on that element's leading edge would produce, so
+   * the two entry points put the menu in the same place rather than in two
+   * conventions the user has to hold separately.
+   */
+  const openAtElement = (el: HTMLElement): void => {
+    const r = el.getBoundingClientRect();
+    setAt({ x: r.left, y: r.bottom });
   };
 
   const openAt = (e: MouseEvent): void => {
@@ -355,6 +377,7 @@ export function createPanelMenu(
     triggerProps: { onContextMenu: openAt },
     element,
     openAt,
+    openAtElement,
     close,
     isOpen: () => at() !== null,
   };

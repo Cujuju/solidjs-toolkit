@@ -925,7 +925,6 @@ function RailButton(props: {
 }): JSX.Element {
   const open = (): boolean => props.group.isOpen(props.meta.id);
   const pinned = (): boolean => props.group.isPinned(props.meta.id);
-  const onKeyDown = createActivatorKeyDown(props.group, () => props.meta.id);
   const dragProps = (): Record<string, unknown> => props.group.reorderItemProps(props.meta.id);
   /**
    * The id is CAPTURED, not read through `props` on each call.
@@ -944,6 +943,11 @@ function RailButton(props: {
   // reactive metadata, so a snapshot would bind the menu to whichever panel held
   // the slot at mount and act on the wrong one after a reorder.
   const menu = createPanelMenu(props.group, () => props.meta.id);
+  // The menu is passed INTO the key handler rather than attached separately: one
+  // element, one `onKeyDown`. See `createActivatorKeyDown`.
+  const onKeyDown = createActivatorKeyDown(props.group, () => props.meta.id, {
+    onMenu: (el) => menu.openAtElement(el),
+  });
 
   return (
     <>
