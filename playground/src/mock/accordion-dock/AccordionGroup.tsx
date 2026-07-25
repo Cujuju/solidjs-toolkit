@@ -3,6 +3,7 @@ import {
   ACCORDION_LAYOUT_VERSION,
   AccordionGroupContext,
   type AccordionGroupApi,
+  type AccordionLayout,
   type AccordionMode,
   type AccordionOpenPlacement,
   type AccordionOrientation,
@@ -108,12 +109,14 @@ export interface AccordionGroupProps {
   onSizeChange?: (sizes: Readonly<Record<string, number>>) => void;
 }
 
-interface PersistedState {
-  open: string[];
-  pinned: string[];
-  order: string[];
-  sizes: Record<string, number>;
-}
+/**
+ * What goes to localStorage. Deliberately `AccordionLayout` itself rather than a
+ * parallel shape: a saved workspace and an auto-persisted session are the same
+ * data, so there is one migration story instead of two — which is exactly what
+ * `AccordionLayout`'s own doc comment already promised, and what the two paths
+ * had quietly stopped agreeing on.
+ */
+type PersistedState = AccordionLayout;
 
 /**
  * Drag activation is skipped when the pointerdown lands on something matching this.
@@ -128,6 +131,26 @@ const REORDER_SKIP_SELECTOR = '[data-no-drag]';
  *  equality downstream. */
 const EMPTY_IDS: readonly string[] = [];
 
+/**
+ * Read a persisted layout, or null.
+ *
+ * VERSION-GATED, exactly like `setLayout`. The two paths restore the same shape
+ * into the same signals, and only one of them used to check that the shape was
+ * the one it expected: `setLayout` refused a mismatched `version` outright — "a
+ * half-restored dock is harder to diagnose than one that visibly fell back to
+ * defaults" — while this function, which runs on EVERY page load, read whatever
+ * was in storage field by field with no version check at all.
+ *
+ * So the guarded path was the rare one and the unguarded path was the constant
+ * one. Bumping `ACCORDION_LAYOUT_VERSION` for a shape change would have protected
+ * consumers who saved a workspace server-side and silently mis-restored everyone
+ * who had simply used the dock before.
+ *
+ * A layout with no `version` at all is from before this gate existed, and is
+ * rejected by the same comparison rather than by a special case — there is no
+ * shape to migrate FROM on record, so "fall back to defaults" is the honest
+ * answer and the one `setLayout` already gives.
+ */
 function readPersisted(key: string | undefined): PersistedState | null {
   if (key === undefined) return null;
   try {
@@ -136,6 +159,7 @@ function readPersisted(key: string | undefined): PersistedState | null {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
     const p = parsed as Partial<PersistedState>;
+    if (p.version !== ACCORDION_LAYOUT_VERSION) return null;
     const strings = (v: unknown): string[] =>
       Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
     const sizes: Record<string, number> = {};
@@ -144,7 +168,13 @@ function readPersisted(key: string | undefined): PersistedState | null {
         if (typeof v === 'number' && Number.isFinite(v)) sizes[k] = v;
       }
     }
-    return { open: strings(p.open), pinned: strings(p.pinned), order: strings(p.order), sizes };
+    return {
+      version: ACCORDION_LAYOUT_VERSION,
+      open: strings(p.open),
+      pinned: strings(p.pinned),
+      order: strings(p.order),
+      sizes,
+    };
   } catch {
     // A corrupt/blocked localStorage must not take the panel group down.
     return null;
@@ -213,6 +243,9 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     if (props.storageKey === undefined) return;
     try {
       const state: PersistedState = {
+        // Stamped, so `readPersisted` has something to gate on. Same constant the
+        // explicit `getLayout`/`setLayout` pair uses — one version for one shape.
+        version: ACCORDION_LAYOUT_VERSION,
         open: [...openList()],
         pinned: [...pinned()],
         order: [...orderIds()],
@@ -287,15 +320,53 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     }),
   );
 
-  const commitOpen = (next: readonly string[]): void => {
+  /**
+   * THE writer for open membership. Every path that changes which panels are open
+   * goes through here — `setOpen`, `expandAll`, `collapseAll`, `setLayout` — and
+   * that is not a stylistic preference, it is where two invariants are enforced.
+   *
+   * The cap USED to be applied in `setOpen` only, so `expandAll` and `setLayout`
+   * both sailed past it: a group with `maxOpen={2}` opened all six of its panels
+   * if the consumer called `expandAll()`. A cap that three of four writers honour
+   * is not a cap. Applying it here makes "more than `maxOpen` panels are open" a
+   * state the group cannot represent, rather than one that four callsites have to
+   * remember to avoid.
+   *
+   * `justOpened` names the panel that must survive eviction — the one the user
+   * just asked for. Bulk paths pass nothing, and then the cap simply evicts the
+   * least recently opened, which is the same rule with no exception.
+   */
+  const commitOpen = (next: readonly string[], justOpened?: string): void => {
     const prev = openList();
-    setOpenList(next);
+    const capped = evictForCap(next, justOpened);
+    setOpenList(capped);
     persist();
     if (props.onChange === undefined) return;
     // Diff BOTH directions: the interesting event in an accordion is usually the
-    // panel that closed without being clicked.
-    for (const id of next) if (!prev.includes(id)) props.onChange(id, true);
-    for (const id of prev) if (!next.includes(id)) props.onChange(id, false);
+    // panel that closed without being clicked. Diffed against the CAPPED result,
+    // so a consumer is told about an eviction it did not ask for.
+    for (const id of capped) if (!prev.includes(id)) props.onChange(id, true);
+    for (const id of prev) if (!capped.includes(id)) props.onChange(id, false);
+  };
+
+  /**
+   * THE writer for the pinned set, for the same reason `commitOpen` is the writer
+   * for open membership.
+   *
+   * `setLayout` used to call `setPinnedSet` directly, so restoring a layout
+   * changed which panels were pinned and told nobody: it fired `onChange` for
+   * every panel it opened or closed, `onOrderChange`, and `onSizeChange` — and
+   * silently skipped `onPinChange`. A consumer mirroring pin state went stale on
+   * every restore, with the dock and the mirror disagreeing until the user
+   * happened to toggle a pin by hand.
+   */
+  const commitPinned = (next: ReadonlySet<string>): void => {
+    const prev = pinned();
+    setPinnedSet(next);
+    persist();
+    if (props.onPinChange === undefined) return;
+    for (const id of next) if (!prev.has(id)) props.onPinChange(id, true);
+    for (const id of prev) if (!next.has(id)) props.onPinChange(id, false);
   };
 
   /**
@@ -310,8 +381,12 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    * If every open panel is exempt the cap simply does not bind — refusing to open the
    * new panel would be a worse failure than briefly exceeding a soft limit, because
    * the user's click would appear to do nothing.
+   *
+   * `justOpened` is optional because the bulk writers (`expandAll`, `setLayout`)
+   * have no such panel: nothing there was "just asked for", so nothing is exempt
+   * and eviction is plain least-recently-opened.
    */
-  const evictForCap = (next: readonly string[], justOpened: string): readonly string[] => {
+  const evictForCap = (next: readonly string[], justOpened?: string): readonly string[] => {
     const cap = props.maxOpen;
     if (cap === undefined || cap <= 0) return next;
     const result = [...next];
@@ -342,7 +417,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       moveTo(id, orderIds().length - 1);
     };
     if (policy() === 'multi' || isLeaf(id)) {
-      commitOpen(evictForCap([...current, id], id));
+      commitOpen([...current, id], id);
       placeLast();
       return;
     }
@@ -351,11 +426,13 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     // implicitly exempt: a detail pane is the RESULT of the selection being made in
     // the columns, so auto-collapsing it on the next click would destroy the very
     // thing the click produced.
-    commitOpen(evictForCap([...current.filter((v) => pinned().has(v) || isLeaf(v)), id], id));
+    commitOpen([...current.filter((v) => pinned().has(v) || isLeaf(v)), id], id);
     placeLast();
   };
 
-  const setSizes = (next: Record<string, number>): void => {
+  /** THE writer for explicit sizes — persists and notifies, so no path can change
+   *  sizes without a consumer hearing about it. */
+  const commitSizes = (next: Record<string, number>): void => {
     setSizesRaw(next);
     persist();
     props.onSizeChange?.(next);
@@ -387,7 +464,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     elementOf: (id) => panelEls.get(id),
     minSizeOf: (id) => metaOf(id)?.minSize() ?? DEFAULT_MIN_SIZE_PX,
     sizes,
-    setSizes,
+    setSizes: commitSizes,
     // A leaf's visibility belongs to the consumer, so the dock must not close one
     // behind its back; it clamps at the minimum instead.
     canCollapse: (id) => !isLeaf(id),
@@ -521,12 +598,9 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
 
     togglePin: (id) => {
       const next = new Set(pinned());
-      const nowPinned = !next.has(id);
-      if (nowPinned) next.add(id);
-      else next.delete(id);
-      setPinnedSet(next);
-      persist();
-      props.onPinChange?.(id, nowPinned);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      commitPinned(next);
     },
 
     expandAll: () => {
@@ -534,7 +608,11 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       // accordion can do, and silently switching policy for one click would make
       // the group's contract depend on which button you last pressed.
       if (policy() === 'single') return;
-      commitOpen([...openList(), ...panels().map((m) => m.id).filter((id) => !openList().includes(id))]);
+      // Through `commitOpen`, which applies `maxOpen`. This used to open every
+      // panel unconditionally, so a group with a cap of 2 ended up with six
+      // columns and no way for the user to have produced that state themselves.
+      const open = openList();
+      commitOpen([...open, ...panels().map((m) => m.id).filter((id) => !open.includes(id))]);
     },
 
     collapseAll: () => {
@@ -558,15 +636,24 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       // group now depends on, and a half-restored dock is harder to diagnose than
       // one that visibly fell back to defaults.
       if (layout.version !== ACCORDION_LAYOUT_VERSION) return false;
-      setOrderIds([...layout.order]);
-      setPinnedSet(new Set(layout.pinned));
-      setSizesRaw({ ...layout.sizes });
-      // Routed through commitOpen so consumers still hear onChange for every panel
-      // the restore opened or closed — a restore is a state change like any other.
+      /*
+       * FOUR COMMITS, no raw setters.
+       *
+       * This used to write `setPinnedSet` and `setSizesRaw` directly and then
+       * hand-fire the callbacks it remembered — which was `onChange`,
+       * `onOrderChange` and `onSizeChange`, but never `onPinChange`. A restore
+       * silently changed which panels were pinned, so a consumer mirroring that
+       * state went stale until the user happened to toggle a pin by hand.
+       *
+       * Going through the same writers every other path uses removes the
+       * remembering. Each one persists and notifies, so a restore is reported
+       * exactly like the equivalent sequence of user actions — including the cap,
+       * which a stored layout can violate and which `commitOpen` now enforces.
+       */
+      commitOrder([...layout.order]);
+      commitPinned(new Set(layout.pinned));
+      commitSizes({ ...layout.sizes });
       commitOpen([...layout.open]);
-      persist();
-      props.onOrderChange?.(orderIds());
-      props.onSizeChange?.(sizes());
       return true;
     },
 
@@ -578,8 +665,8 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
 
     sizeOf: (id) => sizes()[id],
-    setSize: (id, px) => setSizes({ ...sizes(), [id]: px }),
-    resetSizes: () => setSizes({}),
+    setSize: (id, px) => commitSizes({ ...sizes(), [id]: px }),
+    resetSizes: () => commitSizes({}),
     beginResize: resize.begin,
     resizing: resize.resizing,
     collapseCandidate: resize.collapseCandidate,
