@@ -8,6 +8,7 @@ import {
   type JSX,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { flyoutDataAttr } from './autoHide';
 import { useAccordionGroup, type AccordionGroupApi, type PanelBadge } from './context';
 import { Chevron, Close, Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
@@ -200,6 +201,16 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       class={`vsa-panel ${props.class ?? ''}`.trim()}
       data-open={open() ? 'true' : 'false'}
       data-pinned={pinned() ? 'true' : 'false'}
+      /* The docked shell of a flying-out panel. It stays MOUNTED — it owns the
+         refs the group measures and the identity the reorder list tracks — but
+         `autoHide.css` takes it out of the column layout, because a flyout is an
+         overlay and the columns must not reflow to make room for it.
+
+         Writing this was missed when auto-hide was wired, and the CSS silently
+         never fired: the column kept its slot, kept painting its title bar, and
+         the flyout floated over it — so the bar covered the flyout's first row
+         and pinning appeared to change nothing about the layout. */
+      data-flyout={flyoutDataAttr(group.isFlyout(props.id))}
       /* The column sitting hard against the rail. Flex `order` decides that
          visually, and CSS has no "first by order" selector — so the component,
          which already knows the open index, says so out loud. Used to drop the

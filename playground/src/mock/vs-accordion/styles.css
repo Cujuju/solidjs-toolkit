@@ -149,7 +149,12 @@
      undoing it would mean also declaring the comfortable scale on the group —
      which would break the `:root`-override contract for every consumer. Density
      is a whole-dock choice here, not a per-level one. */
-  .vsa-group[data-density='compact'] {
+  /* `.vsa-flyout-host` is included because a flyout is Portal'd to <body> and so
+     escapes the group's token scope entirely. `autoHide.tsx` already restates the
+     group's density on that element; without this selector that attribute set
+     nothing, and a compact dock rendered comfortable flyouts — the one place the
+     user is looking hardest at the panel. */
+  :is(.vsa-group, .vsa-flyout-host)[data-density='compact'] {
     --vsa-header-height: 20px;
     --vsa-header-pad-x: 6px;
     --vsa-content-pad: 6px;
@@ -840,7 +845,20 @@
 
 /* ── Content ────────────────────────────────────────────────────────────── */
 
-.vsa-content {
+/* `.vsa-flyout-host` is listed here because it IS a panel's content box — just one
+   that lives in a Portal'd overlay instead of in a column. When auto-hide moves a
+   panel's subtree into a flyout, the `.vsa-content` div stays behind in the docked
+   shell, so a rule scoped to that class alone leaves the flyout with no padding and
+   no scroll: text flush against the border, and any content taller than the dock
+   clipped by `.vsa-flyout`'s `overflow: hidden` with no way to reach it.
+
+   Widened here rather than restated in `autoHide.css` on purpose. Two copies of
+   "what a content box looks like" is exactly the duplication that lets the docked
+   and flying-out renderings drift apart, and they must be indistinguishable — the
+   whole promise of pinning a flyout is that the content does not change, only where
+   it lives. */
+.vsa-content,
+.vsa-flyout-host {
   min-height: 0;
   min-width: 0;
   padding: var(--vsa-content-pad);

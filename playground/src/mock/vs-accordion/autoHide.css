@@ -79,14 +79,15 @@
     --vsa-flyout-shadow: 0 8px 24px rgb(0 0 0 / 45%);
   }
 
-  /* The element `PanelOutlet` portals the panel's subtree into. It is the
-     flyout's whole content area.
-     It also carries `data-density`, restating what the group element sets —
-     the flyout is Portal'd to <body> and so escapes the group's token scope.
-     For that to have any effect, the density block in styles.css (currently
-     `.vsa-group[data-density='compact']`) must widen to
-     `:is(.vsa-group, .vsa-flyout-host)[data-density='compact']`. Until it does,
-     a compact dock renders comfortable flyouts. */
+  /* The element the panel's subtree portals into. It is the flyout's whole
+     content area, which is why `styles.css` lists it alongside `.vsa-content`
+     for padding and scrolling — the flyout must look like the column it will
+     become when pinned.
+
+     It also carries `data-density`, restating what the group element sets, since
+     the flyout is Portal'd to <body> and escapes the group's token scope. The
+     density block in `styles.css` matches `:is(.vsa-group, .vsa-flyout-host)`
+     for that attribute to mean anything here. */
   .vsa-flyout-host {
     display: flex;
     flex-direction: column;

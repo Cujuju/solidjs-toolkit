@@ -17,7 +17,7 @@ import { createPanelMenu } from './panelMenu';
 import { createRailOverflow, RAIL_ITEM_ATTR } from './railOverflow';
 import { RailOverflowMenu } from './RailOverflowMenu';
 import { createRailPan } from './railPan';
-import { createAutoHide, type AutoHideApi } from './autoHide';
+import { createAutoHide, flyoutDataAttr, type AutoHideApi } from './autoHide';
 import { createTearOff, type TearOffController } from './tearOff';
 import { createReorderList } from './vendor/createReorderList';
 
@@ -231,6 +231,22 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   );
 
   /**
+   * Is this panel currently an auto-hide OVERLAY rather than a column?
+   *
+   * Late-bound with a `false` default because `createAutoHide` needs the finished
+   * `api` object, so it cannot exist yet at this point in the body — and
+   * `visualOpenIds` below is an eagerly-evaluated memo, so a bare `let` read here
+   * would hit the temporal dead zone on the group's very first render. The default
+   * is the correct answer for every group that never turns auto-hide on, which is
+   * also what this returns for the one frame before the assignment lands.
+   *
+   * It stays reactive through the wrapper: the assigned implementation reads
+   * `enabled`/`orientation`/`isOpen`/`isPinned`, and this indirection does not
+   * break that chain because the call happens inside the reader's tracking scope.
+   */
+  let isFlyoutId: (id: string) => boolean = () => false;
+
+  /**
    * Open panels in the sequence they are painted — the order a splitter walks to
    * find its neighbour.
    *
@@ -238,9 +254,19 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    * vertical:   user order filtered to open, because vertical panels keep their
    *             declared/dragged positions and only their height changes.
    * Leaves are appended last in both cases; a terminal detail pane is terminal.
+   *
+   * FLYING-OUT PANELS ARE EXCLUDED, and this is the definition doing its job
+   * rather than a special case bolted onto it: an auto-hide flyout is an overlay
+   * that the columns deliberately do not reflow around, so it is not IN the
+   * painted sequence. Leaving it in was a real defect with three symptoms, all of
+   * which trace back to this one memo — `neighborOpenId` handed a splitter a
+   * neighbour with no box, so the drag seeded a start size of 0 and jumped;
+   * `openIndex` spent a flex `order` slot on something that is not a flex item;
+   * and `data-col-first` landed on the flyout instead of the real first column,
+   * so the column against the rail kept a separator that doubled its edge.
    */
   const visualOpenIds = createMemo<readonly string[]>(() => {
-    const open = openList();
+    const open = openList().filter((id) => !isFlyoutId(id));
     const leafIds = open.filter((id) => isLeaf(id));
     const normal = orderIds().filter((id) => open.includes(id) && !isLeaf(id));
     return [...normal, ...leafIds];
@@ -587,7 +613,10 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
     dock: (id) => tearOffApi?.dock(id),
     tearOffMountFor: (id) => tearOffApi?.mountFor(id),
-    isFlyout: (id) => autoHideApi?.isFlyout(id) ?? false,
+    // Through the same late-bound reference `visualOpenIds` uses, so the panel's
+    // `data-flyout` attribute and the painted sequence can never disagree about
+    // which panels are overlays.
+    isFlyout: (id) => isFlyoutId(id),
     flyoutMountFor: (id) => autoHideApi?.flyoutMountFor(id),
     density: () => props.density ?? 'comfortable',
 
@@ -645,6 +674,9 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   });
 
   autoHideApi = autoHide;
+  // Closes the late-binding described at `isFlyoutId`'s declaration. From here on
+  // `visualOpenIds` sees flyouts for what they are — overlays, not columns.
+  isFlyoutId = (id) => autoHide.isFlyout(id);
 
   tearOffApi = createTearOff({
     // The OS window chrome is a torn-off panel's ONLY label, so a non-string title
@@ -754,7 +786,7 @@ function RailButton(props: {
       {...props.autoHide.railHoverProps(props.meta.id)}
       {...menu.triggerProps}
       {...{ [RAIL_ITEM_ATTR]: props.meta.id }}
-      data-flyout={props.autoHide.isFlyout(props.meta.id) ? 'true' : 'false'}
+      data-flyout={flyoutDataAttr(props.autoHide.isFlyout(props.meta.id))}
       ref={(el) => {
         props.group.setHeaderEl(props.meta.id, el);
         // The reorder primitive registers its own node via `itemProps.ref`; Solid
