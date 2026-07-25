@@ -195,10 +195,13 @@ type FlyoutOpenCause = 'hover' | 'click';
 /**
  * The slice of `AccordionGroupApi` this module consumes.
  *
- * Declared structurally rather than importing `AccordionGroupApi` wholesale for
- * two reasons: it is the precise, checkable list of what the group must provide
- * (one of its members, `headerElOf`, does not exist yet — see the handoff), and
- * it keeps this file compiling before the group grows it.
+ * Declared structurally rather than importing `AccordionGroupApi` wholesale so it
+ * states the precise, checkable list of what this module needs from a group —
+ * which is a small fraction of that interface, and is what makes the module
+ * testable against a stub that implements nine members instead of forty.
+ *
+ * (It originally also let the file compile before the group had grown the members
+ * it wanted. That is no longer why it is here; every member below now exists.)
  */
 export interface AutoHideGroup {
   orientation: Accessor<AccordionOrientation>;
@@ -221,13 +224,15 @@ export interface AutoHideGroup {
   setOpen: (id: string, open: boolean) => void;
   sizeOf: (id: string) => number | undefined;
   /**
-   * NEW on `AccordionGroupApi` — the panel's activator element, REACTIVELY.
-   * `setHeaderEl` already collects these, but into a plain `Map`, which cannot
-   * drive a popover anchor: the flyout renders before the rail button's ref has
-   * fired, so a non-reactive read returns undefined once and never corrects
-   * itself. See the handoff for the exact change.
+   * The element that represents the panel in the chrome, REACTIVELY — its rail
+   * button, or the `⋯` trigger when that button collapsed into the overflow menu.
+   *
+   * Reactive is load-bearing twice over: the flyout renders before the rail
+   * button's ref has fired, so a plain `Map` read returns undefined once and never
+   * corrects itself; and the overflow partition changes as the dock is resized, so
+   * which element represents a panel is not fixed for its lifetime.
    */
-  headerElOf: (id: string) => HTMLElement | undefined;
+  activatorElOf: (id: string) => HTMLElement | undefined;
   /** Suppresses hover-open mid-gesture — see `onRailPointerEnter`. */
   reorderActiveId: Accessor<string | null>;
   resizing: Accessor<boolean>;
@@ -396,7 +401,7 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
     const surface = surfaceOf(id);
     const active = document.activeElement;
     if (surface !== undefined && active instanceof Node && surface.contains(active)) {
-      group.headerElOf(id)?.focus();
+      group.activatorElOf(id)?.focus();
     }
     causes.delete(id);
     group.setOpen(id, false);
@@ -439,7 +444,7 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
     if (!(target instanceof Node)) return;
     for (const id of open) {
       if (surfaceOf(id)?.contains(target) === true) continue;
-      if (group.headerElOf(id)?.contains(target) === true) continue;
+      if (group.activatorElOf(id)?.contains(target) === true) continue;
       dismiss(id);
     }
   };
@@ -517,9 +522,9 @@ function Flyout(props: {
   // The anchor is READ REACTIVELY on every tracked change rather than captured:
   // the rail button's ref fires after this component first renders, and a
   // re-render of the rail (a reorder, a count change) can replace the element.
-  // This is precisely why `headerElOf` has to be signal-backed rather than the
+  // This is precisely why `activatorElOf` has to be signal-backed rather than the
   // plain Map the group keeps today.
-  const anchor = (): HTMLElement | null | undefined => props.group.headerElOf(props.id);
+  const anchor = (): HTMLElement | null | undefined => props.group.activatorElOf(props.id);
 
   /**
    * The flyout emerges from the rail's OUTER edge, i.e. the direction the

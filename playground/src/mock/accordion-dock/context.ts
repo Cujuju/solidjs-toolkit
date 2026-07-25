@@ -1,4 +1,4 @@
-import { createContext, useContext, type Accessor, type JSX } from 'solid-js';
+import { createContext, onCleanup, useContext, type Accessor, type JSX } from 'solid-js';
 
 /**
  * MOCK — not a published package yet. Lives under playground/src/mock/ on purpose:
@@ -212,9 +212,24 @@ export interface AccordionGroupApi {
    *  render the rail in `horizontal`, and drive roving keyboard focus. */
   register: (meta: PanelMeta, defaultOpen: boolean) => void;
   unregister: (id: string) => void;
-  /** The focusable element for a panel is the vertical header in `vertical` and the
-   *  rail button in `horizontal`, so whichever one renders claims the ref. */
+  /**
+   * The focusable element for a panel is the vertical header in `vertical` and the
+   * rail button in `horizontal`, so whichever one renders claims the ref.
+   *
+   * ALWAYS register through `trackedRef`, never with a bare `ref={(el) => …}`.
+   * Passing `null` on unmount is not optional bookkeeping — see `trackedRef` and
+   * `activatorElOf` for the defect that omitting it produced.
+   */
   setHeaderEl: (id: string, el: HTMLElement | null) => void;
+  /**
+   * The `⋯` overflow trigger, which STANDS IN for every rail button that did not
+   * fit. Registered by `RailOverflowMenu` through `trackedRef`.
+   *
+   * The group needs it as an element (not just a boolean) because it is the anchor
+   * and the focus target for panels whose own button is not rendered — see
+   * `activatorElOf`.
+   */
+  setRailOverflowEl: (el: HTMLElement | null) => void;
   /** Panels currently rendering into their own window. */
   tornOff: Accessor<readonly string[]>;
   isTornOff: (id: string) => boolean;
@@ -234,9 +249,26 @@ export interface AccordionGroupApi {
   /** Where a flying-out panel's content should mount, or undefined when it belongs
    *  inline in its own column. */
   flyoutMountFor: (id: string) => HTMLElement | undefined;
-  /** The panel's activator element, reactively — an anchored flyout resolves this
-   *  during render, before the ref has fired. */
-  headerElOf: (id: string) => HTMLElement | undefined;
+  /**
+   * The element that currently REPRESENTS this panel in the chrome, reactively.
+   *
+   * Normally the panel's own activator: the vertical header, or the rail button.
+   * When the rail overflowed and this panel's button was collapsed into the `⋯`
+   * menu, it is that TRIGGER instead — because the trigger is where the panel now
+   * lives as far as the user is concerned, and it is the only element on screen a
+   * flyout can sensibly emerge from or focus can sensibly return to.
+   *
+   * Every consumer wants that fallback, which is why it is resolved here rather
+   * than at each callsite: an anchored flyout, `moveFocus`, and the focus-restore
+   * on dismiss would each otherwise have to know about rail overflow.
+   *
+   * Reactive because a flyout resolves it during render, before the ref has fired,
+   * and because overflow re-partitions the rail as the dock is resized.
+   *
+   * Returns `undefined` only when the panel has no on-screen representation at all
+   * (unregistered, or a leaf — leaves have no activator by definition).
+   */
+  activatorElOf: (id: string) => HTMLElement | undefined;
   /** The group's density, exposed so a PORTALLED surface (a flyout leaves
    *  `.acc-group` and stops inheriting its token overrides) can restate it. */
   density: Accessor<'comfortable' | 'compact'>;
@@ -251,6 +283,79 @@ export interface AccordionGroupApi {
    *  Lands in the same `order`, so dragging a column moves its rail button too. */
   reorderColumnProps: (id: string) => Record<string, unknown>;
   reorderActiveId: Accessor<string | null>;
+}
+
+/**
+ * A `ref` callback that registers an element AND unregisters it on unmount.
+ *
+ * THE DEFECT THIS EXISTS TO REMOVE
+ *
+ * Solid invokes `ref={(el) => …}` exactly once, when the element is created. There
+ * is no second call on unmount. So `ref={(el) => group.setHeaderEl(id, el)}` — the
+ * obvious spelling, and the one that was written at every callsite — registers the
+ * element and then keeps it FOREVER, including after it has been removed from the
+ * document.
+ *
+ * That is not theoretical. A rail button unmounts whenever the rail overflows and
+ * its panel collapses into the `⋯` menu, and the panel is NOT unregistered by that
+ * (only its button went away), so nothing cleared the map. `activatorElOf` went on
+ * handing out a detached node; `getBoundingClientRect()` on a detached node is all
+ * zeros; and the flyout for such a panel opened in the top-left corner of the
+ * VIEWPORT, clamped to the 8px margin, instead of beside the rail. The same stale
+ * node made `moveFocus` call `.focus()` on nothing at all, silently.
+ *
+ * The fix is this contract rather than an `onCleanup` added next to each `ref`,
+ * because "remember to also unregister" is precisely the kind of instruction that
+ * three callsites obey and the fourth does not. Registration and its cleanup are
+ * one decision, so they are one call.
+ *
+ * Safe inside a `<For>`: the ref runs in the item's owner, so the cleanup is bound
+ * to that item's lifetime rather than to the whole list's.
+ *
+ * ⚠ `register` MUST NOT read reactive state — capture whatever it needs (an id,
+ * most often) BEFORE returning it. It is invoked during DISPOSAL, when the sources
+ * it would read have already been torn down. `(el) => setHeaderEl(props.meta.id,
+ * el)` reads `props.meta` inside a `<Show>` that is mid-teardown, so `props.meta`
+ * is `undefined` and the cleanup throws. See the try/catch below for why that
+ * particular throw was so expensive.
+ */
+export function trackedRef<T extends HTMLElement>(
+  register: (el: T | null) => void,
+): (el: T) => void {
+  return (el) => {
+    register(el);
+    onCleanup(() => {
+      /*
+       * A throwing cleanup is not a local failure. Solid unwinds an owner tree by
+       * walking its cleanups, and an exception in ONE of them abandons the walk —
+       * every cleanup that had not run yet is simply skipped, silently.
+       *
+       * That is not hypothetical either: the first version of this helper read an
+       * id off a `<Show>`-provided prop during teardown, threw a TypeError, and
+       * the abandoned cleanups included the tear-off controller's. The visible
+       * result was that navigating away from the dock left its popped-out OS
+       * WINDOWS open, orphaned, with no opener to close them — a leak two layers
+       * away from the line that threw, reported as nothing at all.
+       *
+       * So the contract above (never read reactive state here) is the root fix,
+       * and this is the guard that stops a future violation of it from taking
+       * down every other cleanup in the tree. It reports loudly rather than
+       * swallowing: the mistake stays visible, but it stays local.
+       */
+      try {
+        register(null);
+      } catch (err) {
+        // eslint-disable-next-line no-console -- see above: silence here would
+        // trade a visible error for an invisible resource leak elsewhere.
+        console.error(
+          '[accordion-dock] a trackedRef cleanup threw. Its registration was not ' +
+            'undone, but the rest of the teardown continued. The callback must not ' +
+            'read reactive state — capture what it needs when the ref is created.',
+          err,
+        );
+      }
+    });
+  };
 }
 
 export const AccordionGroupContext = createContext<AccordionGroupApi>();

@@ -9,6 +9,7 @@ import {
   type AccordionPolicy,
   type AccordionRailSide,
   type PanelMeta,
+  trackedRef,
 } from './context';
 import { Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
@@ -200,6 +201,12 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    * ref lands.
    */
   const [headerEls, setHeaderEls] = createSignal<ReadonlyMap<string, HTMLElement>>(new Map());
+  /**
+   * The `⋯` trigger, when the rail is overflowing. Signal-backed for the same
+   * reason `headerEls` is: it is read during render as a popover anchor, and it
+   * appears and disappears as the dock is resized.
+   */
+  const [railOverflowEl, setRailOverflowEl] = createSignal<HTMLElement | null>(null);
   const panelEls = new Map<string, HTMLElement>();
 
   const persist = (): void => {
@@ -459,6 +466,22 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     onReorder: moveOpenTo,
   });
 
+  const [railEl, setRailEl] = createSignal<HTMLElement | undefined>();
+  const overflowStrategy = (): 'menu' | 'pan' => props.railOverflow ?? 'menu';
+
+  /**
+   * Built BEFORE `api` — unlike auto-hide and tear-off below — because `api`
+   * genuinely depends on it: `activatorElOf` has to know whether a panel's button
+   * was collapsed into the `⋯` menu. Its own inputs (`railEl`, `panels`,
+   * `orientation`) are all available at this point, so the dependency runs one way
+   * and needs no late binding.
+   */
+  const railOverflow = createRailOverflow({
+    railEl,
+    ids: () => panels().map((m) => m.id),
+    enabled: () => orientation() === 'horizontal' && overflowStrategy() === 'menu',
+  });
+
   /**
    * Late-bound: `createAutoHide` needs the finished `api` to read group state, and
    * `api` needs the auto-hide answers. One of the two has to be resolved after the
@@ -616,7 +639,18 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       });
     },
 
-    headerElOf: (id) => headerEls().get(id),
+    setRailOverflowEl,
+
+    // The fallback is the whole point — see `activatorElOf` on the interface. A
+    // panel whose rail button was collapsed into the `⋯` menu is REPRESENTED by
+    // that trigger, so that is what a flyout anchors to and what focus returns to.
+    // Resolved once here so no caller has to know rail overflow exists.
+    activatorElOf: (id) => {
+      const own = headerEls().get(id);
+      if (own !== undefined) return own;
+      if (!railOverflow.overflowIds().includes(id)) return undefined;
+      return railOverflowEl() ?? undefined;
+    },
     tornOff: () => tearOffApi?.tornOff() ?? EMPTY_IDS,
     isTornOff: (id) => tearOffApi?.isTornOff(id) ?? false,
     tearOff: (id) => {
@@ -649,7 +683,10 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         // than by making the user reverse direction at each end.
         target = (from + delta + order.length) % order.length;
       }
-      headerEls().get(order[target].id)?.focus();
+      // Through `activatorElOf`, so arrowing onto a panel whose button collapsed
+      // into the `⋯` menu focuses that trigger rather than silently focusing
+      // nothing — which is what a raw `headerEls` read did.
+      api.activatorElOf(order[target].id)?.focus();
     },
 
     reorderItemProps: (id) =>
@@ -660,15 +697,6 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         : {},
     reorderActiveId: reorder.activeId,
   };
-
-  const [railEl, setRailEl] = createSignal<HTMLElement | undefined>();
-  const overflowStrategy = (): 'menu' | 'pan' => props.railOverflow ?? 'menu';
-
-  const railOverflow = createRailOverflow({
-    railEl,
-    ids: () => panels().map((m) => m.id),
-    enabled: () => orientation() === 'horizontal' && overflowStrategy() === 'menu',
-  });
 
   createRailPan({
     railEl,
@@ -804,6 +832,19 @@ function RailButton(props: {
   const pinned = (): boolean => props.group.isPinned(props.meta.id);
   const onKeyDown = createActivatorKeyDown(props.group, () => props.meta.id);
   const dragProps = (): Record<string, unknown> => props.group.reorderItemProps(props.meta.id);
+  /**
+   * The id is CAPTURED, not read through `props` on each call.
+   *
+   * `trackedRef`'s cleanup runs during disposal, and this component is rendered
+   * inside a `<Show when={meta()}>` — so by then `props.meta` is `undefined` and
+   * `props.meta.id` throws, taking every later cleanup in the owner tree with it.
+   * The id is fixed for this button's lifetime (the `<For>` keys on it), so there
+   * is nothing to gain by re-reading it and a teardown to lose.
+   */
+  const panelId = props.meta.id;
+  const registerHeaderEl = trackedRef<HTMLElement>((el) =>
+    props.group.setHeaderEl(panelId, el),
+  );
   // The id is passed as an accessor: this button is rendered from a <For> over
   // reactive metadata, so a snapshot would bind the menu to whichever panel held
   // the slot at mount and act on the wrong one after a reorder.
@@ -818,7 +859,11 @@ function RailButton(props: {
       {...{ [RAIL_ITEM_ATTR]: props.meta.id }}
       data-flyout={flyoutDataAttr(props.autoHide.isFlyout(props.meta.id))}
       ref={(el) => {
-        props.group.setHeaderEl(props.meta.id, el);
+        // `trackedRef`, NOT a bare `setHeaderEl(id, el)`: this button unmounts
+        // whenever the rail overflows and its panel collapses into the `⋯` menu,
+        // and the panel is not unregistered by that, so nothing else would ever
+        // clear the entry. See `trackedRef` for what the stale node did.
+        registerHeaderEl(el);
         // The reorder primitive registers its own node via `itemProps.ref`; Solid
         // lets the later `ref` win, so it is called through explicitly rather than
         // silently dropped.

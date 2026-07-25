@@ -9,7 +9,12 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { flyoutDataAttr } from './autoHide';
-import { useAccordionGroup, type AccordionGroupApi, type PanelBadge } from './context';
+import {
+  trackedRef,
+  useAccordionGroup,
+  type AccordionGroupApi,
+  type PanelBadge,
+} from './context';
 import { Chevron, Close, Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
 import { createPanelMenu } from './panelMenu';
@@ -82,6 +87,16 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   const closable = (): boolean => props.closable ?? horizontal();
 
   const onKeyDown = createActivatorKeyDown(group, () => props.id);
+  /**
+   * See `trackedRef`: registration and its cleanup are one decision, so they are
+   * one call. A bare `ref={(el) => setHeaderEl(id, el)}` leaks a detached node.
+   *
+   * The id is captured for the same reason it is in `RailButton` — a cleanup that
+   * reads through `props` during disposal is a throw waiting for the right
+   * unmount order, and one throwing cleanup abandons the whole teardown.
+   */
+  const panelId = props.id;
+  const registerHeaderEl = trackedRef<HTMLElement>((el) => group.setHeaderEl(panelId, el));
   /** One menu instance per panel, attached to whichever chrome this orientation
    *  renders — the header row (vertical) or the column title bar (horizontal). */
   const menu = createPanelMenu(group, () => props.id);
@@ -232,7 +247,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         <div class="acc-header-row" {...menu.triggerProps}>
           <button
             {...dragHandle()}
-            ref={(el) => group.setHeaderEl(props.id, el)}
+            ref={registerHeaderEl}
             id={headerId}
             type="button"
             class={`acc-header ${props.headerClass ?? ''}`.trim()}
