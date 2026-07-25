@@ -272,7 +272,8 @@ export interface AutoHideApi {
    *  module answers. */
   isFlyout: (id: string) => boolean;
   /** Where a flying-out panel's subtree should mount, or undefined when it
-   *  belongs in its column. Feed to `PanelOutlet`. */
+   *  belongs in its column. Consumed by `AccordionPanel`'s own Portal — see the
+   *  note on `PanelOutlet`, which is exported but has no callers. */
   flyoutMountFor: (id: string) => HTMLElement | undefined;
   /** Spread on the rail button. Empty object when hover-to-open is off, so the
    *  listeners are not attached at all rather than attached and inert. */
@@ -284,8 +285,8 @@ export interface AutoHideApi {
   element: JSX.Element;
 }
 
-/** Per-flyout host element, published reactively so `PanelOutlet` can re-target
- *  its Portal the moment the popover's content div exists. */
+/** Per-flyout host element, published reactively so the panel's Portal can
+ *  re-target the moment the popover's content div exists. */
 type HostMap = ReadonlyMap<string, HTMLElement>;
 
 export function createAutoHide(options: AutoHideOptions): AutoHideApi {
@@ -541,9 +542,9 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
  * One flyout: the popover shell, its placement inputs, and the host element the
  * panel's subtree portals into.
  *
- * It renders NO panel content itself. The content arrives via `PanelOutlet`
- * re-targeting its Portal at `hostEl` — which is what makes promote/demote
- * free of remounts (see `PanelOutlet`).
+ * It renders NO panel content itself. The content arrives from `AccordionPanel`,
+ * whose single Portal re-targets at this host — which is what makes promote and
+ * demote free of remounts.
  */
 function Flyout(props: {
   id: string;
@@ -771,6 +772,16 @@ function labelOf(meta: PanelMeta | undefined): string | undefined {
  * `display: contents` while docked so they add no box and no layout, but they DO
  * sit in the selector chain — the two `.acc-content > .acc-group` rules in
  * styles.css need widening. See the handoff.
+ */
+/**
+ * ⚠ EXPORTED BUT UNUSED — zero callers. `AccordionPanel` renders the same single
+ * re-targeting Portal inline, because it also owns the inline host that Portal
+ * falls back to, and threading that host out to a wrapper bought nothing.
+ *
+ * Kept rather than deleted because the mechanism it documents is the one the panel
+ * uses, and a consumer building its own panel shell would want exactly this. But it
+ * is not on the path any dock takes today: do not "fix" a mount bug here and expect
+ * it to change what the control does.
  */
 export function PanelOutlet(props: {
   /** Alternate surfaces, highest priority first. The first one to return an

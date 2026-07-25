@@ -326,3 +326,89 @@ describe('the rail is a real tablist', () => {
     }
   });
 });
+
+/**
+ * The cascade-layer split: TOKENS layered, COMPONENT RULES unlayered.
+ *
+ * This is the one architectural rule in the stylesheets, and breaking it is
+ * completely silent — an unlayered declaration beats a layered one OUTRIGHT, ahead
+ * of specificity, so a component rule that moves into the layer does not become
+ * weaker in some measurable way, it simply stops applying.
+ *
+ * It has already happened. `autoHide.css` was wrapped in `@layer cujuju-defaults`
+ * to "match styles.css", on the strength of a header comment that said defaults
+ * live in a layer without mentioning that only the TOKEN block does. Every rule in
+ * the file lost, and the one that mattered —
+ * `.acc-panel[data-flyout='true'] { display: none }` — meant a flying-out panel's
+ * docked column was never removed from the layout, so it kept its slot and painted
+ * its title bar over the flyout in front of it. Found by eye, in a screenshot.
+ */
+describe('cascade layers', () => {
+  /** The text inside each `@layer … { … }` block, found by brace matching —
+   *  regex alone cannot pair braces, and the blocks nest (a media query holds a
+   *  layer holding a token block). */
+  function layeredRegions(source: string): string[] {
+    const regions: string[] = [];
+    const opener = /@layer[^{]*\{/g;
+    let match: RegExpExecArray | null;
+    while ((match = opener.exec(source)) !== null) {
+      let depth = 1;
+      let i = match.index + match[0].length;
+      const start = i;
+      while (i < source.length && depth > 0) {
+        if (source[i] === '{') depth++;
+        else if (source[i] === '}') depth--;
+        i++;
+      }
+      regions.push(source.slice(start, i - 1));
+    }
+    return regions;
+  }
+
+  it('no component rule is inside a layer', () => {
+    /*
+     * A rule counts as a COMPONENT rule by what it DECLARES, not by what it
+     * selects. That distinction is the whole test.
+     *
+     * The naive version — "any `.acc-*` selector inside a layer" — flags
+     * `:is(.acc-group, .acc-flyout-host)[data-density='compact']`, which is a token
+     * override: it selects a class because density is set as an attribute on the
+     * group (and restated on the Portal'd flyout host, which escapes the group's
+     * scope), and it declares nothing but `--acc-*`. That rule BELONGS in the layer
+     * for the same reason `:root` does — a consumer overriding a density token
+     * unlayered should win.
+     *
+     * So: a rule inside a layer may declare custom properties only.
+     */
+    const offenders: string[] = [];
+    for (const [path, raw] of Object.entries(CSS_SOURCES)) {
+      const source = stripComments(raw, 'css');
+      for (const region of layeredRegions(source)) {
+        for (const rule of region.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+          const selector = rule[1].trim();
+          if (!selector.includes('.acc-')) continue;
+          const declaresRealProperty = rule[2]
+            .split(';')
+            .map((d) => d.trim())
+            .filter((d) => d.length > 0)
+            .some((d) => !d.startsWith('--'));
+          if (declaresRealProperty) offenders.push(`${path.split('/').pop()}: ${selector}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      'these component rules sit inside @layer, where an unlayered rule beats them regardless of specificity',
+    ).toEqual([]);
+  });
+
+  it('the token block IS layered, in the file that owns the defaults', () => {
+    // The other half. Tokens must stay layered so a consumer restating
+    // `--acc-accent` unlayered wins without specificity games — dropping the layer
+    // entirely would be the opposite over-correction.
+    const styles = Object.entries(CSS_SOURCES).find(([p]) => p.endsWith('styles.css'));
+    expect(styles, 'styles.css was not found by the glob').toBeDefined();
+    const regions = layeredRegions(stripComments(styles![1], 'css'));
+    expect(regions.join('\n')).toContain('--acc-accent');
+  });
+});

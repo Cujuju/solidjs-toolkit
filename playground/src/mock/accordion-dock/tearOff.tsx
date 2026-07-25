@@ -4,9 +4,12 @@ import { DelegatedEvents, Portal, delegateEvents } from 'solid-js/web';
 /**
  * TEAR-OFF — pop a docked panel into a real second browser window.
  *
- * MOCK, like the rest of this folder. Nothing here is imported by `index.ts` yet;
- * the group has to grow the small API surface described in `AccordionTearOffApi`
- * below before a panel can offer the affordance.
+ * MOCK, like the rest of this folder. Fully wired: `index.ts` exports it,
+ * `AccordionGroup` builds the controller, and `AccordionPanel` renders the ⤢
+ * affordance behind its `tearOffable` prop. (This paragraph claimed the opposite
+ * until 2026-07-25 — it was written before the wiring landed and nothing made it
+ * false out loud. A stale "not implemented yet" is worse than no comment: it tells
+ * a reader to go and build what is already there.)
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT ACTUALLY WORKS IN A BROWSER TAB — verified against solid-js 1.9.12 in
@@ -739,6 +742,15 @@ export function createTearOff(options: TearOffOptions): TearOffController {
  * Portal branch) re-evaluates the children on every tear-off and dock, throwing
  * away scroll position, text selection and in-flight edits — precisely what the
  * panel's keep-mounted-while-collapsed rule exists to preserve.
+ */
+/**
+ * ⚠ EXPORTED BUT UNUSED — zero callers, and superseded by the mount-precedence
+ * Portal in `AccordionPanel` (a popup outranks a flyout outranks the column, all
+ * through one Portal). This one knows only about the popup, so a panel using it
+ * could not also fly out.
+ *
+ * Kept as the narrow reference implementation for a consumer that wants tear-off
+ * without auto-hide. Not on any path this control takes.
  */
 export function TearOffOutlet(props: {
   id: string;

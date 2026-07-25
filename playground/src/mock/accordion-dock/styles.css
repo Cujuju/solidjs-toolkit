@@ -5,8 +5,27 @@
      horizontal — collapsed panels are buttons in a left RAIL, open panels grow
                   out to the right as columns, in the order they were opened
 
-   Defaults live in @layer so an unlayered consumer override wins without
-   specificity games — same contract as @cujuju/solidjs-collapsible. */
+   CASCADE LAYERS — read this before adding a rule, and before "matching" it
+   elsewhere.
+
+   ONLY THE TOKEN BLOCK IS LAYERED. `:root` and the density overrides sit in
+   `@layer cujuju-defaults`, so a consumer restating `--acc-accent` unlayered wins
+   without specificity games. Every COMPONENT rule in this file — `.acc-panel`,
+   `.acc-header`, the lot — is deliberately UNLAYERED.
+
+   That asymmetry is load-bearing, and the comment that used to sit here did not
+   say so: it claimed defaults lived in a layer, full stop. A reader took it at its
+   word and wrapped `autoHide.css` in the same layer to match — at which point
+   every rule in that file silently lost, because an unlayered declaration beats a
+   layered one OUTRIGHT, ahead of specificity. The visible result was a flying-out
+   panel whose docked column was never removed from the layout: it kept its slot
+   and painted its title bar over the flyout in front of it.
+
+   So the rule for the sibling stylesheets (`autoHide.css`, `rail.css`,
+   `breadcrumb.css`) is: tokens layered, component rules unlayered, exactly as
+   here. That keeps them competing with this file on specificity and source order,
+   which is what "imported after styles.css so the opt-in modes can override it"
+   in `index.ts` actually depends on. */
 
 @layer cujuju-defaults {
   :root {
