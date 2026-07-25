@@ -47,3 +47,10 @@ export {
   type TearOffResult,
 } from './tearOff';
 export { DEFAULT_MIN_SIZE_PX } from './resize';
+export {
+  orderVisualOpen,
+  survivesBulkClose,
+  bulkClosableIds,
+  type PanelPredicates,
+  type VisualOrderInput,
+} from './visualOrder';

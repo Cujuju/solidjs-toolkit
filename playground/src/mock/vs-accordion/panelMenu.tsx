@@ -5,6 +5,7 @@ import {
   type ContextMenuSurface,
 } from '@cujuju/solidjs-context-menu';
 import type { AccordionGroupApi } from './context';
+import { bulkClosableIds as sharedBulkClosableIds } from './visualOrder';
 
 /**
  * MOCK — same status as the rest of this directory. The right-click menu for a
@@ -98,9 +99,16 @@ const MOVE_DOWN_SHORTCUT = 'Alt+↓';
  *   away would discard the thing the user's last click produced.
  */
 function bulkClosableIds(group: AccordionGroupApi): readonly string[] {
-  return group
-    .openOrder()
-    .filter((id) => !group.isPinned(id) && group.meta(id)?.isLeaf !== true);
+  // Through the shared rule rather than a hand-written inverse. This function
+  // used to spell out `!isPinned && !isLeaf` itself, and its own comment conceded
+  // that it "only PREDICTS" what `collapseAll` would do — a prediction that could
+  // drift from the thing it predicts, while being used to grey out a row. Both
+  // now read the same predicate, so the row's enablement and the action's effect
+  // cannot disagree.
+  return sharedBulkClosableIds(group.openOrder(), {
+    isPinned: (id) => group.isPinned(id),
+    isLeaf: (id) => group.meta(id)?.isLeaf === true,
+  });
 }
 
 /**

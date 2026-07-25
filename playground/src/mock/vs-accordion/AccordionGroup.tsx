@@ -12,6 +12,8 @@ import {
 } from './context';
 import { Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
+import { bindLeafChain, createLeafChain } from './leafChain';
+import { orderVisualOpen, survivesBulkClose } from './visualOrder';
 import { createResize, DEFAULT_MIN_SIZE_PX } from './resize';
 import { createPanelMenu } from './panelMenu';
 import { createRailOverflow, RAIL_ITEM_ATTR } from './railOverflow';
@@ -248,29 +250,35 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
 
   /**
    * Open panels in the sequence they are painted — the order a splitter walks to
-   * find its neighbour.
+   * find its neighbour, the breadcrumb reads, and the flex `order` follows.
    *
-   * horizontal: open order, because that is literally the column order.
-   * vertical:   user order filtered to open, because vertical panels keep their
-   *             declared/dragged positions and only their height changes.
-   * Leaves are appended last in both cases; a terminal detail pane is terminal.
-   *
-   * FLYING-OUT PANELS ARE EXCLUDED, and this is the definition doing its job
-   * rather than a special case bolted onto it: an auto-hide flyout is an overlay
-   * that the columns deliberately do not reflow around, so it is not IN the
-   * painted sequence. Leaving it in was a real defect with three symptoms, all of
-   * which trace back to this one memo — `neighborOpenId` handed a splitter a
-   * neighbour with no box, so the drag seeded a start size of 0 and jumped;
-   * `openIndex` spent a flex `order` slot on something that is not a flex item;
-   * and `data-col-first` landed on the flyout instead of the real first column,
-   * so the column against the rail kept a separator that doubled its edge.
+   * The RULE lives in `visualOrder.ts` and is documented there. This memo is only
+   * the reactive wrapper around it: its job is to name which signals the rule's
+   * inputs come from, so the sequence recomputes when any of them moves. Keeping
+   * the rule out of here is what let the test stub stop carrying a copy of it.
    */
-  const visualOpenIds = createMemo<readonly string[]>(() => {
-    const open = openList().filter((id) => !isFlyoutId(id));
-    const leafIds = open.filter((id) => isLeaf(id));
-    const normal = orderIds().filter((id) => open.includes(id) && !isLeaf(id));
-    return [...normal, ...leafIds];
-  });
+  /**
+   * The group's leaf chain — `parentId` edges, published by each `<AccordionLeaf>`
+   * and read back here to sort the open leaves.
+   *
+   * Created BEFORE `visualOpenIds` because that memo consumes it, and bound to the
+   * api object further down (`bindLeafChain`) so the leaves can find it. Both
+   * halves were missing until now: nothing called `bindLeafChain`, so every
+   * chained leaf fell through to `leafChainFor`'s unshared fallback, warned once
+   * on the console, and painted in open-list order — the exact ordering the chain
+   * exists to stop being an accident.
+   */
+  const leafChain = createLeafChain();
+
+  const visualOpenIds = createMemo<readonly string[]>(() =>
+    orderVisualOpen({
+      order: orderIds(),
+      open: openList(),
+      isLeaf,
+      isFlyout: (id) => isFlyoutId(id),
+      orderLeaves: leafChain.orderOpen,
+    }),
+  );
 
   const commitOpen = (next: readonly string[]): void => {
     const prev = openList();
@@ -507,7 +515,11 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
 
     collapseAll: () => {
-      commitOpen(openList().filter((id) => pinned().has(id) || isLeaf(id)));
+      commitOpen(
+        openList().filter((id) =>
+          survivesBulkClose(id, { isPinned: (pid) => pinned().has(pid), isLeaf }),
+        ),
+      );
     },
 
     getLayout: () => ({
@@ -677,6 +689,16 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   // Closes the late-binding described at `isFlyoutId`'s declaration. From here on
   // `visualOpenIds` sees flyouts for what they are — overlays, not columns.
   isFlyoutId = (id) => autoHide.isFlyout(id);
+
+  /**
+   * Publish the chain against the finished api object, which is the only handle a
+   * leaf and its group both hold. Until this call every `<AccordionLeaf parentId>`
+   * resolved to `leafChainFor`'s private fallback: the edges were recorded into a
+   * chain nobody read, so the console warning fired and chained leaves painted in
+   * open order. `visualOpenIds` already sorts through `leafChain.orderOpen`, so
+   * this line is what makes that sort see any edges at all.
+   */
+  bindLeafChain(api, leafChain);
 
   tearOffApi = createTearOff({
     // The OS window chrome is a torn-off panel's ONLY label, so a non-string title

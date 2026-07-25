@@ -1,5 +1,6 @@
 import type { AccordionGroupApi, PanelBadge, PanelMeta } from '../context';
 import { ACCORDION_LAYOUT_VERSION } from '../context';
+import { orderVisualOpen, survivesBulkClose } from '../visualOrder';
 
 /**
  * A hand-built `AccordionGroupApi` for tests.
@@ -15,10 +16,21 @@ import { ACCORDION_LAYOUT_VERSION } from '../context';
  * the assertion. Stating the state directly makes each test's precondition
  * readable in one line.
  *
- * The cost is real and worth naming: this stub can DRIFT from the real group. It
- * is mitigated in one specific place — `visualOpenIds` below reimplements the
- * group's ordering rule, and that reimplementation is the thing most likely to go
- * stale. See the note there.
+ * WHAT STOPS IT DRIFTING
+ *
+ * Two different mechanisms, for two different kinds of drift:
+ *
+ *   - SHAPE. `group` below is annotated `AccordionGroupApi`, so a member added,
+ *     removed, renamed or re-signatured on that interface fails the build here
+ *     exactly as it does in `AccordionGroup`. No discipline required.
+ *   - BEHAVIOUR. This is the kind a type checker cannot see, and the answer is
+ *     not to test for it but to remove it: the rules that used to be copied here
+ *     (the painted order, the bulk-close exemption) now live in `visualOrder.ts`
+ *     and are CALLED, so there is no second implementation to go stale.
+ *
+ * What remains is deliberately inert — state held in local variables, and call
+ * recording. Those cannot disagree with the real group because they make no claim
+ * about it.
  */
 
 export interface StubPanelSpec {
@@ -103,21 +115,21 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
    *  because the stub owns the order outright. */
   const order = (): readonly string[] => metas.filter((m) => !m.isLeaf).map((m) => m.id);
 
+  const isLeafId = (id: string): boolean => byId.get(id)?.isLeaf === true;
+  const isPinnedId = (id: string): boolean => pinned.has(id);
+
   /**
-   * MIRRORS `AccordionGroup.visualOpenIds`: order-filtered-to-open, then open
-   * leaves appended.
+   * The REAL rule, called — not a copy of it.
    *
-   * This is the one piece of real logic duplicated into the stub, and it is
-   * duplicated because `visualOpenIds` is an INPUT to everything being tested
-   * here rather than a thing under test. If the group's rule changes, this must
-   * change with it — the breadcrumb tests would otherwise keep passing against a
-   * sequence the dock no longer paints.
+   * This used to reimplement `AccordionGroup.visualOpenIds`, with a comment
+   * admitting it was the one place the stub could silently drift. It could, and
+   * it did: the rule gained a flying-out-panel exclusion, and nothing about a
+   * stub-side copy would have failed to notice. Sharing the function removes the
+   * drift as a possibility rather than as a thing to remember, which is the only
+   * version of that guarantee worth having.
    */
-  const visualOpenIds = (): readonly string[] => {
-    const leafIds = openIds.filter((id) => byId.get(id)?.isLeaf === true);
-    const normal = order().filter((id) => openIds.includes(id));
-    return [...normal, ...leafIds];
-  };
+  const visualOpenIds = (): readonly string[] =>
+    orderVisualOpen({ order: order(), open: openIds, isLeaf: isLeafId });
 
   const setOpen = (id: string, open: boolean): void => {
     calls.setOpen.push({ id, open });
@@ -168,9 +180,12 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
     expandAll: notImplemented('expandAll'),
     collapseAll: () => {
       calls.collapseAll += 1;
-      // The real rule: unpinned, non-leaf. Reproduced so a test can assert the
-      // resulting state and not just the call count.
-      openIds = openIds.filter((id) => pinned.has(id) || byId.get(id)?.isLeaf === true);
+      // Same shared predicate the group's own `collapseAll` uses, so a test can
+      // assert the resulting STATE (not just the call count) without that
+      // assertion being a claim about a copy of the rule.
+      openIds = openIds.filter((id) =>
+        survivesBulkClose(id, { isPinned: isPinnedId, isLeaf: isLeafId }),
+      );
     },
 
     moveTo: (id, toIndex) => {
