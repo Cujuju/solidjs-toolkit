@@ -61,6 +61,29 @@ describe('1 — a disabled control is inert, panel and all', () => {
     expect(pills()[0].getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('hides the ladder of a CONTROLLED-open picker too, and tells the parent', () => {
+    // Controlled open belongs to the parent, so disabling can only ASK it to
+    // close — but rendering is ours, and a panel on a switched-off control must
+    // not stay on screen just because the parent ignored the request.
+    const onOpenChange = vi.fn();
+    const [dis, setDis] = createSignal(false);
+    mount(() => (
+      <PillDatePicker
+        items={LADDER}
+        value={null}
+        onChange={() => {}}
+        now={NOW}
+        open
+        onOpenChange={onOpenChange}
+        disabled={dis()}
+      />
+    ));
+    expect(panels()).toHaveLength(1);
+    setDis(true);
+    expect(panels()).toHaveLength(0);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it('refuses to commit even if a row is somehow clicked while disabled', () => {
     // Belt for the close above: the guard lives in commit(), so no route in —
     // including a portalled row still under the pointer — can act.

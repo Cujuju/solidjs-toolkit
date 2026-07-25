@@ -76,10 +76,17 @@ export interface PillDateRowContext<T extends PillDateEntry = PillDateEntry> {
   /** The formatted DTE the built-in row would render (e.g. `34d`). */
   dteLabel: string;
   /**
-   * The ramp colour for that DTE, or `undefined` when there is nothing to
-   * colour by — an unparseable date, or an empty ramp. Passed through
-   * verbatim rather than defaulted, so a custom row inherits the same honest
-   * "no urgency known" the built-in row renders instead of a fabricated hue.
+   * The ramp colour the BUILT-IN row would paint, or `undefined` when there is
+   * none to paint: an unparseable date, an empty ramp — or a `'disabled'` row,
+   * which drops the ramp on purpose (urgency is a call to act, and this row
+   * cannot be acted on).
+   *
+   * That last case is why this is the rendered colour rather than the raw ramp
+   * lookup: this context is documented as the values the built-in row uses, and
+   * a custom row that painted a disabled date in warning-red while the default
+   * row painted it grey would make the same state look like two different
+   * things. A caller who genuinely wants the raw value can call the exported
+   * `resolveDteColor` themselves.
    */
   dteColor: string | undefined;
   state: PillDateItemState;
@@ -144,6 +151,16 @@ export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
   placeholder?: string;
   /** Shown in the pop-out when `items` is empty. Default 'No expirations'. */
   emptyMessage?: string;
+  /**
+   * Shown ABOVE the rows when every row is `'disabled'` — the ladder is real
+   * and stays visible, but nothing in it can be taken, and a user clicking
+   * row after row deserves to be told that once rather than discover it five
+   * times. Default `'Nothing selectable'`.
+   *
+   * Distinct from `emptyMessage`, which is the different fact that there are no
+   * rows at all.
+   */
+  noneSelectableMessage?: string;
 
   /**
    * Controlled open state. Omit for uncontrolled (the component owns it).
@@ -228,6 +245,12 @@ function dateOf(item: PillDateEntry): string {
 /** Nothing is active until the user navigates or a selection is found. */
 const NO_ACTIVE_INDEX = -1;
 
+/** Bundler-agnostic dev check — `import.meta.env` exists under Vite, and the
+ *  optional chain keeps this harmless anywhere it does not. */
+const isDev = Boolean(
+  (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV,
+);
+
 /**
  * Which open picker owns the keyboard.
  *
@@ -284,7 +307,23 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
    */
   const stateByKey = createMemo<Map<string, PillDateItemState>>(() => {
     const map = new Map<string, PillDateItemState>();
-    for (const item of props.items) map.set(keyOf(item), props.itemState?.(item) ?? 'available');
+    for (const item of props.items) {
+      const key = keyOf(item);
+      // A duplicate key is a caller bug with three silent consequences: two rows
+      // share one state, `value` selects both, and (since row ids derive from
+      // the key) the document gets duplicate ids, which makes
+      // `aria-activedescendant` ambiguous. Cheap to say so, expensive to debug
+      // from the symptoms. Dev-only: a shipped app should not pay for the
+      // check, and by then the wiring is fixed or it is not.
+      if (isDev && map.has(key)) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[pill-date-picker] duplicate key "${key}" in items — rows will share state, ` +
+            'selection and DOM ids. Supply a `keyOf` that names the contract, not its date.',
+        );
+      }
+      map.set(key, props.itemState?.(item) ?? 'available');
+    }
     return map;
   });
   const stateOf = (item: T): PillDateItemState => stateByKey().get(keyOf(item)) ?? 'available';
@@ -414,6 +453,11 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     }
     setActiveIndex(NO_ACTIVE_INDEX); // every row disabled — nowhere to go
   };
+
+  /** True when the ladder has rows and every one of them is disabled. */
+  const noneSelectable = createMemo<boolean>(
+    () => props.items.length > 0 && props.items.every((i) => stateOf(i) === 'disabled'),
+  );
 
   /** First / last row the user can actually act on (Home / End). */
   const edgeEnabled = (from: 'first' | 'last'): number => {
@@ -626,6 +670,12 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
         <Show when={props.items.length === 0}>
           <div class="cpdp-empty">{props.emptyMessage ?? 'No expirations'}</div>
         </Show>
+        {/* Rows exist but not one of them is takeable. They stay on screen —
+            deleting them would misrepresent the calendar — with the reason
+            stated once at the top. */}
+        <Show when={props.items.length > 0 && noneSelectable()}>
+          <div class="cpdp-empty">{props.noneSelectableMessage ?? 'Nothing selectable'}</div>
+        </Show>
         <For each={props.items}>
           {(item, i) => {
             const iso = (): string => dateOf(item);
@@ -634,6 +684,14 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
             // (SPX / SPXW), a date comparison would light up BOTH rows as selected.
             const selected = (): boolean => props.value === keyOf(item);
             const state = (): PillDateItemState => stateOf(item);
+            /**
+             * Compare KEYS, not indices. `activeIndex` is a memo that scans the
+             * ladder to find the cursor's row; asking it once PER ROW turns a
+             * cursor move into an O(n²) sweep (a 60-row LEAPS ladder = 3600
+             * comparisons per arrow key). The key comparison is the same answer
+             * in O(1).
+             */
+            const isActive = (): boolean => activeKey() !== null && activeKey() === keyOf(item);
             const note = (): string | undefined => props.annotation?.(item);
             /**
              * The same values the built-in row renders — see PillDateRowContext.
@@ -657,11 +715,13 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
               get label() { return labelOf(iso()); },
               get dte() { return dte(); },
               get dteLabel() { return formatDte(dte()); },
-              get dteColor() { return resolveDteColor(dte(), ramp()); },
+              get dteColor() {
+                return state() === 'disabled' ? undefined : resolveDteColor(dte(), ramp());
+              },
               get state() { return state(); },
               get annotation() { return note(); },
               get selected() { return selected(); },
-              get active() { return activeIndex() === i(); },
+              get active() { return isActive(); },
             });
             return (
               <div
@@ -674,7 +734,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
                 // listbox and remains readable — it is unavailable, not absent.
                 aria-disabled={state() === 'disabled' ? 'true' : undefined}
                 data-state={state()}
-                data-active={activeIndex() === i() ? 'true' : undefined}
+                data-active={isActive() ? 'true' : undefined}
                 data-selected={selected() ? 'true' : undefined}
                 // A disabled row never takes the cursor: the highlight must always sit
                 // somewhere Enter will act, or the two inputs disagree about what is
@@ -715,7 +775,14 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
         {trigger()}
       </KvTooltip>
 
-      <Show when={isOpen()}>
+      {/* `!props.disabled` as well as `isOpen()`: a CONTROLLED parent owns the
+          open flag, so disabling the control can only ASK it to close (the
+          effect above fires `onOpenChange(false)`). A parent that ignores that
+          would otherwise leave a ladder on screen belonging to a control the
+          caller had switched off — inert, since commit() refuses, but a panel
+          that looks operable and is not is worse than no panel. Rendering is
+          ours to decide even when the open STATE is not. */}
+      <Show when={isOpen() && !props.disabled}>
         <Portal>
           <div
             ref={panelEl}

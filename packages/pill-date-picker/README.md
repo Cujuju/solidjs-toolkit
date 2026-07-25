@@ -70,6 +70,7 @@ const chain = [
 | `disabled` | `false` | |
 | `placeholder` | `'Select'` | Collapsed label when nothing is selected. |
 | `emptyMessage` | `'No expirations'` | Pop-out body when `items` is empty. |
+| `noneSelectableMessage` | `'Nothing selectable'` | Line above the rows when every row is `'disabled'`. |
 | `open` / `onOpenChange` | — | Controlled open state. Omit `open` for uncontrolled; `onOpenChange` fires either way. |
 | `popoutGap` | `4` | Gap in px between the pill and the panel. |
 | `preferPlacement` | `'bottom'` | Side to open toward when both fit. |
@@ -121,6 +122,10 @@ const ladder = [
 />
 ```
 
+When EVERY row is disabled the rows still render, with `noneSelectableMessage` stated once above
+them — a user should be told that nothing is takeable, not discover it by clicking five rows. That
+is a different fact from an empty ladder, which keeps its own `emptyMessage`.
+
 A disabled row stays in the list on purpose. Filtering it out of `items` is the obvious
 alternative and it lies: the user cannot tell "not available **to you**" from "does not exist",
 and a ladder missing dates misrepresents the calendar it is supposed to be showing.
@@ -153,7 +158,10 @@ renderRow={(ctx) => (
 ```
 
 `ctx` carries `item`, `date`, `label`, `dte`, `dteLabel`, `dteColor`, `state`, `annotation`,
-`selected`, `active`, `index`. Everything that can change is a **getter**, so reading it inside
+`selected`, `active`, `index`. These are the values the BUILT-IN row renders, not raw lookups —
+notably `dteColor` is `undefined` on a `'disabled'` row, because the default row drops the urgency
+ramp there and one state should not look like two different things. Call the exported
+`resolveDteColor` yourself if you want the raw ramp. Everything that can change is a **getter**, so reading it inside
 your JSX stays live — a custom row sees the cursor move and the selection change without doing
 anything special. (Handing over a plain snapshot is the trap this avoids: `ctx.active` would be
 frozen at first paint and no consumer would have done anything wrong.)

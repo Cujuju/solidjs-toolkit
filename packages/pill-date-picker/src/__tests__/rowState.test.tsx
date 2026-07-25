@@ -193,6 +193,75 @@ describe('the keyboard never rests where Enter refuses to act', () => {
   });
 });
 
+describe('a ladder where nothing can be taken says so', () => {
+  it('states it once, above rows that STAY on screen', () => {
+    const c = mount(() => <Harness itemState={() => 'disabled'} />);
+    click(pill(c));
+    // The rows are the market's real calendar — deleting them would misrepresent
+    // it. The reason goes above them, once, instead of being discovered five
+    // times by clicking.
+    expect(rows()).toHaveLength(5);
+    const line = document.body.querySelector('.cpdp-empty') as HTMLElement;
+    expect(line.textContent).toBe('Nothing selectable');
+  });
+
+  it('takes the caller\'s wording', () => {
+    const c = mount(() => (
+      <PillDatePicker
+        items={LADDER}
+        value={null}
+        onChange={() => {}}
+        now={NOW}
+        itemState={() => 'disabled'}
+        noneSelectableMessage="No puts listed at any expiration"
+      />
+    ));
+    click(pill(c));
+    expect((document.body.querySelector('.cpdp-empty') as HTMLElement).textContent)
+      .toBe('No puts listed at any expiration');
+  });
+
+  it('stays quiet while ANY row is takeable', () => {
+    const c = mount(() => <Harness itemState={STATE_OF} />);
+    click(pill(c));
+    expect(document.body.querySelector('.cpdp-empty')).toBeNull();
+  });
+
+  it('does not confuse "nothing takeable" with "no rows"', () => {
+    // An empty list is a different fact and keeps its own message.
+    const c = mount(() => <Harness items={[]} itemState={() => 'disabled'} />);
+    click(pill(c));
+    expect((document.body.querySelector('.cpdp-empty') as HTMLElement).textContent)
+      .toBe('No expirations');
+  });
+});
+
+describe('duplicate keys are a caller bug, said out loud', () => {
+  it('warns once per duplicate — two rows would share state, selection AND dom id', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const c = mount(() => (
+      <PillDatePicker
+        items={['2026-06-19', '2026-06-19', '2026-07-17']}
+        value={null}
+        onChange={() => {}}
+        now={NOW}
+      />
+    ));
+    click(pill(c));
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('duplicate key');
+    warn.mockRestore();
+  });
+
+  it('says nothing for a ladder whose keys are distinct', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const c = mount(() => <Harness />);
+    click(pill(c));
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
 describe('renderRow — the escape hatch', () => {
   const custom = (ctx: PillDateRowContext<string>) => (
     <span class="my-row" data-state={ctx.state}>
@@ -240,6 +309,26 @@ describe('renderRow — the escape hatch', () => {
     expect(picked).not.toHaveBeenCalled();
     click(inner[1]); // available row's button still commits
     expect(picked).toHaveBeenCalledWith('2026-06-26');
+  });
+
+  it('hands a custom row the colour the BUILT-IN row would paint — including none, when disabled', () => {
+    // Otherwise the same state looks like two different things: the default row
+    // drops the urgency ramp on a row that cannot be acted on, and a custom row
+    // reading a raw lookup would paint it warning-red.
+    const seen: Record<string, string | undefined> = {};
+    const c = mount(() => (
+      <Harness
+        itemState={STATE_OF}
+        renderRow={(ctx) => {
+          seen[ctx.date] = ctx.dteColor;
+          return <span class="my-row">{ctx.label}</span>;
+        }}
+      />
+    ));
+    click(pill(c));
+    expect(seen['2026-09-18']).toBeUndefined(); // the disabled row
+    expect(seen['2026-06-19']).toBeTruthy(); // an available one still gets the ramp
+    expect(seen['2026-07-02']).toBeTruthy(); // adjusted keeps its urgency too
   });
 
   it('reports the live cursor through ctx.active', () => {

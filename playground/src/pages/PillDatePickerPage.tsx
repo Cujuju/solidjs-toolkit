@@ -337,13 +337,14 @@ const [v, setV] = createSignal(DATES[0].value);
               : 'nothing picked yet'}
           </span>
         </Card>
-        <Card cap="every row disabled — nothing activates, Enter is inert">
+        <Card cap="every row disabled — said once, rows kept">
           <PillDatePicker
             items={DATES}
             value={null}
             onChange={() => {}}
             itemState={() => 'disabled'}
             annotation={() => 'not tradeable'}
+            noneSelectableMessage="No puts listed at any expiration"
             ariaLabel="Expiration"
           />
         </Card>
