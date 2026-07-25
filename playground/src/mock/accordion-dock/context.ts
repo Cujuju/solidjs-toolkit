@@ -111,6 +111,22 @@ export interface PanelMeta {
    * folder, folder, then the file's detail view pinned to the end.
    */
   isLeaf: boolean;
+  /**
+   * How the group ASKS a leaf to close. Present on leaves, absent on panels.
+   *
+   * A leaf is CONTROLLED: its visibility is `props.open` on `<AccordionLeaf>`,
+   * mirrored into the group by an effect that only re-runs when that prop changes.
+   * So the group cannot close one by editing its own open list — the leaf would go
+   * on painting while the group believed it closed, leaving a pane on screen with a
+   * broken flex `order` and a splitter that no longer finds its neighbour.
+   *
+   * That hazard used to be prevented by COMMENTS at the two callsites that knew
+   * about it (the breadcrumb's truncation skipped leaves explicitly), which is the
+   * shape of bug this codebase keeps finding: a rule enforced by remembering.
+   * `setOpen(leafId, false)` now routes here instead, so the desync is not
+   * something a caller can cause.
+   */
+  requestClose?: () => void;
 }
 
 /**
@@ -172,7 +188,23 @@ export interface AccordionGroupApi {
   neighborOpenId: (id: string) => string | undefined;
 
   toggle: (id: string) => void;
+  /**
+   * Open or close a panel.
+   *
+   * For a LEAF this is a REQUEST, not a command: closing one calls its
+   * `requestClose` so the consumer that owns its `open` prop can react, and the
+   * group's own state follows from that. See `PanelMeta.requestClose`.
+   */
   setOpen: (id: string, open: boolean) => void;
+  /**
+   * The leaf's own mirror of its effective open state — `<AccordionLeaf>` ONLY.
+   *
+   * Separate from `setOpen` because the two directions are genuinely different:
+   * everyone else ASKS a leaf to close, while the leaf itself REPORTS what it has
+   * decided. Routing the report through `setOpen` would send it straight back to
+   * `requestClose` and the leaf would never actually leave the open list.
+   */
+  setLeafOpen: (id: string, open: boolean) => void;
   togglePin: (id: string) => void;
 
   /** Every panel opens. In `single` policy this is intentionally a no-op —

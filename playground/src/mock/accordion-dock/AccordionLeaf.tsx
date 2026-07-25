@@ -137,6 +137,10 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
         minSize: () => props.minSize,
         railClass: () => undefined,
         isLeaf: true,
+        // How the group asks this leaf to close. Routed to the same `onClose` the
+        // × button uses, so "the dock closed it" and "the user closed it" are one
+        // path through the consumer rather than two with different effects.
+        requestClose: () => props.onClose?.(),
       },
       false,
     );
@@ -177,7 +181,10 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
    * same desync that stops the breadcrumb from closing a leaf through `setOpen`.
    */
   createEffect(() => {
-    group.setOpen(props.id, effectiveOpen());
+    // `setLeafOpen`, not `setOpen`: this is the leaf REPORTING what it has decided,
+    // and `setOpen` on a leaf is now a request that would come straight back here
+    // as `requestClose` — the report would never reach the open list.
+    group.setLeafOpen(props.id, effectiveOpen());
   });
 
   /**

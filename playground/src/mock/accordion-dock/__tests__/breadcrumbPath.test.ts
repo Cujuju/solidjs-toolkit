@@ -126,11 +126,21 @@ describe('buildCrumbPath — select() truncation', () => {
     ]);
   });
 
-  it('never calls setOpen on a LEAF — a controlled pane closes only through onTruncate', () => {
-    // Calling setOpen on a leaf would drop it from the group's open list while
-    // its own <Show when={props.open}> keeps painting it: a visible pane the
-    // group believes is closed, with a broken flex order and an orphaned
-    // splitter.
+  it('closes a LEAF through the group like anything else, and still reports it', () => {
+    /*
+     * REPLACES a test that asserted `setOpen` was never called on a leaf.
+     *
+     * That was the right assertion when a leaf's controlled-ness was enforced by
+     * the CALLER: closing one through the group would have dropped it from the open
+     * list while its own `<Show when={props.open}>` kept painting it — a visible
+     * pane the group believed closed, with a broken flex order and an orphaned
+     * splitter. So this file skipped leaves, and a comment explained why.
+     *
+     * `setOpen` on a leaf is now a REQUEST that routes to the leaf's own
+     * `requestClose` (see `PanelMeta.requestClose`), so the desync is no longer
+     * something a caller can cause and the skip is gone. What this test protects is
+     * that removing it did not lose the `onTruncate` report the consumer needs.
+     */
     const { group, calls } = createStubGroup({
       panels: [{ id: 'files' }, { id: 'detail', isLeaf: true }],
       open: ['files', 'detail'],
@@ -138,7 +148,7 @@ describe('buildCrumbPath — select() truncation', () => {
     const onTruncate = vi.fn();
     buildCrumbPath(group, { onTruncate })[0].select();
 
-    expect(calls.setOpen).toEqual([]);
+    expect(calls.setOpen).toEqual([{ id: 'detail', open: false }]);
     expect(onTruncate).toHaveBeenCalledTimes(1);
     expect(onTruncate.mock.calls[0][0]).toEqual(['detail']);
   });

@@ -405,6 +405,20 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     const current = openList();
     if (!want) {
       if (!current.includes(id)) return;
+      /*
+       * A LEAF is controlled — see `PanelMeta.requestClose`. Editing the open list
+       * here would leave the leaf painting (its own `<Show>` still reads
+       * `props.open`) while the group believed it closed: a pane on screen with a
+       * broken flex `order` and a splitter that cannot find its neighbour.
+       *
+       * So the group asks, and the leaf's own effect reports back through
+       * `setLeafOpen` once its owner has actually flipped the prop.
+       */
+      const requestClose = metaOf(id)?.requestClose;
+      if (requestClose !== undefined) {
+        requestClose();
+        return;
+      }
       commitOpen(current.filter((v) => v !== id));
       return;
     }
@@ -600,6 +614,18 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
 
     setOpen,
+    // The leaf reporting its own state, bypassing the request path above — see
+    // `setLeafOpen` on the interface for why the two directions are separate.
+    setLeafOpen: (id, open) => {
+      const current = openList();
+      if (open) {
+        if (current.includes(id)) return;
+        commitOpen([...current, id], id);
+        return;
+      }
+      if (!current.includes(id)) return;
+      commitOpen(current.filter((v) => v !== id));
+    },
     toggle: (id) => setOpen(id, !openList().includes(id)),
 
     togglePin: (id) => {
@@ -680,6 +706,27 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     collapseCandidate: resize.collapseCandidate,
 
     register: (meta, defaultOpen) => {
+      if (metaMap().has(meta.id)) {
+        /*
+         * Two panels sharing an id silently became ONE registration: the second
+         * lost its chrome (the rail renders the first one's title and count), both
+         * toggled together because open state is keyed by id, and whichever
+         * unmounted first unregistered the pair. Every symptom of that reads as a
+         * bug in the dock rather than as a duplicated string in the caller's JSX.
+         *
+         * Reported rather than thrown: the group's other panels are unaffected and
+         * still work, so taking the whole dock down would turn a chrome bug into an
+         * outage. `id` is documented as unique among siblings; this is that
+         * document made noisy.
+         */
+        // eslint-disable-next-line no-console -- see above
+        console.error(
+          `[accordion-dock] two panels registered the id "${meta.id}". Ids must be ` +
+            'unique within a group: they key open/pinned/order/size state and ' +
+            'persistence, so the second panel shares the first one\'s state and ' +
+            'loses its own chrome.',
+        );
+      }
       setMetaMap((prev) => {
         if (prev.has(meta.id)) return prev;
         const next = new Map(prev);
@@ -701,6 +748,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
 
     unregister: (id) => {
+      const wasLeaf = metaOf(id)?.isLeaf === true;
       setMetaMap((prev) => {
         if (!prev.has(id)) return prev;
         const next = new Map(prev);
@@ -717,6 +765,16 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       // The ORDER entry deliberately survives: a panel that unmounts and remounts
       // (a route change, a `<Show>`) must come back where the user put it, not at
       // the end of the rail.
+      //
+      // A LEAF's open state does NOT survive, and the asymmetry is the point. A
+      // panel's open state is the group's own — remembering it across a remount is
+      // the same courtesy as remembering its position. A leaf's is a mirror of a
+      // prop the consumer owns, so a stale entry is not a memory, it is a claim
+      // about a component that no longer exists; it kept `isOpen` true forever and
+      // was persisted.
+      if (wasLeaf && openList().includes(id)) {
+        commitOpen(openList().filter((v) => v !== id));
+      }
     },
 
     setHeaderEl: (id, el) => {

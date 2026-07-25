@@ -171,6 +171,15 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
 
     toggle: (id) => setOpen(id, !openIds.includes(id)),
     setOpen,
+    // The leaf reporting its own state. Writes membership directly, exactly as the
+    // real group does — the REQUEST path is what `setOpen` models.
+    setLeafOpen: (id, open) => {
+      if (open) {
+        if (!openIds.includes(id)) openIds.push(id);
+      } else {
+        openIds = openIds.filter((x) => x !== id);
+      }
+    },
     togglePin: (id) => {
       calls.togglePin.push(id);
       if (pinned.has(id)) pinned.delete(id);

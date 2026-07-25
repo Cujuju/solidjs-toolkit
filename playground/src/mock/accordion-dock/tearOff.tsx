@@ -117,9 +117,31 @@ export const TEAR_OFF_MIN_WINDOW_PX = 160;
 export const TEAR_OFF_GEOMETRY_VERSION = 1;
 
 /** `window.open`'s name argument. Namespaced per panel so re-tearing the same
- *  panel reuses its window instead of stacking a second one, and so two groups
- *  on a page cannot collide. */
+ *  panel reuses its window instead of stacking a second one. */
 const TEAR_OFF_WINDOW_NAME_PREFIX = 'acc-tearoff-';
+
+/**
+ * Distinguishes one controller's windows from another's.
+ *
+ * The name used to be `prefix + panelId`, with a comment claiming that stopped two
+ * groups on a page colliding. It did not: two docks holding a panel with the same
+ * id — `explorer`, say, which is exactly the kind of id that repeats — produced the
+ * same window name, so the second dock's tear-off ADOPTED the first's window
+ * instead of opening its own. `window.open` with an existing name returns that
+ * window, and `prepareDocument` then appended a second panel's chrome into a
+ * document already holding the first's.
+ *
+ * The same shape bites a single group across an HMR remount: the old controller's
+ * window survives (the opener is still alive, so the orphan watchdog does not fire)
+ * and the new controller adopts it, stale content and all.
+ *
+ * A per-instance counter rather than a random id: it is deterministic, needs no
+ * crypto, and answers the question actually being asked — "is this the same
+ * controller?" — which is scoped to one document. Across a reload the counter
+ * restarts, and that is correct, because the reloading document's `beforeunload`
+ * closes its windows on the way out.
+ */
+let nextControllerId = 0;
 
 /** Marks the style nodes THIS module put in the popup head, so a re-sync can
  *  replace exactly those and leave anything else alone. */
@@ -528,6 +550,7 @@ function prepareDocument(win: Window, title: string): Array<() => void> {
  * `beforeunload` covers for a whole-page teardown, at component granularity.
  */
 export function createTearOff(options: TearOffOptions): TearOffController {
+  const controllerId = nextControllerId++;
   const [tornOff, setTornOff] = createSignal<readonly string[]>([]);
   const windows = new Map<string, TornWindow>();
 
@@ -596,7 +619,11 @@ export function createTearOff(options: TearOffOptions): TearOffController {
     };
 
     const title = options.titleOf(id);
-    const win = window.open('', `${TEAR_OFF_WINDOW_NAME_PREFIX}${id}`, featureString(geometry));
+    const win = window.open(
+      '',
+      `${TEAR_OFF_WINDOW_NAME_PREFIX}${controllerId}-${id}`,
+      featureString(geometry),
+    );
 
     // A blocked popup returns null. The panel STAYS DOCKED and the caller is
     // told — the one thing that must never happen is a click that appears to do

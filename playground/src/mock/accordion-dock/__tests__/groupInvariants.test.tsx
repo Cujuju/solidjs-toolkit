@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { AccordionGroup } from '../AccordionGroup';
+import { AccordionLeaf } from '../AccordionLeaf';
 import { AccordionPanel } from '../AccordionPanel';
 import { ACCORDION_LAYOUT_VERSION, type AccordionGroupApi } from '../context';
 
@@ -216,5 +218,111 @@ describe('persistence is version-gated like an explicit layout', () => {
     first.unmount();
     const second = mountGroup({ panels: FOUR_PANELS, storageKey: KEY });
     expect([...second.api().openOrder()]).toEqual(['b']);
+  });
+});
+
+describe('a leaf is controlled — the group asks, it does not command', () => {
+  /**
+   * Mounts a group holding one panel and one leaf whose `open` prop the TEST owns,
+   * the way a consumer does.
+   */
+  function mountWithLeaf() {
+    const onClose = vi.fn();
+    const [leafOpen, setLeafOpen] = createSignal(true);
+    // Separate from `leafOpen`: one models the consumer closing the pane, the other
+    // models the component going away entirely (a route change, a `<Show>`).
+    const [leafMounted, setLeafMounted] = createSignal(true);
+    let api!: AccordionGroupApi;
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const dispose = render(
+      () => (
+        <AccordionGroup orientation="horizontal" policy="multi" apiRef={(a) => (api = a)}>
+          <AccordionPanel id="files" title="Files" defaultOpen>
+            <div>files</div>
+          </AccordionPanel>
+          <Show when={leafMounted()}>
+            <AccordionLeaf id="detail" title="Detail" open={leafOpen()} onClose={onClose}>
+              <div>detail</div>
+            </AccordionLeaf>
+          </Show>
+        </AccordionGroup>
+      ),
+      container,
+    );
+
+    return {
+      api: () => api,
+      onClose,
+      setLeafOpen,
+      setLeafMounted,
+      unmount: () => {
+        dispose();
+        container.remove();
+      },
+    };
+  }
+
+  it('setOpen(leaf, false) asks the owner instead of editing the open list', () => {
+    /*
+     * THE defect. Editing the list directly left the leaf painting — its own
+     * `<Show>` reads `props.open`, which nothing had changed — while the group
+     * believed it closed: a pane on screen with a broken flex `order` and a
+     * splitter that could not find its neighbour.
+     *
+     * It used to be prevented by the CALLER: `breadcrumbPath` skipped leaves and a
+     * comment explained why. Every other caller was one `setOpen` away from the
+     * desync.
+     */
+    const g = mountWithLeaf();
+    expect(g.api().isOpen('detail')).toBe(true);
+
+    g.api().setOpen('detail', false);
+
+    expect(g.onClose).toHaveBeenCalledTimes(1);
+    // Still open, because the owner has not flipped the prop yet. That is the
+    // point: the group does not get to decide.
+    expect(g.api().isOpen('detail')).toBe(true);
+    g.unmount();
+  });
+
+  it('follows once the owner actually flips the prop', () => {
+    const g = mountWithLeaf();
+    g.api().setOpen('detail', false);
+    g.setLeafOpen(false);
+    expect(g.api().isOpen('detail')).toBe(false);
+    g.unmount();
+  });
+
+  it('still closes a PANEL directly — only leaves are controlled', () => {
+    // Guards the over-broad version of the fix.
+    const g = mountWithLeaf();
+    g.api().setOpen('files', false);
+    expect(g.api().isOpen('files')).toBe(false);
+    g.unmount();
+  });
+
+  it('drops a leaf from the open list when it unmounts', () => {
+    // A leaf's open state is a mirror of a prop the consumer owns, so an entry that
+    // outlives the component is not a memory — it is a claim about something that
+    // no longer exists. It used to keep `isOpen` true forever, and get persisted.
+    const g = mountWithLeaf();
+    expect(g.api().openOrder()).toContain('detail');
+
+    g.setLeafMounted(false);
+    expect(g.api().openOrder()).not.toContain('detail');
+    g.unmount();
+  });
+
+  it('keeps a PANEL\'s open state across an unmount', () => {
+    // The deliberate asymmetry, pinned so the purge above cannot be widened into
+    // it: a panel's open state is the group's own, and remembering it across a
+    // remount is the same courtesy as remembering its position in the rail.
+    const g = mountWithLeaf();
+    expect(g.api().openOrder()).toContain('files');
+    g.setLeafMounted(false);
+    expect(g.api().openOrder()).toContain('files');
+    g.unmount();
   });
 });

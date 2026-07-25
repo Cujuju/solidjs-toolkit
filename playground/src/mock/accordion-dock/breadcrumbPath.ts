@@ -188,14 +188,12 @@ function applyTruncation(
   );
 
   for (const c of after) {
-    // A leaf is CONTROLLED — its visibility is `props.open` on `<AccordionLeaf>`,
-    // mirrored into the group by an effect that only re-runs when that prop
-    // changes. Calling `setOpen(leaf, false)` here would drop it from the group's
-    // open list while the leaf's own `<Show when={props.open}>` keeps painting
-    // it: a pane on screen that the group believes is closed, with a broken flex
-    // order and a splitter that no longer finds its neighbour. So the leaf is
-    // closed ONLY through `onTruncate` — the same route its own × button takes.
-    if (c.isLeaf) continue;
+    // No leaf special case any more. `setOpen` on a leaf is a REQUEST that routes
+    // to the leaf's own `requestClose` (see `PanelMeta.requestClose`), so the
+    // consumer flips the prop and the group's state follows — which is what this
+    // loop used to have to arrange by skipping leaves and relying on `onTruncate`
+    // above having done the same job. The skip was correct and load-bearing, and
+    // it was also a rule that lived in a comment at one of several callsites.
     group.setOpen(c.id, false);
   }
 }

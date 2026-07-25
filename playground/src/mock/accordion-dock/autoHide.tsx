@@ -1,6 +1,7 @@
 import {
   For,
   Show,
+  createEffect,
   createMemo,
   createSignal,
   onCleanup,
@@ -298,6 +299,24 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
    * the `click` default gives it.
    */
   const causes = new Map<string, FlyoutOpenCause>();
+
+  /**
+   * Drop the open-cause for anything that is no longer open.
+   *
+   * `dismiss` deletes its own entry, but a flyout can stop being open without
+   * going through it — the panel unregisters, `collapseAll` runs, a restore
+   * replaces the open set. Those left an entry behind for an id that might never
+   * come back, and if it DID come back (a remount, a reopened panel) it would
+   * arrive still labelled 'hover' and dismiss itself the moment the pointer moved.
+   *
+   * An effect over the open set rather than a hook on unregister: this is derived
+   * state, so it is cheaper and more honest to recompute it than to arrange for
+   * every path that can close a panel to remember to notify.
+   */
+  createEffect(() => {
+    const open = new Set(group.openOrder());
+    for (const id of [...causes.keys()]) if (!open.has(id)) causes.delete(id);
+  });
 
   const hoverEnabled = (): boolean => options.hoverToOpen?.() ?? false;
 
