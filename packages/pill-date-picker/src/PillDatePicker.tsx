@@ -2,6 +2,8 @@ import {
   createSignal,
   createMemo,
   createEffect,
+  createUniqueId,
+  untrack,
   onCleanup,
   onMount,
   For,
@@ -226,9 +228,37 @@ function dateOf(item: PillDateEntry): string {
 /** Nothing is active until the user navigates or a selection is found. */
 const NO_ACTIVE_INDEX = -1;
 
+/**
+ * Which open picker owns the keyboard.
+ *
+ * Each instance binds its keys to the DOCUMENT (an open list owns the arrows
+ * wherever focus happens to sit — see the open-effect), so two pickers open at
+ * once would BOTH act on one keypress: one Enter, two commits, in two different
+ * controls. `open` is a public controlled prop, so two open pickers is legal
+ * API usage, not a misuse.
+ *
+ * Last opened wins, and closing hands the keyboard back to whoever was under
+ * it — the stack, not a single "current", because pickers can close in any
+ * order.
+ */
+const keyboardOwners: symbol[] = [];
+
 export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   props: PillDatePickerProps<T>,
 ): JSX.Element {
+  /**
+   * Instance id for the ARIA wiring below. The combobox keeps DOM focus while
+   * the ladder is open, so the only way a screen reader can announce the row
+   * the arrows are on is `aria-activedescendant` pointing at that row's id —
+   * without it, cursor movement is silent, and a user who cannot see the tint
+   * has no way to know a row is disabled before trying it.
+   */
+  const uid = createUniqueId();
+  const panelId = `${uid}-listbox`;
+  /** Row ids are derived from the row's KEY, so they follow the row across a
+   *  re-supplied ladder exactly as the cursor does. */
+  const rowId = (key: string): string => `${uid}-row-${encodeURIComponent(key)}`;
+
   const size = (): 'xs' | 'sm' | 'md' => props.size ?? 'md';
   const now = (): Date => props.now ?? new Date();
   const ramp = (): readonly DteColorStop[] => props.dteRamp ?? DEFAULT_DTE_RAMP;
@@ -241,8 +271,23 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
    *  comparison against `value` goes through here; nothing compares dates directly. */
   const keyOf = (item: T): string => (props.keyOf ? props.keyOf(item) : dateOf(item));
 
-  /** Caller's verdict for an item; absent prop = everything available. */
-  const stateOf = (item: T): PillDateItemState => props.itemState?.(item) ?? 'available';
+  /**
+   * Caller's verdict per item, computed ONCE per (items × itemState) change.
+   *
+   * `itemState` is a caller predicate that can do real work — resolving a row
+   * against a broker's listings, say — and it is consulted by the renderer, by
+   * every arrow key's scan and by the commit guard. Calling it ad hoc made that
+   * ~3 invocations per row per render and another per row per keypress; a
+   * consumer would have to memoize defensively to make a documented-as-simple
+   * prop affordable. Keyed by the item's own key so the map survives a
+   * re-supplied array with equal contents.
+   */
+  const stateByKey = createMemo<Map<string, PillDateItemState>>(() => {
+    const map = new Map<string, PillDateItemState>();
+    for (const item of props.items) map.set(keyOf(item), props.itemState?.(item) ?? 'available');
+    return map;
+  });
+  const stateOf = (item: T): PillDateItemState => stateByKey().get(keyOf(item)) ?? 'available';
   /** Out-of-range indices count as disabled so every caller below is total. */
   const disabledAt = (index: number): boolean => {
     const item = props.items[index];
@@ -265,7 +310,26 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     props.onOpenChange?.(next);
   };
 
-  const [activeIndex, setActiveIndex] = createSignal(NO_ACTIVE_INDEX);
+  /**
+   * The cursor is stored as the row's KEY, never its index.
+   *
+   * An index is a slot, and a ladder is not a stable set of slots: it is
+   * re-supplied whenever the caller's data settles (an async chain filling in,
+   * an idle refetch, a row dropping out). Under an index cursor, "row 3" after
+   * such a change names a DIFFERENT contract than the one the user was looking
+   * at — and Enter would commit it. Keyed, the cursor follows the row it was
+   * on, and honestly disappears if that row does.
+   */
+  const [activeKey, setActiveKey] = createSignal<string | null>(null);
+  const activeIndex = createMemo<number>(() => {
+    const k = activeKey();
+    if (k === null) return NO_ACTIVE_INDEX;
+    return props.items.findIndex((i) => keyOf(i) === k);
+  });
+  const setActiveIndex = (index: number): void => {
+    const item = index === NO_ACTIVE_INDEX ? undefined : props.items[index];
+    setActiveKey(item ? keyOf(item) : null);
+  };
   const [popout, setPopout] = createSignal<PopoutPosition | null>(null);
   let anchorEl: HTMLButtonElement | undefined;
   let panelEl: HTMLDivElement | undefined;
@@ -312,6 +376,10 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
    * unnecessary rather than load-bearing.
    */
   const commit = (index: number): void => {
+    // A control the caller disabled must not act, even with a panel already on
+    // screen when it was disabled (the trigger's own guards cannot cover that —
+    // the rows are portalled and still under the pointer).
+    if (props.disabled) return;
     const item = props.items[index];
     if (!item) return;
     if (stateOf(item) === 'disabled') return;
@@ -379,9 +447,20 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     // row is now DISABLED: moving the cursor to a different row would make Enter pick a
     // value the user never chose, which is the surprise this seeding exists to avoid. The
     // commit guard already refuses it, and the first arrow key steps to a usable row.
-    const preselected = props.items.findIndex((i) => keyOf(i) === props.value);
-    setActiveIndex(preselected);
+    //
+    // UNTRACKED, and this is load-bearing: reading `items`/`value` here would make this
+    // whole effect re-run whenever the caller re-supplies the ladder — teleporting the
+    // user's cursor back to the selection mid-interaction (and re-registering every
+    // document listener) every time an async chain settles. Seeding is an OPEN-time
+    // decision, so it depends on `isOpen` and nothing else.
+    untrack(() => setActiveKey(props.value ?? null));
     place();
+
+    // Take the keyboard. Popped in this effect's cleanup, so it is released on close,
+    // on unmount, and on the re-run of this effect — every path out.
+    const owner = Symbol('pdp');
+    keyboardOwners.push(owner);
+    const ownsKeyboard = (): boolean => keyboardOwners[keyboardOwners.length - 1] === owner;
 
     const onPointerDown = (e: PointerEvent): void => {
       const t = e.target as Node;
@@ -390,6 +469,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       close(false);
     };
     const onKey = (e: KeyboardEvent): void => {
+      // Only the top of the stack acts; a picker underneath another one must not
+      // silently commit the keypress its neighbour is receiving.
+      if (!ownsKeyboard()) return;
       switch (e.key) {
         case 'Escape':
           e.stopPropagation();
@@ -428,11 +510,25 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     // Capture: the scroll that moves us is almost never on `window`.
     window.addEventListener('scroll', onReflow, true);
     onCleanup(() => {
+      const at = keyboardOwners.lastIndexOf(owner);
+      if (at !== -1) keyboardOwners.splice(at, 1);
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', onReflow);
       window.removeEventListener('scroll', onReflow, true);
     });
+  });
+
+  /**
+   * Disabling a control with its ladder open must put the ladder away.
+   *
+   * The trigger's guards cover the trigger; they cannot cover a panel that is
+   * ALREADY on screen and portalled out to <body>, still under the pointer.
+   * Without this, "disabled" meant only "cannot be opened" — a control the
+   * caller had switched off could still be operated.
+   */
+  createEffect(() => {
+    if (props.disabled && isOpen()) close(false);
   });
 
   // ── Collapsed pill ───────────────────────────────────────────────────
@@ -476,6 +572,11 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       role="combobox"
       aria-haspopup="listbox"
       aria-expanded={isOpen()}
+      aria-controls={isOpen() ? panelId : undefined}
+      // Points at the row the arrows are on. Only while open — a closed
+      // combobox owning a descendant that is not in the document is a lie a
+      // screen reader will read out.
+      aria-activedescendant={isOpen() && activeKey() !== null ? rowId(activeKey()!) : undefined}
       aria-label={props.ariaLabel}
       disabled={props.disabled}
       data-empty={selectedItem() ? undefined : 'true'}
@@ -564,6 +665,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
             });
             return (
               <div
+                id={rowId(keyOf(item))}
                 class="cpdp-row"
                 role="option"
                 aria-selected={selected()}
@@ -617,6 +719,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
         <Portal>
           <div
             ref={panelEl}
+            id={panelId}
             class={`cpdp-popout cpdp-size-${size()}`}
             role="listbox"
             tabIndex={-1}
