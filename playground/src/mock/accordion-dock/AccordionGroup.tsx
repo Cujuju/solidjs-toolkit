@@ -464,7 +464,13 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     elementOf: (id) => panelEls.get(id),
     minSizeOf: (id) => metaOf(id)?.minSize() ?? DEFAULT_MIN_SIZE_PX,
     sizes,
-    setSizes: commitSizes,
+    // Two writers, because a drag has intermediate states and a commit does not —
+    // see the PREVIEW vs COMMIT note in `resize.ts`. `previewSizes` moves the
+    // signal only; every persisted, reported size change goes through
+    // `commitSizes`, which keeps the "one writer per piece of state" rule intact
+    // (the preview writes a state that is by definition not yet a decision).
+    previewSizes: setSizesRaw,
+    commitSizes,
     // A leaf's visibility belongs to the consumer, so the dock must not close one
     // behind its back; it clamps at the minimum instead.
     canCollapse: (id) => !isLeaf(id),
@@ -668,6 +674,8 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     setSize: (id, px) => commitSizes({ ...sizes(), [id]: px }),
     resetSizes: () => commitSizes({}),
     beginResize: resize.begin,
+    nudgeResize: resize.nudge,
+    resizeBoundsOf: resize.boundsOf,
     resizing: resize.resizing,
     collapseCandidate: resize.collapseCandidate,
 

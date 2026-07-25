@@ -1,4 +1,4 @@
-import { createSignal, type Accessor } from 'solid-js';
+import { createSignal, onCleanup, type Accessor } from 'solid-js';
 
 /**
  * Splitter drag engine.
@@ -9,19 +9,35 @@ import { createSignal, type Accessor } from 'solid-js';
  * its container or leave a gap — the two failure modes of the naive "just set this
  * panel's width" approach.
  *
- * Sizes are seeded from the DOM at drag start rather than tracked continuously:
+ * Sizes are seeded from the DOM at gesture start rather than tracked continuously:
  * before the first drag every panel is sized by the mode (`fill` splits evenly,
  * `natural` uses a token width), and those computed sizes are exactly what the user
  * sees and expects to start dragging FROM.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * PREVIEW vs COMMIT — a gesture is ONE decision, not sixty.
+ *
+ * A pointermove is not a decision the user made; releasing the pointer is. The
+ * engine therefore writes intermediate sizes through `previewSizes` (signal only)
+ * and the settled one through `commitSizes` (persisted, and reported to the
+ * consumer). Everything the user sees during a drag comes from the preview, so the
+ * feel is identical.
+ *
+ * It used to call one setter for both, which meant a `JSON.stringify` plus a
+ * synchronous `localStorage.setItem` on EVERY pointermove — a write per frame for
+ * the whole gesture, of which exactly one was worth keeping — and one
+ * `onSizeChange` per frame for a consumer that almost certainly wanted the result.
+ * The intermediate values are not merely wasteful to store, they are wrong to
+ * store: a drag interrupted by a crash would persist whatever pixel the pointer
+ * happened to be over, and a consumer mirroring the callback would record sixty
+ * layout revisions for one adjustment.
  */
 
-/** Movement below this is a click, not a drag — matches the reorder primitive's
- *  activation distance so the two gestures agree on what counts as intent. */
-const RESIZE_ACTIVATE_PX = 0;
-
-/** Fallback floor when a panel declares no `minSize`. Small enough to allow a very
- *  narrow column, large enough that a panel can never be dragged to zero and become
- *  impossible to grab again. */
+/**
+ * Fallback floor when a panel declares no `minSize`. Small enough to allow a very
+ * narrow column, large enough that a panel can never be dragged to zero and become
+ * impossible to grab again.
+ */
 export const DEFAULT_MIN_SIZE_PX = 60;
 
 /**
@@ -35,6 +51,23 @@ export const DEFAULT_MIN_SIZE_PX = 60;
  */
 const COLLAPSE_OVERDRAG_PX = 40;
 
+/**
+ * How much one arrow keypress moves the boundary, px.
+ *
+ * The keyboard equivalent of a drag has to answer a question the pointer never
+ * asks: how far is "a bit"? 8px is deliberately fine rather than convenient — a
+ * splitter is a precision control, and a user who wants to travel a long way holds
+ * the key (autorepeat makes that fast) or uses the coarse step below. Erring coarse
+ * would make fine adjustment impossible; erring fine only makes the long adjustment
+ * slower, which is the cheaper mistake.
+ */
+const KEYBOARD_STEP_PX = 8;
+
+/** The coarse step, on Shift+arrow. Ten notches of the fine one — enough that
+ *  crossing a wide dock is a few presses, and a round multiple so the two steps
+ *  compose predictably. */
+const KEYBOARD_COARSE_STEP_PX = KEYBOARD_STEP_PX * 10;
+
 export interface ResizeHost {
   /** Growth axis: 'x' for horizontal columns, 'y' for vertical fill panels. */
   axis: Accessor<'x' | 'y'>;
@@ -47,7 +80,11 @@ export interface ResizeHost {
   elementOf: (id: string) => HTMLElement | undefined;
   minSizeOf: (id: string) => number;
   sizes: Accessor<Readonly<Record<string, number>>>;
-  setSizes: (next: Record<string, number>) => void;
+  /** Intermediate sizes DURING a gesture. Updates the signal and nothing else — no
+   *  persistence, no consumer callback. See the header. */
+  previewSizes: (next: Record<string, number>) => void;
+  /** The sizes a gesture SETTLED on. Persisted and reported. */
+  commitSizes: (next: Record<string, number>) => void;
   /** Close a panel that was dragged past its minimum. Returns false when the panel
    *  refuses (a leaf, or a consumer-controlled pane), in which case the drag just
    *  clamps as usual. */
@@ -56,8 +93,37 @@ export interface ResizeHost {
   canCollapse: (id: string) => boolean;
 }
 
+/** The pair a splitter redistributes between, with the seeded sizes and the floors
+ *  that constrain them. */
+interface ResizePair {
+  nextId: string;
+  seeded: Record<string, number>;
+  startA: number;
+  startB: number;
+  minA: number;
+  minB: number;
+}
+
 export interface ResizeApi {
   begin: (id: string, e: PointerEvent) => void;
+  /**
+   * Move the boundary on `id`'s trailing edge by `steps` — the KEYBOARD path.
+   *
+   * Not an accessibility afterthought bolted beside the drag: it redistributes
+   * through the same clamped arithmetic, so the floors, the mirrored axis and the
+   * "the pair always sums to the same total" invariant hold identically. A second
+   * implementation of that arithmetic is how the two paths come to disagree about
+   * what a minimum means.
+   *
+   * `steps` is signed the way a pointer would move. Collapse is deliberately NOT
+   * reachable this way: overdrag is a gesture with a distance, and a keypress has
+   * none, so a key can clamp at the minimum but never close a panel out from under
+   * the user.
+   */
+  nudge: (id: string, steps: number, coarse: boolean) => void;
+  /** Current extent and travel limits for the panel on `id`'s leading side, for the
+   *  separator's `aria-value*`. Undefined when there is no pair to resize. */
+  boundsOf: (id: string) => { value: number; min: number; max: number } | undefined;
   resizing: Accessor<boolean>;
   /** The panel that will collapse if the pointer is released now, or null. Drives the
    *  pre-commit affordance — collapsing on release with no warning would feel like
@@ -69,15 +135,27 @@ export function createResize(host: ResizeHost): ResizeApi {
   const [resizing, setResizing] = createSignal(false);
   const [collapseCandidate, setCollapseCandidate] = createSignal<string | null>(null);
 
-  const begin = (id: string, e: PointerEvent): void => {
-    const ids = host.visualOpenIds();
-    const i = ids.indexOf(id);
-    const nextId = i >= 0 ? ids[i + 1] : undefined;
-    if (nextId === undefined) return;
+  /**
+   * Teardown for the drag currently in flight, or null.
+   *
+   * Held at this level so the owning component's disposal can run it. Without that,
+   * a group unmounted mid-drag (a route change while the pointer is down, an HMR
+   * boundary) leaves `pointermove` and `pointerup` bound to `window` forever, each
+   * closing over a dead reactive graph — and every subsequent move writes sizes
+   * into a disposed signal.
+   */
+  let endActiveDrag: (() => void) | null = null;
+  onCleanup(() => endActiveDrag?.());
 
-    // Seed EVERY open panel, not just the two being dragged. Panels left on
-    // automatic sizing would otherwise re-flow to absorb the delta, and the boundary
-    // the user grabbed would appear not to move.
+  /**
+   * Every open panel's current extent, measured.
+   *
+   * EVERY panel, not just the two a gesture touches: panels left on automatic
+   * sizing would otherwise re-flow to absorb the delta, and the boundary the user
+   * grabbed would appear not to move. Shared by both entry points, so the pointer
+   * and the keyboard start from the same numbers.
+   */
+  const seedSizes = (ids: readonly string[]): Record<string, number> => {
     const seeded: Record<string, number> = { ...host.sizes() };
     for (const pid of ids) {
       const el = host.elementOf(pid);
@@ -85,16 +163,47 @@ export function createResize(host: ResizeHost): ResizeApi {
       const r = el.getBoundingClientRect();
       seeded[pid] = host.axis() === 'x' ? r.width : r.height;
     }
+    return seeded;
+  };
 
+  const pairFor = (id: string): ResizePair | null => {
+    const ids = host.visualOpenIds();
+    const i = ids.indexOf(id);
+    const nextId = i >= 0 ? ids[i + 1] : undefined;
+    if (nextId === undefined) return null;
+
+    const seeded = seedSizes(ids);
     const startA = seeded[id];
     const startB = seeded[nextId];
-    if (startA === undefined || startB === undefined) return;
+    if (startA === undefined || startB === undefined) return null;
+
+    return {
+      nextId,
+      seeded,
+      startA,
+      startB,
+      minA: host.minSizeOf(id),
+      minB: host.minSizeOf(nextId),
+    };
+  };
+
+  /**
+   * Clamp a requested movement against BOTH floors before applying it.
+   *
+   * Clamping after the fact is what produces the classic "the other panel keeps
+   * shrinking past its minimum" bug: the pair must always sum to the same total, so
+   * the delta is bounded by what each side can give.
+   */
+  const clampDelta = (raw: number, p: ResizePair): number =>
+    Math.max(p.minA - p.startA, Math.min(raw, p.startB - p.minB));
+
+  const begin = (id: string, e: PointerEvent): void => {
+    const p = pairFor(id);
+    if (p === null) return;
 
     const startPointer = host.axis() === 'x' ? e.clientX : e.clientY;
-    const minA = host.minSizeOf(id);
-    const minB = host.minSizeOf(nextId);
 
-    host.setSizes(seeded);
+    host.previewSizes(p.seeded);
     setResizing(true);
 
     const target = e.currentTarget as HTMLElement | null;
@@ -102,48 +211,68 @@ export function createResize(host: ResizeHost): ResizeApi {
 
     const onMove = (ev: PointerEvent): void => {
       const now = host.axis() === 'x' ? ev.clientX : ev.clientY;
+      /*
+       * Applied from the first pixel — there is deliberately no activation
+       * threshold.
+       *
+       * There used to be a constant for one, set to 0, guarded by
+       * `Math.abs(raw) < 0` (never true) and commented as matching the reorder
+       * primitive's activation distance. It matched nothing and did nothing. A
+       * dead constant claiming to encode a decision is worse than no constant:
+       * the next reader either trusts a threshold that is not there, or "fixes"
+       * the value and silently changes behaviour nothing tested.
+       *
+       * The threshold is genuinely not wanted here. It exists in a reorder drag
+       * to tell a click from a drag on an element that does BOTH. A splitter is a
+       * dedicated handle with no click action, so a press that moves 2px means
+       * "move the boundary 2px" and nothing else.
+       */
       const raw = (now - startPointer) * host.direction();
-      if (Math.abs(raw) < RESIZE_ACTIVATE_PX) return;
-      // Clamp against BOTH floors before applying, so the pair always sums to the
-      // same total — clamping after the fact is what produces the classic
-      // "the other panel keeps shrinking past its minimum" bug.
-      const delta = Math.max(minA - startA, Math.min(raw, startB - minB));
-      host.setSizes({ ...host.sizes(), [id]: startA + delta, [nextId]: startB - delta });
+      const delta = clampDelta(raw, p);
+      host.previewSizes({ ...host.sizes(), [id]: p.startA + delta, [p.nextId]: p.startB - delta });
 
       // Overdrag → collapse. Measured against the UNCLAMPED movement, because once a
       // panel is pinned at its minimum the clamped size stops changing and could
       // never express "keep going". Committed on release, not here: collapsing
       // mid-drag would yank the boundary out from under the pointer.
-      const wantA = startA + raw;
-      const wantB = startB - raw;
-      if (wantA < minA - COLLAPSE_OVERDRAG_PX && host.canCollapse(id)) {
+      const wantA = p.startA + raw;
+      const wantB = p.startB - raw;
+      if (wantA < p.minA - COLLAPSE_OVERDRAG_PX && host.canCollapse(id)) {
         setCollapseCandidate(id);
-      } else if (wantB < minB - COLLAPSE_OVERDRAG_PX && host.canCollapse(nextId)) {
-        setCollapseCandidate(nextId);
+      } else if (wantB < p.minB - COLLAPSE_OVERDRAG_PX && host.canCollapse(p.nextId)) {
+        setCollapseCandidate(p.nextId);
       } else {
         setCollapseCandidate(null);
       }
     };
 
-    const onUp = (ev: PointerEvent): void => {
-      target?.releasePointerCapture?.(ev.pointerId);
+    const detach = (): void => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      endActiveDrag = null;
+      setCollapseCandidate(null);
+      setResizing(false);
+    };
+
+    const onUp = (ev: PointerEvent): void => {
+      target?.releasePointerCapture?.(ev.pointerId);
       const victim = collapseCandidate();
+      detach();
+
+      // THE commit: one persisted state and one notification for the whole gesture.
+      const settled = { ...host.sizes() };
       if (victim !== null) {
         host.collapse(victim);
         // Drop the collapsed panel's explicit size: it will be reopened later at the
         // mode's automatic size, which is what the user expects from a panel they
         // deliberately squashed away — not the 1px sliver they squashed it to.
-        const next = { ...host.sizes() };
-        delete next[victim];
-        host.setSizes(next);
+        delete settled[victim];
       }
-      setCollapseCandidate(null);
-      setResizing(false);
+      host.commitSizes(settled);
     };
 
+    endActiveDrag = detach;
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
@@ -151,5 +280,29 @@ export function createResize(host: ResizeHost): ResizeApi {
     e.stopPropagation();
   };
 
-  return { begin, resizing, collapseCandidate };
+  const nudge = (id: string, steps: number, coarse: boolean): void => {
+    const p = pairFor(id);
+    if (p === null) return;
+    const step = coarse ? KEYBOARD_COARSE_STEP_PX : KEYBOARD_STEP_PX;
+    const delta = clampDelta(steps * step * host.direction(), p);
+    if (delta === 0) return;
+    // Straight to commit: a keypress is already a discrete decision, so there is no
+    // intermediate state worth previewing.
+    host.commitSizes({ ...p.seeded, [id]: p.startA + delta, [p.nextId]: p.startB - delta });
+  };
+
+  const boundsOf = (id: string): { value: number; min: number; max: number } | undefined => {
+    const p = pairFor(id);
+    if (p === null) return undefined;
+    // The pair's total is fixed, so this panel's ceiling is whatever its neighbour
+    // can give up — the same bound `clampDelta` enforces, read out rather than
+    // recomputed.
+    return {
+      value: Math.round(p.startA),
+      min: Math.round(p.minA),
+      max: Math.round(p.startA + (p.startB - p.minB)),
+    };
+  };
+
+  return { begin, nudge, boundsOf, resizing, collapseCandidate };
 }

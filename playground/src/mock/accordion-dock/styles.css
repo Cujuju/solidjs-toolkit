@@ -122,6 +122,16 @@
     --acc-col-bar-pad-end: 4px;
 
     --acc-duration: 140ms;
+
+    /* Focus ring, as tokens because five controls draw the same one and were each
+       spelling out `1px solid var(--acc-accent)` with a `-2px` offset. Five copies
+       of a visual decision is five places to update and four to miss. */
+    --acc-focus-ring-width: 1px;
+    /* NEGATIVE by default: every control that draws this ring — rail button,
+       header, pin, close, crumb — sits flush inside tight chrome, where an
+       outset ring would be clipped by the neighbour it abuts. Controls with room
+       around them override the offset locally rather than inverting the default. */
+    --acc-focus-ring-offset: -2px;
     /* Open/close GEOMETRY, kept separate from --acc-duration on purpose: a
        colour or opacity fade at 140ms reads as instant-but-soft, while a box
        travelling a whole column width in 140ms reads as a jump. 180ms also
@@ -409,8 +419,8 @@
 }
 
 .acc-rail-btn:focus-visible {
-  outline: 1px solid var(--acc-accent);
-  outline-offset: -2px;
+  outline: var(--acc-focus-ring-width) solid var(--acc-accent);
+  outline-offset: var(--acc-focus-ring-offset);
 }
 
 .acc-rail-label {
@@ -480,6 +490,23 @@
   z-index: 2;
   background: transparent;
   transition: background var(--acc-duration) ease;
+  /* The browser must not claim the gesture for scrolling. Without this a touch
+     drag on the handle pans the page and the splitter never sees a pointermove —
+     the engine's `pointercancel` teardown fires instead, so resize is silently
+     pointer-and-mouse-only on a touch device. */
+  touch-action: none;
+}
+
+/* Focusable now (see Splitter.tsx), so it needs a visible focus ring — a control
+   you can tab to and cannot see is worse than one you cannot tab to. Keyboard-only
+   by `:focus-visible`, so a pointer grab does not leave a ring behind. */
+.acc-splitter:focus-visible {
+  background: var(--acc-accent);
+  outline: var(--acc-focus-ring-width) solid var(--acc-accent);
+  /* Outset, unlike the shared default: the handle is only `--acc-splitter-hit`
+     wide, so an inset ring would be drawn inside a few pixels and be invisible at
+     the exact moment it matters. */
+  outline-offset: 0;
 }
 
 .acc-splitter:hover,
@@ -646,8 +673,8 @@
 }
 
 .acc-header:focus-visible {
-  outline: 1px solid var(--acc-accent);
-  outline-offset: -2px;
+  outline: var(--acc-focus-ring-width) solid var(--acc-accent);
+  outline-offset: var(--acc-focus-ring-offset);
 }
 
 .acc-chevron {
@@ -815,7 +842,10 @@
 .acc-pin:focus-visible,
 .acc-close:focus-visible,
 .acc-tearoff:focus-visible {
-  outline: 1px solid var(--acc-accent);
+  outline: var(--acc-focus-ring-width) solid var(--acc-accent);
+  /* A tighter inset than the shared default. These three are small square icon
+     buttons packed into a title bar, so the standard `-2px` eats most of the glyph;
+     `-1px` keeps the ring on the button's own edge. */
   outline-offset: -1px;
 }
 

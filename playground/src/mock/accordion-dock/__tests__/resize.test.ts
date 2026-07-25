@@ -23,6 +23,10 @@ interface Harness {
   api: ResizeApi;
   sizes: () => Readonly<Record<string, number>>;
   collapsed: string[];
+  /** Every `previewSizes` call, in order — the intermediate states of a gesture. */
+  previews: Readonly<Record<string, number>>[];
+  /** Every `commitSizes` call. A gesture must produce exactly one. */
+  commits: Readonly<Record<string, number>>[];
   dispose: () => void;
 }
 
@@ -42,20 +46,34 @@ function harness(spec: HarnessSpec): Harness {
   const axis = spec.axis ?? 'x';
   const collapsed: string[] = [];
 
+  /*
+   * The applied sizes, mirrored out of the signal so the fake rects can read them.
+   *
+   * jsdom has no layout — every real rect is zero — so the engine's DOM seeding
+   * has to be faked. Faking it as a FROZEN number is the tempting version and it
+   * is wrong: in a browser an element's rect reflects the size already applied to
+   * it, so a second gesture starts where the first one finished. A frozen rect
+   * makes every gesture start from the original extent, which silently turns any
+   * test of repeated adjustment into a test of one adjustment done N times.
+   */
+  let applied: Readonly<Record<string, number>> = {};
+
   const els = new Map<string, HTMLElement>();
   for (const id of ids) {
     const el = document.createElement('div');
     const extent = spec.boxes[id];
-    // jsdom has no layout — every rect is zero. The engine seeds from the DOM at
-    // drag start, so the sizes it starts from must be stated by the test.
-    el.getBoundingClientRect = () =>
-      ({ width: axis === 'x' ? extent : 0, height: axis === 'y' ? extent : 0 }) as DOMRect;
+    el.getBoundingClientRect = () => {
+      const size = applied[id] ?? extent;
+      return { width: axis === 'x' ? size : 0, height: axis === 'y' ? size : 0 } as DOMRect;
+    };
     els.set(id, el);
   }
 
   let dispose = (): void => {};
   let api!: ResizeApi;
   let sizes!: () => Readonly<Record<string, number>>;
+  const previews: Readonly<Record<string, number>>[] = [];
+  const commits: Readonly<Record<string, number>>[] = [];
 
   createRoot((d) => {
     dispose = d;
@@ -68,7 +86,18 @@ function harness(spec: HarnessSpec): Harness {
       elementOf: (id) => els.get(id),
       minSizeOf: (id) => spec.minSizes?.[id] ?? DEFAULT_MIN_SIZE_PX,
       sizes: sizeMap,
-      setSizes: setSizeMap,
+      // Both writers move the signal — the difference is what ELSE they do in the
+      // real host (persist, notify), which is exactly what these arrays record.
+      previewSizes: (next) => {
+        previews.push(next);
+        applied = next;
+        setSizeMap(next);
+      },
+      commitSizes: (next) => {
+        commits.push(next);
+        applied = next;
+        setSizeMap(next);
+      },
       collapse: (id) => {
         if (spec.uncollapsible?.includes(id) === true) return false;
         collapsed.push(id);
@@ -79,7 +108,7 @@ function harness(spec: HarnessSpec): Harness {
     api = createResize(host);
   });
 
-  return { api, sizes, collapsed, dispose };
+  return { api, sizes, collapsed, previews, commits, dispose };
 }
 
 /** A pointerdown on a splitter. `currentTarget` is what the engine captures on. */
@@ -318,6 +347,133 @@ describe('createResize — lifecycle', () => {
     h.api.begin('a', e);
     expect(setPointerCapture).toHaveBeenCalledTimes(1);
     up();
+    h.dispose();
+  });
+});
+
+describe('a gesture is one decision', () => {
+  it('previews every move but commits exactly once', () => {
+    // THE contract. Both writers used to be the same function, so a drag wrote
+    // localStorage and fired the consumer's callback on every pointermove — sixty
+    // persisted layout revisions for one adjustment, of which one was wanted.
+    const h = harness({ boxes: { a: 300, b: 300 } });
+    down(h.api, 'a', 0);
+    for (let x = 10; x <= 60; x += 10) move(x);
+    expect(h.previews.length).toBeGreaterThan(1);
+    expect(h.commits).toHaveLength(0);
+
+    up();
+    expect(h.commits).toHaveLength(1);
+    h.dispose();
+  });
+
+  it('commits the settled sizes, not the seed', () => {
+    // Guards the obvious wrong fix: committing `p.seeded` on release would restore
+    // the pre-drag layout and make the whole gesture a no-op.
+    const h = harness({ boxes: { a: 300, b: 300 } });
+    down(h.api, 'a', 0);
+    move(50);
+    up();
+    expect(h.commits[0].a).toBe(350);
+    expect(h.commits[0].b).toBe(250);
+    h.dispose();
+  });
+
+  it('commits once even when the drag ends in a collapse', () => {
+    const h = harness({ boxes: { a: 300, b: 300 }, minSizes: { a: 100 } });
+    down(h.api, 'a', 0);
+    move(-(300 - 100) - COLLAPSE_OVERDRAG_PX - 10);
+    up();
+    expect(h.collapsed).toEqual(['a']);
+    expect(h.commits).toHaveLength(1);
+    // The collapsed panel's explicit size is dropped, so reopening it uses the
+    // mode's automatic size rather than the sliver it was squashed to.
+    expect(h.commits[0].a).toBeUndefined();
+    h.dispose();
+  });
+
+  it('stops listening when the owner is disposed mid-drag', () => {
+    // A group unmounted with the pointer still down (a route change, an HMR
+    // boundary) used to leave pointermove bound to window forever, writing into a
+    // disposed signal on every move.
+    const h = harness({ boxes: { a: 300, b: 300 } });
+    down(h.api, 'a', 0);
+    move(20);
+    const afterFirstMove = h.previews.length;
+
+    h.dispose();
+    move(80);
+    expect(h.previews.length).toBe(afterFirstMove);
+  });
+});
+
+describe('the keyboard moves the same boundary as the pointer', () => {
+  it('nudges by a fine step and commits immediately', () => {
+    const h = harness({ boxes: { a: 300, b: 300 } });
+    h.api.nudge('a', 1, false);
+    expect(h.commits).toHaveLength(1);
+    expect(h.commits[0].a).toBeGreaterThan(300);
+    // Conservation, exactly as for a drag.
+    expect(h.commits[0].a + h.commits[0].b).toBe(600);
+    h.dispose();
+  });
+
+  it('uses a larger step when coarse', () => {
+    const fine = harness({ boxes: { a: 300, b: 300 } });
+    fine.api.nudge('a', 1, false);
+    const coarse = harness({ boxes: { a: 300, b: 300 } });
+    coarse.api.nudge('a', 1, true);
+    expect(coarse.commits[0].a - 300).toBeGreaterThan(fine.commits[0].a - 300);
+    fine.dispose();
+    coarse.dispose();
+  });
+
+  it('respects BOTH floors, like a drag', () => {
+    // The reason `nudge` shares `clampDelta` rather than doing its own arithmetic:
+    // a second implementation is how the two paths come to disagree about a
+    // minimum.
+    const h = harness({ boxes: { a: 300, b: 300 }, minSizes: { b: 250 } });
+    h.api.nudge('a', 100, true); // asks for far more than b can give
+    expect(h.commits[0].b).toBe(250);
+    expect(h.commits[0].a).toBe(350);
+    h.dispose();
+  });
+
+  it('follows the mirrored axis', () => {
+    // Rail docked right: the same keypress must move the boundary the other way,
+    // through the same `direction()` the pointer path uses.
+    const normal = harness({ boxes: { a: 300, b: 300 } });
+    normal.api.nudge('a', 1, false);
+    const mirrored = harness({ boxes: { a: 300, b: 300 }, direction: -1 });
+    mirrored.api.nudge('a', 1, false);
+    expect(normal.commits[0].a).toBeGreaterThan(300);
+    expect(mirrored.commits[0].a).toBeLessThan(300);
+    normal.dispose();
+    mirrored.dispose();
+  });
+
+  it('never collapses a panel', () => {
+    // Overdrag is a gesture with a distance; a keypress has none. A key may clamp
+    // at the minimum but must not close a panel out from under the user.
+    const h = harness({ boxes: { a: 300, b: 300 }, minSizes: { a: 100 } });
+    for (let i = 0; i < 50; i++) h.api.nudge('a', -1, true);
+    expect(h.collapsed).toEqual([]);
+    expect(h.sizes().a).toBe(100);
+    h.dispose();
+  });
+
+  it('does nothing at the floor rather than committing a no-op', () => {
+    const h = harness({ boxes: { a: 100, b: 300 }, minSizes: { a: 100 } });
+    h.api.nudge('a', -1, false);
+    expect(h.commits).toHaveLength(0);
+    h.dispose();
+  });
+
+  it('reports bounds for the separator to announce', () => {
+    const h = harness({ boxes: { a: 300, b: 300 }, minSizes: { a: 100, b: 120 } });
+    expect(h.api.boundsOf('a')).toEqual({ value: 300, min: 100, max: 480 });
+    // The last panel has no neighbour, so there is nothing to resize against.
+    expect(h.api.boundsOf('b')).toBeUndefined();
     h.dispose();
   });
 });

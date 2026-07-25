@@ -204,6 +204,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
       for (const k of Object.keys(sizes)) delete sizes[k];
     },
     beginResize: () => {},
+    nudgeResize: () => {},
+    resizeBoundsOf: () => undefined,
     resizing: () => false,
     collapseCandidate: () => null,
 

@@ -196,6 +196,13 @@ export interface AccordionGroupApi {
   resetSizes: () => void;
   /** Begin a splitter drag on `id`'s trailing edge. */
   beginResize: (id: string, e: PointerEvent) => void;
+  /** Move that same boundary by keyboard. `steps` is signed like pointer movement;
+   *  `coarse` is the Shift-held step. Shares the drag's clamping arithmetic, so the
+   *  two paths cannot disagree about a panel's minimum. */
+  nudgeResize: (id: string, steps: number, coarse: boolean) => void;
+  /** The resizable panel's current extent and travel limits, for the separator's
+   *  `aria-value*`. Undefined when `id` has no neighbour to resize against. */
+  resizeBoundsOf: (id: string) => { value: number; min: number; max: number } | undefined;
   /** True while a splitter drag is live — used to suppress transitions/selection. */
   resizing: Accessor<boolean>;
   /** Panel that will collapse to the rail if the splitter is released now. */

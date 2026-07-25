@@ -95,8 +95,8 @@
 .acc-rail-overflow:focus-visible {
   /* Matches .acc-rail-btn / .acc-header exactly — one focus treatment across the
      whole control. */
-  outline: 1px solid var(--acc-accent);
-  outline-offset: -2px;
+  outline: var(--acc-focus-ring-width) solid var(--acc-accent);
+  outline-offset: var(--acc-focus-ring-offset);
 }
 
 .acc-rail-overflow[aria-expanded='true'] {

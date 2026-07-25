@@ -94,8 +94,8 @@ button.acc-breadcrumb-crumb:hover {
 button.acc-breadcrumb-crumb:focus-visible {
   /* Matches .acc-header / .acc-rail-btn exactly — one focus treatment for the
      whole control. */
-  outline: 1px solid var(--acc-accent);
-  outline-offset: -2px;
+  outline: var(--acc-focus-ring-width) solid var(--acc-accent);
+  outline-offset: var(--acc-focus-ring-offset);
 }
 
 /* Where the user actually is: full-strength text, so the bar has one obvious
