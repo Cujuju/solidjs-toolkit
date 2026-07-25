@@ -1,4 +1,21 @@
+/*
+ * Every stylesheet the control needs, imported HERE and nowhere else — this
+ * module is the only entry point, so a file missing from this list has simply
+ * never been loaded by anything.
+ *
+ * `autoHide.css` and `rail.css` were absent until 2026-07-24: both were written,
+ * both were correct, and neither had ever reached a browser. Auto-hide flyouts
+ * therefore kept their docked column in the layout (the panel's `display: none`
+ * lived in the unloaded file), and the rail's overflow strategies never applied,
+ * so it fell back to a scrollbar in a 40px strip. Nothing failed loudly, because
+ * a missing stylesheet has no error state — it just looks like a layout bug.
+ *
+ * Order is deliberate: `styles.css` first, so the opt-in modes that follow can
+ * override it at equal specificity.
+ */
 import './styles.css';
+import './autoHide.css';
+import './rail.css';
 import './breadcrumb.css';
 
 export { Breadcrumb, type BreadcrumbProps } from './Breadcrumb';

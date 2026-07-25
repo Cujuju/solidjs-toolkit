@@ -1,0 +1,188 @@
+import { test, expect, type Page, type Locator } from '@playwright/test';
+
+/**
+ * Auto-hide flyouts, in a real browser.
+ *
+ * This suite exists because of a bug found BY EYE, in a screenshot, that no test
+ * in this repo could have caught: the flying-out panel's docked column stayed in
+ * the layout and painted its title bar on top of the flyout floating over it, so
+ * the panel's first row was hidden behind a header. jsdom has no layout, so
+ * "is anything drawing on top of this" is not a question it can be asked.
+ *
+ * Every assertion here is therefore GEOMETRIC or COMPUTED — what overlaps what,
+ * what actually occupies space, what a click at a point would hit. Those are the
+ * only terms in which that class of defect is expressible.
+ */
+
+const AUTO_HIDE_DOCK = '[aria-label="Auto-hide dock"]';
+const PANEL_TITLE = 'Solution Explorer';
+const RAIL_LABEL = 'EXPL';
+
+function dock(page: Page): Locator {
+  return page.locator(AUTO_HIDE_DOCK);
+}
+
+/** The flyout surface. Portalled to <body>, so it is deliberately NOT looked up
+ *  inside the dock — a selector scoped to the group would silently match nothing
+ *  and every `toBeVisible` would fail for the wrong reason. */
+function flyout(page: Page): Locator {
+  return page.locator('.vsa-flyout');
+}
+
+function railButton(page: Page, label: string): Locator {
+  return dock(page).getByRole('tab', { name: new RegExp(label) });
+}
+
+/** The docked shell of a panel, by its title. Present in the DOM whether or not
+ *  it is flying out — which is the whole point of the `data-flyout` contract. */
+function panelShell(page: Page, title: string): Locator {
+  return dock(page)
+    .locator('.vsa-panel')
+    .filter({ has: page.locator('.vsa-col-bar .vsa-title', { hasText: title }) });
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+  });
+  await page.goto('/#/vs-accordion');
+  await expect(dock(page)).toBeVisible();
+});
+
+test.describe('auto-hide — the flyout is an overlay', () => {
+  test('opening an unpinned panel floats it instead of adding a column', async ({ page }) => {
+    await railButton(page, RAIL_LABEL).click();
+    await expect(flyout(page)).toBeVisible();
+
+    // The docked shell stays MOUNTED — it owns the refs the group measures and
+    // the identity the reorder list tracks — but must take no space.
+    const shell = panelShell(page, PANEL_TITLE);
+    await expect(shell).toHaveAttribute('data-flyout', 'true');
+    await expect(shell).toBeHidden();
+  });
+
+  test('NOTHING paints on top of the flyout’s first row', async ({ page }) => {
+    // THE regression test. Previously the docked column's `.vsa-col-bar` sat over
+    // the flyout at the same top edge and covered the first row, because the
+    // panel never received `data-flyout` and so was never taken out of the
+    // layout. `elementFromPoint` asks the question the way the user asked it:
+    // what is actually drawn here?
+    await railButton(page, RAIL_LABEL).click();
+    const firstRow = flyout(page).getByText('file 1', { exact: true });
+    await expect(firstRow).toBeVisible();
+
+    const box = await firstRow.boundingBox();
+    expect(box).not.toBeNull();
+
+    const hit = await page.evaluate(({ x, y }) => {
+      const el = document.elementFromPoint(x, y);
+      return {
+        insideFlyout: el?.closest('.vsa-flyout') !== null && el?.closest('.vsa-flyout') !== undefined,
+        coveredByHeader: el?.closest('.vsa-col-bar') !== null && el?.closest('.vsa-col-bar') !== undefined,
+        text: el?.textContent?.trim() ?? '',
+      };
+    }, { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 });
+
+    expect(hit.coveredByHeader).toBe(false);
+    expect(hit.insideFlyout).toBe(true);
+    expect(hit.text).toBe('file 1');
+  });
+
+  test('every row is reachable — the flyout is not clipped at the top', async ({ page }) => {
+    // The visible symptom was "the list starts at file 2". Counting is the
+    // cheapest way to state that no row was eaten.
+    await railButton(page, RAIL_LABEL).click();
+    await expect(flyout(page).locator('.readout > div')).toHaveCount(10);
+    await expect(flyout(page).getByText('file 1', { exact: true })).toBeVisible();
+  });
+
+  test('the flyout carries the content padding a docked column has', async ({ page }) => {
+    // The panel's `.vsa-content` box stays behind in the docked shell, so only
+    // the children portal out. Without the flyout host sharing the content-box
+    // rule, text sat flush against the border.
+    await railButton(page, RAIL_LABEL).click();
+    const padding = await flyout(page)
+      .locator('.vsa-flyout-host')
+      .evaluate((el) => getComputedStyle(el).padding);
+
+    expect(padding).not.toBe('0px');
+  });
+
+  test('the flyout can scroll its own overflow rather than clipping it', async ({ page }) => {
+    // `.vsa-flyout` is `overflow: hidden`, so if the host does not scroll, any
+    // content taller than the dock is unreachable with no affordance.
+    //
+    // EXPL rather than OUT: this rail is short enough that the fourth button
+    // lives in the `⋯` overflow menu, so addressing it by rail label would be
+    // asserting against the overflow strategy rather than against scrolling.
+    await railButton(page, RAIL_LABEL).click();
+    const overflow = await flyout(page)
+      .locator('.vsa-flyout-host')
+      .evaluate((el) => getComputedStyle(el).overflowY);
+
+    expect(['auto', 'scroll']).toContain(overflow);
+  });
+});
+
+test.describe('auto-hide — pinning changes what the panel IS', () => {
+  test('pinning promotes the flyout to a column that takes real space', async ({ page }) => {
+    await railButton(page, RAIL_LABEL).click();
+    await expect(flyout(page)).toBeVisible();
+
+    await flyout(page).locator('.vsa-pin').click();
+
+    // No longer an overlay: the surface is gone and the docked shell now has a box.
+    await expect(flyout(page)).toHaveCount(0);
+    const shell = panelShell(page, PANEL_TITLE);
+    await expect(shell).toHaveAttribute('data-flyout', 'false');
+    await expect(shell).toBeVisible();
+
+    const box = await shell.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThan(0);
+  });
+
+  test('a pinned column is not overlapped by a second panel’s flyout', async ({ page }) => {
+    // The claim the demo card makes in prose: once pinned, "the next panel you
+    // open floats over the remainder instead of displacing it".
+    //
+    // NOT-overlapping would be the wrong assertion, and asserting it was my
+    // error before this: in `fill` mode a single pinned column expands to the
+    // whole dock, so there is no remainder to sit beside and the flyout is
+    // SUPPOSED to float over it. Overlap is the feature. What must not happen is
+    // the pinned column being moved or resized to make room — the reflow that
+    // pinning is a promise against.
+    await railButton(page, RAIL_LABEL).click();
+    await flyout(page).locator('.vsa-pin').click();
+    const before = await panelShell(page, PANEL_TITLE).boundingBox();
+    expect(before).not.toBeNull();
+
+    await railButton(page, 'PROP').click();
+    await expect(flyout(page)).toBeVisible();
+    const after = await panelShell(page, PANEL_TITLE).boundingBox();
+    expect(after).not.toBeNull();
+
+    expect(after!.x).toBeCloseTo(before!.x, 0);
+    expect(after!.width).toBeCloseTo(before!.width, 0);
+  });
+});
+
+test.describe('auto-hide — dismissal', () => {
+  test('clicking outside sends a transient flyout away', async ({ page }) => {
+    await railButton(page, RAIL_LABEL).click();
+    await expect(flyout(page)).toBeVisible();
+
+    // Somewhere unambiguously outside both the flyout and the rail.
+    await page.locator('.nav h1').click();
+    await expect(flyout(page)).toHaveCount(0);
+  });
+
+  test('a pinned panel is NOT dismissed by clicking away', async ({ page }) => {
+    // The pin's entire meaning in this mode: it stops being transient.
+    await railButton(page, RAIL_LABEL).click();
+    await flyout(page).locator('.vsa-pin').click();
+
+    await page.locator('.nav h1').click();
+    await expect(panelShell(page, PANEL_TITLE)).toBeVisible();
+  });
+});

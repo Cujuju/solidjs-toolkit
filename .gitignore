@@ -8,3 +8,9 @@ dist/
 coverage/
 .npmrc
 
+# Playwright run output — traces and screenshots for the last failing run.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+

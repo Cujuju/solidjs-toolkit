@@ -9,6 +9,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { AnchoredPopover, type AnchoredPlacement } from '@cujuju/solidjs-anchored-popover';
+import { Close, Pin } from './icons';
 import type {
   AccordionOrientation,
   AccordionPolicy,
@@ -207,6 +208,16 @@ export interface AutoHideGroup {
   meta: (id: string) => PanelMeta | undefined;
   isOpen: (id: string) => boolean;
   isPinned: (id: string) => boolean;
+  /**
+   * Promote a flyout to a docked column, or demote it back.
+   *
+   * Required, not optional: the pin is the entire subject of this mode, and a
+   * flyout renders its own title bar because the panel's docked one is
+   * `display: none` while it floats. Without this the flyout would have no pin
+   * affordance at all and the mode would be a one-way trip — which is exactly
+   * what shipped until a browser test went looking for the control.
+   */
+  togglePin: (id: string) => void;
   setOpen: (id: string, open: boolean) => void;
   sizeOf: (id: string) => number | undefined;
   /**
@@ -378,9 +389,13 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
     // browser would drop it to <body> and the next Tab would restart from the
     // top of the document. Returning it to the rail button also puts the user
     // exactly where the keyboard path expects to resume.
-    const host = hosts().get(id);
+    // Against the whole surface, for the same reason `onFocusIn` is — focus
+    // resting on the flyout's own pin or close button must still be returned to
+    // the rail button, or the browser drops it to <body> and the next Tab
+    // restarts from the top of the document.
+    const surface = surfaceOf(id);
     const active = document.activeElement;
-    if (host !== null && host !== undefined && active instanceof Node && host.contains(active)) {
+    if (surface !== undefined && active instanceof Node && surface.contains(active)) {
       group.headerElOf(id)?.focus();
     }
     causes.delete(id);
@@ -397,14 +412,33 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
    * loses focus, and dismissing because the user alt-tabbed to another app —
    * losing their peek when they come back — is the exact opposite of helpful.
    */
+  /**
+   * The whole flyout SURFACE for a panel, not just its content mount.
+   *
+   * `hosts` registers `.vsa-flyout-host`, which is only where the panel's subtree
+   * portals in. The surface around it also holds chrome — the flyout's own title
+   * bar, with the pin and the close — and those are as much "inside the flyout"
+   * as the content is.
+   *
+   * Getting this wrong was not cosmetic: focusing the pin landed outside `host`,
+   * so the tab-away handler read it as focus leaving and dismissed the panel
+   * before the click could toggle anything. The pin appeared to close the panel.
+   * Resolved by climbing from the host so that any chrome added later is covered
+   * automatically, rather than by registering a second element that a future
+   * addition could forget.
+   */
+  const surfaceOf = (id: string): Element | undefined => {
+    const host = hosts().get(id);
+    return host?.closest(`.${FLYOUT_CONTENT_CLASS}`) ?? host;
+  };
+
   const onFocusIn = (e: FocusEvent): void => {
     const open = flyoutIds();
     if (open.length === 0) return;
     const target = e.target;
     if (!(target instanceof Node)) return;
     for (const id of open) {
-      const host = hosts().get(id);
-      if (host?.contains(target) === true) continue;
+      if (surfaceOf(id)?.contains(target) === true) continue;
       if (group.headerElOf(id)?.contains(target) === true) continue;
       dismiss(id);
     }
@@ -541,6 +575,57 @@ function Flyout(props: {
       class={FLYOUT_CONTENT_CLASS}
       aria-label={labelOf(props.group.meta(props.id))}
     >
+      {/*
+        The flyout's OWN title bar.
+
+        It carries the same classes as a docked column's, deliberately: pinning
+        changes where the panel lives, not what it looks like, and a flyout that
+        restyled itself on promotion would read as a different panel appearing.
+
+        It has to exist here because the panel's real `.vsa-col-bar` lives in the
+        docked shell, which `autoHide.css` takes out of the layout while the panel
+        floats. Before this, a flyout had no pin — the one control the entire mode
+        is about — and no close either; the only route to pinning was the rail
+        button's context menu, which nothing advertises.
+      */}
+      <div class="vsa-col-bar">
+        <Show when={props.group.meta(props.id)?.icon()}>
+          <span class="vsa-icon">{props.group.meta(props.id)?.icon()}</span>
+        </Show>
+        <span class="vsa-title">{props.group.meta(props.id)?.title()}</span>
+        <Show when={props.group.meta(props.id)?.count() !== undefined}>
+          <span class="vsa-count">{props.group.meta(props.id)?.count()}</span>
+        </Show>
+        <div class="vsa-header-tail">
+          <Show when={props.group.meta(props.id)?.pinnable() === true}>
+            <button
+              type="button"
+              class="vsa-pin"
+              data-no-drag
+              aria-pressed={props.group.isPinned(props.id)}
+              title="Pin — dock this panel as a column instead of a flyout"
+              /* Stops the pointerdown from also reaching `onCommit` below, which
+                 would promote the peek to a click-opened flyout in the same
+                 gesture that is about to dock it outright. */
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => props.group.togglePin(props.id)}
+            >
+              <Pin />
+            </button>
+          </Show>
+          <button
+            type="button"
+            class="vsa-close"
+            data-no-drag
+            title="Close"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => props.onDismiss()}
+          >
+            <Close />
+          </button>
+        </div>
+      </div>
+
       <div
         class="vsa-flyout-host"
         /* Restates the group's density inside the Portal'd surface — see the
