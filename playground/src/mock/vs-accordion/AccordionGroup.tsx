@@ -744,7 +744,15 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
             class="vsa-rail"
             role="tablist"
             aria-orientation="vertical"
-            data-overflow={overflowStrategy()}
+            /* NAME MUST MATCH `rail.css`, which selects `data-overflow-mode`.
+               This emitted `data-overflow` — one character of disagreement between
+               the two authors — so every overflow-strategy rule was inert: the
+               `menu` strategy never got its `overflow-y: hidden`, and `pan` never
+               got `scrollbar-width: none`, the webkit scrollbar suppression or the
+               end fades. The rail's base `overflow-y: auto` therefore stood in both
+               strategies, which is precisely the scrollbar-in-a-40px-strip that the
+               overflow work existed to remove. */
+            data-overflow-mode={overflowStrategy()}
           >
             <For each={railOverflow.visibleIds()}>
               {(id) => {
