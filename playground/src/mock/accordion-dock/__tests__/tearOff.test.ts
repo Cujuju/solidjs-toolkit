@@ -30,7 +30,7 @@ import {
  *  treated as a browser reporting garbage mid-open, so the sample is discarded. */
 const BELOW_MIN_PX = TEAR_OFF_MIN_WINDOW_PX - 1;
 
-const STORAGE_KEY = 'vsaTest:tearOff';
+const STORAGE_KEY = 'accTest:tearOff';
 
 interface FakeWindow {
   document: Document;

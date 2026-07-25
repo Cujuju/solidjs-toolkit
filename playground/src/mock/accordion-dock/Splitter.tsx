@@ -23,7 +23,7 @@ export function Splitter(props: { id: string }): JSX.Element {
   return (
     <Show when={shown()}>
       <div
-        class="vsa-splitter"
+        class="acc-splitter"
         role="separator"
         aria-orientation={group.orientation() === 'horizontal' ? 'vertical' : 'horizontal'}
         aria-label="Resize panel"

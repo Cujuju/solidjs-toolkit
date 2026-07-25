@@ -1,25 +1,25 @@
 /*
- * Breadcrumb chrome for the vs-accordion mock.
+ * Breadcrumb chrome for the accordion-dock mock.
  *
  * Separate file only because `styles.css` is owned elsewhere while this lands;
  * it is meant to be folded in on promotion. Every colour, radius and metric
- * comes from an existing --vsa-* token so the bar cannot drift from the dock it
+ * comes from an existing --acc-* token so the bar cannot drift from the dock it
  * describes — the two new tokens below are declared on the bar itself, not on
  * :root, so they stay overridable per instance without widening the group's
  * global token surface.
  */
 
-.vsa-breadcrumb {
+.acc-breadcrumb {
   /* Cap on ONE crumb's label. The elision handles "too many crumbs"; this
      handles "one crumb with an absurd label", which elision cannot: a single
      600px filename would blow out the bar no matter how few crumbs there are.
-     Sized just under the default column width (--vsa-col-width: 230px) so a
+     Sized just under the default column width (--acc-col-width: 230px) so a
      crumb never claims more room than the column it stands for. */
-  --vsa-crumb-max-width: 180px;
+  --acc-crumb-max-width: 180px;
   /* Gap around a separator. Half the header padding: the separator is a joint
      between two labels, not a boundary between two regions, so it reads wrong
      at full header spacing. */
-  --vsa-crumb-gap: calc(var(--vsa-header-pad-x) / 2);
+  --acc-crumb-gap: calc(var(--acc-header-pad-x) / 2);
 
   display: flex;
   align-items: center;
@@ -32,15 +32,15 @@
      cannot push the dock sideways. */
   overflow: hidden;
   box-sizing: border-box;
-  height: var(--vsa-header-height);
-  padding: 0 var(--vsa-header-pad-x);
-  background: var(--vsa-header-bg);
-  border-bottom: 1px solid var(--vsa-border);
-  color: var(--vsa-text-muted);
-  font-size: var(--vsa-title-size);
+  height: var(--acc-header-height);
+  padding: 0 var(--acc-header-pad-x);
+  background: var(--acc-header-bg);
+  border-bottom: 1px solid var(--acc-border);
+  color: var(--acc-text-muted);
+  font-size: var(--acc-title-size);
 }
 
-.vsa-breadcrumb-list {
+.acc-breadcrumb-list {
   display: flex;
   align-items: center;
   min-width: 0;
@@ -49,24 +49,24 @@
   list-style: none;
 }
 
-.vsa-breadcrumb-item {
+.acc-breadcrumb-item {
   display: flex;
   align-items: center;
   min-width: 0;
 }
 
-.vsa-breadcrumb-sep {
+.acc-breadcrumb-sep {
   flex: none;
-  padding: 0 var(--vsa-crumb-gap);
-  color: var(--vsa-text-muted);
+  padding: 0 var(--acc-crumb-gap);
+  color: var(--acc-text-muted);
   /* The separator is structure, not content — never let it be the thing that
      survives while a label is truncated away. */
   opacity: 0.7;
 }
 
-.vsa-breadcrumb-crumb {
+.acc-breadcrumb-crumb {
   display: block;
-  max-width: var(--vsa-crumb-max-width);
+  max-width: var(--acc-crumb-max-width);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -75,44 +75,44 @@
   margin: 0;
   padding: 0 2px;
   border: 0;
-  border-radius: var(--vsa-radius);
+  border-radius: var(--acc-radius);
   background: none;
   color: inherit;
   font: inherit;
   text-align: left;
 }
 
-button.vsa-breadcrumb-crumb {
+button.acc-breadcrumb-crumb {
   cursor: pointer;
 }
 
-button.vsa-breadcrumb-crumb:hover {
-  background: var(--vsa-header-bg-hover);
-  color: var(--vsa-text);
+button.acc-breadcrumb-crumb:hover {
+  background: var(--acc-header-bg-hover);
+  color: var(--acc-text);
 }
 
-button.vsa-breadcrumb-crumb:focus-visible {
-  /* Matches .vsa-header / .vsa-rail-btn exactly — one focus treatment for the
+button.acc-breadcrumb-crumb:focus-visible {
+  /* Matches .acc-header / .acc-rail-btn exactly — one focus treatment for the
      whole control. */
-  outline: 1px solid var(--vsa-accent);
+  outline: 1px solid var(--acc-accent);
   outline-offset: -2px;
 }
 
 /* Where the user actually is: full-strength text, so the bar has one obvious
    anchor even when every other crumb is dimmed. */
-.vsa-breadcrumb-current {
-  color: var(--vsa-text);
-  font-weight: var(--vsa-title-weight);
+.acc-breadcrumb-current {
+  color: var(--acc-text);
+  font-weight: var(--acc-title-weight);
 }
 
 /* The leaf is a different KIND of thing from the folders before it — a detail
    pane, not another column of choices. It reuses the panel accent so the crumb
    and the pane it names are visibly the same object. */
-.vsa-breadcrumb-crumb[data-leaf='true'] {
-  color: var(--vsa-accent);
+.acc-breadcrumb-crumb[data-leaf='true'] {
+  color: var(--acc-accent);
 }
 
-.vsa-breadcrumb-ellipsis {
+.acc-breadcrumb-ellipsis {
   flex: none;
   /* Wider hit area than the glyph, which is only ~8px of ink. */
   padding: 0 4px;

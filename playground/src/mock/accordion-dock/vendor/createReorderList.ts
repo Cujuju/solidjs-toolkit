@@ -2,7 +2,7 @@
    (@cujuju/solid-reorder-list v0.3.0-rc.4, not yet published to npm, so the
    playground cannot depend on it as a package).
 
-   DO NOT EDIT HERE. When vs-accordion is promoted out of the mock, DELETE this
+   DO NOT EDIT HERE. When accordion-dock is promoted out of the mock, DELETE this
    vendor directory and take a real dependency on @cujuju/solid-reorder-list —
    a forked copy that drifts from the source repo is worse than either. */
 

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Browser tests for the vs-accordion mock.
+ * Browser tests for the accordion-dock mock.
  *
  * WHAT BELONGS HERE VS IN VITEST
  *

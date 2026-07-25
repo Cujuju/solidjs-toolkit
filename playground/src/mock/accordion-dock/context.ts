@@ -3,7 +3,7 @@ import { createContext, useContext, type Accessor, type JSX } from 'solid-js';
 /**
  * MOCK — not a published package yet. Lives under playground/src/mock/ on purpose:
  * this is the design surface we iterate on before promoting it to
- * packages/accordion. Everything here is deliberately token-driven (--vsa-*) so
+ * packages/accordion. Everything here is deliberately token-driven (--acc-*) so
  * the promotion is a file move, not a rewrite.
  */
 
@@ -238,7 +238,7 @@ export interface AccordionGroupApi {
    *  during render, before the ref has fired. */
   headerElOf: (id: string) => HTMLElement | undefined;
   /** The group's density, exposed so a PORTALLED surface (a flyout leaves
-   *  `.vsa-group` and stops inheriting its token overrides) can restate it. */
+   *  `.acc-group` and stops inheriting its token overrides) can restate it. */
   density: Accessor<'comfortable' | 'compact'>;
   /** The panel's outer element — measured when seeding a resize. */
   setPanelEl: (id: string, el: HTMLElement | null) => void;

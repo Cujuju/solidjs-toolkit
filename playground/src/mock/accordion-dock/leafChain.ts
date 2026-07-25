@@ -219,7 +219,7 @@ export function leafChainFor(group: AccordionGroupApi): LeafChain {
         // shows up as columns in the wrong order, which is near-impossible to
         // trace back to a missing wiring step.
         console.warn(
-          '[vs-accordion] a chained <AccordionLeaf> declared parentId, but its ' +
+          '[accordion-dock] a chained <AccordionLeaf> declared parentId, but its ' +
             '<AccordionGroup> has no leaf chain bound — chained leaves will paint in open ' +
             'order rather than chain order. Wire bindLeafChain(api, chain) in AccordionGroup ' +
             'and sort leaves through chain.orderOpen() in visualOpenIds.',

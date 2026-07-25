@@ -46,7 +46,7 @@ export interface AccordionPanelProps {
   closable?: boolean;
 
   /** Per-panel accent colour — recolours the rail marker, pin and focus ring for
-   *  this panel only. Any CSS colour; sets `--vsa-accent` on the panel's subtree. */
+   *  this panel only. Any CSS colour; sets `--acc-accent` on the panel's subtree. */
   accent?: string;
   /** Floor for interactive resize, px. */
   minSize?: number;
@@ -198,7 +198,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         // lets the later ref win, so it is invoked explicitly rather than dropped.
         (dragItem().ref as ((e: HTMLElement) => void) | undefined)?.(el);
       }}
-      class={`vsa-panel ${props.class ?? ''}`.trim()}
+      class={`acc-panel ${props.class ?? ''}`.trim()}
       data-open={open() ? 'true' : 'false'}
       data-pinned={pinned() ? 'true' : 'false'}
       /* The docked shell of a flying-out panel. It stays MOUNTED — it owns the
@@ -217,7 +217,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
          separator that would otherwise double up against the rail's own edge. */
       data-col-first={horizontal() && group.openIndex(props.id) === 0 ? 'true' : 'false'}
       style={{
-        ...(props.accent !== undefined ? { '--vsa-accent': props.accent } : {}),
+        ...(props.accent !== undefined ? { '--acc-accent': props.accent } : {}),
         ...(horizontal()
           ? { order: Math.max(group.openIndex(props.id), 0) + 1 }
           : /* Vertical panels keep their DOM position but follow the user's dragged
@@ -229,13 +229,13 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     >
       {/* VERTICAL: the activator is a full-width header bar above the content. */}
       <Show when={!horizontal()}>
-        <div class="vsa-header-row" {...menu.triggerProps}>
+        <div class="acc-header-row" {...menu.triggerProps}>
           <button
             {...dragHandle()}
             ref={(el) => group.setHeaderEl(props.id, el)}
             id={headerId}
             type="button"
-            class={`vsa-header ${props.headerClass ?? ''}`.trim()}
+            class={`acc-header ${props.headerClass ?? ''}`.trim()}
             title={props.tooltip}
             aria-expanded={open()}
             aria-controls={contentId}
@@ -244,20 +244,20 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           >
             <Chevron />
             <Show when={props.icon}>
-              <span class="vsa-icon">{props.icon}</span>
+              <span class="acc-icon">{props.icon}</span>
             </Show>
-            <span class="vsa-title">{props.title}</span>
+            <span class="acc-title">{props.title}</span>
             <Show when={props.count !== undefined}>
-              <span class="vsa-count">{props.count}</span>
+              <span class="acc-count">{props.count}</span>
             </Show>
             <Show when={props.badge}>
-              <span class="vsa-badge" data-badge={props.badge} aria-hidden="true" />
+              <span class="acc-badge" data-badge={props.badge} aria-hidden="true" />
             </Show>
           </button>
 
-          <div class="vsa-header-tail">
+          <div class="acc-header-tail">
             <Show when={props.actions}>
-              <div class="vsa-actions">{props.actions}</div>
+              <div class="acc-actions">{props.actions}</div>
             </Show>
             <PanelPinButton group={group} id={props.id} shown={pinnable()} pinned={pinned()} />
             <Show when={closable() && open()}>
@@ -271,25 +271,25 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           title bar — the place the pin and the close affordance have to live, since
           a rail button is too narrow to carry either. */}
       <Show when={horizontal() && open()}>
-        <div class="vsa-col-bar" {...dragHandle()} {...menu.triggerProps}>
+        <div class="acc-col-bar" {...dragHandle()} {...menu.triggerProps}>
           <Show when={props.icon}>
-            <span class="vsa-icon">{props.icon}</span>
+            <span class="acc-icon">{props.icon}</span>
           </Show>
-          <span class="vsa-title" id={headerId}>
+          <span class="acc-title" id={headerId}>
             {props.title}
           </span>
           <Show when={props.count !== undefined}>
-            <span class="vsa-count">{props.count}</span>
+            <span class="acc-count">{props.count}</span>
           </Show>
-          <div class="vsa-header-tail">
+          <div class="acc-header-tail">
             <Show when={props.actions}>
-              <div class="vsa-actions">{props.actions}</div>
+              <div class="acc-actions">{props.actions}</div>
             </Show>
             <PanelPinButton group={group} id={props.id} shown={pinnable()} pinned={pinned()} />
             <Show when={props.tearOffable ?? false}>
               <button
                 type="button"
-                class="vsa-tearoff"
+                class="acc-tearoff"
                 data-no-drag
                 aria-pressed={group.isTornOff(props.id)}
                 title={group.isTornOff(props.id) ? 'Dock this panel' : 'Open in a new window'}
@@ -335,7 +335,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         id={contentId}
         role="region"
         aria-labelledby={headerId}
-        class={`vsa-content ${props.contentClass ?? ''}`.trim()}
+        class={`acc-content ${props.contentClass ?? ''}`.trim()}
         hidden={!open() || group.isFlyout(props.id) || group.isTornOff(props.id)}
       />
       <Show when={shouldRender() && contentMount()}>
@@ -363,7 +363,7 @@ function PanelPinButton(props: {
     <Show when={props.shown}>
       <button
         type="button"
-        class="vsa-pin"
+        class="acc-pin"
         /* Excluded from drag activation — see REORDER_SKIP_SELECTOR. Without this,
            pressing the pin inside a draggable header would start a reorder. */
         data-no-drag
@@ -383,7 +383,7 @@ function PanelPinButton(props: {
 
 function CloseButton(props: { onClick: () => void }): JSX.Element {
   return (
-    <button type="button" class="vsa-close" data-no-drag title="Close" onClick={props.onClick}>
+    <button type="button" class="acc-close" data-no-drag title="Close" onClick={props.onClick}>
       <Close />
     </button>
   );

@@ -17,7 +17,7 @@ import { PillTogglePage } from './pages/PillTogglePage';
 import { SegButtonsPage } from './pages/SegButtonsPage';
 import { SelectFlyoutPage } from './pages/SelectFlyoutPage';
 import { TriStateChipPage } from './pages/TriStateChipPage';
-import { VsAccordionPage } from './pages/VsAccordionPage';
+import { AccordionDockPage } from './pages/AccordionDockPage';
 
 /**
  * Playground — the live harness for the toolkit packages.
@@ -47,8 +47,8 @@ interface Page {
  *  this is usually here for. */
 const PAGES: Page[] = [
   // MOCK, deliberately first: it is the thing currently being designed, and it has no
-  // package behind it yet (source lives in playground/src/mock/vs-accordion).
-  { id: 'vs-accordion', blurb: 'MOCK — pinnable dock', component: VsAccordionPage },
+  // package behind it yet (source lives in playground/src/mock/accordion-dock).
+  { id: 'accordion-dock', blurb: 'MOCK — pinnable dock', component: AccordionDockPage },
   { id: 'pill-date-picker', blurb: 'expiration + DTE', component: PillDatePickerPage },
   { id: 'pill-number-picker', blurb: 'stepper', component: PillNumberPickerPage },
   { id: 'anchored-popover', blurb: 'placement primitive', component: AnchoredPopoverPage },

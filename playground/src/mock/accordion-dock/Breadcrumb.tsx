@@ -47,7 +47,7 @@ const DEFAULT_SEPARATOR = '›';
  * an arrow key focuses — no open, close or truncate is routed through this map —
  * and the `#` prefix is not something an author writes in an `id` prop.
  */
-const ELLIPSIS_KEY = '#vsa-breadcrumb-ellipsis';
+const ELLIPSIS_KEY = '#acc-breadcrumb-ellipsis';
 
 export interface BreadcrumbProps {
   /**
@@ -226,19 +226,19 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
   return (
     <Show when={path().length > 0}>
       <nav
-        class={`vsa-breadcrumb ${props.class ?? ''}`.trim()}
+        class={`acc-breadcrumb ${props.class ?? ''}`.trim()}
         aria-label={props.ariaLabel ?? 'Breadcrumb'}
       >
-        <ol class="vsa-breadcrumb-list">
+        <ol class="acc-breadcrumb-list">
           <For each={entries()}>
             {(entry, i) => (
-              <li class="vsa-breadcrumb-item">
+              <li class="acc-breadcrumb-item">
                 {/* Separator BEFORE every entry but the first, so it never
                     trails the current location. `aria-hidden` because the list
                     structure already conveys the sequence to assistive tech;
                     reading "chevron" between every crumb is noise. */}
                 <Show when={i() > 0}>
-                  <span class="vsa-breadcrumb-sep" aria-hidden="true">
+                  <span class="acc-breadcrumb-sep" aria-hidden="true">
                     {separator()}
                   </span>
                 </Show>
@@ -247,7 +247,7 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
                   <button
                     ref={(el) => trackEl(ELLIPSIS_KEY, el)}
                     type="button"
-                    class="vsa-breadcrumb-crumb vsa-breadcrumb-ellipsis"
+                    class="acc-breadcrumb-crumb acc-breadcrumb-ellipsis"
                     // Expands rather than merely marking the gap: an elision the
                     // user cannot open is information deleted, and the hidden
                     // crumbs are the only route to those columns from here.
@@ -267,7 +267,7 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
                      after it to truncate, so a button here would be a click that
                      does nothing. */
                   <span
-                    class="vsa-breadcrumb-crumb vsa-breadcrumb-current"
+                    class="acc-breadcrumb-crumb acc-breadcrumb-current"
                     aria-current="page"
                     title={entry.crumb.text}
                     data-leaf={entry.crumb.isLeaf ? 'true' : 'false'}
@@ -278,7 +278,7 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
                   <button
                     ref={(el) => trackEl(entry.crumb.id, el)}
                     type="button"
-                    class="vsa-breadcrumb-crumb"
+                    class="acc-breadcrumb-crumb"
                     title={entry.crumb.text}
                     data-leaf={entry.crumb.isLeaf ? 'true' : 'false'}
                     data-pinned={entry.crumb.isPinned ? 'true' : 'false'}

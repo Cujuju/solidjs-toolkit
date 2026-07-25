@@ -9,11 +9,11 @@ import {
   type AccordionRailSide,
   type AccordionLayout,
   DEFAULT_MIN_SIZE_PX,
-} from '../mock/vs-accordion';
+} from '../mock/accordion-dock';
 import { Card, Code, EventLog, createEventLog } from '../ui';
 
 /**
- * MOCK PAGE — vs-accordion is not a package yet (it lives in playground/src/mock/).
+ * MOCK PAGE — accordion-dock is not a package yet (it lives in playground/src/mock/).
  * This page is the design surface: it exists to answer the two questions the mock
  * was built to answer — does `fill` or `natural` sizing feel right, and does the
  * pin read as "exempt from auto-collapse" without being explained.
@@ -106,7 +106,7 @@ function GroupToolbar(): JSX.Element {
         display: 'flex',
         gap: '6px',
         padding: '6px 8px',
-        'border-top': '1px solid var(--vsa-border)',
+        'border-top': '1px solid var(--acc-border)',
         flex: '0 0 auto',
       }}
     >
@@ -129,7 +129,7 @@ function GroupToolbar(): JSX.Element {
   );
 }
 
-export function VsAccordionPage(): JSX.Element {
+export function AccordionDockPage(): JSX.Element {
   const log = createEventLog();
 
   /** Captured via `apiRef` — drives the collapse/expand buttons that sit OUTSIDE the
@@ -187,7 +187,7 @@ export function VsAccordionPage(): JSX.Element {
 
   return (
     <>
-      <h1>vs-accordion <span class="readout">MOCK — not a package yet</span></h1>
+      <h1>accordion-dock <span class="readout">MOCK — not a package yet</span></h1>
       <p class="note">
         A Visual Studio style dock: a stack of collapsible panels where opening one
         auto-collapses its siblings (<code>policy="single"</code>) — except the ones
@@ -198,7 +198,7 @@ export function VsAccordionPage(): JSX.Element {
       </p>
 
       <Code cap="usage">{`
-import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
+import { AccordionGroup, AccordionPanel } from './mock/accordion-dock';
 
 <AccordionGroup mode="fill" policy="single" height="420px" storageKey="app:dock">
   <AccordionPanel id="solution" title="Solution Explorer" defaultOpen>
@@ -333,7 +333,7 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
               mode="fill"
               policy="single"
               height="360px"
-              storageKey="playground:vsa:rail"
+              storageKey="playground:acc:rail"
               ariaLabel="Horizontal rail dock"
               onChange={(id, open) => log.log(open ? 'open' : 'close', `rail:${id}`)}
               onPinChange={(id, pinned) => log.log(pinned ? 'pin' : 'unpin', `rail:${id}`)}
@@ -412,7 +412,7 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
             </AccordionGroup>
             <p class="note">
               <code>policy="multi"</code> here, so open as many as you like — each column
-              is a fixed <code>--vsa-col-width</code> and the group scrolls sideways once
+              is a fixed <code>--acc-col-width</code> and the group scrolls sideways once
               they overflow. This is the variant where open-ORDER is easiest to see.
             </p>
           </div>
@@ -747,7 +747,7 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
         Every panel takes <code>icon</code>, <code>railLabel</code> (a shorter string for
         the rotated rail button), <code>tooltip</code>, <code>accent</code> (recolours
         that panel's rail marker, pin and focus ring — it just sets
-        <code> --vsa-accent</code> on the subtree), <code>minSize</code>,
+        <code> --acc-accent</code> on the subtree), <code>minSize</code>,
         <code> defaultSize</code>, <code>closable</code>, <code>lazyMount</code>, plus
         <code> class</code> / <code>headerClass</code> / <code>contentClass</code> /
         <code> railClass</code> / <code>style</code> hooks.
@@ -809,7 +809,7 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
               mode="fill"
               policy="single"
               height="440px"
-              storageKey="playground:vsa:nested"
+              storageKey="playground:acc:nested"
               ariaLabel="Nested dock"
               onChange={(id, open) => log.log(open ? 'open' : 'close', `L0:${id}`)}
               onPinChange={(id, pinned) => log.log(pinned ? 'pin' : 'unpin', `L0:${id}`)}
@@ -818,7 +818,7 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
                 <AccordionGroup
                   mode="fill"
                   policy="single"
-                  storageKey="playground:vsa:nested:explorer"
+                  storageKey="playground:acc:nested:explorer"
                   ariaLabel="Explorer sub-sections"
                   onChange={(id, open) => log.log(open ? 'open' : 'close', `L1:${id}`)}
                   onPinChange={(id, pinned) => log.log(pinned ? 'pin' : 'unpin', `L1:${id}`)}
@@ -966,7 +966,7 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
         keyboard, always: a drag-only affordance is unreachable, not merely awkward.
         Order persists with the open/pinned state, and <code>onOrderChange</code> reports
         it. The drag itself is your own <code>@cujuju/solid-reorder-list</code> primitive
-        — vendored into <code>mock/vs-accordion/vendor/</code> because it is not on npm
+        — vendored into <code>mock/accordion-dock/vendor/</code> because it is not on npm
         yet, and to be replaced by a real dependency on promotion. Turn it off with
         <code> reorderable={'{false}'}</code>.
       </p>

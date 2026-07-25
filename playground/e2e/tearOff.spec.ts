@@ -33,27 +33,27 @@ function railDock(page: Page): Locator {
  *  the title bar is the stable handle — and it is also what a user reads. */
 function column(page: Page, title: string): Locator {
   return railDock(page)
-    .locator('.vsa-panel')
-    .filter({ has: page.locator('.vsa-col-bar .vsa-title', { hasText: title }) });
+    .locator('.acc-panel')
+    .filter({ has: page.locator('.acc-col-bar .acc-title', { hasText: title }) });
 }
 
 async function openPopup(page: Page, title: string): Promise<Page> {
   const [popup] = await Promise.all([
     page.context().waitForEvent('page'),
-    column(page, title).locator('.vsa-tearoff').click(),
+    column(page, title).locator('.acc-tearoff').click(),
   ]);
   await popup.waitForLoadState('domcontentloaded');
   return popup;
 }
 
 test.beforeEach(async ({ page }) => {
-  // The rail card persists its layout under `playground:vsa:rail`, and tear-off
+  // The rail card persists its layout under `playground:acc:rail`, and tear-off
   // persists window geometry — without this, state leaks between tests and the
   // first failure cascades into the rest.
   await page.addInitScript(() => {
     localStorage.clear();
   });
-  await page.goto('/#/vs-accordion');
+  await page.goto('/#/accordion-dock');
   await expect(railDock(page)).toBeVisible();
 });
 
@@ -114,7 +114,7 @@ test.describe('tear-off — opening', () => {
   test('the opener’s stylesheets actually paint there', async ({ page }) => {
     // jsdom clones style nodes without ever applying them, so the whole
     // `syncStyles` path was previously unfalsifiable. A padding that resolves to
-    // a real value can only come from the cloned `--vsa-content-pad` token.
+    // a real value can only come from the cloned `--acc-content-pad` token.
     const popup = await openPopup(page, PANEL_TITLE);
     const styled = await popup.evaluate(() => {
       const host = document.querySelector('.readout');
@@ -138,7 +138,7 @@ test.describe('tear-off — the nodes are MOVED, not re-created', () => {
       .getByText('file 1', { exact: true })
       .evaluate((el, attr) => el.setAttribute(attr, 'carried'), MOVE_TOKEN_ATTR);
 
-    await column(page, PANEL_TITLE).locator('.vsa-tearoff').click();
+    await column(page, PANEL_TITLE).locator('.acc-tearoff').click();
 
     const carried = column(page, PANEL_TITLE).locator(`[${MOVE_TOKEN_ATTR}="carried"]`);
     await expect(carried).toBeVisible();
@@ -163,7 +163,7 @@ test.describe('tear-off — the nodes are MOVED, not re-created', () => {
     }, MOVE_TOKEN_ATTR);
     expect(tagged).toBeGreaterThan(1);
 
-    await column(page, PANEL_TITLE).locator('.vsa-tearoff').click();
+    await column(page, PANEL_TITLE).locator('.acc-tearoff').click();
 
     await expect(column(page, PANEL_TITLE).locator(`[${MOVE_TOKEN_ATTR}]`)).toHaveCount(tagged);
   });
@@ -172,7 +172,7 @@ test.describe('tear-off — the nodes are MOVED, not re-created', () => {
 test.describe('tear-off — coming home', () => {
   test('the ⤓ control docks the panel and closes the window', async ({ page }) => {
     const popup = await openPopup(page, PANEL_TITLE);
-    await column(page, PANEL_TITLE).locator('.vsa-tearoff').click();
+    await column(page, PANEL_TITLE).locator('.acc-tearoff').click();
 
     await expect
       .poll(() => popup.isClosed())

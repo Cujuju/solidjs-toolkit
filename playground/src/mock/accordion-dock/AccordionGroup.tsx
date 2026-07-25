@@ -720,7 +720,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   return (
     <AccordionGroupContext.Provider value={api}>
       <div
-        class={`vsa-group ${props.class ?? ''}`.trim()}
+        class={`acc-group ${props.class ?? ''}`.trim()}
         data-orientation={orientation()}
         data-rail-side={railSide()}
         data-mode={mode()}
@@ -741,7 +741,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         <Show when={orientation() === 'horizontal'}>
           <div
             ref={setRailEl}
-            class="vsa-rail"
+            class="acc-rail"
             role="tablist"
             aria-orientation="vertical"
             /* NAME MUST MATCH `rail.css`, which selects `data-overflow-mode`.
@@ -779,7 +779,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         {/* Soaks up the leftover space when nothing is open, so the header stack (or
             the rail) sits flush at the start of the group instead of being stretched
             apart by the flex container. */}
-        <div class="vsa-filler" aria-hidden="true" />
+        <div class="acc-filler" aria-hidden="true" />
 
         {/* Every open flyout's popover lives here. Rendered once, inside the group,
             so it inherits the group's token scope for anything not portalled. */}
@@ -826,30 +826,30 @@ function RailButton(props: {
         viaDrag?.(el);
       }}
       type="button"
-      class={`vsa-rail-btn ${props.meta.railClass() ?? ''}`.trim()}
+      class={`acc-rail-btn ${props.meta.railClass() ?? ''}`.trim()}
       role="tab"
       title={props.meta.tooltip()}
       aria-selected={open()}
       data-open={open() ? 'true' : 'false'}
       data-pinned={pinned() ? 'true' : 'false'}
-      style={props.meta.accent() !== undefined ? { '--vsa-accent': props.meta.accent() } : undefined}
+      style={props.meta.accent() !== undefined ? { '--acc-accent': props.meta.accent() } : undefined}
       onClick={() => props.group.toggle(props.meta.id)}
       onKeyDown={onKeyDown}
     >
       <Show when={pinned()}>
-        <span class="vsa-rail-pin" aria-hidden="true">
+        <span class="acc-rail-pin" aria-hidden="true">
           <Pin />
         </span>
       </Show>
       <Show when={props.meta.icon()}>
-        <span class="vsa-rail-icon">{props.meta.icon()}</span>
+        <span class="acc-rail-icon">{props.meta.icon()}</span>
       </Show>
-      <span class="vsa-rail-label">{props.meta.railLabel() ?? props.meta.title()}</span>
+      <span class="acc-rail-label">{props.meta.railLabel() ?? props.meta.title()}</span>
       <Show when={props.meta.count() !== undefined}>
-        <span class="vsa-rail-count">{props.meta.count()}</span>
+        <span class="acc-rail-count">{props.meta.count()}</span>
       </Show>
       <Show when={props.meta.badge()}>
-        <span class="vsa-badge" data-badge={props.meta.badge()} aria-hidden="true" />
+        <span class="acc-badge" data-badge={props.meta.badge()} aria-hidden="true" />
       </Show>
     </button>
     {menu.element}

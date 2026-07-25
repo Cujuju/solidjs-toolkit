@@ -10,11 +10,11 @@
  * This file used to wrap every rule in `@layer cujuju-defaults`, on the stated
  * premise that it was matching `styles.css`. That premise was FALSE: `styles.css`
  * layers only its token block (`:root` + the density overrides) and leaves every
- * component rule — including `.vsa-panel { display: flex }` — unlayered.
+ * component rule — including `.acc-panel { display: flex }` — unlayered.
  *
  * Unlayered declarations beat layered ones outright, ahead of specificity. So
  * every rule in here that competed with a component rule silently lost, no matter
- * how specific it was. `.vsa-panel[data-flyout='true'] { display: none }` is the
+ * how specific it was. `.acc-panel[data-flyout='true'] { display: none }` is the
  * one that mattered: a flying-out panel's docked column was never removed from the
  * layout, so it kept its slot and painted its title bar over the flyout floating
  * in front of it. Caught by a browser test; invisible to jsdom, which has no
@@ -23,11 +23,11 @@
  *
  * Token declarations stay layered below, which is the property the original
  * comment was reaching for and the one worth keeping: a consumer restating
- * `--vsa-flyout-shadow` unlayered wins without having to out-specify us.
+ * `--acc-flyout-shadow` unlayered wins without having to out-specify us.
  *
- * Every value here is either an existing `--vsa-*` token or a variable the
- * flyout's own JS sets on the popover shell (`--vsa-flyout-width`,
- * `--vsa-flyout-max-height` — see `autoHide.tsx`). No literals.
+ * Every value here is either an existing `--acc-*` token or a variable the
+ * flyout's own JS sets on the popover shell (`--acc-flyout-width`,
+ * `--acc-flyout-max-height` — see `autoHide.tsx`). No literals.
  */
 
 /*
@@ -38,13 +38,13 @@
  * layout — a flyout is an overlay, and the whole point is that the columns do
  * not reflow to make room for it.
  *
- * It competes with `.vsa-panel { display: flex }` in styles.css and wins on
+ * It competes with `.acc-panel { display: flex }` in styles.css and wins on
  * specificity — (0,2,0) against (0,1,0) — but ONLY because both rules now sit in
  * the same cascade layer. While this file was wrapped in `@layer
  * cujuju-defaults` and that rule was not, specificity never got a vote and the
  * column stayed in the layout. See the file header.
  */
-.vsa-panel[data-flyout='true'] {
+.acc-panel[data-flyout='true'] {
   display: none;
 }
 
@@ -58,7 +58,7 @@
  * this rule never fires. It exists so that moving the splitter inside the
  * outlet later cannot silently ship a dead control into the overlay.
  */
-.vsa-flyout .vsa-splitter {
+.acc-flyout .acc-splitter {
   display: none;
 }
 
@@ -69,20 +69,20 @@
  * layout makes room for something that was already this wide, rather than the
  * panel jumping to a new size at the moment it becomes permanent.
  */
-.vsa-flyout {
+.acc-flyout {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: var(--vsa-flyout-width);
-  max-height: var(--vsa-flyout-max-height);
-  background: var(--vsa-bg);
-  color: var(--vsa-text);
-  border: 1px solid var(--vsa-border);
-  border-radius: var(--vsa-radius);
+  width: var(--acc-flyout-width);
+  max-height: var(--acc-flyout-max-height);
+  background: var(--acc-bg);
+  color: var(--acc-text);
+  border: 1px solid var(--acc-border);
+  border-radius: var(--acc-radius);
   /* Reads as floating above the dock rather than as another column. This is
      the ONLY visual cue distinguishing transient from docked, so it is
      deliberately not subtle. */
-  box-shadow: var(--vsa-flyout-shadow);
+  box-shadow: var(--acc-flyout-shadow);
   overflow: hidden;
 }
 
@@ -93,20 +93,20 @@
  */
 @layer cujuju-defaults {
   :root {
-    --vsa-flyout-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+    --acc-flyout-shadow: 0 8px 24px rgb(0 0 0 / 45%);
   }
 }
 
 /* The element the panel's subtree portals into. It is the flyout's whole
-   content area, which is why `styles.css` lists it alongside `.vsa-content`
+   content area, which is why `styles.css` lists it alongside `.acc-content`
    for padding and scrolling — the flyout must look like the column it will
    become when pinned.
 
    It also carries `data-density`, restating what the group element sets, since
    the flyout is Portal'd to <body> and escapes the group's token scope. The
-   density block in `styles.css` matches `:is(.vsa-group, .vsa-flyout-host)`
+   density block in `styles.css` matches `:is(.acc-group, .acc-flyout-host)`
    for that attribute to mean anything here. */
-.vsa-flyout-host {
+.acc-flyout-host {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -121,20 +121,20 @@
  * this mode — has no visible effect. A dashed marker against the solid one
  * used for a docked column says "showing, but not staying".
  */
-.vsa-rail-btn[data-flyout='true'] {
+.acc-rail-btn[data-flyout='true'] {
   font-style: italic;
 }
 
-.vsa-rail-btn[data-flyout='true']::before {
+.acc-rail-btn[data-flyout='true']::before {
   /* Overrides the solid accent stripe that `styles.css` paints for an open
      button. Same geometry, broken up — the marker's PRESENCE still means
      open, its CONTINUITY now means permanent. */
   background: repeating-linear-gradient(
     to bottom,
-    var(--vsa-accent) 0,
-    var(--vsa-accent) var(--vsa-flyout-marker-dash),
-    transparent var(--vsa-flyout-marker-dash),
-    transparent calc(var(--vsa-flyout-marker-dash) * 2)
+    var(--acc-accent) 0,
+    var(--acc-accent) var(--acc-flyout-marker-dash),
+    transparent var(--acc-flyout-marker-dash),
+    transparent calc(var(--acc-flyout-marker-dash) * 2)
   );
 }
 
@@ -143,7 +143,7 @@
     /* Dash length of the flying-out rail marker. Long enough to read as a
        deliberate pattern at a 2px stripe width rather than as a rendering
        artefact. */
-    --vsa-flyout-marker-dash: 4px;
+    --acc-flyout-marker-dash: 4px;
   }
 }
 
@@ -157,15 +157,15 @@
  * covers this too; the rule is here so the docked case is correct even if a
  * future refactor stops setting it inline.
  */
-[data-vsa-outlet-host],
-[data-vsa-outlet] {
+[data-acc-outlet-host],
+[data-acc-outlet] {
   display: contents;
 }
 
 /* …except inside an alternate surface, where the container IS the box. The
    component sets `display: flex` inline, which beats this rule; stated here
    so the intent survives a reader who only has the CSS. */
-.vsa-flyout-host > [data-vsa-outlet] {
+.acc-flyout-host > [data-acc-outlet] {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -178,8 +178,8 @@
  * the columns, not this overlay.
  */
 @media (prefers-reduced-motion: no-preference) {
-  .vsa-flyout {
-    animation: vsa-flyout-in var(--vsa-flyout-in-duration) ease-out;
+  .acc-flyout {
+    animation: acc-flyout-in var(--acc-flyout-in-duration) ease-out;
   }
 
   @layer cujuju-defaults {
@@ -187,17 +187,17 @@
       /* Fast enough to feel like a reveal rather than a transition the user
          waits through; long enough that the direction of travel registers,
          which is what tells them where the panel came from. */
-      --vsa-flyout-in-duration: 110ms;
+      --acc-flyout-in-duration: 110ms;
     }
   }
 
-  @keyframes vsa-flyout-in {
+  @keyframes acc-flyout-in {
     from {
       opacity: 0;
       /* Slides out of the rail. Direction is not mirrored for a right-hand
          rail because the transform is applied before clamping and the
          distance is small enough that the wrong-side case reads as a fade. */
-      transform: translateX(calc(var(--vsa-flyout-in-travel) * -1));
+      transform: translateX(calc(var(--acc-flyout-in-travel) * -1));
     }
     to {
       opacity: 1;
@@ -207,7 +207,7 @@
 
   @layer cujuju-defaults {
     :root {
-      --vsa-flyout-in-travel: 6px;
+      --acc-flyout-in-travel: 6px;
     }
   }
 }

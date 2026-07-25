@@ -217,7 +217,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
     <Show when={effectiveOpen()}>
       <div
         ref={(el) => group.setPanelEl(props.id, el)}
-        class={`vsa-panel vsa-leaf ${props.class ?? ''}`.trim()}
+        class={`acc-panel acc-leaf ${props.class ?? ''}`.trim()}
         data-open="true"
         data-leaf="true"
         /* Hops from the root of this chain. Present so CSS and tests can address
@@ -225,25 +225,25 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
            every leaf that existed before chaining. */
         data-chain-depth={chain.depthOf(props.id)}
         style={{
-          ...(props.accent !== undefined ? { '--vsa-accent': props.accent } : {}),
+          ...(props.accent !== undefined ? { '--acc-accent': props.accent } : {}),
           ...(horizontal() ? { order: Math.max(group.openIndex(props.id), 0) + 1 } : {}),
           ...sizeStyle(),
         }}
       >
         <Show when={props.title !== undefined}>
-          <div class="vsa-col-bar">
+          <div class="acc-col-bar">
             <Show when={props.icon}>
-              <span class="vsa-icon">{props.icon}</span>
+              <span class="acc-icon">{props.icon}</span>
             </Show>
-            <span class="vsa-title">{props.title}</span>
-            <div class="vsa-header-tail">
+            <span class="acc-title">{props.title}</span>
+            <div class="acc-header-tail">
               <Show when={props.actions}>
-                <div class="vsa-actions">{props.actions}</div>
+                <div class="acc-actions">{props.actions}</div>
               </Show>
               <Show when={props.closable ?? true}>
                 <button
                   type="button"
-                  class="vsa-close"
+                  class="acc-close"
                   data-no-drag
                   title="Close"
                   onClick={() => props.onClose?.()}
@@ -255,7 +255,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
           </div>
         </Show>
 
-        <div id={contentId} class={`vsa-content ${props.contentClass ?? ''}`.trim()}>
+        <div id={contentId} class={`acc-content ${props.contentClass ?? ''}`.trim()}>
           {props.children}
         </div>
 

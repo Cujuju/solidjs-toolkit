@@ -119,18 +119,18 @@ export const TEAR_OFF_GEOMETRY_VERSION = 1;
 /** `window.open`'s name argument. Namespaced per panel so re-tearing the same
  *  panel reuses its window instead of stacking a second one, and so two groups
  *  on a page cannot collide. */
-const TEAR_OFF_WINDOW_NAME_PREFIX = 'vsa-tearoff-';
+const TEAR_OFF_WINDOW_NAME_PREFIX = 'acc-tearoff-';
 
 /** Marks the style nodes THIS module put in the popup head, so a re-sync can
  *  replace exactly those and leave anything else alone. */
-const TEAR_OFF_STYLE_MARKER_ATTR = 'data-vsa-tearoff-style';
+const TEAR_OFF_STYLE_MARKER_ATTR = 'data-acc-tearoff-style';
 
 /** Both wrappers the Portal path introduces around a panel's content. They are
  *  `display: contents` when docked (see `decorateContainer`), so they cost no
  *  layout — but they DO sit in the selector chain, which is why the two
  *  nested-group rules in styles.css need widening. Called out in the handoff. */
-const TEAR_OFF_HOST_ATTR = 'data-vsa-tearoff-host';
-const TEAR_OFF_CONTAINER_ATTR = 'data-vsa-tearoff';
+const TEAR_OFF_HOST_ATTR = 'data-acc-tearoff-host';
+const TEAR_OFF_CONTAINER_ATTR = 'data-acc-tearoff';
 
 /** Style nodes worth mirroring into the popup. `<style>` is what Vite's dev
  *  server injects (it ships CSS as JS that appends a style tag); `<link
@@ -707,7 +707,7 @@ export function createTearOff(options: TearOffOptions): TearOffController {
  * There is exactly ONE `<Portal>` and its `mount` toggles — see (2). The two
  * wrappers this introduces are `display: contents` while docked, so they add no
  * box and no layout; they DO however appear in the selector chain, which is why
- * the two `.vsa-content > .vsa-group` rules in styles.css need widening. That
+ * the two `.acc-content > .acc-group` rules in styles.css need widening. That
  * cost is accepted deliberately: the alternative (an inline branch swapped for a
  * Portal branch) re-evaluates the children on every tear-off and dock, throwing
  * away scroll position, text selection and in-flight edits — precisely what the

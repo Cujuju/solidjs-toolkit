@@ -91,7 +91,7 @@ export function RailOverflowMenu(props: RailOverflowMenuProps): JSX.Element {
           props.onMeasure?.(Math.ceil(el.getBoundingClientRect().height));
         }}
         type="button"
-        class="vsa-rail-overflow"
+        class="acc-rail-overflow"
         /* Excluded from drag activation exactly as the pin and close buttons are —
            without it, pressing the trigger inside the draggable rail would arm a
            reorder. Also how `railPan` tells a control from bare background. */

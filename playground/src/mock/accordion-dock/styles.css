@@ -1,4 +1,4 @@
-/* vs-accordion (MOCK) — Visual Studio style collapsible panel dock.
+/* accordion-dock (MOCK) — Visual Studio style collapsible panel dock.
 
    Two orientations share one state machine:
      vertical   — headers stack down, panels grow downward (classic accordion)
@@ -10,51 +10,51 @@
 
 @layer cujuju-defaults {
   :root {
-    --vsa-bg: #1a1f2e;
-    --vsa-header-bg: #252d3f;
-    --vsa-header-bg-hover: #2c3548;
-    --vsa-header-bg-open: #2f3a52;
-    --vsa-border: #2a2e37;
-    --vsa-text: #e6e9ef;
-    --vsa-text-muted: #8b93a1;
-    --vsa-accent: #4da3ff;
-    --vsa-radius: 4px;
+    --acc-bg: #1a1f2e;
+    --acc-header-bg: #252d3f;
+    --acc-header-bg-hover: #2c3548;
+    --acc-header-bg-open: #2f3a52;
+    --acc-border: #2a2e37;
+    --acc-text: #e6e9ef;
+    --acc-text-muted: #8b93a1;
+    --acc-accent: #4da3ff;
+    --acc-radius: 4px;
 
-    --vsa-header-height: 26px;
-    --vsa-header-pad-x: 8px;
-    --vsa-content-pad: 8px;
-    --vsa-title-size: 12px;
-    --vsa-title-weight: 600;
+    --acc-header-height: 26px;
+    --acc-header-pad-x: 8px;
+    --acc-content-pad: 8px;
+    --acc-title-size: 12px;
+    --acc-title-weight: 600;
 
     /* Horizontal orientation. The rail is wide enough that a scrollbar inside it
        does not sit on top of the rotated labels — at 30px it did exactly that with
        a full-width UA scrollbar. Paired with `scrollbar-width: thin` below, which
        is the actual fix; the extra width is the belt to that suspenders. */
-    --vsa-rail-width: 40px;
+    --acc-rail-width: 40px;
     /* Width of the rail's own scrollbar, for engines that only honour the WebKit
        pseudo-elements. */
-    --vsa-rail-scrollbar-width: 6px;
+    --acc-rail-scrollbar-width: 6px;
     /* Width of an open column under mode="natural". `fill` ignores this and splits
        the available width instead. */
-    --vsa-col-width: 230px;
+    --acc-col-width: 230px;
     /* Floor for a column under mode="fill", so N open columns degrade to a
        horizontal scroll rather than shrinking into unreadable slivers. */
-    --vsa-col-min-width: 150px;
+    --acc-col-min-width: 150px;
     /* Accent stripe marking the active rail button. */
-    --vsa-rail-marker-width: 2px;
+    --acc-rail-marker-width: 2px;
     /* Grab width of a splitter, centred on the boundary it moves. Wider than the
        1px line it paints, because a 1px pointer target is a usability defect. */
-    --vsa-splitter-hit: 7px;
+    --acc-splitter-hit: 7px;
     /* Flex order for consumer children that are not panels. Must sort after every
        panel (whose orders run 1..N) and before the filler. */
-    --vsa-extra-order: 9998;
+    --acc-extra-order: 9998;
     /* Flex order for the trailing filler. Any value above the largest panel count a
        group will realistically hold; the filler must sort after every column. */
-    --vsa-filler-order: 9999;
+    --acc-filler-order: 9999;
 
     /* Left offset added per nesting level (vertical orientation). One value, applied
        to the nested GROUP rather than to each header, so a sub-tree indents as a unit. */
-    --vsa-indent: 14px;
+    --acc-indent: 14px;
 
     /* ── Chrome metrics ───────────────────────────────────────────────────
        Every glyph size, gap and hit box below is a token for ONE reason:
@@ -64,70 +64,70 @@
        so tokenising them changes nothing on screen. */
 
     /* Inline gap inside an activator, between glyph, label and badge. */
-    --vsa-gap: 5px;
+    --acc-gap: 5px;
     /* Gap between the parts of a header ROW (activator ↔ tail) and between
-       consumer action slots — one step tighter than --vsa-gap because those
+       consumer action slots — one step tighter than --acc-gap because those
        parts are already separated by their own padding. */
-    --vsa-gap-sm: 4px;
+    --acc-gap-sm: 4px;
     /* Gap between adjacent icon BUTTONS in the header tail. Tighter again: each
        button carries a 20px hit box around a 12–13px glyph, so the visual gap is
        already ~7px wider than the declared value. */
-    --vsa-gap-xs: 2px;
+    --acc-gap-xs: 2px;
 
     /* Chevron and close glyph. One token: they are the same visual weight and
        must stay the same size or the header reads lopsided. */
-    --vsa-icon-size: 12px;
-    /* Pin glyph. Deliberately 1px larger than --vsa-icon-size — it is rendered
+    --acc-icon-size: 12px;
+    /* Pin glyph. Deliberately 1px larger than --acc-icon-size — it is rendered
        rotated 45°, which shrinks its apparent bounding box. */
-    --vsa-pin-size: 13px;
-    /* Pin marker on a rail button. Smaller than --vsa-pin-size because there it
+    --acc-pin-size: 13px;
+    /* Pin marker on a rail button. Smaller than --acc-pin-size because there it
        is a status dot, not a control — it is not clickable on the rail. */
-    --vsa-rail-pin-size: 11px;
+    --acc-rail-pin-size: 11px;
     /* Hit box of the pin/close buttons. Larger than the glyph so the target is
-       forgiving; must stay <= --vsa-header-height or the header row grows. */
-    --vsa-btn-size: 20px;
-    --vsa-btn-radius: 3px;
+       forgiving; must stay <= --acc-header-height or the header row grows. */
+    --acc-btn-size: 20px;
+    --acc-btn-radius: 3px;
 
     /* Count badge. Its line-height is what sets the pill's height, so it is a
        token in its own right rather than a multiple of the font size. */
     /* State-dot diameter. Smaller than the count pill's line box: it must read as
        a status light beside the label, not compete with it for the eye. */
-    --vsa-badge-dot-size: 7px;
-    /* Severity colours. Deliberately NOT --vsa-accent for all four — a dot that is
+    --acc-badge-dot-size: 7px;
+    /* Severity colours. Deliberately NOT --acc-accent for all four — a dot that is
        always the accent colour cannot distinguish "done" from "broken". `info`
        aliases the accent (see the rule below) so a themed dock stays coherent. */
-    --vsa-badge-success: #10b981;
-    --vsa-badge-warning: #f59e0b;
-    --vsa-badge-danger: #ef4444;
+    --acc-badge-success: #10b981;
+    --acc-badge-warning: #f59e0b;
+    --acc-badge-danger: #ef4444;
     /* Resolved per-severity by the [data-badge] rules; this is the fallback for a
        dot rendered with no recognised severity. */
-    --vsa-badge-color: var(--vsa-text-muted);
+    --acc-badge-color: var(--acc-text-muted);
 
-    --vsa-badge-size: 10px;
-    --vsa-badge-pad-x: 5px;
-    --vsa-badge-line: 15px;
+    --acc-badge-size: 10px;
+    --acc-badge-pad-x: 5px;
+    --acc-badge-line: 15px;
     /* Any radius at or above half the pill's height rounds the ends fully; 999px
        is the idiomatic "never think about it again" value. */
-    --vsa-pill-radius: 999px;
+    --acc-pill-radius: 999px;
 
     /* Block padding of a rail button — the vertical rhythm of the rail strip. */
-    --vsa-rail-btn-pad-block: 9px;
+    --acc-rail-btn-pad-block: 9px;
     /* Cap on a ROTATED rail label's length before it ellipses. Expressed on the
-       label's own inline axis (see .vsa-rail-label), so it is a length along the
+       label's own inline axis (see .acc-rail-label), so it is a length along the
        rail, not a width. */
-    --vsa-rail-label-max: 190px;
-    /* Trailing padding of a column title bar. Tighter than --vsa-header-pad-x
+    --acc-rail-label-max: 190px;
+    /* Trailing padding of a column title bar. Tighter than --acc-header-pad-x
        because the tail that sits there is icon buttons, which carry their own
        padding around the glyph. */
-    --vsa-col-bar-pad-end: 4px;
+    --acc-col-bar-pad-end: 4px;
 
-    --vsa-duration: 140ms;
-    /* Open/close GEOMETRY, kept separate from --vsa-duration on purpose: a
+    --acc-duration: 140ms;
+    /* Open/close GEOMETRY, kept separate from --acc-duration on purpose: a
        colour or opacity fade at 140ms reads as instant-but-soft, while a box
        travelling a whole column width in 140ms reads as a jump. 180ms also
        matches @cujuju/solidjs-collapsible's --cl-animation-duration, so the two
        controls' expand animations stay in step when a page uses both. */
-    --vsa-open-duration: 180ms;
+    --acc-open-duration: 180ms;
   }
 
   /* ── Density ────────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@
 
      Declared on the GROUP, so it beats the inherited :root value regardless of
      layers (a declaration on the element always wins over inheritance) — while
-     a consumer targeting `.vsa-group` unlayered still beats this, which is the
+     a consumer targeting `.acc-group` unlayered still beats this, which is the
      same contract the :root defaults carry.
 
      KNOWN LIMIT: density INHERITS into nested groups. A nested group that
@@ -149,46 +149,46 @@
      undoing it would mean also declaring the comfortable scale on the group —
      which would break the `:root`-override contract for every consumer. Density
      is a whole-dock choice here, not a per-level one. */
-  /* `.vsa-flyout-host` is included because a flyout is Portal'd to <body> and so
+  /* `.acc-flyout-host` is included because a flyout is Portal'd to <body> and so
      escapes the group's token scope entirely. `autoHide.tsx` already restates the
      group's density on that element; without this selector that attribute set
      nothing, and a compact dock rendered comfortable flyouts — the one place the
      user is looking hardest at the panel. */
-  :is(.vsa-group, .vsa-flyout-host)[data-density='compact'] {
-    --vsa-header-height: 20px;
-    --vsa-header-pad-x: 6px;
-    --vsa-content-pad: 6px;
+  :is(.acc-group, .acc-flyout-host)[data-density='compact'] {
+    --acc-header-height: 20px;
+    --acc-header-pad-x: 6px;
+    --acc-content-pad: 6px;
     /* 11px is the floor: below it UI text stops being comfortably readable, so
        the type scales less than the boxes around it. */
-    --vsa-title-size: 11px;
+    --acc-title-size: 11px;
 
-    --vsa-rail-width: 32px;
-    --vsa-rail-label-max: 150px;
-    --vsa-rail-btn-pad-block: 6px;
-    --vsa-indent: 10px;
+    --acc-rail-width: 32px;
+    --acc-rail-label-max: 150px;
+    --acc-rail-btn-pad-block: 6px;
+    --acc-indent: 10px;
 
     /* EXCEPTION — the splitter is a POINTER TARGET, not chrome. Scaling it with
        everything else would make a dense dock harder to drive, which is the
        opposite of what density is for; it gives up 1px and no more. */
-    --vsa-splitter-hit: 6px;
+    --acc-splitter-hit: 6px;
 
-    --vsa-gap: 4px;
-    --vsa-gap-sm: 3px;
-    --vsa-gap-xs: 1px;
+    --acc-gap: 4px;
+    --acc-gap-sm: 3px;
+    --acc-gap-xs: 1px;
 
-    --vsa-icon-size: 11px;
-    --vsa-pin-size: 12px;
-    --vsa-rail-pin-size: 10px;
+    --acc-icon-size: 11px;
+    --acc-pin-size: 12px;
+    --acc-rail-pin-size: 10px;
     /* Still clears the 11px glyph and still fits inside the 20px header. */
-    --vsa-btn-size: 16px;
+    --acc-btn-size: 16px;
 
-    --vsa-badge-size: 9px;
-    --vsa-badge-pad-x: 4px;
-    --vsa-badge-line: 13px;
+    --acc-badge-size: 9px;
+    --acc-badge-pad-x: 4px;
+    --acc-badge-line: 13px;
 
-    --vsa-col-bar-pad-end: 3px;
+    --acc-col-bar-pad-end: 3px;
 
-    /* NOT overridden: --vsa-col-width / --vsa-col-min-width. A column's width is
+    /* NOT overridden: --acc-col-width / --acc-col-min-width. A column's width is
        sized to the CONSUMER'S content, not to the chrome, so shrinking it with
        density would silently reflow their panels. Same for the colour, radius
        and duration tokens — density is a scale, not a theme. */
@@ -197,19 +197,19 @@
 
 /* ── Group ──────────────────────────────────────────────────────────────── */
 
-.vsa-group {
+.acc-group {
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  background: var(--vsa-bg);
-  border: 1px solid var(--vsa-border);
-  border-radius: var(--vsa-radius);
+  background: var(--acc-bg);
+  border: 1px solid var(--acc-border);
+  border-radius: var(--acc-radius);
   overflow: hidden;
-  color: var(--vsa-text);
+  color: var(--acc-text);
 }
 
-.vsa-group[data-orientation='horizontal'] {
+.acc-group[data-orientation='horizontal'] {
   flex-direction: row;
 }
 
@@ -217,7 +217,7 @@
    values are unchanged, so the same open-order sequence now reads right-to-left and
    a column still emerges from its own button. The state machine knows nothing about
    which edge the rail is on — this is one declaration, not a second layout. */
-.vsa-group[data-orientation='horizontal'][data-rail-side='right'] {
+.acc-group[data-orientation='horizontal'][data-rail-side='right'] {
   flex-direction: row-reverse;
 }
 
@@ -237,17 +237,17 @@
    ancestor. It cannot see a `direction: rtl` applied from CSS alone with no
    `dir` attribute — that is the documented way to do RTL wrong (HTML requires
    the attribute), and no selector in CSS can match it. */
-.vsa-group[data-orientation='horizontal'][data-rail-side='left']:dir(rtl) {
+.acc-group[data-orientation='horizontal'][data-rail-side='left']:dir(rtl) {
   flex-direction: row-reverse;
 }
 
-.vsa-group[data-orientation='horizontal'][data-rail-side='right']:dir(rtl) {
+.acc-group[data-orientation='horizontal'][data-rail-side='right']:dir(rtl) {
   flex-direction: row;
 }
 
 /* A nested group is not a separate card — it is content INSIDE a panel. Drop the
    chrome so the hierarchy reads as one dock, and indent the whole sub-tree. */
-.vsa-group .vsa-group {
+.acc-group .acc-group {
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -256,13 +256,13 @@
 /* LOGICAL, not physical: a tree indents away from the edge the reader starts at,
    so in RTL the sub-tree steps in from the right. This is the one place in the
    control where "start" means reading order rather than a docking edge. */
-.vsa-group[data-orientation='vertical'] .vsa-group[data-orientation='vertical'] {
-  padding-inline-start: var(--vsa-indent);
+.acc-group[data-orientation='vertical'] .acc-group[data-orientation='vertical'] {
+  padding-inline-start: var(--acc-indent);
 }
 
 /* Fill mode: a nested group must consume the parent panel's remaining space rather
    than its own content size, or the inner accordion cannot flex. */
-.vsa-content > .vsa-group[data-mode='fill'] {
+.acc-content > .acc-group[data-mode='fill'] {
   flex: 1 1 0;
   min-height: 0;
   height: auto;
@@ -284,38 +284,38 @@
    The rule is: unordered content keeps its authored position relative to the
    panels, which means "after them". Just below the filler, so the filler still
    soaks up the slack at the very end. */
-.vsa-group > *:not(.vsa-panel):not(.vsa-rail):not(.vsa-filler) {
-  order: var(--vsa-extra-order);
+.acc-group > *:not(.acc-panel):not(.acc-rail):not(.acc-filler) {
+  order: var(--acc-extra-order);
 }
 
-.vsa-filler {
+.acc-filler {
   flex: 0 0 0;
   /* Open columns carry `order: openIndex + 1`, so a filler left at the default 0
      would land BETWEEN the rail and the first column and — in horizontal+natural,
      where it grows — shove every column to the far edge. It must sort after any
      column, hence a value above any plausible panel count. */
-  order: var(--vsa-filler-order);
+  order: var(--acc-filler-order);
 }
 
-.vsa-group[data-mode='fill']:not(:has(> .vsa-panel[data-open='true'])) > .vsa-filler {
+.acc-group[data-mode='fill']:not(:has(> .acc-panel[data-open='true'])) > .acc-filler {
   flex: 1 1 auto;
 }
 
 /* Vertical + natural is content-height; the consumer owns the scroll container, so
    there is nothing for a filler to do. */
-.vsa-group[data-orientation='vertical'][data-mode='natural'] > .vsa-filler {
+.acc-group[data-orientation='vertical'][data-mode='natural'] > .acc-filler {
   display: none;
 }
 
 /* Horizontal + natural: columns are a fixed width, so the filler is what stops the
    last column from being stretched across the leftover width. */
-.vsa-group[data-orientation='horizontal'][data-mode='natural'] > .vsa-filler {
+.acc-group[data-orientation='horizontal'][data-mode='natural'] > .acc-filler {
   flex: 1 1 auto;
 }
 
 /* ── Rail (horizontal orientation only) ─────────────────────────────────── */
 
-.vsa-rail {
+.acc-rail {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -323,8 +323,8 @@
   /* Before the columns regardless of DOM position — the columns carry positive
      `order` values so they can sit in open-order. */
   order: -1;
-  width: var(--vsa-rail-width);
-  background: var(--vsa-header-bg);
+  width: var(--acc-rail-width);
+  background: var(--acc-header-bg);
   overflow-y: auto;
   overflow-x: hidden;
   /* A 40px strip cannot afford a full-width scrollbar — it lands on top of the
@@ -334,15 +334,15 @@
   scrollbar-width: thin;
 }
 
-.vsa-rail::-webkit-scrollbar {
-  width: var(--vsa-rail-scrollbar-width);
+.acc-rail::-webkit-scrollbar {
+  width: var(--acc-rail-scrollbar-width);
 }
 
-.vsa-rail::-webkit-scrollbar-thumb {
+.acc-rail::-webkit-scrollbar-thumb {
   /* The inherited page style insets its thumb with a 3px transparent border, which
      on a 6px track leaves nothing visible. Reset to a plain thumb. */
   border: 0;
-  border-radius: var(--vsa-pill-radius);
+  border-radius: var(--acc-pill-radius);
 }
 
 /* The rail's edge faces the columns, so which physical side it lives on flips with
@@ -352,39 +352,39 @@
    the edge facing the columns is the same physical edge in both directions. The
    logical property would be the wrong meaning here, not the modern spelling of
    the right one. */
-.vsa-group[data-rail-side='left'] > .vsa-rail {
-  border-right: 1px solid var(--vsa-border);
+.acc-group[data-rail-side='left'] > .acc-rail {
+  border-right: 1px solid var(--acc-border);
 }
 
-.vsa-group[data-rail-side='right'] > .vsa-rail {
-  border-left: 1px solid var(--vsa-border);
+.acc-group[data-rail-side='right'] > .acc-rail {
+  border-left: 1px solid var(--acc-border);
 }
 
-.vsa-rail-btn {
+.acc-rail-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--vsa-gap);
+  gap: var(--acc-gap);
   flex: 0 0 auto;
   width: 100%;
-  padding-block: var(--vsa-rail-btn-pad-block);
+  padding-block: var(--acc-rail-btn-pad-block);
   padding-inline: 0;
   border: 0;
   background: transparent;
-  color: var(--vsa-text-muted);
+  color: var(--acc-text-muted);
   font: inherit;
   cursor: pointer;
-  transition: background var(--vsa-duration) ease, color var(--vsa-duration) ease;
+  transition: background var(--acc-duration) ease, color var(--acc-duration) ease;
 }
 
-.vsa-rail-btn:hover {
-  background: var(--vsa-header-bg-hover);
-  color: var(--vsa-text);
+.acc-rail-btn:hover {
+  background: var(--acc-header-bg-hover);
+  color: var(--acc-text);
 }
 
-.vsa-rail-btn[data-open='true'] {
-  background: var(--vsa-header-bg-open);
-  color: var(--vsa-text);
+.acc-rail-btn[data-open='true'] {
+  background: var(--acc-header-bg-open);
+  color: var(--acc-text);
 }
 
 /* Active marker as an INSET SHADOW, not a border: it costs no layout box, so it
@@ -396,30 +396,30 @@
    physical x/y — there is no logical spelling to convert to. The sign is chosen
    from `data-rail-side`, which does not flip under RTL, so the marker keeps
    hugging the same physical outer edge in both directions. */
-.vsa-group[data-rail-side='left'] .vsa-rail-btn[data-open='true'] {
-  box-shadow: inset var(--vsa-rail-marker-width) 0 0 var(--vsa-accent);
+.acc-group[data-rail-side='left'] .acc-rail-btn[data-open='true'] {
+  box-shadow: inset var(--acc-rail-marker-width) 0 0 var(--acc-accent);
 }
 
-.vsa-group[data-rail-side='right'] .vsa-rail-btn[data-open='true'] {
-  box-shadow: inset calc(-1 * var(--vsa-rail-marker-width)) 0 0 var(--vsa-accent);
+.acc-group[data-rail-side='right'] .acc-rail-btn[data-open='true'] {
+  box-shadow: inset calc(-1 * var(--acc-rail-marker-width)) 0 0 var(--acc-accent);
 }
 
-.vsa-rail-btn:focus {
+.acc-rail-btn:focus {
   outline: none;
 }
 
-.vsa-rail-btn:focus-visible {
-  outline: 1px solid var(--vsa-accent);
+.acc-rail-btn:focus-visible {
+  outline: 1px solid var(--acc-accent);
   outline-offset: -2px;
 }
 
-.vsa-rail-label {
+.acc-rail-label {
   /* Rotated label, reading top-to-bottom — Visual Studio's auto-hide tab strip.
      Icon-only (VS Code's activity bar) was rejected for a general-purpose control:
      it needs an icon per panel, which the consumer may not have. */
   writing-mode: vertical-rl;
-  font-size: var(--vsa-title-size);
-  font-weight: var(--vsa-title-weight);
+  font-size: var(--acc-title-size);
+  font-weight: var(--acc-title-weight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -431,40 +431,40 @@
      Under RTL the inline axis of `vertical-rl` runs bottom-to-top, which is the
      correct reading direction for an RTL script rotated into the rail; that is a
      property of the writing mode, so it needs no rule of its own. */
-  max-inline-size: var(--vsa-rail-label-max);
+  max-inline-size: var(--acc-rail-label-max);
 }
 
-.vsa-rail-icon {
+.acc-rail-icon {
   display: inline-flex;
 }
 
-.vsa-rail-count {
+.acc-rail-count {
   /* Held upright inside the rotated button — a rotated number is unreadable at a
      glance, and the count exists to be glanced at. */
   writing-mode: horizontal-tb;
-  font-size: var(--vsa-badge-size);
+  font-size: var(--acc-badge-size);
   font-variant-numeric: tabular-nums;
-  color: var(--vsa-text-muted);
+  color: var(--acc-text-muted);
   background: rgba(255, 255, 255, 0.07);
-  border-radius: var(--vsa-pill-radius);
+  border-radius: var(--acc-pill-radius);
   padding-block: 0;
-  padding-inline: var(--vsa-badge-pad-x);
-  line-height: var(--vsa-badge-line);
+  padding-inline: var(--acc-badge-pad-x);
+  line-height: var(--acc-badge-line);
 }
 
-.vsa-rail-pin {
+.acc-rail-pin {
   display: inline-flex;
-  color: var(--vsa-accent);
+  color: var(--acc-accent);
 }
 
-.vsa-rail-pin .vsa-pin-icon {
-  width: var(--vsa-rail-pin-size);
-  height: var(--vsa-rail-pin-size);
+.acc-rail-pin .acc-pin-icon {
+  width: var(--acc-rail-pin-size);
+  height: var(--acc-rail-pin-size);
 }
 
 /* ── Panel ──────────────────────────────────────────────────────────────── */
 
-.vsa-panel {
+.acc-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -475,26 +475,26 @@
 
 /* ── Splitter ───────────────────────────────────────────────────────────── */
 
-.vsa-splitter {
+.acc-splitter {
   position: absolute;
   z-index: 2;
   background: transparent;
-  transition: background var(--vsa-duration) ease;
+  transition: background var(--acc-duration) ease;
 }
 
-.vsa-splitter:hover,
-.vsa-group[data-resizing='true'] .vsa-splitter {
-  background: var(--vsa-accent);
+.acc-splitter:hover,
+.acc-group[data-resizing='true'] .acc-splitter {
+  background: var(--acc-accent);
 }
 
 /* Horizontal: a vertical hairline on the column's trailing edge — which is the
    RIGHT edge with the rail on the left, and the LEFT edge when mirrored. The handle
-   is `--vsa-splitter-hit` wide but centred on the boundary, so the grab target is
+   is `--acc-splitter-hit` wide but centred on the boundary, so the grab target is
    forgiving without the visible line being thick. */
-.vsa-group[data-orientation='horizontal'] .vsa-splitter {
+.acc-group[data-orientation='horizontal'] .acc-splitter {
   top: 0;
   bottom: 0;
-  width: var(--vsa-splitter-hit);
+  width: var(--acc-splitter-hit);
   cursor: col-resize;
 }
 
@@ -503,27 +503,27 @@
    RTL does not flip. `inset-inline-end` would move the handle to the left edge in
    RTL while the column it resizes stayed put, so the user would be dragging the
    boundary they can see with the handle for the boundary they cannot. */
-.vsa-group[data-orientation='horizontal'][data-rail-side='left'] .vsa-splitter {
-  right: calc(var(--vsa-splitter-hit) / -2);
+.acc-group[data-orientation='horizontal'][data-rail-side='left'] .acc-splitter {
+  right: calc(var(--acc-splitter-hit) / -2);
 }
 
-.vsa-group[data-orientation='horizontal'][data-rail-side='right'] .vsa-splitter {
-  left: calc(var(--vsa-splitter-hit) / -2);
+.acc-group[data-orientation='horizontal'][data-rail-side='right'] .acc-splitter {
+  left: calc(var(--acc-splitter-hit) / -2);
 }
 
 /* Vertical: a horizontal hairline on the panel's bottom edge. Logical here only
    because it is SYMMETRIC — both inline edges get 0, so the two spellings mean
    the same thing and the logical one states the intent ("span the panel"). */
-.vsa-group[data-orientation='vertical'] .vsa-splitter {
+.acc-group[data-orientation='vertical'] .acc-splitter {
   inset-inline: 0;
-  height: var(--vsa-splitter-hit);
-  bottom: calc(var(--vsa-splitter-hit) / -2);
+  height: var(--acc-splitter-hit);
+  bottom: calc(var(--acc-splitter-hit) / -2);
   cursor: row-resize;
 }
 
 /* A live resize must not leave the pointer painting a text selection across every
    panel it crosses. */
-.vsa-group[data-resizing='true'] {
+.acc-group[data-resizing='true'] {
   user-select: none;
 }
 
@@ -540,23 +540,23 @@
 /* Separator on the JOIN, not on each panel's bottom edge — `:last-of-type` cannot
    be used to strip the trailing rule here because the group's own filler element
    is also a div, so the last PANEL is never the last element of its type. */
-.vsa-group[data-orientation='vertical'] > .vsa-panel + .vsa-panel {
-  border-top: 1px solid var(--vsa-border);
+.acc-group[data-orientation='vertical'] > .acc-panel + .acc-panel {
+  border-top: 1px solid var(--acc-border);
 }
 
 /* Fill mode sizing: open panels split the leftover space evenly; a collapsed
    panel is exactly its header bar. */
-.vsa-group[data-orientation='vertical'][data-mode='fill'] > .vsa-panel[data-open='true'] {
+.acc-group[data-orientation='vertical'][data-mode='fill'] > .acc-panel[data-open='true'] {
   flex: 1 1 0;
 }
 
-.vsa-group[data-orientation='vertical'][data-mode='fill'] > .vsa-panel[data-open='false'] {
+.acc-group[data-orientation='vertical'][data-mode='fill'] > .acc-panel[data-open='false'] {
   flex: 0 0 auto;
 }
 
 /* Horizontal: a collapsed panel has no on-screen presence at all — its activator is
    the rail button, which the GROUP renders. */
-.vsa-group[data-orientation='horizontal'] > .vsa-panel[data-open='false'] {
+.acc-group[data-orientation='horizontal'] > .acc-panel[data-open='false'] {
   display: none;
 }
 
@@ -568,65 +568,65 @@
 /* STAYS PHYSICAL, for the same reason as the rail's own border: "rail-facing" is
    decided by `data-rail-side`, which RTL does not flip. The `data-col-first`
    reset below clears BOTH physical sides, so it needs no direction branch. */
-.vsa-group[data-orientation='horizontal'][data-rail-side='left'] > .vsa-panel {
-  border-left: 1px solid var(--vsa-border);
+.acc-group[data-orientation='horizontal'][data-rail-side='left'] > .acc-panel {
+  border-left: 1px solid var(--acc-border);
 }
 
-.vsa-group[data-orientation='horizontal'][data-rail-side='right'] > .vsa-panel {
-  border-right: 1px solid var(--vsa-border);
+.acc-group[data-orientation='horizontal'][data-rail-side='right'] > .acc-panel {
+  border-right: 1px solid var(--acc-border);
 }
 
-.vsa-group[data-orientation='horizontal'] > .vsa-panel[data-col-first='true'] {
+.acc-group[data-orientation='horizontal'] > .acc-panel[data-col-first='true'] {
   border-left: 0;
   border-right: 0;
 }
 
-.vsa-group[data-orientation='horizontal'][data-mode='fill'] > .vsa-panel[data-open='true'] {
+.acc-group[data-orientation='horizontal'][data-mode='fill'] > .acc-panel[data-open='true'] {
   flex: 1 1 0;
-  min-width: var(--vsa-col-min-width);
+  min-width: var(--acc-col-min-width);
 }
 
-.vsa-group[data-orientation='horizontal'][data-mode='natural'] > .vsa-panel[data-open='true'] {
-  flex: 0 0 var(--vsa-col-width);
+.acc-group[data-orientation='horizontal'][data-mode='natural'] > .acc-panel[data-open='true'] {
+  flex: 0 0 var(--acc-col-width);
 }
 
 /* A leaf is the end of the chain, so it gets a slightly recessed surface — the
    visual cue that it is a destination rather than another folder to walk into. */
-.vsa-leaf {
-  background: color-mix(in srgb, var(--vsa-bg) 82%, #000);
+.acc-leaf {
+  background: color-mix(in srgb, var(--acc-bg) 82%, #000);
 }
 
 /* ── Header (vertical) ──────────────────────────────────────────────────── */
 
-.vsa-header-row {
+.acc-header-row {
   display: flex;
   align-items: center;
-  gap: var(--vsa-gap-sm);
+  gap: var(--acc-gap-sm);
   flex: 0 0 auto;
-  min-height: var(--vsa-header-height);
+  min-height: var(--acc-header-height);
   /* Symmetric, so logical and physical agree — spelled logically to say "the two
-     text edges", which is what --vsa-header-pad-x is measuring. */
+     text edges", which is what --acc-header-pad-x is measuring. */
   padding-block: 0;
-  padding-inline: var(--vsa-header-pad-x);
-  background: var(--vsa-header-bg);
-  transition: background var(--vsa-duration) ease;
+  padding-inline: var(--acc-header-pad-x);
+  background: var(--acc-header-bg);
+  transition: background var(--acc-duration) ease;
 }
 
-.vsa-header-row:hover {
-  background: var(--vsa-header-bg-hover);
+.acc-header-row:hover {
+  background: var(--acc-header-bg-hover);
 }
 
-.vsa-panel[data-open='true'] > .vsa-header-row {
-  background: var(--vsa-header-bg-open);
+.acc-panel[data-open='true'] > .acc-header-row {
+  background: var(--acc-header-bg-open);
 }
 
-.vsa-header {
+.acc-header {
   display: flex;
   align-items: center;
-  gap: var(--vsa-gap);
+  gap: var(--acc-gap);
   flex: 1 1 auto;
   min-width: 0;
-  height: var(--vsa-header-height);
+  height: var(--acc-header-height);
   padding: 0;
   margin: 0;
   border: 0;
@@ -641,26 +641,26 @@
   cursor: pointer;
 }
 
-.vsa-header:focus {
+.acc-header:focus {
   outline: none;
 }
 
-.vsa-header:focus-visible {
-  outline: 1px solid var(--vsa-accent);
+.acc-header:focus-visible {
+  outline: 1px solid var(--acc-accent);
   outline-offset: -2px;
 }
 
-.vsa-chevron {
-  width: var(--vsa-icon-size);
-  height: var(--vsa-icon-size);
+.acc-chevron {
+  width: var(--acc-icon-size);
+  height: var(--acc-icon-size);
   flex: 0 0 auto;
-  color: var(--vsa-text-muted);
-  transition: transform var(--vsa-duration) ease, color var(--vsa-duration) ease;
+  color: var(--acc-text-muted);
+  transition: transform var(--acc-duration) ease, color var(--acc-duration) ease;
 }
 
-.vsa-panel[data-open='true'] > .vsa-header-row .vsa-chevron {
+.acc-panel[data-open='true'] > .acc-header-row .acc-chevron {
   transform: rotate(90deg);
-  color: var(--vsa-text);
+  color: var(--acc-text);
 }
 
 /* RTL: a COLLAPSED disclosure chevron points at the edge the content will unfold
@@ -671,34 +671,34 @@
    Deliberately lower specificity than the open rule above, which replaces the
    transform outright: a chevron rotated to point DOWN is symmetric about the
    vertical axis, so mirroring it would be a no-op anyway. */
-.vsa-chevron:dir(rtl) {
+.acc-chevron:dir(rtl) {
   transform: scaleX(-1);
 }
 
-.vsa-icon {
+.acc-icon {
   display: inline-flex;
   flex: 0 0 auto;
-  color: var(--vsa-text-muted);
+  color: var(--acc-text-muted);
 }
 
-.vsa-title {
-  font-size: var(--vsa-title-size);
-  font-weight: var(--vsa-title-weight);
+.acc-title {
+  font-size: var(--acc-title-size);
+  font-weight: var(--acc-title-weight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.vsa-count {
+.acc-count {
   flex: 0 0 auto;
-  font-size: var(--vsa-badge-size);
+  font-size: var(--acc-badge-size);
   font-variant-numeric: tabular-nums;
-  color: var(--vsa-text-muted);
+  color: var(--acc-text-muted);
   background: rgba(255, 255, 255, 0.07);
-  border-radius: var(--vsa-pill-radius);
+  border-radius: var(--acc-pill-radius);
   padding-block: 0;
-  padding-inline: var(--vsa-badge-pad-x);
-  line-height: var(--vsa-badge-line);
+  padding-inline: var(--acc-badge-pad-x);
+  line-height: var(--acc-badge-line);
 }
 
 /* ── Badge ──────────────────────────────────────────────────────────────── */
@@ -707,161 +707,161 @@
    need me?", which is a different question from "how many?", and a panel routinely
    has an urgent state with a count of zero. Sized off the count badge's own token
    so the two stay visually related when density rescales them. */
-.vsa-badge {
+.acc-badge {
   flex: 0 0 auto;
-  width: var(--vsa-badge-dot-size);
-  height: var(--vsa-badge-dot-size);
-  border-radius: var(--vsa-pill-radius);
-  background: var(--vsa-badge-color);
+  width: var(--acc-badge-dot-size);
+  height: var(--acc-badge-dot-size);
+  border-radius: var(--acc-pill-radius);
+  background: var(--acc-badge-color);
 }
 
 /* Severity is a closed set of named tokens rather than a free colour prop: a dock
    whose panels each invented their own amber stops communicating urgency at all.
    Consumers wanting brand colour have the per-panel `accent`. */
-.vsa-badge[data-badge='info'] {
-  --vsa-badge-color: var(--vsa-accent);
+.acc-badge[data-badge='info'] {
+  --acc-badge-color: var(--acc-accent);
 }
 
-.vsa-badge[data-badge='success'] {
-  --vsa-badge-color: var(--vsa-badge-success);
+.acc-badge[data-badge='success'] {
+  --acc-badge-color: var(--acc-badge-success);
 }
 
-.vsa-badge[data-badge='warning'] {
-  --vsa-badge-color: var(--vsa-badge-warning);
+.acc-badge[data-badge='warning'] {
+  --acc-badge-color: var(--acc-badge-warning);
 }
 
-.vsa-badge[data-badge='danger'] {
-  --vsa-badge-color: var(--vsa-badge-danger);
+.acc-badge[data-badge='danger'] {
+  --acc-badge-color: var(--acc-badge-danger);
 }
 
-.vsa-header-tail {
+.acc-header-tail {
   display: flex;
   align-items: center;
-  gap: var(--vsa-gap-xs);
+  gap: var(--acc-gap-xs);
   flex: 0 0 auto;
   /* Already logical, and correctly so: the tail is pushed to the END of the
      reading order, which is the left edge in RTL. */
   margin-inline-start: auto;
 }
 
-.vsa-actions {
+.acc-actions {
   display: flex;
   align-items: center;
-  gap: var(--vsa-gap-sm);
+  gap: var(--acc-gap-sm);
 }
 
 /* ── Column title bar (horizontal) ──────────────────────────────────────── */
 
-.vsa-col-bar {
+.acc-col-bar {
   display: flex;
   align-items: center;
-  gap: var(--vsa-gap);
+  gap: var(--acc-gap);
   flex: 0 0 auto;
-  min-height: var(--vsa-header-height);
+  min-height: var(--acc-header-height);
   /* LOGICAL, and asymmetric: the wide pad is on the side the TITLE starts from
      and the tight one on the side the icon buttons sit. Both of those are reading
      order — the bar's own contents flow with the text, not with the dock edge —
      so under RTL the pair swaps and the title keeps its breathing room. */
   padding-block: 0;
-  padding-inline: var(--vsa-header-pad-x) var(--vsa-col-bar-pad-end);
-  background: var(--vsa-header-bg-open);
-  border-bottom: 1px solid var(--vsa-border);
+  padding-inline: var(--acc-header-pad-x) var(--acc-col-bar-pad-end);
+  background: var(--acc-header-bg-open);
+  border-bottom: 1px solid var(--acc-border);
 }
 
 /* ── Pin + close ────────────────────────────────────────────────────────── */
 
-.vsa-pin,
-.vsa-close,
-.vsa-tearoff {
+.acc-pin,
+.acc-close,
+.acc-tearoff {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--vsa-btn-size);
-  height: var(--vsa-btn-size);
+  width: var(--acc-btn-size);
+  height: var(--acc-btn-size);
   padding: 0;
   border: 0;
-  border-radius: var(--vsa-btn-radius);
+  border-radius: var(--acc-btn-radius);
   background: transparent;
-  color: var(--vsa-text-muted);
+  color: var(--acc-text-muted);
   cursor: pointer;
-  transition: opacity var(--vsa-duration) ease, color var(--vsa-duration) ease;
+  transition: opacity var(--acc-duration) ease, color var(--acc-duration) ease;
 }
 
-.vsa-pin {
+.acc-pin {
   /* Hidden until the row is hovered or the pin is engaged/focused. A pin on every
      header at all times turns the dock into a wall of icons; the pinned ones are
      the only ones carrying information at rest. */
   opacity: 0;
 }
 
-.vsa-header-row:hover .vsa-pin,
-.vsa-col-bar:hover .vsa-pin,
-.vsa-pin:focus-visible,
-.vsa-pin[aria-pressed='true'] {
+.acc-header-row:hover .acc-pin,
+.acc-col-bar:hover .acc-pin,
+.acc-pin:focus-visible,
+.acc-pin[aria-pressed='true'] {
   opacity: 1;
 }
 
-.vsa-pin:hover,
-.vsa-close:hover,
-.vsa-tearoff:hover {
+.acc-pin:hover,
+.acc-close:hover,
+.acc-tearoff:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: var(--vsa-text);
+  color: var(--acc-text);
 }
 
-.vsa-pin[aria-pressed='true'] {
-  color: var(--vsa-accent);
+.acc-pin[aria-pressed='true'] {
+  color: var(--acc-accent);
 }
 
-.vsa-pin:focus-visible,
-.vsa-close:focus-visible,
-.vsa-tearoff:focus-visible {
-  outline: 1px solid var(--vsa-accent);
+.acc-pin:focus-visible,
+.acc-close:focus-visible,
+.acc-tearoff:focus-visible {
+  outline: 1px solid var(--acc-accent);
   outline-offset: -1px;
 }
 
-.vsa-pin-icon {
-  width: var(--vsa-pin-size);
-  height: var(--vsa-pin-size);
+.acc-pin-icon {
+  width: var(--acc-pin-size);
+  height: var(--acc-pin-size);
   /* Unpinned reads as "pin lying down"; pinned snaps upright. Same glyph, so the
      control's identity does not change when its state does. */
   transform: rotate(45deg);
-  transition: transform var(--vsa-duration) ease;
+  transition: transform var(--acc-duration) ease;
 }
 
-.vsa-pin[aria-pressed='true'] .vsa-pin-icon {
+.acc-pin[aria-pressed='true'] .acc-pin-icon {
   transform: rotate(0deg);
 }
 
 /* Torn-off state is persistent and consequential — the panel is in another
    window — so unlike the pin it stays lit without needing hover to be legible. */
-.vsa-tearoff[aria-pressed='true'] {
-  color: var(--vsa-accent);
+.acc-tearoff[aria-pressed='true'] {
+  color: var(--acc-accent);
 }
 
-.vsa-close-icon {
-  width: var(--vsa-icon-size);
-  height: var(--vsa-icon-size);
+.acc-close-icon {
+  width: var(--acc-icon-size);
+  height: var(--acc-icon-size);
 }
 
 /* ── Content ────────────────────────────────────────────────────────────── */
 
-/* `.vsa-flyout-host` is listed here because it IS a panel's content box — just one
+/* `.acc-flyout-host` is listed here because it IS a panel's content box — just one
    that lives in a Portal'd overlay instead of in a column. When auto-hide moves a
-   panel's subtree into a flyout, the `.vsa-content` div stays behind in the docked
+   panel's subtree into a flyout, the `.acc-content` div stays behind in the docked
    shell, so a rule scoped to that class alone leaves the flyout with no padding and
    no scroll: text flush against the border, and any content taller than the dock
-   clipped by `.vsa-flyout`'s `overflow: hidden` with no way to reach it.
+   clipped by `.acc-flyout`'s `overflow: hidden` with no way to reach it.
 
    Widened here rather than restated in `autoHide.css` on purpose. Two copies of
    "what a content box looks like" is exactly the duplication that lets the docked
    and flying-out renderings drift apart, and they must be indistinguishable — the
    whole promise of pinning a flyout is that the content does not change, only where
    it lives. */
-.vsa-content,
-.vsa-flyout-host {
+.acc-content,
+.acc-flyout-host {
   min-height: 0;
   min-width: 0;
-  padding: var(--vsa-content-pad);
+  padding: var(--acc-content-pad);
   overflow: auto;
 }
 
@@ -871,17 +871,17 @@
    The `:not([hidden])` is LOAD-BEARING, not decoration. A collapsed panel carries
    the `hidden` attribute, whose UA `display: none` is the weakest rule in the
    cascade — any author `display` beats it. This selector is (0,3,0) and a bare
-   `.vsa-content[hidden]` is (0,2,0), so without the guard a fill-mode panel went on
+   `.acc-content[hidden]` is (0,2,0), so without the guard a fill-mode panel went on
    painting its content after being collapsed. Every rule below that sets `display`
-   on `.vsa-content` must carry the same guard. */
-.vsa-group[data-mode='fill'] .vsa-content:not([hidden]) {
+   on `.acc-content` must carry the same guard. */
+.acc-group[data-mode='fill'] .acc-content:not([hidden]) {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
 }
 
 /* Horizontal columns are always full-height regardless of mode. */
-.vsa-group[data-orientation='horizontal'] > .vsa-panel > .vsa-content:not([hidden]) {
+.acc-group[data-orientation='horizontal'] > .acc-panel > .acc-content:not([hidden]) {
   flex: 1 1 auto;
 }
 
@@ -889,13 +889,13 @@
    collapsed panel's content unpaintable even if some future rule sets `display`
    without one. `!important` is deliberate — "collapsed means invisible" is the
    control's contract, not a style preference to be negotiated by specificity. */
-.vsa-content[hidden] {
+.acc-content[hidden] {
   display: none !important;
 }
 
 /* A nested group supplies its own padding via the indent, so the panel wrapping
    it should not double up. */
-.vsa-content:has(> .vsa-group) {
+.acc-content:has(> .acc-group) {
   padding: 0;
 }
 
@@ -925,11 +925,11 @@
    width) — all three are numbers/lengths, so all three interpolate. One rule
    covers both modes because the property that is inert in a mode is identical at
    both ends there and so never animates. */
-.vsa-group[data-animated='true'][data-orientation='horizontal'] > .vsa-panel[data-open='true'] {
+.acc-group[data-animated='true'][data-orientation='horizontal'] > .acc-panel[data-open='true'] {
   transition:
-    flex-basis var(--vsa-open-duration) ease,
-    flex-grow var(--vsa-open-duration) ease,
-    min-width var(--vsa-open-duration) ease;
+    flex-basis var(--acc-open-duration) ease,
+    flex-grow var(--acc-open-duration) ease,
+    min-width var(--acc-open-duration) ease;
   /* Stops the content REFLOWING while the column is narrower than its content
      (the min-width floors below hold the inner layout still, which means the
      inner boxes are wider than the panel for the length of the animation and
@@ -941,7 +941,7 @@
      overhang. Without it, animating a column would silently halve its resize
      hit area. */
   overflow: clip;
-  overflow-clip-margin: calc(var(--vsa-splitter-hit) / 2);
+  overflow-clip-margin: calc(var(--acc-splitter-hit) / 2);
 }
 
 /* The other end of the transition. A collapsed column is `display: none`, so it
@@ -952,7 +952,7 @@
    Engines without @starting-style drop this at-rule and land on the final values
    immediately: no animation, no breakage. */
 @starting-style {
-  .vsa-group[data-animated='true'][data-orientation='horizontal'] > .vsa-panel[data-open='true'] {
+  .acc-group[data-animated='true'][data-orientation='horizontal'] > .acc-panel[data-open='true'] {
     flex-basis: 0;
     flex-grow: 0;
     min-width: 0;
@@ -967,26 +967,26 @@
 
    `fill` ONLY. The floor has to be a value the column can never REST below, or a
    transient clip becomes a permanent one, and `fill` is the only mode that
-   guarantees one: its panels carry `min-width: var(--vsa-col-min-width)` in CSS,
+   guarantees one: its panels carry `min-width: var(--acc-col-min-width)` in CSS,
    which a user-dragged inline `flex` cannot get under.
    `natural` has no such floor — its columns are draggable down to
-   DEFAULT_MIN_SIZE_PX (60px in resize.ts), well below --vsa-col-width — so a
+   DEFAULT_MIN_SIZE_PX (60px in resize.ts), well below --acc-col-width — so a
    fixed inner min-width there would silently clip ~170px off every column the
    user narrowed, for as long as animation stayed enabled. It gets the clip and
    nothing else, which is the other mitigation and the cheap one to be right
    about. */
-.vsa-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
-  > .vsa-panel
-  > .vsa-col-bar,
-.vsa-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
-  > .vsa-panel
-  > .vsa-content {
+.acc-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
+  > .acc-panel
+  > .acc-col-bar,
+.acc-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
+  > .acc-panel
+  > .acc-content {
   /* The floor is the column's OUTER width, so it has to be measured the same way
      — asserted locally rather than assumed from a page reset, because getting it
      wrong here does not misalign anything, it silently clips the content by twice
-     --vsa-content-pad for as long as animation is enabled. */
+     --acc-content-pad for as long as animation is enabled. */
   box-sizing: border-box;
-  min-width: var(--vsa-col-min-width);
+  min-width: var(--acc-col-min-width);
 }
 
 /* CLOSING a column is deliberately NOT animated, and this is a correctness
@@ -1007,15 +1007,15 @@
    @supports because the trick needs a 0fr track to be legal — the same gate, and
    the same rationale, as the collapsible package's block. */
 @supports (grid-template-rows: 0fr) {
-  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
-    > .vsa-panel {
+  .acc-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .acc-panel {
     display: grid;
     grid-template-rows: auto 0fr;
-    transition: grid-template-rows var(--vsa-open-duration) ease;
+    transition: grid-template-rows var(--acc-open-duration) ease;
   }
 
-  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
-    > .vsa-panel[data-open='true'] {
+  .acc-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .acc-panel[data-open='true'] {
     grid-template-rows: auto 1fr;
   }
 
@@ -1024,7 +1024,7 @@
      resolves to zero, so without this the close would snap and only the open
      would animate.
      This is NOT a hole in the "collapsed means invisible" contract that the
-     `.vsa-content[hidden]` rule above states — `visibility: hidden` keeps the
+     `.acc-content[hidden]` rule above states — `visibility: hidden` keeps the
      content out of the accessibility tree and out of tab order exactly as
      `display: none` did. What it does NOT do is remove the box, and unlike
      `display` it INTERPOLATES: a visibility transition holds `visible` for the
@@ -1036,17 +1036,17 @@
      `flex` — such a panel re-lays-out its content once as the close starts.
      Left alone deliberately: tightening that selector to a child combinator is a
      layout change to non-animated groups, which is not this phase's to make. */
-  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
-    > .vsa-panel
-    > .vsa-content[hidden] {
+  .acc-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .acc-panel
+    > .acc-content[hidden] {
     display: block !important;
     visibility: hidden;
   }
 
-  .vsa-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
-    > .vsa-panel
-    > .vsa-content {
-    transition: visibility var(--vsa-open-duration);
+  .acc-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
+    > .acc-panel
+    > .acc-content {
+    transition: visibility var(--acc-open-duration);
     /* Overrides the `auto` this control gives content everywhere else, and only
        safely HERE: in `natural` mode the content box is sized to its own content,
        so it has nothing to scroll in a resting state — the only moment it is ever
@@ -1061,7 +1061,7 @@
    `flex: 1 1 0` open. `auto` is a keyword, so `flex-basis` steps rather than
    interpolates and a transition would POP at the halfway point — worse than the
    snap it replaced. Rejected alternatives:
-     - Pin the collapsed basis to `var(--vsa-header-height)` so both ends are
+     - Pin the collapsed basis to `var(--acc-header-height)` so both ends are
        lengths. Rejected: the header row is min-height, not height, so a consumer
        whose `actions` are taller than the token would get a clipped header the
        moment they turned animation on.
@@ -1078,9 +1078,9 @@
 
 /* ── What this section could NOT do from CSS alone ──
    Both gaps above want the same one-line change in
-   /mnt/e/Development/Projects/solidjs-toolkit/playground/src/mock/vs-accordion/AccordionPanel.tsx,
+   /mnt/e/Development/Projects/solidjs-toolkit/playground/src/mock/accordion-dock/AccordionPanel.tsx,
    and neither is made here because that file is owned elsewhere:
-     1. Wrap `.vsa-content` in a `<div class="vsa-content-wrapper">` (exactly the
+     1. Wrap `.acc-content` in a `<div class="acc-content-wrapper">` (exactly the
         element @cujuju/solidjs-collapsible has) and move `hidden` onto the
         wrapper. That gives the vertical wipe a dedicated clipping box, which
         removes the `display: block !important` override here AND lets `fill`
@@ -1093,11 +1093,11 @@
    Show is widened. */
 
 @media (prefers-reduced-motion: reduce) {
-  .vsa-chevron,
-  .vsa-pin,
-  .vsa-pin-icon,
-  .vsa-header-row,
-  .vsa-rail-btn {
+  .acc-chevron,
+  .acc-pin,
+  .acc-pin-icon,
+  .acc-header-row,
+  .acc-rail-btn {
     transition: none !important;
   }
 
@@ -1106,8 +1106,8 @@
      this query exists to suppress, so the opt-in is overruled here and the
      control lands on its resting layout immediately. The @starting-style block
      becomes inert on its own once there is no transition to start. */
-  .vsa-group[data-animated='true'] > .vsa-panel,
-  .vsa-group[data-animated='true'] > .vsa-panel > .vsa-content {
+  .acc-group[data-animated='true'] > .acc-panel,
+  .acc-group[data-animated='true'] > .acc-panel > .acc-content {
     transition: none !important;
   }
 }

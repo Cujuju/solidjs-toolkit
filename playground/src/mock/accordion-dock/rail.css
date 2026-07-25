@@ -1,18 +1,18 @@
 /*
- * Rail overflow + pan chrome for the vs-accordion mock.
+ * Rail overflow + pan chrome for the accordion-dock mock.
  *
  * A new file only because `styles.css` is owned elsewhere while this lands; it is
- * meant to be folded in on promotion. Every value comes from an existing --vsa-*
+ * meant to be folded in on promotion. Every value comes from an existing --acc-*
  * token, with one new token declared on the rail itself rather than on :root so
  * it stays per-instance overridable without widening the global token surface.
  */
 
-.vsa-rail {
+.acc-rail {
   /* Fade depth at the rail's ends under the `pan` strategy — the affordance that
      replaces the scrollbar we are deliberately removing. Sized from the rail's
      own button padding so it scales with density instead of being a fixed px
      value that looks right at exactly one setting. */
-  --vsa-rail-fade: calc(var(--vsa-rail-btn-pad-block) * 3);
+  --acc-rail-fade: calc(var(--acc-rail-btn-pad-block) * 3);
 }
 
 /* ── Overflow strategy: menu ──────────────────────────────────────────────────
@@ -20,27 +20,27 @@
    menu. `hidden` rather than `auto` so a one-pixel measurement disagreement can
    never flash a scrollbar into a 40px strip — the exact thing this strategy
    exists to avoid. */
-.vsa-rail[data-overflow-mode='menu'] {
+.acc-rail[data-overflow-mode='menu'] {
   overflow-y: hidden;
 }
 
 /* ── Overflow strategy: pan ───────────────────────────────────────────────────
    The rail still scrolls, but the scrollbar is suppressed in favour of the drag
    gesture and the end fades. */
-.vsa-rail[data-overflow-mode='pan'] {
+.acc-rail[data-overflow-mode='pan'] {
   scrollbar-width: none;
   /* Content is reachable by drag, wheel and keyboard; only the visual scrollbar
      is gone, so this does not strand anything. */
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 var(--vsa-rail-fade),
-    #000 calc(100% - var(--vsa-rail-fade)),
+    #000 var(--acc-rail-fade),
+    #000 calc(100% - var(--acc-rail-fade)),
     transparent 100%
   );
 }
 
-.vsa-rail[data-overflow-mode='pan']::-webkit-scrollbar {
+.acc-rail[data-overflow-mode='pan']::-webkit-scrollbar {
   display: none;
 }
 
@@ -48,11 +48,11 @@
    Armed = the modifier is held and a press would pan; panning = it is happening.
    Split so the modifier is discoverable: holding Space over an overflowing rail
    visibly offers the gesture instead of requiring the user to guess it. */
-.vsa-rail[data-pan-armed='true'] {
+.acc-rail[data-pan-armed='true'] {
   cursor: grab;
 }
 
-.vsa-rail[data-panning='true'] {
+.acc-rail[data-panning='true'] {
   cursor: grabbing;
   /* A smooth-scroll declaration anywhere up the tree would fight a per-frame
      scrollTop write, turning a 1:1 drag into a laggy chase. */
@@ -63,7 +63,7 @@
 }
 
 /* Panning past a button must not leave it looking hovered/armed. */
-.vsa-rail[data-panning='true'] .vsa-rail-btn {
+.acc-rail[data-panning='true'] .acc-rail-btn {
   pointer-events: none;
 }
 
@@ -71,35 +71,35 @@
    Pinned to the end of the rail. `margin-top: auto` rather than a fixed offset so
    it sits against the bottom edge when the buttons do not fill the strip, and
    directly after them when they do. */
-.vsa-rail-overflow {
+.acc-rail-overflow {
   flex: 0 0 auto;
   margin-top: auto;
   width: 100%;
-  padding-block: var(--vsa-rail-btn-pad-block);
+  padding-block: var(--acc-rail-btn-pad-block);
   border: 0;
   background: transparent;
-  color: var(--vsa-text-muted);
+  color: var(--acc-text-muted);
   font: inherit;
   /* The glyph is small ink in a wide target; letting it sit on its own line at
      full rail width keeps the hit area honest. */
   line-height: 1;
   cursor: pointer;
-  transition: background var(--vsa-duration) ease, color var(--vsa-duration) ease;
+  transition: background var(--acc-duration) ease, color var(--acc-duration) ease;
 }
 
-.vsa-rail-overflow:hover {
-  background: var(--vsa-header-bg-hover);
-  color: var(--vsa-text);
+.acc-rail-overflow:hover {
+  background: var(--acc-header-bg-hover);
+  color: var(--acc-text);
 }
 
-.vsa-rail-overflow:focus-visible {
-  /* Matches .vsa-rail-btn / .vsa-header exactly — one focus treatment across the
+.acc-rail-overflow:focus-visible {
+  /* Matches .acc-rail-btn / .acc-header exactly — one focus treatment across the
      whole control. */
-  outline: 1px solid var(--vsa-accent);
+  outline: 1px solid var(--acc-accent);
   outline-offset: -2px;
 }
 
-.vsa-rail-overflow[aria-expanded='true'] {
-  background: var(--vsa-header-bg-open);
-  color: var(--vsa-text);
+.acc-rail-overflow[aria-expanded='true'] {
+  background: var(--acc-header-bg-open);
+  color: var(--acc-text);
 }
