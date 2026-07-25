@@ -90,6 +90,7 @@ function metaFor(spec: StubPanelSpec): PanelMeta {
     closable: () => spec.closable ?? true,
     minSize: () => spec.minSize,
     railClass: () => undefined,
+    contentId: `stub-${spec.id}-content`,
     isLeaf: spec.isLeaf ?? false,
   };
 }

@@ -187,6 +187,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         closable,
         minSize: () => props.minSize,
         railClass: () => props.railClass,
+        contentId,
         isLeaf: false,
       },
       props.defaultOpen ?? false,
@@ -353,8 +354,27 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       <div
         ref={setInlineHost}
         id={contentId}
-        role="region"
-        aria-labelledby={headerId}
+        /*
+         * The role follows the ACTIVATOR, because the two orientations are two
+         * different ARIA patterns wearing the same component.
+         *
+         * Horizontal puts every activator in one `role="tablist"` rail, so the
+         * content each one reveals is a `tabpanel` — and the rail button now names
+         * it with `aria-controls`. Vertical is a disclosure: a header button with
+         * `aria-expanded` revealing a `region`. Calling both a `region` left the
+         * rail's tabs controlling nothing at all.
+         */
+        role={horizontal() ? 'tabpanel' : 'region'}
+        /*
+         * Referenced only when the labelling element EXISTS.
+         *
+         * In horizontal, `headerId` sits on the column title bar, which renders
+         * only while the panel is open — so a closed panel pointed
+         * `aria-labelledby` at an id that was not in the document. A dangling
+         * reference is not a harmless one: it leaves the region with no accessible
+         * name at all, which is worse than the fallback.
+         */
+        aria-labelledby={!horizontal() || open() ? headerId : undefined}
         class={`acc-content ${props.contentClass ?? ''}`.trim()}
         hidden={!open() || group.isFlyout(props.id) || group.isTornOff(props.id)}
       />

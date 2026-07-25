@@ -136,6 +136,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
         closable: () => props.closable ?? true,
         minSize: () => props.minSize,
         railClass: () => undefined,
+        contentId,
         isLeaf: true,
         // How the group asks this leaf to close. Routed to the same `onClose` the
         // × button uses, so "the dock closed it" and "the user closed it" are one
@@ -220,6 +221,22 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
     return { flex: `0 0 ${px}px` };
   };
 
+  /*
+   * A closed leaf UNMOUNTS, unlike a panel, which stays mounted and hidden.
+   *
+   * The asymmetry is deliberate and worth stating, because the panel's rule is
+   * documented as a feature ("a scroll position, a text selection or an in-flight
+   * edit inside a panel survives the user looking at a sibling") and a reader could
+   * reasonably expect it here.
+   *
+   * A leaf is the RESULT of a selection made upstream — the references for a
+   * symbol, the detail for a row. When it closes, the selection behind it is gone
+   * (that is what `requestClose` and the cascade mean), so there is no state worth
+   * preserving: restoring the scroll position of a pane describing a file the user
+   * has navigated away from would be restoring a view of something that no longer
+   * applies. Keeping it mounted would also keep whatever it renders alive —
+   * subscriptions, timers, a fetch — for content nothing points at any more.
+   */
   return (
     <Show when={effectiveOpen()}>
       <div

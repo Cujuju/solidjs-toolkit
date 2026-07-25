@@ -270,3 +270,59 @@ describe('every stylesheet is actually loaded', () => {
     expect(missing, `not imported by index.ts: ${missing.join(', ')}`).toEqual([]);
   });
 });
+
+/**
+ * The ARIA relationships, asserted against a rendered dock.
+ *
+ * These are references BETWEEN elements, which is exactly the kind of thing that
+ * typechecks, renders, looks right and is still broken: `aria-controls` naming an
+ * id that does not exist reads as a correctly-wired tab to everything except a
+ * screen reader. Nothing else in the suite would notice.
+ */
+describe('the rail is a real tablist', () => {
+  it('every tab controls a panel that exists', () => {
+    const dom = renderFixture();
+    try {
+      const tabs = Array.from(dom.querySelectorAll('[role="tab"]'));
+      expect(tabs.length).toBeGreaterThan(0);
+
+      const dangling = tabs
+        .map((tab) => tab.getAttribute('aria-controls'))
+        .filter((id) => id === null || dom.querySelectorAll(`#${CSS.escape(id)}`).length === 0);
+      expect(dangling, 'tabs whose aria-controls names no element').toEqual([]);
+    } finally {
+      dom.cleanup();
+    }
+  });
+
+  it('what a tab controls is a tabpanel', () => {
+    // Half a pattern is not the pattern: a tab pointing at a `region` leaves the
+    // relationship unstated in the direction that matters for navigation.
+    const dom = renderFixture();
+    try {
+      const tab = dom.querySelectorAll('[role="tab"]')[0];
+      const id = tab.getAttribute('aria-controls')!;
+      const panel = dom.querySelectorAll(`#${CSS.escape(id)}`)[0];
+      expect(panel.getAttribute('role')).toBe('tabpanel');
+    } finally {
+      dom.cleanup();
+    }
+  });
+
+  it('no element points aria-labelledby at an id that is not in the document', () => {
+    // The dangling-label defect: in horizontal, the labelling element is the column
+    // title bar, which renders only while the panel is OPEN — so a closed panel
+    // referenced an id that was not there, leaving the region with no accessible
+    // name at all.
+    const dom = renderFixture();
+    try {
+      const referrers = Array.from(dom.querySelectorAll('[aria-labelledby]'));
+      const dangling = referrers
+        .map((el) => el.getAttribute('aria-labelledby')!)
+        .filter((id) => dom.querySelectorAll(`#${CSS.escape(id)}`).length === 0);
+      expect(dangling, 'aria-labelledby values with no matching element').toEqual([]);
+    } finally {
+      dom.cleanup();
+    }
+  });
+});

@@ -925,6 +925,10 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
             class="acc-rail"
             role="tablist"
             aria-orientation="vertical"
+            /* Under `multi` several tabs are selected at once, which a plain
+               tablist does not allow — a screen reader reading two selected tabs
+               in a single-select list is being told something contradictory. */
+            aria-multiselectable={policy() === 'multi' ? 'true' : undefined}
             /* NAME MUST MATCH `rail.css`, which selects `data-overflow-mode`.
                This emitted `data-overflow` — one character of disagreement between
                the two authors — so every overflow-strategy rule was inert: the
@@ -1031,6 +1035,9 @@ function RailButton(props: {
       class={`acc-rail-btn ${props.meta.railClass() ?? ''}`.trim()}
       role="tab"
       title={props.meta.tooltip()}
+      /* The other half of the tab/tabpanel pattern — see `PanelMeta.contentId`.
+         A tab that controls nothing is a button wearing a role. */
+      aria-controls={props.meta.contentId}
       aria-selected={open()}
       data-open={open() ? 'true' : 'false'}
       data-pinned={pinned() ? 'true' : 'false'}

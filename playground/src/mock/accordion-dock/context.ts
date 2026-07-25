@@ -105,6 +105,16 @@ export interface PanelMeta {
   /** Extra class for this panel's rail button. */
   railClass: Accessor<string | undefined>;
   /**
+   * The id of this panel's CONTENT element.
+   *
+   * Published because the element that must reference it — the rail button — is
+   * rendered by the GROUP, not by the panel, and `aria-controls` has to name a real
+   * id. Without it the rail was a `role="tablist"` of `role="tab"` buttons that
+   * controlled nothing, which is a shape assistive technology cannot navigate: the
+   * relationship between a tab and its panel IS the pattern.
+   */
+  contentId: string;
+  /**
    * A LEAF is a terminal detail pane with no activator of its own: no rail button,
    * no header to click, not reorderable, and exempt from `single`-policy
    * auto-collapse. It is what turns the dock into a Miller-column browser — folder,
