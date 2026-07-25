@@ -1,5 +1,6 @@
 import { createEffect, createSignal, onCleanup, type Accessor } from 'solid-js';
 import type { AccordionGroupApi } from './context';
+import { RAIL_CONTROL_SELECTOR } from './railOverflow';
 import { blockNextClick, createCancelListeners } from './vendor/shared';
 
 /**
@@ -153,9 +154,12 @@ export function createRailPan(options: RailPanOptions): RailPan {
     const rail = options.railEl();
     if (rail === undefined || !enabled() || cleanupMove !== null) return;
 
-    const onButton = (e.target as HTMLElement | null)?.closest?.(
-      '[data-panel-id], [data-rail-overflow]',
-    );
+    // The selector is IMPORTED, never retyped. Both attribute names are exported
+    // constants two files away, and this module used to spell them out as string
+    // literals — a drift that would have produced no error at all, just `null` for
+    // every press, every rail-button drag read as a pan, and the capture-phase
+    // stopPropagation below quietly killing drag-reorder.
+    const onButton = (e.target as HTMLElement | null)?.closest?.(RAIL_CONTROL_SELECTOR);
     const isMiddle = e.button === MIDDLE_BUTTON;
     const isPrimary = e.button === PRIMARY_BUTTON;
     const wantsPan =

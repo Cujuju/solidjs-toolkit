@@ -16,6 +16,19 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    /*
+     * Vitest stubs stylesheets by default — a `.css` import resolves to an empty
+     * module — which is the right default for a component test that only wants the
+     * import not to explode.
+     *
+     * It is the wrong default here. `domContract.test.tsx` reads the stylesheets as
+     * TEXT to check that every name they select is one a component actually emits;
+     * against a stub it reads four empty strings, finds no selectors, and passes
+     * while checking nothing. (That failure mode is itself guarded — the suite
+     * asserts it found a plausible number of selectors first — which is how this
+     * was noticed rather than shipped.)
+     */
+    css: true,
     // Scoped to the mock rather than all of src/: the pages/ tree is a demo
     // harness, and a glob that invites tests there would encourage testing the
     // demo instead of the control.

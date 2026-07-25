@@ -39,6 +39,20 @@ export const RAIL_ITEM_ATTR = 'data-panel-id';
 export const RAIL_OVERFLOW_ATTR = 'data-rail-overflow';
 
 /**
+ * Everything in the rail that is a CONTROL rather than background, as a selector.
+ *
+ * Built from the two constants above rather than written out, because it is
+ * consumed by a different module (`railPan`, to tell a press on a button from a
+ * press on bare rail) and that module used to spell the attributes as literals.
+ * Nothing would have failed if the two spellings drifted: `closest()` would simply
+ * return null for every press, every bare left-drag on a rail button would be read
+ * as a pan, and the capture-phase `stopPropagation` that makes panning work would
+ * have silently killed drag-reorder. Exported as a finished selector so there is
+ * one place the answer to "is this a rail control" is written down.
+ */
+export const RAIL_CONTROL_SELECTOR = `[${RAIL_ITEM_ATTR}], [${RAIL_OVERFLOW_ATTR}]`;
+
+/**
  * The rail always keeps at least this many buttons.
  *
  * One. A rail rendered as nothing but a `⋯` reads as broken chrome rather than as
