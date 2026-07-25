@@ -29,6 +29,17 @@
 
     /* Row states */
     --pdp-row-hover-bg: rgba(255, 255, 255, 0.07);
+    /* An 'adjusted' row is PICKABLE with a caveat, so it is tinted, not dimmed —
+       dimming it would read as unavailable and hide a row the user can take.
+       Amber rather than the selection indigo: this is a caution, not a choice
+       already made. */
+    --pdp-row-adjusted-bg: rgba(251, 146, 60, 0.10);
+    --pdp-row-adjusted-note: #fb923c;
+    /* A 'disabled' row stays legible — it is information about the ladder, not
+       noise. Muted to the same token the empty message uses rather than an
+       opacity wash, which would fade the caller's own annotation to unreadable. */
+    --pdp-row-disabled-color: var(--pdp-text-muted);
+    --pdp-row-note-color: var(--pdp-text-muted);
     --pdp-row-selected-bg: rgba(99, 102, 241, 0.18);
     /* Selection rail — 3px matches select-flyout and the tri-state chip's rail
        indicator, so every "this is the chosen one" stripe in the toolkit is the
@@ -170,6 +181,40 @@
    so a selected row reads identically wherever the toolkit shows a list in a
    pop-out. `currentColor` would be the row's text colour here, so the rail
    takes the accent explicitly. */
+/* States. Attribute selectors (not classes) so a consumer can target the same
+   state their `itemState` returned, with the same name. */
+.cpdp-row[data-state='adjusted'] {
+  background: var(--pdp-row-adjusted-bg);
+}
+
+.cpdp-row[data-state='adjusted'] .cpdp-row-note {
+  color: var(--pdp-row-adjusted-note);
+}
+
+/* Hover/active tint still wins over the adjusted tint — the cursor must be
+   visible on every row it can land on, including this one. Excludes the
+   SELECTED row: that rule below is the strongest state, and without the
+   :not() this higher-specificity selector would quietly outrank it. */
+.cpdp-row[data-state='adjusted'][data-active]:not([data-selected]) {
+  background: var(--pdp-row-hover-bg);
+}
+
+.cpdp-row[data-state='disabled'] {
+  cursor: not-allowed;
+  color: var(--pdp-row-disabled-color);
+}
+
+/* Belt for the cursor rule in the component: even if a disabled row somehow
+   took `data-active`, it must not paint as though Enter would act on it. The
+   selected row keeps its own paint (the current value can itself become
+   disabled — it is still the current value). */
+.cpdp-row[data-state='disabled'][data-active]:not([data-selected]) {
+  background: transparent;
+}
+
+/* Selection is the STRONGEST row state and must out-paint the state tints
+   above. Equal specificity to them ((0,2,0) each), so this rule's POSITION is
+   what decides it — keep it last of the three. */
 .cpdp-row[data-selected] {
   background: var(--pdp-row-selected-bg);
   box-shadow: inset var(--pdp-rail-width) 0 0 var(--pdp-rail-color);
@@ -177,6 +222,19 @@
 
 .cpdp-row-date {
   font-weight: 700;
+}
+
+/* The caller's note. Sits between the date and the DTE and takes the leftover
+   width, so a long note truncates instead of pushing the DTE out of the row. */
+.cpdp-row-note {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: end;
+  font-size: 0.86em;
+  color: var(--pdp-row-note-color);
 }
 
 .cpdp-row-dte {

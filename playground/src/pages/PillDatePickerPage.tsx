@@ -1,5 +1,9 @@
 import { For, createSignal, type JSX } from 'solid-js';
-import { PillDatePicker } from '@cujuju/solidjs-pill-date-picker';
+import {
+  PillDatePicker,
+  type PillDateItemState,
+  type PillDateRowContext,
+} from '@cujuju/solidjs-pill-date-picker';
 import { Code, Card, ClipBox, EdgeRight, ScrollBox, Tall } from '../ui';
 
 /**
@@ -72,6 +76,53 @@ function buildLadder(now: Date): Expiry[] {
 const LADDER = buildLadder(new Date());
 const DATES = LADDER.map((e) => e.date);
 
+/**
+ * The state demo's premise, because an abstract "some rows are disabled" proves
+ * nothing about whether the API is the right shape.
+ *
+ * A real chain's strike grid COARSENS with time: 1-point rungs in the front
+ * weeks, 5-point a few months out, 25-point on the LEAPS. So a leg held at 152
+ * exists exactly where the grid is fine enough, sits between rungs further out
+ * (pickable, but the strike moves), and past the last listed month does not
+ * exist at all. That is one row of each state, from one honest rule.
+ */
+const HELD_STRIKE = 152;
+
+function gridStep(dte: number | null): number {
+  if (dte === null) return 1;
+  if (dte <= 30) return 1;
+  if (dte <= 120) return 5;
+  return 25;
+}
+
+function daysFromToday(isoDate: string): number {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const then = Date.UTC(y, m - 1, d);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((then - today) / 86_400_000);
+}
+
+/** The rung this expiration would actually put the leg on. */
+function snappedStrike(isoDate: string): number {
+  const step = gridStep(daysFromToday(isoDate));
+  return Math.round(HELD_STRIKE / step) * step;
+}
+
+/** The last entry stands in for an expiration the broker lists no puts at. */
+const NOT_LISTED = DATES[DATES.length - 1];
+
+function strikeState(isoDate: string): PillDateItemState {
+  if (isoDate === NOT_LISTED) return 'disabled';
+  return snappedStrike(isoDate) === HELD_STRIKE ? 'available' : 'adjusted';
+}
+
+function strikeNote(isoDate: string): string | undefined {
+  if (isoDate === NOT_LISTED) return 'no puts listed';
+  const snapped = snappedStrike(isoDate);
+  return snapped === HELD_STRIKE ? undefined : `≈ ${snapped}`;
+}
+
 /** One picker with its own state, so every instance on the page is independently live. */
 function Picker(props: {
   size?: 'xs' | 'sm' | 'md';
@@ -111,6 +162,9 @@ function ChainHeader(props: { symbol: string }) {
 
 export function PillDatePickerPage(): JSX.Element {
   const [payloadPick, setPayloadPick] = createSignal<Expiry | null>(null);
+  const [statePick, setStatePick] = createSignal<string | null>(null);
+  const [richPick, setRichPick] = createSignal<Expiry | null>(null);
+  const [liveVal, setLiveVal] = createSignal<string | null>(DATES[1] ?? null);
   const [controlledOpen, setControlledOpen] = createSignal(false);
   const [controlledVal, setControlledVal] = createSignal<string | null>(DATES[3] ?? null);
 
@@ -237,6 +291,134 @@ const [v, setV] = createSignal(DATES[0].value);
           <button class="demo-btn" onClick={() => setControlledOpen((o) => !o)}>
             {controlledOpen() ? 'close' : 'open'} from outside
           </button>
+        </Card>
+      </div>
+
+      <h2>
+        Per-row state <small>— available / adjusted / disabled</small>
+      </h2>
+      <p class="note">
+        "Can I pick this?" is not a boolean in a real ladder. The rows below model a leg held at
+        strike <b>{HELD_STRIKE}</b> against a grid that coarsens with time: near-dated rows list
+        that exact strike, later ones only list rungs around it (still pickable — the strike
+        moves, and the note says where to), and the last one lists nothing for that right at all.
+        Open it: the disabled row is <b>visible but inert</b>, the arrow keys step over it, and
+        the pointer will not park the cursor on it.
+      </p>
+      <Code cap="itemState + annotation">{`
+<PillDatePicker
+  items={DATES}
+  itemState={(d) => listsMyStrike(d) ? 'available'
+                  : listsSomething(d) ? 'adjusted' : 'disabled'}
+  annotation={(d) => nearestRung(d)}   // '≈ 150', 'no puts listed'
+  …
+/>
+`}</Code>
+      <div class="row">
+        <Card cap="one rule, three states (open it)">
+          <PillDatePicker
+            items={DATES}
+            value={statePick()}
+            onChange={setStatePick}
+            itemState={strikeState}
+            annotation={strikeNote}
+            tooltipEntries={(item, dte) => ({
+              Expires: String(item),
+              DTE: dte === null ? '—' : `${dte}d`,
+              Strike: strikeState(String(item)) === 'disabled'
+                ? 'not listed'
+                : `${HELD_STRIKE} → ${snappedStrike(String(item))}`,
+            })}
+            ariaLabel="Expiration"
+          />
+          <span class="readout">
+            {statePick()
+              ? <>picked <b>{statePick()}</b> · strike <b>{snappedStrike(statePick()!)}</b></>
+              : 'nothing picked yet'}
+          </span>
+        </Card>
+        <Card cap="every row disabled — nothing activates, Enter is inert">
+          <PillDatePicker
+            items={DATES}
+            value={null}
+            onChange={() => {}}
+            itemState={() => 'disabled'}
+            annotation={() => 'not tradeable'}
+            ariaLabel="Expiration"
+          />
+        </Card>
+        <Card cap="selected row that has since gone disabled">
+          <PillDatePicker
+            items={DATES}
+            value={DATES[2]}
+            onChange={() => {}}
+            itemState={(d) => (d === DATES[2] ? 'disabled' : 'available')}
+            annotation={(d) => (d === DATES[2] ? 'delisted' : undefined)}
+            ariaLabel="Expiration"
+          />
+        </Card>
+      </div>
+
+      <h2>
+        <code>renderRow</code> <small>— the escape hatch, when the three columns are not enough</small>
+      </h2>
+      <p class="note">
+        Replaces what is <i>inside</i> a row, never the row itself: the package keeps
+        <code> role="option"</code>, the state attributes, the cursor and the click — including
+        the guarantee that a disabled row cannot be committed even if your row nests its own
+        button. The context hands you the package's own <code>label</code>,
+        <code> dteLabel</code> and <code>dteColor</code>, so a row that only adds a column does
+        not re-implement the formatting it did not touch. Prefer{' '}
+        <code>itemState</code> + <code>annotation</code> where they fit — they keep every
+        consumer's ladder looking like the same control.
+      </p>
+      <div class="row">
+        <Card cap="a third column, package formatting kept">
+          <PillDatePicker
+            items={LADDER}
+            value={richPick()?.date ?? null}
+            onChange={setRichPick}
+            itemState={(e) => strikeState(e.date)}
+            renderRow={(ctx: PillDateRowContext<Expiry>) => (
+              <>
+                <span style={{ 'font-weight': 700 }}>{ctx.label}</span>
+                <span
+                  style={{
+                    flex: '1 1 auto',
+                    'text-align': 'end',
+                    'font-size': '0.8em',
+                    color: ctx.state === 'adjusted' ? 'var(--amber, #fb923c)' : 'var(--muted)',
+                  }}
+                >
+                  {ctx.item.kind} · {(ctx.item.oi / 1000).toFixed(0)}k oi
+                </span>
+                <span style={{ color: ctx.dteColor, 'font-variant-numeric': 'tabular-nums' }}>
+                  {ctx.dteLabel}
+                </span>
+              </>
+            )}
+            ariaLabel="Expiration"
+          />
+          <span class="readout">
+            {richPick() ? <>picked <b>{richPick()!.date}</b></> : 'nothing picked yet'}
+          </span>
+        </Card>
+        <Card cap="ctx.active / ctx.selected are LIVE (arrow through it)">
+          <PillDatePicker
+            items={DATES}
+            value={liveVal()}
+            onChange={setLiveVal}
+            renderRow={(ctx) => (
+              <>
+                <span>{ctx.label}</span>
+                <span style={{ flex: '1 1 auto', 'text-align': 'end', 'font-size': '0.8em', color: 'var(--muted)' }}>
+                  {ctx.active ? 'cursor' : ''}{ctx.selected ? ' · selected' : ''}
+                </span>
+                <span style={{ color: ctx.dteColor }}>{ctx.dteLabel}</span>
+              </>
+            )}
+            ariaLabel="Expiration"
+          />
         </Card>
       </div>
 

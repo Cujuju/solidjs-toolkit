@@ -10,6 +10,8 @@ coverage/
 
 # Playwright run output — traces and screenshots for the last failing run.
 test-results/
+# Screenshots written by the hand-run playground verifiers (playground/*-shot.mjs).
+playground/*.png
 playwright-report/
 blob-report/
 .playwright/

@@ -1,7 +1,7 @@
 {
   "name": "@cujuju/solidjs-pill-date-picker",
-  "version": "0.1.1",
-  "description": "Compact expiration / DTE picker for SolidJS — collapsed pill with a hover DTE tooltip, portalled pop-out ladder, caller-supplied dates, deterministic DTE math.",
+  "version": "0.2.0",
+  "description": "Compact expiration / DTE picker for SolidJS — collapsed pill with a hover DTE tooltip, portalled pop-out ladder, caller-supplied dates, per-row state (available / adjusted / disabled), a full row escape hatch, and deterministic DTE math.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

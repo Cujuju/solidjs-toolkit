@@ -101,6 +101,66 @@ const ladder = [
 
 **The key must be stable across refetches**, which is why you supply it rather than the control deriving it. A tempting-but-broken choice is the item's **position** in the array: rebuild the ladder after a weekly expires and position 3 names a *different* expiration, so the selection silently moves to the wrong contract. That is worse than deselecting — nothing about it looks wrong. Use an id, an OCC root, `${date}:${settlement}` — anything that names the **contract**, not its slot.
 
+## Row state — `itemState` + `annotation`
+
+"Can I pick this?" is not a boolean in a real ladder, so a row is one of three things:
+
+| State | Pickable | Looks like |
+|---|---|---|
+| `available` | yes | an ordinary row |
+| `adjusted` | **yes** | tinted, with your `annotation` — a row with a caveat, not a lesser row |
+| `disabled` | no | dimmed, `aria-disabled`, **still visible** |
+
+```tsx
+<PillDatePicker
+  items={dates}
+  itemState={(d) => listsMyStrike(d) ? 'available'
+                  : listsAnything(d) ? 'adjusted' : 'disabled'}
+  annotation={(d) => nearestRung(d)}   // '≈ 150' · 'no puts listed'
+  …
+/>
+```
+
+A disabled row stays in the list on purpose. Filtering it out of `items` is the obvious
+alternative and it lies: the user cannot tell "not available **to you**" from "does not exist",
+and a ladder missing dates misrepresents the calendar it is supposed to be showing.
+
+Disabled is enforced, not merely styled. The row cannot be committed by clicking it, by clicking
+anything a custom row nested inside it, or by pressing Enter on it; the arrow keys **step over**
+it, and the pointer will not move the cursor onto it — the highlight must never sit somewhere
+Enter refuses to act. The one deliberate exception: opening with a selection that has *since*
+become disabled leaves the cursor on that row, because moving it would make Enter pick a value
+the user never chose. The commit guard refuses it and the first arrow key leaves.
+
+The annotation's wording is yours. This package has no vocabulary for *why* a date is what it is
+— that is domain knowledge, and a date picker inventing it would be guessing. Keep it to a few
+characters; the long form belongs in `tooltipEntries`.
+
+## `renderRow` — when three columns are not enough
+
+Replaces what is **inside** a row, never the row element itself. The package keeps
+`role="option"`, the state attributes, the selection rail, the cursor, click-to-commit and the
+disabled guarantee — the parts that are easy to get wrong and invisible when they are.
+
+```tsx
+renderRow={(ctx) => (
+  <>
+    <span>{ctx.label}</span>                       {/* honours formatDate */}
+    <span>{ctx.item.kind} · {ctx.item.oi}</span>   {/* your payload */}
+    <span style={{ color: ctx.dteColor }}>{ctx.dteLabel}</span>
+  </>
+)}
+```
+
+`ctx` carries `item`, `date`, `label`, `dte`, `dteLabel`, `dteColor`, `state`, `annotation`,
+`selected`, `active`, `index`. Everything that can change is a **getter**, so reading it inside
+your JSX stays live — a custom row sees the cursor move and the selection change without doing
+anything special. (Handing over a plain snapshot is the trap this avoids: `ctx.active` would be
+frozen at first paint and no consumer would have done anything wrong.)
+
+Reach for `itemState` + `annotation` first. They keep every consumer's ladder looking like the
+same control; `renderRow` is for the row shape they cannot express.
+
 ## DTE
 
 DTE is a **calendar-day** difference, not an elapsed-time division. `(expiry - now) / 86400000`

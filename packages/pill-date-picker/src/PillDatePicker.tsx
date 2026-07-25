@@ -39,6 +39,57 @@ import {
  */
 export type PillDateEntry = string | { date: string };
 
+/**
+ * What a row is, from the CALLER's point of view. The control renders the
+ * difference; it never decides it.
+ *
+ * The three exist because "can I pick this?" is not a boolean in a real ladder.
+ * An expiration can be exactly what you asked for, or takeable on terms you did
+ * not ask for (a chain whose strike grid coarsens with time has no rung at your
+ * strike four months out, but it has one nearby), or listed for other contracts
+ * and not for yours. Collapsing the middle case into either neighbour is what
+ * pushes consumers into hijacking `formatDate` to smuggle a marker into the
+ * label, or into deleting rows from `items` so the user cannot tell "not for
+ * you" from "does not exist".
+ */
+export type PillDateItemState = 'available' | 'adjusted' | 'disabled';
+
+/**
+ * Everything the default row derives, handed to {@link PillDatePickerProps.renderRow}
+ * so a custom row never has to re-implement (or re-guess) any of it.
+ *
+ * `label`, `dteLabel` and `dteColor` are the SAME values the built-in row uses —
+ * `formatDate` and `dteRamp` are already applied — so a caller who only wants to
+ * add a column keeps the package's formatting for the columns they did not touch.
+ */
+export interface PillDateRowContext<T extends PillDateEntry = PillDateEntry> {
+  /** The caller's original item, by reference. */
+  item: T;
+  /** Its ISO date. */
+  date: string;
+  /** The row label the built-in row would render (honours `formatDate`). */
+  label: string;
+  /** Calendar days to expiration, or null when the date is unparseable. */
+  dte: number | null;
+  /** The formatted DTE the built-in row would render (e.g. `34d`). */
+  dteLabel: string;
+  /**
+   * The ramp colour for that DTE, or `undefined` when there is nothing to
+   * colour by — an unparseable date, or an empty ramp. Passed through
+   * verbatim rather than defaulted, so a custom row inherits the same honest
+   * "no urgency known" the built-in row renders instead of a fabricated hue.
+   */
+  dteColor: string | undefined;
+  state: PillDateItemState;
+  /** The caller's own `annotation` for this item, if any. */
+  annotation?: string;
+  /** True when this row is the current `value`. */
+  selected: boolean;
+  /** True when this row holds the keyboard/pointer cursor. */
+  active: boolean;
+  index: number;
+}
+
 export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
   /**
    * The valid expirations, in the order they should be listed.
@@ -125,6 +176,44 @@ export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
   /** Suppress the hover tooltip entirely. */
   disableTooltip?: boolean;
 
+  /**
+   * Per-item state. Defaults to `'available'` for every item, which is exactly
+   * the pre-0.2 behaviour.
+   *
+   * `'adjusted'` is offered and fully pickable — it is a row with a caveat, not
+   * a lesser row, and hiding it behind a disabled style would be a lie about
+   * what the user can do. `'disabled'` is rendered but inert: it cannot be
+   * clicked, the arrow keys step over it, and it never takes the cursor. It
+   * stays VISIBLE on purpose — a ladder silently missing its unavailable rows
+   * misrepresents the market's calendar.
+   */
+  itemState?: (item: T) => PillDateItemState;
+  /**
+   * A short caller-authored note rendered on the row (`≈ 145`, `PM settle`,
+   * `no puts listed`). The package supplies no vocabulary of its own here: the
+   * reason a row is what it is belongs to the domain, not to a date picker.
+   *
+   * Keep it to a few characters — the row is one line in a dense pop-out. The
+   * long form belongs in `tooltipEntries`.
+   */
+  annotation?: (item: T) => string | undefined;
+  /**
+   * Full control of a row's CONTENT — the escape hatch for a row shape the
+   * built-in date/annotation/DTE layout cannot express.
+   *
+   * It replaces what is INSIDE the row, never the row element itself. The
+   * package keeps ownership of the parts that are easy to get wrong and
+   * invisible when they are: `role="option"`, the selected/active/disabled
+   * state attributes, click-to-commit, the pointer cursor, and the guarantee
+   * that a `'disabled'` row cannot be committed no matter what a custom row
+   * renders inside it (a nested button's click still bubbles into the same
+   * guarded handler).
+   *
+   * Prefer `itemState` + `annotation` where they fit: they keep every consumer's
+   * ladder looking like the same control. Reach for this when they do not.
+   */
+  renderRow?: (ctx: PillDateRowContext<T>) => JSX.Element;
+
   ariaLabel?: string;
   class?: string;
 }
@@ -151,6 +240,14 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   /** The item's selection key — the caller's if they gave one, else its date. Every
    *  comparison against `value` goes through here; nothing compares dates directly. */
   const keyOf = (item: T): string => (props.keyOf ? props.keyOf(item) : dateOf(item));
+
+  /** Caller's verdict for an item; absent prop = everything available. */
+  const stateOf = (item: T): PillDateItemState => props.itemState?.(item) ?? 'available';
+  /** Out-of-range indices count as disabled so every caller below is total. */
+  const disabledAt = (index: number): boolean => {
+    const item = props.items[index];
+    return !item || stateOf(item) === 'disabled';
+  };
 
   const selectedItem = createMemo<T | undefined>(() => {
     const v = props.value;
@@ -206,25 +303,58 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     if (refocus) anchorEl?.focus();
   };
 
+  /**
+   * Fail-closed commit: a disabled item can never reach `onChange`, whatever
+   * route asked for it — a click on the row, a click on something a custom
+   * `renderRow` put INSIDE the row, or an Enter on a cursor that somehow landed
+   * there. The keyboard already steps over disabled rows and they never take
+   * the pointer cursor; this is the guard that makes those two facts
+   * unnecessary rather than load-bearing.
+   */
   const commit = (index: number): void => {
     const item = props.items[index];
     if (!item) return;
+    if (stateOf(item) === 'disabled') return;
     props.onChange(item);
     close(true);
   };
 
-  /** Wrap so ArrowDown off the end lands on the first row rather than dead-ending. */
+  /**
+   * Wrap so ArrowDown off the end lands on the first row rather than dead-ending,
+   * and STEP OVER disabled rows: a cursor that can land somewhere Enter refuses
+   * to act reads as a broken control.
+   *
+   * Bounded by the row count, so a ladder where every row is disabled settles on
+   * "nothing active" instead of spinning.
+   */
   const moveActive = (delta: number): void => {
     const n = props.items.length;
     if (n === 0) return;
     const from = activeIndex();
     // From "nothing active", a first ArrowDown must land on row 0, not row 1 — hence the
     // asymmetric seed rather than a plain (from + delta) on -1.
-    const next =
+    let next =
       from === NO_ACTIVE_INDEX
         ? (delta > 0 ? 0 : n - 1)
         : (from + delta + n) % n;
-    setActiveIndex(next);
+    for (let step = 0; step < n; step++) {
+      if (!disabledAt(next)) {
+        setActiveIndex(next);
+        return;
+      }
+      next = (next + delta + n) % n;
+    }
+    setActiveIndex(NO_ACTIVE_INDEX); // every row disabled — nowhere to go
+  };
+
+  /** First / last row the user can actually act on (Home / End). */
+  const edgeEnabled = (from: 'first' | 'last'): number => {
+    const n = props.items.length;
+    for (let i = 0; i < n; i++) {
+      const index = from === 'first' ? i : n - 1 - i;
+      if (!disabledAt(index)) return index;
+    }
+    return NO_ACTIVE_INDEX;
   };
 
   /**
@@ -245,7 +375,10 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       return;
     }
     // Open with the current selection under the cursor, so Enter is a no-op rather than a
-    // surprise, and ArrowDown starts from where the user already is.
+    // surprise, and ArrowDown starts from where the user already is. Seeded even when that
+    // row is now DISABLED: moving the cursor to a different row would make Enter pick a
+    // value the user never chose, which is the surprise this seeding exists to avoid. The
+    // commit guard already refuses it, and the first arrow key steps to a usable row.
     const preselected = props.items.findIndex((i) => keyOf(i) === props.value);
     setActiveIndex(preselected);
     place();
@@ -272,11 +405,11 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
           break;
         case 'Home':
           e.preventDefault();
-          setActiveIndex(props.items.length > 0 ? 0 : NO_ACTIVE_INDEX);
+          setActiveIndex(edgeEnabled('first'));
           break;
         case 'End':
           e.preventDefault();
-          setActiveIndex(props.items.length - 1);
+          setActiveIndex(edgeEnabled('last'));
           break;
         case 'Enter':
         case ' ':
@@ -357,6 +490,30 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     </button>
   );
 
+  /**
+   * The built-in row: date, optional note, DTE. Extracted so `renderRow` and the
+   * default share ONE row element (state attributes, click, cursor) and differ
+   * only in what is drawn inside it.
+   */
+  const DefaultRow = (p: { ctx: PillDateRowContext<T> }): JSX.Element => (
+    <>
+      <span class="cpdp-row-date">{p.ctx.label}</span>
+      <Show when={p.ctx.annotation}>
+        {(note) => <span class="cpdp-row-note">{note()}</span>}
+      </Show>
+      {/* The colour is a style, not a class, because the ramp is caller-supplied:
+          the package cannot know the class names of a palette it does not own.
+          A disabled row drops the ramp: urgency is a call to act, and this row
+          cannot be acted on — it would be shouting about an unavailable date. */}
+      <span
+        class="cpdp-row-dte"
+        style={p.ctx.state === 'disabled' ? undefined : { color: p.ctx.dteColor }}
+      >
+        {p.ctx.dteLabel}
+      </span>
+    </>
+  );
+
   // ── Pop-out panel ────────────────────────────────────────────────────
   // Re-place once the panel has actually been laid out. The first `place()` inside the
   // open-effect runs before the browser has sized the portalled panel, so its measured height
@@ -375,22 +532,59 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
             // Compare on the KEY, not the date. With two same-date contracts in the ladder
             // (SPX / SPXW), a date comparison would light up BOTH rows as selected.
             const selected = (): boolean => props.value === keyOf(item);
+            const state = (): PillDateItemState => stateOf(item);
+            const note = (): string | undefined => props.annotation?.(item);
+            /**
+             * The same values the built-in row renders — see PillDateRowContext.
+             *
+             * Every changing field is a GETTER, not a value. A custom `renderRow`
+             * is called ONCE to build its JSX, so a plain object would hand it a
+             * snapshot: `ctx.active` would be whatever it was at first paint and
+             * the custom row would never see the cursor move (or the selection
+             * change, or a re-supplied annotation). Getters make the read happen
+             * where the consumer actually reads it — inside their JSX, which
+             * Solid compiles to a tracked expression — so the frozen-value trap
+             * cannot be fallen into by a caller who did nothing wrong.
+             *
+             * `item` and `index` are the row's identity and do not change under
+             * it, so they stay plain values.
+             */
+            const rowContext = (): PillDateRowContext<T> => ({
+              item,
+              index: i(),
+              get date() { return iso(); },
+              get label() { return labelOf(iso()); },
+              get dte() { return dte(); },
+              get dteLabel() { return formatDte(dte()); },
+              get dteColor() { return resolveDteColor(dte(), ramp()); },
+              get state() { return state(); },
+              get annotation() { return note(); },
+              get selected() { return selected(); },
+              get active() { return activeIndex() === i(); },
+            });
             return (
               <div
                 class="cpdp-row"
                 role="option"
                 aria-selected={selected()}
+                // Announced, not just styled: a screen reader must hear that the row is
+                // inert. `aria-disabled` (not `disabled`) because the row stays in the
+                // listbox and remains readable — it is unavailable, not absent.
+                aria-disabled={state() === 'disabled' ? 'true' : undefined}
+                data-state={state()}
                 data-active={activeIndex() === i() ? 'true' : undefined}
                 data-selected={selected() ? 'true' : undefined}
-                onPointerEnter={() => setActiveIndex(i())}
+                // A disabled row never takes the cursor: the highlight must always sit
+                // somewhere Enter will act, or the two inputs disagree about what is
+                // selected.
+                onPointerEnter={() => {
+                  if (state() !== 'disabled') setActiveIndex(i());
+                }}
                 onClick={() => commit(i())}
               >
-                <span class="cpdp-row-date">{labelOf(iso())}</span>
-                {/* The colour is a style, not a class, because the ramp is caller-supplied:
-                    the package cannot know the class names of a palette it does not own. */}
-                <span class="cpdp-row-dte" style={{ color: resolveDteColor(dte(), ramp()) }}>
-                  {formatDte(dte())}
-                </span>
+                <Show when={props.renderRow} fallback={<DefaultRow ctx={rowContext()} />}>
+                  {(render) => render()(rowContext())}
+                </Show>
               </div>
             );
           }}

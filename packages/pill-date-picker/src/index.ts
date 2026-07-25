@@ -3,6 +3,8 @@ export {
   PillDatePicker,
   type PillDatePickerProps,
   type PillDateEntry,
+  type PillDateItemState,
+  type PillDateRowContext,
 } from './PillDatePicker';
 export {
   // The DTE math is exported because a consumer that renders expirations ELSEWHERE (a chain
