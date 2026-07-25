@@ -98,6 +98,21 @@ export interface AnchoredPopoverProps {
    *  carries `class` / `role` / `aria-label`). Useful when an external
    *  trigger button needs to wire `aria-controls`. */
   id?: string;
+  /** Optional ref to the CONTENT element — the one carrying `class` /
+   *  `role` / `aria-label`, i.e. the whole visible surface including
+   *  any chrome the consumer renders around its main body.
+   *
+   *  Exists for listeners that CANNOT be expressed on the children:
+   *  `pointerenter` / `pointerleave` do not bubble, so a consumer whose
+   *  "is the pointer over this surface?" question spans several sibling
+   *  children has no element of its own to ask it on. Attaching to one
+   *  child answers a narrower question and silently misreports a move
+   *  between siblings as a departure.
+   *
+   *  Not for reaching in to restyle — `class`, `shellClass` and
+   *  `shellStyle` own presentation, and the cascade-trap warning on
+   *  `shellClass` applies to anything set through here too. */
+  contentRef?: (el: HTMLDivElement) => void;
   /** Optional class applied to the SHELL element (the one that carries
    *  the `popover` attribute). Use this when you need to attach
    *  `:popover-open::backdrop` styles or other shell-scoped CSS that
@@ -391,6 +406,7 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
         }
       >
         <div
+          ref={(el) => props.contentRef?.(el)}
           class={props.class}
           role={props.role}
           aria-label={props['aria-label']}
