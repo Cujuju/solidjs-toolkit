@@ -262,23 +262,24 @@ export interface AccordionGroupApi {
   register: (meta: PanelMeta, defaultOpen: boolean) => void;
   unregister: (id: string) => void;
   /**
-   * The focusable element for a panel is the vertical header in `vertical` and the
-   * rail button in `horizontal`, so whichever one renders claims the ref.
+   * The focusable element for a panel: the vertical header in `vertical`, the rail
+   * button in `horizontal`. Whichever one renders claims the slot, keyed by panel
+   * id.
    *
-   * ALWAYS register through `trackedRef`, never with a bare `ref={(el) => …}`.
-   * Passing `null` on unmount is not optional bookkeeping — see `trackedRef` and
-   * `activatorElOf` for the defect that omitting it produced.
+   * ALWAYS fill it through `slotRef`, never with a bare `ref={(el) => …}` — see
+   * `slotRef` for the two defects that shortcut produced.
    */
-  setHeaderEl: (id: string, el: HTMLElement | null) => void;
+  activators: ElementSlot;
   /**
    * The `⋯` overflow trigger, which STANDS IN for every rail button that did not
-   * fit. Registered by `RailOverflowMenu` through `trackedRef`.
+   * fit. Filled by `RailOverflowMenu`.
    *
-   * The group needs it as an element (not just a boolean) because it is the anchor
+   * The group needs it as an element rather than a boolean because it is the anchor
    * and the focus target for panels whose own button is not rendered — see
-   * `activatorElOf`.
+   * `activatorElOf`. Keyed like the others so it can share `slotRef`; there is only
+   * ever one, under `RAIL_OVERFLOW_SLOT_KEY`.
    */
-  setRailOverflowEl: (el: HTMLElement | null) => void;
+  railOverflowSlot: ElementSlot;
   /** Panels currently rendering into their own window. */
   tornOff: Accessor<readonly string[]>;
   isTornOff: (id: string) => boolean;
@@ -321,8 +322,15 @@ export interface AccordionGroupApi {
   /** The group's density, exposed so a PORTALLED surface (a flyout leaves
    *  `.acc-group` and stops inheriting its token overrides) can restate it. */
   density: Accessor<'comfortable' | 'compact'>;
-  /** The panel's outer element — measured when seeding a resize. */
-  setPanelEl: (id: string, el: HTMLElement | null) => void;
+  /**
+   * The panel's outer element — measured when seeding a resize.
+   *
+   * A slot for the same reason the others are: these were registered with a bare
+   * `ref` and NEVER cleared, so every panel that unmounted left a detached node
+   * behind. `resize` measures through this map, and a detached node's rect is all
+   * zeros — so a stale entry does not fail, it silently seeds a panel's extent as 0.
+   */
+  panelElements: ElementSlot;
   /** Move DOM focus to another header/rail button in THIS group. `delta` is ±1, or an edge. */
   moveFocus: (fromId: string, delta: 1 | -1 | 'first' | 'last') => void;
 
@@ -335,77 +343,103 @@ export interface AccordionGroupApi {
 }
 
 /**
- * A `ref` callback that registers an element AND unregisters it on unmount.
+ * A place the dock keeps element references, keyed.
  *
- * THE DEFECT THIS EXISTS TO REMOVE
- *
- * Solid invokes `ref={(el) => …}` exactly once, when the element is created. There
- * is no second call on unmount. So `ref={(el) => group.setHeaderEl(id, el)}` — the
- * obvious spelling, and the one that was written at every callsite — registers the
- * element and then keeps it FOREVER, including after it has been removed from the
- * document.
- *
- * That is not theoretical. A rail button unmounts whenever the rail overflows and
- * its panel collapses into the `⋯` menu, and the panel is NOT unregistered by that
- * (only its button went away), so nothing cleared the map. `activatorElOf` went on
- * handing out a detached node; `getBoundingClientRect()` on a detached node is all
- * zeros; and the flyout for such a panel opened in the top-left corner of the
- * VIEWPORT, clamped to the 8px margin, instead of beside the rail. The same stale
- * node made `moveFocus` call `.focus()` on nothing at all, silently.
- *
- * The fix is this contract rather than an `onCleanup` added next to each `ref`,
- * because "remember to also unregister" is precisely the kind of instruction that
- * three callsites obey and the fourth does not. Registration and its cleanup are
- * one decision, so they are one call.
- *
- * Safe inside a `<For>`: the ref runs in the item's owner, so the cleanup is bound
- * to that item's lifetime rather than to the whole list's.
- *
- * ⚠ `register` MUST NOT read reactive state — capture whatever it needs (an id,
- * most often) BEFORE returning it. It is invoked during DISPOSAL, when the sources
- * it would read have already been torn down. `(el) => setHeaderEl(props.meta.id,
- * el)` reads `props.meta` inside a `<Show>` that is mid-teardown, so `props.meta`
- * is `undefined` and the cleanup throws. See the try/catch below for why that
- * particular throw was so expensive.
+ * Two methods rather than one `set(key, el | null)`, and the second one takes the
+ * ELEMENT — which is the whole point. See `slotRef` for what a clear that cannot
+ * identify what it is clearing does.
  */
-export function trackedRef<T extends HTMLElement>(
-  register: (el: T | null) => void,
+export interface ElementSlot<T extends HTMLElement = HTMLElement> {
+  set: (key: string, el: T) => void;
+  /** Forget `key`, but ONLY if `el` is still what is stored there. */
+  clear: (key: string, el: T) => void;
+}
+
+/**
+ * A `ref` callback that fills a slot and empties it on unmount.
+ *
+ * TWO DEFECTS THIS EXISTS TO REMOVE, both invisible to tsc and to any test that
+ * does not look at the DOM afterwards.
+ *
+ * 1. NOTHING EVER CLEARED. Solid invokes `ref={(el) => …}` exactly once, when the
+ *    element is created; there is no second call on unmount. So the obvious
+ *    spelling registers an element and then keeps it FOREVER, including after it
+ *    has left the document. A detached node reports a zero-size rect at the origin
+ *    and swallows `.focus()` — so a flyout anchored to one opened in the corner of
+ *    the viewport, `moveFocus` moved focus nowhere, and `resize` seeded a panel's
+ *    extent as 0.
+ *
+ * 2. A CLEAR THAT COULD NOT IDENTIFY ITSELF. Fixing (1) with `clear(key)` produced
+ *    a second, quieter bug: when one element replaces another for the same key, the
+ *    OUTGOING element's cleanup can run after the incoming one has registered, and
+ *    an unconditional clear then deletes the live element.
+ *
+ *    That is not hypothetical — it is what a vertical→horizontal orientation swap
+ *    did. The rail button mounts and registers, the vertical header unmounts and
+ *    clears, and the panel is left with no activator at all: `activatorElOf`
+ *    returned undefined, so the flyout had no anchor and the keyboard had no
+ *    target. (The opposite direction happened to interleave the other way and
+ *    worked, which is how it stayed hidden.)
+ *
+ * Passing the element to `clear` makes the guard something the slot performs rather
+ * than something each caller remembers.
+ */
+export function slotRef<T extends HTMLElement>(
+  slot: ElementSlot<T>,
+  key: string,
 ): (el: T) => void {
   return (el) => {
-    register(el);
+    slot.set(key, el);
     onCleanup(() => {
       /*
        * A throwing cleanup is not a local failure. Solid unwinds an owner tree by
        * walking its cleanups, and an exception in ONE of them abandons the walk —
-       * every cleanup that had not run yet is simply skipped, silently.
+       * every cleanup that had not run yet is skipped, silently.
        *
-       * That is not hypothetical either: the first version of this helper read an
-       * id off a `<Show>`-provided prop during teardown, threw a TypeError, and
-       * the abandoned cleanups included the tear-off controller's. The visible
-       * result was that navigating away from the dock left its popped-out OS
-       * WINDOWS open, orphaned, with no opener to close them — a leak two layers
-       * away from the line that threw, reported as nothing at all.
+       * That is not hypothetical either: an earlier version of this helper read an
+       * id off a `<Show>`-provided prop during teardown, threw a TypeError, and the
+       * abandoned cleanups included the tear-off controller's. The visible result
+       * was that navigating away from the dock left its popped-out OS WINDOWS open,
+       * orphaned, with no opener to close them — a leak two layers from the line
+       * that threw, reported as nothing at all.
        *
-       * So the contract above (never read reactive state here) is the root fix,
-       * and this is the guard that stops a future violation of it from taking
-       * down every other cleanup in the tree. It reports loudly rather than
-       * swallowing: the mistake stays visible, but it stays local.
+       * The root fix is that a slot's `clear` must not read reactive state (it is
+       * handed everything it needs). This is the guard that keeps a future
+       * violation local instead of taking down every other cleanup in the tree.
        */
       try {
-        register(null);
+        slot.clear(key, el);
       } catch (err) {
-        // eslint-disable-next-line no-console -- see above: silence here would
-        // trade a visible error for an invisible resource leak elsewhere.
+        // eslint-disable-next-line no-console -- silence here would trade a visible
+        // error for an invisible resource leak elsewhere.
         console.error(
-          '[accordion-dock] a trackedRef cleanup threw. Its registration was not ' +
-            'undone, but the rest of the teardown continued. The callback must not ' +
-            'read reactive state — capture what it needs when the ref is created.',
+          '[accordion-dock] an element slot\'s clear() threw during teardown. The rest ' +
+            'of the teardown continued. clear() must not read reactive state — it is ' +
+            'given the key and the element precisely so it does not have to.',
           err,
         );
       }
     });
   };
 }
+
+/** An `ElementSlot` over a plain `Map`, for references nothing renders from. */
+export function createMapSlot<T extends HTMLElement>(map: Map<string, T>): ElementSlot<T> {
+  return {
+    set: (key, el) => {
+      map.set(key, el);
+    },
+    clear: (key, el) => {
+      // The identity guard from `slotRef`, in the one place a Map-backed slot needs
+      // it. A bare `map.delete(key)` is the defect described there.
+      if (map.get(key) === el) map.delete(key);
+    },
+  };
+}
+
+/** The single key `railOverflowSlot` is stored under — it holds one element, but
+ *  wears the keyed shape so it can use `slotRef` like everything else. */
+export const RAIL_OVERFLOW_SLOT_KEY = 'rail-overflow';
 
 export const AccordionGroupContext = createContext<AccordionGroupApi>();
 

@@ -230,7 +230,12 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
 
     register: () => {},
     unregister: () => {},
-    setHeaderEl: () => {},
+    // Inert slots: no test here renders, so nothing fills them. They exist to
+    // satisfy the interface, which is what makes this stub fail the build when the
+    // real api changes shape.
+    activators: { set: () => {}, clear: () => {} },
+    railOverflowSlot: { set: () => {}, clear: () => {} },
+    panelElements: { set: () => {}, clear: () => {} },
     tornOff: () => [],
     isTornOff: () => false,
     tearOff: () => ({ ok: false, reason: 'stub' }),
@@ -238,10 +243,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
     tearOffMountFor: () => undefined,
     isFlyout: () => false,
     flyoutMountFor: () => undefined,
-    setRailOverflowEl: () => {},
     activatorElOf: () => undefined,
     density: () => 'comfortable',
-    setPanelEl: () => {},
     moveFocus: () => {},
 
     reorderItemProps: () => ({}),

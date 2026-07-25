@@ -10,7 +10,7 @@ import {
 import { Portal } from 'solid-js/web';
 import { flyoutDataAttr } from './autoHide';
 import {
-  trackedRef,
+  slotRef,
   useAccordionGroup,
   type AccordionGroupApi,
   type PanelBadge,
@@ -88,15 +88,16 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
 
 
   /**
-   * See `trackedRef`: registration and its cleanup are one decision, so they are
-   * one call. A bare `ref={(el) => setHeaderEl(id, el)}` leaks a detached node.
+   * See `slotRef`: filling a slot and emptying it are one decision, so they are one
+   * call, and the clear is identity-guarded.
    *
-   * The id is captured for the same reason it is in `RailButton` — a cleanup that
-   * reads through `props` during disposal is a throw waiting for the right
-   * unmount order, and one throwing cleanup abandons the whole teardown.
+   * The id is captured rather than read through `props` at cleanup time — a cleanup
+   * that reads reactive state is a throw waiting for the right unmount order, and
+   * one throwing cleanup abandons the whole teardown.
    */
   const panelId = props.id;
-  const registerHeaderEl = trackedRef<HTMLElement>((el) => group.setHeaderEl(panelId, el));
+  const registerHeaderEl = slotRef(group.activators, panelId);
+  const registerPanelEl = slotRef(group.panelElements, panelId);
   /** One menu instance per panel, attached to whichever chrome this orientation
    *  renders — the header row (vertical) or the column title bar (horizontal). */
   const menu = createPanelMenu(group, () => props.id);
@@ -214,7 +215,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     <div
       {...dragItemAttrs()}
       ref={(el) => {
-        group.setPanelEl(props.id, el);
+        registerPanelEl(el);
         // The reorder primitive registers its node through `itemProps.ref`; Solid
         // lets the later ref win, so it is invoked explicitly rather than dropped.
         (dragItem().ref as ((e: HTMLElement) => void) | undefined)?.(el);

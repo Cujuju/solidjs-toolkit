@@ -4,7 +4,11 @@ import { render } from 'solid-js/web';
 import { AccordionGroup } from '../AccordionGroup';
 import { AccordionLeaf } from '../AccordionLeaf';
 import { AccordionPanel } from '../AccordionPanel';
-import { ACCORDION_LAYOUT_VERSION, type AccordionGroupApi } from '../context';
+import {
+  ACCORDION_LAYOUT_VERSION,
+  type AccordionGroupApi,
+  type AccordionOrientation,
+} from '../context';
 
 /**
  * The group's INVARIANTS, tested at the level they are enforced.
@@ -323,6 +327,82 @@ describe('a leaf is controlled — the group asks, it does not command', () => {
     expect(g.api().openOrder()).toContain('files');
     g.setLeafMounted(false);
     expect(g.api().openOrder()).toContain('files');
+    g.unmount();
+  });
+});
+
+describe('an activator survives its own replacement', () => {
+  /**
+   * Mounts a group whose ORIENTATION the test drives, because that is what swaps
+   * one activator for another under the same panel id: the vertical header and the
+   * rail button are different elements, rendered by different owners.
+   */
+  function mountSwappable() {
+    const [orientation, setOrientation] = createSignal<AccordionOrientation>('horizontal');
+    let api!: AccordionGroupApi;
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const dispose = render(
+      () => (
+        <AccordionGroup orientation={orientation()} policy="multi" apiRef={(a) => (api = a)}>
+          <AccordionPanel id="a" title="A" defaultOpen>
+            <div>a</div>
+          </AccordionPanel>
+        </AccordionGroup>
+      ),
+      container,
+    );
+    return {
+      api: () => api,
+      setOrientation,
+      unmount: () => {
+        dispose();
+        container.remove();
+      },
+    };
+  }
+
+  /** An activator is only useful if it is in the document — a detached one reports
+   *  a zero rect and swallows focus, both silently. */
+  const liveActivator = (api: AccordionGroupApi): boolean => {
+    const el = api.activatorElOf('a');
+    return el !== undefined && document.contains(el);
+  };
+
+  it('keeps one through a horizontal→vertical swap', () => {
+    const g = mountSwappable();
+    expect(liveActivator(g.api())).toBe(true);
+    g.setOrientation('vertical');
+    expect(liveActivator(g.api())).toBe(true);
+    g.unmount();
+  });
+
+  it('keeps one through a vertical→horizontal swap', () => {
+    /*
+     * THE regression test. This direction lost the activator ENTIRELY: the rail
+     * button mounted and registered, then the outgoing vertical header's cleanup
+     * ran an unconditional delete and removed it. `activatorElOf` returned
+     * undefined, so the flyout had no anchor and the keyboard had no target.
+     *
+     * The other direction happened to interleave the other way and worked, which is
+     * exactly why both are asserted — testing one would have passed against the bug.
+     */
+    const g = mountSwappable();
+    g.setOrientation('vertical');
+    expect(liveActivator(g.api())).toBe(true);
+    g.setOrientation('horizontal');
+    expect(liveActivator(g.api())).toBe(true);
+    g.unmount();
+  });
+
+  it('survives repeated swaps', () => {
+    const g = mountSwappable();
+    for (let i = 0; i < 4; i++) {
+      g.setOrientation('vertical');
+      expect(liveActivator(g.api())).toBe(true);
+      g.setOrientation('horizontal');
+      expect(liveActivator(g.api())).toBe(true);
+    }
     g.unmount();
   });
 });

@@ -5,11 +5,15 @@ import {
   createMemo,
   createSignal,
   on,
-  onCleanup,
   useContext,
   type JSX,
 } from 'solid-js';
-import { AccordionGroupContext, type AccordionGroupApi } from './context';
+import {
+  AccordionGroupContext,
+  createMapSlot,
+  slotRef,
+  type AccordionGroupApi,
+} from './context';
 import {
   buildCrumbPath,
   elideCrumbs,
@@ -146,20 +150,20 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
   );
 
   /**
-   * Focusable elements by key, for arrow-key movement. Registered through
-   * `trackEl` rather than a bare `els.set`, because a ref that only ever adds
-   * would keep a detached node alive for every crumb the path has ever held —
-   * and `focusAt` could then move focus into a node that is no longer in the
-   * document.
+   * Focusable elements by key, for arrow-key movement.
+   *
+   * Through the shared slot rather than a bare `els.set`: a ref that only ever adds
+   * keeps a detached node alive for every crumb the path has ever held, and
+   * `focusAt` would then move focus into something no longer in the document.
+   *
+   * This file had its own correct implementation of that — identity-guarded clear
+   * and all — while the GROUP had an unguarded one, and the group's is where the
+   * orientation-swap bug lived. Two implementations of one contract, one of them
+   * right, is the same hazard as none: whichever a new callsite copies decides
+   * whether it is correct. Now there is one.
    */
   const els = new Map<string, HTMLElement>();
-  const trackEl = (key: string, el: HTMLElement): void => {
-    els.set(key, el);
-    // Runs under the <For> item's owner, so it fires when that crumb leaves.
-    onCleanup(() => {
-      if (els.get(key) === el) els.delete(key);
-    });
-  };
+  const elSlot = createMapSlot(els);
   /** `null` = untouched, so the tab stop sits on the LAST focusable crumb — the
    *  one nearest where the user actually is. Clamped on read rather than kept in
    *  range on write, because the path can shrink under a stale index. */
@@ -245,7 +249,7 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
 
                 {entry.kind === 'ellipsis' ? (
                   <button
-                    ref={(el) => trackEl(ELLIPSIS_KEY, el)}
+                    ref={slotRef(elSlot, ELLIPSIS_KEY)}
                     type="button"
                     class="acc-breadcrumb-crumb acc-breadcrumb-ellipsis"
                     // Expands rather than merely marking the gap: an elision the
@@ -276,7 +280,7 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
                   </span>
                 ) : (
                   <button
-                    ref={(el) => trackEl(entry.crumb.id, el)}
+                    ref={slotRef(elSlot, entry.crumb.id)}
                     type="button"
                     class="acc-breadcrumb-crumb"
                     title={entry.crumb.text}

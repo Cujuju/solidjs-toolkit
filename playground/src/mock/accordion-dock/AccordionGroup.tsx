@@ -9,8 +9,11 @@ import {
   type AccordionOrientation,
   type AccordionPolicy,
   type AccordionRailSide,
+  type ElementSlot,
   type PanelMeta,
-  trackedRef,
+  createMapSlot,
+  slotRef,
+  RAIL_OVERFLOW_SLOT_KEY,
 } from './context';
 import { Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
@@ -237,7 +240,43 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    * appears and disappears as the dock is resized.
    */
   const [railOverflowEl, setRailOverflowEl] = createSignal<HTMLElement | null>(null);
+
+  /**
+   * The activators, as a slot. Signal-backed because a flyout resolves its anchor
+   * during render, before the ref has fired — a plain Map read would answer
+   * `undefined` once and never correct itself.
+   */
+  const activators: ElementSlot = {
+    set: (id, el) => {
+      setHeaderEls((prev) => {
+        if (prev.get(id) === el) return prev;
+        const next = new Map(prev);
+        next.set(id, el);
+        return next;
+      });
+    },
+    clear: (id, el) => {
+      setHeaderEls((prev) => {
+        // Identity-guarded: on an orientation swap the incoming activator registers
+        // BEFORE the outgoing one's cleanup runs, and an unconditional delete then
+        // removes the live element. See `slotRef`.
+        if (prev.get(id) !== el) return prev;
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
+    },
+  };
+
+  /** One element, keyed so it can share `slotRef`. */
+  const railOverflowSlot: ElementSlot = {
+    set: (_key, el) => setRailOverflowEl(el),
+    clear: (_key, el) => setRailOverflowEl((prev) => (prev === el ? null : prev)),
+  };
   const panelEls = new Map<string, HTMLElement>();
+  /** Plain Map: nothing renders from these, they are only measured. The slot is
+   *  what makes the clear identity-guarded — see `slotRef`. */
+  const panelElements = createMapSlot(panelEls);
 
   const persist = (): void => {
     if (props.storageKey === undefined) return;
@@ -755,13 +794,10 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         next.delete(id);
         return next;
       });
-      setHeaderEls((prev) => {
-        if (!prev.has(id)) return prev;
-        const next = new Map(prev);
-        next.delete(id);
-        return next;
-      });
-      panelEls.delete(id);
+      // No manual element purge here. Every element reference is filled through a
+      // slot and emptied by that slot's own cleanup when the element unmounts, so
+      // deleting them again on unregister would be a second, unguarded clear —
+      // exactly the one `slotRef` documents as deleting a live replacement.
       // The ORDER entry deliberately survives: a panel that unmounts and remounts
       // (a route change, a `<Show>`) must come back where the user put it, not at
       // the end of the rail.
@@ -777,22 +813,9 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       }
     },
 
-    setHeaderEl: (id, el) => {
-      setHeaderEls((prev) => {
-        if (el === null) {
-          if (!prev.has(id)) return prev;
-          const next = new Map(prev);
-          next.delete(id);
-          return next;
-        }
-        if (prev.get(id) === el) return prev;
-        const next = new Map(prev);
-        next.set(id, el);
-        return next;
-      });
-    },
+    activators,
 
-    setRailOverflowEl,
+    railOverflowSlot,
 
     // The fallback is the whole point — see `activatorElOf` on the interface. A
     // panel whose rail button was collapsed into the `⋯` menu is REPRESENTED by
@@ -819,10 +842,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     flyoutMountFor: (id) => autoHideApi?.flyoutMountFor(id),
     density: () => props.density ?? 'comfortable',
 
-    setPanelEl: (id, el) => {
-      if (el === null) panelEls.delete(id);
-      else panelEls.set(id, el);
-    },
+    panelElements,
 
     moveFocus: (fromId, delta) => {
       const order = panels();
@@ -998,9 +1018,7 @@ function RailButton(props: {
    * is nothing to gain by re-reading it and a teardown to lose.
    */
   const panelId = props.meta.id;
-  const registerHeaderEl = trackedRef<HTMLElement>((el) =>
-    props.group.setHeaderEl(panelId, el),
-  );
+  const registerHeaderEl = slotRef(props.group.activators, panelId);
   // The id is passed as an accessor: this button is rendered from a <For> over
   // reactive metadata, so a snapshot would bind the menu to whichever panel held
   // the slot at mount and act on the wrong one after a reorder.

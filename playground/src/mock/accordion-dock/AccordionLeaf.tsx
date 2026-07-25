@@ -8,7 +8,7 @@ import {
   untrack,
   type JSX,
 } from 'solid-js';
-import { useAccordionGroup } from './context';
+import { slotRef, useAccordionGroup } from './context';
 import { Close } from './icons';
 import { leafChainFor } from './leafChain';
 import { Splitter } from './Splitter';
@@ -90,6 +90,10 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
 
   const baseId = createUniqueId();
   const contentId = `${baseId}-content`;
+  /** Through a slot, so the reference is emptied when the leaf unmounts — a leaf
+   *  mounts and unmounts constantly (it is the result of a selection), so a
+   *  never-cleared ref here accumulates a detached node per selection. */
+  const registerPanelEl = slotRef(group.panelElements, props.id);
   const horizontal = (): boolean => group.orientation() === 'horizontal';
 
   /** Is the thing this leaf hangs off currently open? Vacuously true for an
@@ -240,7 +244,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
   return (
     <Show when={effectiveOpen()}>
       <div
-        ref={(el) => group.setPanelEl(props.id, el)}
+        ref={registerPanelEl}
         class={`acc-panel acc-leaf ${props.class ?? ''}`.trim()}
         data-open="true"
         data-leaf="true"

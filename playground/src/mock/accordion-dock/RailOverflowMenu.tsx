@@ -1,6 +1,6 @@
 import { createSignal, Show, type Accessor, type JSX } from 'solid-js';
 import { ContextMenu, type ContextMenuEntry } from '@cujuju/solidjs-context-menu';
-import { trackedRef, type AccordionGroupApi } from './context';
+import { slotRef, RAIL_OVERFLOW_SLOT_KEY, type AccordionGroupApi } from './context';
 import { RAIL_OVERFLOW_ATTR } from './railOverflow';
 
 /**
@@ -66,9 +66,9 @@ export function buildRailOverflowItems(
 
 export function RailOverflowMenu(props: RailOverflowMenuProps): JSX.Element {
   const [at, setAt] = createSignal<{ x: number; y: number } | null>(null);
-  // `group` captured, not read through `props` at cleanup time — see `trackedRef`.
+  // `group` captured, not read through `props` at cleanup time — see `slotRef`.
   const group = props.group;
-  const registerEl = trackedRef<HTMLElement>((el) => group.setRailOverflowEl(el));
+  const registerEl = slotRef(group.railOverflowSlot, RAIL_OVERFLOW_SLOT_KEY);
   const close = (): void => {
     setAt(null);
   };
@@ -94,8 +94,8 @@ export function RailOverflowMenu(props: RailOverflowMenuProps): JSX.Element {
           props.onMeasure?.(Math.ceil(el.getBoundingClientRect().height));
           // The trigger STANDS IN for every button that did not fit, so the group
           // needs it as an anchor and a focus target — see `activatorElOf`. Through
-          // `trackedRef` so it is dropped the moment the rail stops overflowing;
-          // a stale trigger would anchor flyouts to a detached node.
+          // a slot so it is dropped the moment the rail stops overflowing; a stale
+          // trigger would anchor flyouts to a detached node.
           registerEl(el);
         }}
         type="button"
