@@ -338,10 +338,13 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
               onChange={(id, open) => log.log(open ? 'open' : 'close', `rail:${id}`)}
               onPinChange={(id, pinned) => log.log(pinned ? 'pin' : 'unpin', `rail:${id}`)}
             >
-              <AccordionPanel id="r-solution" title="Solution Explorer" count={7} defaultOpen>
+              {/* `tearOffable` is opt-in per panel, and these two are the demo of
+                  it: a panel whose content assumes it shares a document with the
+                  dock should not advertise the affordance. */}
+              <AccordionPanel id="r-solution" title="Solution Explorer" count={7} tearOffable defaultOpen>
                 <Rows n={12} label="file" />
               </AccordionPanel>
-              <AccordionPanel id="r-props" title="Properties" count={12}>
+              <AccordionPanel id="r-props" title="Properties" count={12} tearOffable>
                 <Rows n={12} label="prop" />
               </AccordionPanel>
               <AccordionPanel id="r-toolbox" title="Toolbox">
@@ -359,6 +362,15 @@ import { AccordionGroup, AccordionPanel } from './mock/vs-accordion';
               lands to their right. Collapse everything and you are left with just the
               rail, which is the sidebar-collapse behaviour. Persisted, so a reload keeps
               both the open set and the order.
+            </p>
+            <p class="note">
+              <strong>Tear-off:</strong> Solution Explorer and Properties carry a ⤢ in
+              their title bar — it pops the panel into its own OS window, which keeps
+              rendering live because the content is <em>moved</em> there rather than
+              re-created. Move or resize that window and dock it again with ⤓; it reopens
+              where you left it. Closing the window docks the panel too, and closing this
+              tab takes its popups with it. A blocked popup leaves the panel exactly where
+              it was rather than pretending it left.
             </p>
           </div>
         </Card>

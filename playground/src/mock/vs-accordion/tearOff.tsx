@@ -440,11 +440,40 @@ function syncStyles(source: Document, target: Document): () => void {
 /** Copy every attribute across, dropping any the source no longer has. Blunt on
  *  purpose: enumerating "theme-ish" attribute names would silently miss whatever
  *  the host app actually uses. */
+/**
+ * Attributes the TARGET owns, which mirroring must never touch.
+ *
+ * `style` only, and it is load-bearing. `prepareDocument` builds the popup's
+ * frame in inline styles on `<body>` — `margin: 0`, `height: 100vh`, `overflow:
+ * hidden`, and the column flexbox the Portal container fills. `syncStyles` then
+ * calls `mirrorAttributes(source.body, target.body)`, and because the opener's
+ * own `<body>` carries no inline style in any normal page, the reconciliation
+ * loop below removed the popup's `style` attribute outright — wiping that frame
+ * milliseconds after it was set, and again on every coalesced resync.
+ *
+ * The visible result was a torn-off panel that did not fill its window and a
+ * popup document that scrolled, which is precisely the "the window IS the panel"
+ * contract `prepareDocument` documents.
+ *
+ * Excluded by NAME rather than by switching to a class/data-* allowlist, because
+ * the mirror legitimately carries more than theme: `dir` drives this control's
+ * RTL handling, and an allowlist built around theming would silently drop it.
+ */
+const TARGET_OWNED_ATTRS = new Set(['style']);
+
+/**
+ * Make `to`'s attributes match `from`'s — except the ones `to` owns.
+ *
+ * Used to carry the opener's theme signals (`class`, `data-theme`, `dir`) into
+ * the popup, so cloned CSS keys off the same state it does at home.
+ */
 function mirrorAttributes(from: Element, to: Element): void {
   for (const attr of Array.from(from.attributes)) {
+    if (TARGET_OWNED_ATTRS.has(attr.name)) continue;
     if (to.getAttribute(attr.name) !== attr.value) to.setAttribute(attr.name, attr.value);
   }
   for (const attr of Array.from(to.attributes)) {
+    if (TARGET_OWNED_ATTRS.has(attr.name)) continue;
     if (!from.hasAttribute(attr.name)) to.removeAttribute(attr.name);
   }
 }
@@ -516,6 +545,21 @@ export function createTearOff(options: TearOffOptions): TearOffController {
     rec.closed = true;
     windows.delete(id);
     for (const step of rec.teardown.reverse()) step();
+
+    // One last sample before persisting. The poll only refreshes `rec.geometry`
+    // every TEAR_OFF_CLOSE_POLL_MS, so without this a window moved or resized
+    // inside that window of time — then docked — would be remembered at its
+    // PREVIOUS position, and the user's last adjustment would be the one change
+    // that did not stick.
+    //
+    // Best-effort and guarded: on the user-closed path the window is already
+    // gone, and reading geometry off a closed window yields zeros or throws.
+    // `sampleGeometry` rejects degenerate values on its own, so a refusal here
+    // simply leaves the last good poll sample in place.
+    if (!rec.win.closed) {
+      const finalSample = sampleGeometry(rec.win);
+      if (finalSample !== null) rec.geometry = finalSample;
+    }
     writeGeometry(options.storageKey, id, rec.geometry);
 
     // ORDER MATTERS. Flipping the signal first re-runs Portal's effect, which

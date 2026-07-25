@@ -32,6 +32,61 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 }
 
 /**
+ * A real in-memory `Storage`.
+ *
+ * `localStorage` arrives in this environment as a bare object with none of the
+ * Storage methods on it — `localStorage.clear` is not a function — so anything
+ * that persists (the group's layout, tear-off window geometry) would either throw
+ * or silently no-op behind the modules' own try/catch. Silently is the dangerous
+ * one: a persistence test would pass by never persisting.
+ *
+ * Implemented rather than mocked, because the behaviour under test IS the
+ * round-trip. A `vi.fn()` pair would assert that the module called setItem, not
+ * that what it wrote can be read back — and the geometry round-trip is exactly a
+ * write-then-read across two controller lifetimes.
+ */
+class MemoryStorage implements Storage {
+  #map = new Map<string, string>();
+
+  get length(): number {
+    return this.#map.size;
+  }
+  clear(): void {
+    this.#map.clear();
+  }
+  getItem(key: string): string | null {
+    return this.#map.get(String(key)) ?? null;
+  }
+  // Storage stringifies both key and value — a test that stores a number and
+  // reads back a number would be testing a Map, not Storage.
+  setItem(key: string, value: string): void {
+    this.#map.set(String(key), String(value));
+  }
+  removeItem(key: string): void {
+    this.#map.delete(String(key));
+  }
+  key(index: number): string | null {
+    return [...this.#map.keys()][index] ?? null;
+  }
+}
+
+if (typeof globalThis.localStorage?.clear !== 'function') {
+  const storage = new MemoryStorage();
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: storage,
+    configurable: true,
+    writable: true,
+  });
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'localStorage', {
+      value: storage,
+      configurable: true,
+      writable: true,
+    });
+  }
+}
+
+/**
  * jsdom implements `MouseEvent` but not `PointerEvent` — a long-standing gap, not
  * a version issue. Every drag gesture in this control (splitter resize, reorder,
  * rail pan) is built on pointer events precisely because they unify mouse, touch
