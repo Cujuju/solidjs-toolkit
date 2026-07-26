@@ -399,6 +399,17 @@
   padding-block: var(--acc-rail-btn-pad-block);
   padding-inline: 0;
   border: 0;
+  /* THE RAIL BUTTON IS SQUARE, ALWAYS — stated, never inherited. The buttons are a
+     flush stacked strip, and the open-panel marker below is an INSET BOX-SHADOW,
+     which follows the border radius: any radius here turns the accent spine into a
+     lozenge with curved ends, and abutting buttons then show a notch where two
+     curves meet. A host page that rounds bare `button` elements (a very common
+     reset — the StockApp shell has exactly that) would otherwise reach in and
+     reshape a state indicator this control owns. Declaring 0 is the geometry the
+     marker is drawn for. A host that out-specifies this still wins the cascade, so
+     the consumer-side escape hatch is to exclude `.acc-rail-btn` from its own
+     blanket rule — this declaration is what makes that a fix rather than a fudge. */
+  border-radius: 0;
   background: transparent;
   color: var(--acc-text-muted);
   font: inherit;
