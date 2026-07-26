@@ -137,6 +137,76 @@ export const FLYOUT_DEFAULT_WIDTH_PX = 230;
  */
 const RAIL_SELECTOR = '.acc-rail';
 
+/** The group root, read (never written) as the source of the typography a
+ *  Portal'd flyout would otherwise lose — see `inheritedTypographyOf`. */
+const GROUP_SELECTOR = '.acc-group';
+
+/**
+ * The inherited CSS properties a Portal'd flyout must be told, because it cannot
+ * inherit them.
+ *
+ * THE CLASS OF BUG THIS CLOSES. This control deliberately owns no typography:
+ * `.acc-rail-btn`, `.acc-rail-overflow` and the header all declare `font:
+ * inherit`, so a dock adopts whatever type scale its host page sets on an
+ * ancestor. That contract holds for every docked column — they are real
+ * descendants of the group — and silently breaks for a flyout, which is Portal'd
+ * to `<body>` and therefore inherits from the document root instead. A host that
+ * sets a 12px body scale on its panel container gets 12px columns and a 16px
+ * flyout: the SAME panel renders at two physical sizes depending only on whether
+ * it happens to be pinned. (Observed in StockApp's Risk Console, whose panel root
+ * carries a `text-body` = 12px utility class; the symbol cards grew on hover.)
+ *
+ * The fix is at the portal boundary rather than per-property, because the bug is
+ * not "font-size is wrong" — it is "inheritance stops at the Portal". Two other
+ * instances were already patched one at a time before this list existed: the
+ * per-panel `--acc-accent` (restated in `shellStyle`) and the group's density
+ * (restated as `data-density` on the flyout host). Those are custom properties
+ * and an attribute; these are the real inherited properties, which no `:root`
+ * token restatement can reach.
+ *
+ * Scope is TYPOGRAPHY, deliberately, and not "every inherited property":
+ * `color`, `cursor` and `visibility` are also inherited, but the flyout sets its
+ * own `color` from `--acc-text` (a token, so it already crosses the portal) and
+ * copying the rest would import state the surface is meant to define for itself.
+ * Anything a host needs beyond this list is a token restatement at `:root`, the
+ * same escape hatch the colour palette already uses.
+ */
+const INHERITED_TYPOGRAPHY = [
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'line-height',
+  'letter-spacing',
+] as const;
+
+/**
+ * Read the typography the group resolves to, as inline style for the flyout.
+ *
+ * The LONGHANDS rather than the `font` shorthand: `getComputedStyle().font`
+ * serializes to an empty string whenever the longhands cannot be losslessly
+ * expressed as one shorthand (which is most real pages, and every page whose
+ * `line-height` came from a separate declaration), so the shorthand reads as
+ * "no typography" exactly when there is some. `letter-spacing` is outside the
+ * shorthand entirely and would be dropped by it in all cases.
+ *
+ * Returns nothing when the group is not reachable — a flyout with the document's
+ * typography is the status quo, and inventing values would be worse than
+ * inheriting the wrong ones.
+ */
+function inheritedTypographyOf(groupEl: Element | null | undefined): Record<string, string> {
+  if (groupEl === null || groupEl === undefined) return {};
+  // `typeof` guarded for the jsdom/SSR case, where there is no cascade to read.
+  if (typeof getComputedStyle !== 'function') return {};
+  const computed = getComputedStyle(groupEl);
+  const style: Record<string, string> = {};
+  for (const prop of INHERITED_TYPOGRAPHY) {
+    const value = computed.getPropertyValue(prop);
+    if (value !== '') style[prop] = value;
+  }
+  return style;
+}
+
 /**
  * Class on the AnchoredPopover SHELL (the element carrying `popover`). A MARKER
  * ONLY: it exists so the dismiss-suppression predicate can tell our flyouts
@@ -628,6 +698,12 @@ function Flyout(props: {
       shellClass={FLYOUT_SHELL_CLASS}
       shellStyle={() => {
         const style: Record<string, string> = {
+          // Typography FIRST, so a host that genuinely wants to restyle a flyout
+          // through the tokens below still out-ranks the inherited baseline.
+          // Sourced from the group via the anchor: the rail button is inside the
+          // group, so no second ref has to be threaded through the API for a
+          // reference the flyout already holds. See `inheritedTypographyOf`.
+          ...inheritedTypographyOf(anchor()?.closest(GROUP_SELECTOR)),
           '--acc-flyout-width': `${widthPx()}px`,
           '--acc-flyout-max-height': maxHeight(),
         };
