@@ -93,6 +93,24 @@ export interface AccordionGroupProps {
    *  way in. */
   hoverToOpen?: boolean;
   /**
+   * How long a hovered activator waits before its flyout opens, ms. Default
+   * `FLYOUT_HOVER_ENTER_DELAY_MS` (350).
+   *
+   * The default is sized for the horizontal RAIL, where the pointer must travel
+   * ALONG a stack of buttons to reach any one of them and every button in
+   * between is hovered in passing — the delay is what stops that traverse
+   * leaving a wake of opening overlays. A dock whose activators are not on a
+   * traverse path (a short vertical sidebar, a single button) is paying for a
+   * hazard it does not have, and should set this far lower.
+   *
+   * Only the OPEN delay is exposed. The leave grace
+   * (`FLYOUT_HOVER_LEAVE_GRACE_MS`) is not: it exists so the pointer crossing
+   * the few-px gap between activator and flyout does not dismiss the thing it
+   * is reaching for, which is a geometric fact of the popover offset rather
+   * than a preference.
+   */
+  hoverOpenDelayMs?: number;
+  /**
    * What the rail does when its buttons do not fit.
    * `menu` collapses the overflow into a `⋯` menu; `pan` leaves them reachable by
    * dragging the rail. A 40px strip cannot carry a legible scrollbar, which is why
@@ -1026,6 +1044,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     group: api,
     enabled: () => props.autoHide === true,
     hoverToOpen: () => props.hoverToOpen === true,
+    hoverOpenDelayMs: () => props.hoverOpenDelayMs,
   });
 
   autoHideApi = autoHide;

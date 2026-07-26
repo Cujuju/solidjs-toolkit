@@ -136,6 +136,7 @@ on, since pin-means-freeze is the metaphor auto-hide already commits to.
 | `appearance` | `'flush' \| 'cards'` | Chrome only. `flush` (default) draws one frame around the dock with hairline separators between panels; `cards` gives each panel its own border, radius and surface separated by `--acc-card-gap`, and suppresses the group's own frame. Behaviour is identical under both. |
 | `autoHide` | `boolean` | Unpinned panels open as flyouts; pinning promotes them to real docked space. Works in **both** orientations — horizontal flies out over the columns, vertical below the header bar. |
 | `hoverToOpen` | `boolean` | With `autoHide`, hover also opens. Default false — hover is an accelerator, never the only way in. |
+| `hoverOpenDelayMs` | `number` | Hover-intent delay before a flyout opens. Default 350, which is sized for the **rail** — the pointer travels along it and hovers every button in passing. A dock whose activators are not on a traverse path should set this far lower; 50 is comfortable for a short vertical sidebar. |
 | `maxOpen` | `number` | Cap on simultaneously open panels; opening past it evicts the least-recently-opened unpinned one. |
 | `railOverflow` | `'menu' \| 'pan'` | What the rail does when buttons do not fit. |
 | `reorderable` / `resizable` | `boolean` | Drag-reorder and splitters. Both default true. |

@@ -409,6 +409,13 @@ export interface AutoHideOptions {
    * defect. When true, click still works; hover is added.
    */
   hoverToOpen?: Accessor<boolean>;
+  /**
+   * Override for {@link FLYOUT_HOVER_ENTER_DELAY_MS}. Undefined keeps the
+   * default, which is tuned for the horizontal RAIL — see that constant for why
+   * the number is what it is, and why a vertical dock is entitled to a much
+   * smaller one.
+   */
+  hoverOpenDelayMs?: Accessor<number | undefined>;
 }
 
 export interface AutoHideApi {
@@ -472,6 +479,19 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
   });
 
   const hoverEnabled = (): boolean => options.hoverToOpen?.() ?? false;
+
+  /* Read at FIRE time, not at listener-attach time, so a host that computes the
+     delay reactively is honoured without re-attaching the listeners. A negative
+     or non-finite override falls back to the default rather than being clamped
+     silently: `setTimeout` treats a negative delay as 0, which would turn a
+     typo'd prop into "no hover intent at all" — the exact failure the default
+     exists to prevent — and do it invisibly. */
+  const hoverOpenDelay = (): number => {
+    const override = options.hoverOpenDelayMs?.();
+    return override !== undefined && Number.isFinite(override) && override >= 0
+      ? override
+      : FLYOUT_HOVER_ENTER_DELAY_MS;
+  };
 
   const isFlyout = (id: string): boolean => {
     if (!options.enabled()) return false;
@@ -548,7 +568,7 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
         if (group.isOpen(id) || group.isPinned(id)) return;
         causes.set(id, 'hover');
         group.setOpen(id, true);
-      }, FLYOUT_HOVER_ENTER_DELAY_MS),
+      }, hoverOpenDelay()),
     };
   };
 
