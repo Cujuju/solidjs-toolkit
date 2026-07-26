@@ -90,9 +90,11 @@ import type {
  *
  * What genuinely differs between the two is the CROSS-AXIS size, and only that:
  * a horizontal flyout is as wide as its own panel (so pinning does not resize
- * it), while a vertical flyout is as wide as the GROUP, because a vertical
- * panel's width has always been the dock's width — it has no private width to
- * preserve. See `crossAxisStyle`.
+ * it), while a vertical flyout is as wide as its CONTENT — floored at the width
+ * of the section it came from. A vertical panel has no private width to preserve,
+ * so there is nothing to inherit except the dock's own narrowness, and inheriting
+ * that is what made a flyout clip the very content it exists to show. See
+ * `flyoutCrossAxis`, which owns the rule and states it in full.
  */
 
 /**
@@ -148,6 +150,62 @@ export const FLYOUT_FALLBACK_MAX_HEIGHT_VH = 60;
  *  promotion should look like the panel staying put and the layout making room,
  *  not like the panel being resized. */
 export const FLYOUT_DEFAULT_WIDTH_PX = 230;
+
+/**
+ * The flyout's CROSS-AXIS sizing, as three CSS values.
+ *
+ * A pure function on purpose: this is the rule that decides whether a flyout can
+ * clip its own content, and it is worth testing without needing layout — the
+ * measurements come in as numbers, the decision goes out as strings.
+ *
+ * ── The rule ────────────────────────────────────────────────────────────────
+ * A DOCKED section is as wide as the user's layout allows and may scroll. A
+ * FLYOUT is an overlay with the whole window to spend, so it must never be the
+ * reason content clips. The two orientations reach that differently because they
+ * differ in whether a user-chosen width exists at all:
+ *
+ * horizontal — the panel's OWN width, used as an exact width. That number is a
+ *   real choice (a column is as wide as the user dragged it), so a flyout is
+ *   shown at it and promotion to a column does not resize anything. It also
+ *   cannot overflow the viewport, being a width that already fits in the dock,
+ *   so it needs no ceiling.
+ *
+ * vertical — the CONTENT's natural width (`max-content`), floored at the
+ *   anchor's width and capped by `--acc-flyout-max-width`. A vertical panel has
+ *   no private width — it spans the dock, and `sizeOf` on this axis is its HEIGHT
+ *   — so there is no user choice to preserve, only the dock's own narrowness to
+ *   avoid inheriting. Handing a flyout the group's width is what put a horizontal
+ *   scrollbar under a 10-row symbol list in a narrow sidebar and clipped every
+ *   P/L value in it.
+ *
+ * The FLOOR keeps a flyout from ever being narrower than the section it came out
+ * of, which would read as the panel shrinking on open. The CEILING is left to the
+ * stylesheet token rather than written here, so a consumer can restate it — and
+ * so a pathological row scrolls horizontally INSIDE the flyout instead of
+ * spanning the window. That last resort is deliberate: clipping data silently is
+ * worse than a scrollbar, so the scrollbar is what a genuinely-too-wide row gets.
+ */
+export function flyoutCrossAxis(input: {
+  orientation: AccordionOrientation;
+  /** The panel's stored size along the growth axis — a WIDTH only in horizontal. */
+  panelSizePx: number | undefined;
+  /** The group's measured width. `0` when it could not be read. */
+  groupWidthPx: number;
+}): { width: string; minWidth: string; maxWidth?: string } {
+  if (input.orientation !== 'vertical') {
+    const px = input.panelSizePx ?? FLYOUT_DEFAULT_WIDTH_PX;
+    // `maxWidth: 'none'` is written EXPLICITLY rather than omitted: the stylesheet
+    // sets a ceiling for the vertical case, and a horizontal flyout inheriting it
+    // would be capped below a column width the user deliberately dragged — then
+    // pinning it would visibly resize, which is the one thing this path exists to
+    // prevent.
+    return { width: `${px}px`, minWidth: `${px}px`, maxWidth: 'none' };
+  }
+  const floor = input.groupWidthPx > 0 ? Math.round(input.groupWidthPx) : FLYOUT_DEFAULT_WIDTH_PX;
+  // `maxWidth` deliberately ABSENT — the stylesheet's `--acc-flyout-max-width`
+  // applies, and writing it inline here would out-rank a consumer restating it.
+  return { width: 'max-content', minWidth: `${floor}px` };
+}
 
 /**
  * The group's own markup contract, read (never written) to measure how tall a
@@ -704,25 +762,15 @@ function Flyout(props: {
    *  the typography the Portal would otherwise lose. */
   const groupEl = (): Element | null | undefined => anchor()?.closest(GROUP_SELECTOR);
 
-  /**
-   * CROSS-AXIS size — the one place the two orientations genuinely differ.
-   *
-   * horizontal: the panel's OWN width, so promoting a flyout to a column does not
-   *   resize it. The panel has a private width (a column is as wide as the user
-   *   dragged it), so preserving it is meaningful.
-   * vertical: the GROUP's width. A vertical panel has never had a private width —
-   *   it spans the dock, and `sizeOf` on this axis is its HEIGHT, so feeding that
-   *   in as a width would render a 210px-tall panel 210px wide by coincidence of
-   *   sharing one number. Measured off the group rather than assumed, and falling
-   *   back to the same default the horizontal path uses if it cannot be read.
-   */
-  const crossAxisPx = (): number => {
-    if (props.group.orientation() !== 'vertical') {
-      return props.group.sizeOf(props.id) ?? FLYOUT_DEFAULT_WIDTH_PX;
-    }
+  /** CROSS-AXIS size. The decision itself is `flyoutCrossAxis` — pure, and
+   *  documented there; this only supplies the two measurements it needs. */
+  const crossAxis = (): { width: string; minWidth: string; maxWidth?: string } => {
     const el = groupEl();
-    const width = el instanceof HTMLElement ? el.getBoundingClientRect().width : 0;
-    return width > 0 ? Math.round(width) : FLYOUT_DEFAULT_WIDTH_PX;
+    return flyoutCrossAxis({
+      orientation: props.group.orientation(),
+      panelSizePx: props.group.sizeOf(props.id),
+      groupWidthPx: el instanceof HTMLElement ? el.getBoundingClientRect().width : 0,
+    });
   };
 
   /**
@@ -768,9 +816,13 @@ function Flyout(props: {
           // group, so no second ref has to be threaded through the API for a
           // reference the flyout already holds. See `inheritedTypographyOf`.
           ...inheritedTypographyOf(groupEl()),
-          '--acc-flyout-width': `${crossAxisPx()}px`,
+          '--acc-flyout-width': crossAxis().width,
+          '--acc-flyout-min-width': crossAxis().minWidth,
           '--acc-flyout-max-height': maxHeight(),
         };
+        // Absent in vertical, so the stylesheet's own ceiling token applies.
+        const maxWidth = crossAxis().maxWidth;
+        if (maxWidth !== undefined) style['--acc-flyout-max-width'] = maxWidth;
         // The per-panel accent recolours the pin and the focus ring for this
         // panel only. In the dock it is set on the panel element and inherits;
         // a Portal'd flyout is not a descendant of that element, so it has to be

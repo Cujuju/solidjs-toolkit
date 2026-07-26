@@ -93,7 +93,15 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /* Set by `flyoutCrossAxis` — an exact px in horizontal, `max-content` in
+     vertical. The floor keeps a flyout from ever opening NARROWER than the
+     section it came out of, which would read as the panel shrinking. */
   width: var(--acc-flyout-width);
+  min-width: var(--acc-flyout-min-width, 0);
+  /* Vertical only in practice: the horizontal path writes `none` inline, because
+     its width is one the user dragged and capping it would resize the flyout
+     relative to the column it promotes into. */
+  max-width: var(--acc-flyout-max-width);
   max-height: var(--acc-flyout-max-height);
   background: var(--acc-bg);
   color: var(--acc-text);
@@ -114,6 +122,18 @@
 @layer cujuju-defaults {
   :root {
     --acc-flyout-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+    /*
+     * Ceiling for a CONTENT-SIZED flyout (the vertical case).
+     *
+     * A fraction of the viewport rather than a px, for two reasons: it scales
+     * with the window instead of being right at one size, and being viewport-
+     * relative it can never put the flyout past the screen edge no matter how
+     * pathological a row is. Content wider than this scrolls horizontally INSIDE
+     * the flyout — the honest last resort, chosen over clipping, which would hide
+     * data silently. At 60% a flyout can be much wider than a narrow sidebar
+     * without ever becoming the window.
+     */
+    --acc-flyout-max-width: 60vw;
   }
 }
 
