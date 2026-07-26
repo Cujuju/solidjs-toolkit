@@ -69,44 +69,81 @@ const KEYBOARD_STEP_PX = 8;
 const KEYBOARD_COARSE_STEP_PX = KEYBOARD_STEP_PX * 10;
 
 /**
- * The flex declaration for ONE open column, given its explicit size (if any).
+ * The flex declaration for ONE open member, given its explicit size (if any).
  *
  * ONE definition for both `<AccordionPanel>` and `<AccordionLeaf>`: the leaf is a
  * first-class member for sizing, so two copies of this rule would be two places to
- * forget the trailing-column case below — which is exactly how the dead gap got
- * shipped.
+ * forget the surplus case below — which is exactly how the dead gap got shipped.
  *
- * ── Why the trailing column is special ──────────────────────────────────────
+ * ── The surplus has to go somewhere ─────────────────────────────────────────
  * `fill` mode means "the dock has this extent and divides ALL of it". An explicit
  * size (from a splitter drag, a `defaultSize`, or a persisted layout) turns a
- * column into `flex: 0 0 Npx`, and once EVERY open column is explicitly sized
+ * member into `flex: 0 0 Npx`, and once EVERY open member is explicitly sized
  * nothing is left to absorb the remainder — the group paints a dead strip at its
  * trailing edge and the mode has quietly stopped meaning what it says.
  *
- * The trailing column is the one that can absorb it without cost, because it is
- * the ONE column whose width the user cannot drag directly: splitters sit on a
- * column's edge FACING THE NEXT column, so the last one has no handle of its own
- * and any size it carries is a leftover of resizing its neighbours, never a width
- * the user asked for. Growing it therefore overrides nothing the user chose.
+ * ── Who absorbs it: DECLARED first, trailing by default ─────────────────────
+ * Which member *should* take the surplus is a question about the CONTENT, and only
+ * the CONSUMER can answer it. Resist the temptation to infer it from a member's
+ * role — "the list grows, the detail pane is bounded" is the obvious-sounding rule
+ * and it is wrong. A detail pane is not reliably short: a symbol's strategies run
+ * one card per expiration and every card carries its legs, so the pane is often
+ * the TALLER of the two. Neither kind of member is dependably bounded, which is
+ * exactly why this is a declaration (`grow`) and not a heuristic.
  *
- * The stored px stays as the flex BASIS rather than being discarded, so the column
- * still starts from its remembered width when the group is too narrow to grant the
- * remainder, and shrinks from there like any other column.
+ * The DEFAULT, when nobody declares, stays the trailing member. That was once
+ * justified as the rule rather than a fallback, on the grounds that the trailing
+ * member is the one whose size the user cannot drag directly — splitters sit on a
+ * member's edge FACING THE NEXT one, so the last has no handle of its own and any
+ * size it carries is a leftover of resizing its neighbours, never a size the user
+ * asked for. That reasoning is still true, and it is still why trailing is a SAFE
+ * default. It is not a reason to think trailing is the RIGHT recipient: it was
+ * chosen for a horizontal dock where the trailing column was the surface — the
+ * thing that wanted all the room — and the same rule rotated into a vertical
+ * sidebar hands the surplus to the detail pane, which is precisely the member that
+ * cannot use it.
+ *
+ * TWO OR MORE DECLARED GROWERS SHARE the remainder. Each keeps its own size as its
+ * basis and they take equal `flex-grow`, so the SURPLUS is split evenly between
+ * them while their starting sizes stay different — not a 50/50 split of the group.
+ * This is a first-class configuration, not a tolerated mistake: when two sections
+ * both hold content of unpredictable length, "share what is left and let each
+ * scroll past its share" is the honest answer, and picking a winner would starve
+ * whichever one the consumer did not name.
+ *
+ * The stored px stays as the flex BASIS rather than being discarded, so a growing
+ * member still starts from its remembered size when the group is too small to
+ * grant the remainder, and shrinks from there like any other.
  */
 export function columnFlex(opts: {
   /** The panel's explicit size, or `undefined` while it follows the mode. */
   sizePx: number | undefined;
-  /** `fill` mode — the only mode that owes the group's whole extent to its columns. */
+  /** `fill` mode — the only mode that owes the group's whole extent to its members. */
   fill: boolean;
-  /** True when no open column follows this one in visual order. */
+  /** True when no open member follows this one in visual order. */
   trailing: boolean;
+  /** This member declares itself the absorber of the group's leftover space. */
+  declaresGrow: boolean;
+  /** Any OPEN member of the group declares it — which retires the trailing
+   *  default, including for members that declare nothing. */
+  groupHasDeclaredGrower: boolean;
 }): { flex: string } | Record<string, never> {
+  const grows =
+    opts.fill && (opts.declaresGrow || (!opts.groupHasDeclaredGrower && opts.trailing));
+
   if (opts.sizePx === undefined) {
-    // No explicit size: the stylesheet's mode rules already size this column, and
-    // an inline `flex` here would out-specify them for no gain.
+    /* No explicit size. Normally the stylesheet's mode rules size this member and
+       an inline `flex` here would out-specify them for no gain — but `fill`'s
+       stylesheet rule is `flex: 1 1 0`, i.e. "grow", which would let an unsized
+       NON-grower compete with the declared one for the surplus. So a group with a
+       declared grower pins its other members to their content size; without one,
+       nothing is emitted and behaviour is exactly what it always was. */
+    if (opts.fill && opts.groupHasDeclaredGrower && !opts.declaresGrow) {
+      return { flex: '0 0 auto' };
+    }
     return {};
   }
-  return { flex: opts.fill && opts.trailing ? `1 1 ${opts.sizePx}px` : `0 0 ${opts.sizePx}px` };
+  return { flex: grows ? `1 1 ${opts.sizePx}px` : `0 0 ${opts.sizePx}px` };
 }
 
 export interface ResizeHost {

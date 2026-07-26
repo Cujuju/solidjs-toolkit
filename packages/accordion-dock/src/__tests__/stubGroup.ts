@@ -46,6 +46,8 @@ export interface StubPanelSpec {
   pinnable?: boolean;
   closable?: boolean;
   minSize?: number;
+  /** Declares this panel the absorber of the group's leftover extent. */
+  grow?: boolean;
   badge?: PanelBadge;
   isLeaf?: boolean;
 }
@@ -101,6 +103,7 @@ function metaFor(spec: StubPanelSpec): PanelMeta {
     pinnable: () => spec.pinnable ?? true,
     closable: () => spec.closable ?? true,
     minSize: () => spec.minSize,
+    grow: () => spec.grow ?? false,
     railClass: () => undefined,
     contentId: `stub-${spec.id}-content`,
     isLeaf: spec.isLeaf ?? false,
@@ -182,6 +185,10 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
     openOrder: () => openIds,
     order,
     visualOpenIds,
+    /* Same derivation the real group uses — over the OPEN members, so a closed
+       grower cannot retire the trailing default. Calling through `byId` rather
+       than re-reading `spec.panels` keeps the two in step. */
+    hasDeclaredGrower: () => visualOpenIds().some((id) => byId.get(id)?.grow() === true),
     panels: () => metas.filter((m) => !m.isLeaf),
     leaves: () => metas.filter((m) => m.isLeaf),
     meta: (id) => byId.get(id),

@@ -58,6 +58,23 @@ export interface AccordionPanelProps {
   accent?: string;
   /** Floor for interactive resize, px. */
   minSize?: number;
+  /**
+   * This panel absorbs the group's leftover extent in `fill` mode.
+   *
+   * `fill` divides the group's whole extent, but every explicitly-sized member is
+   * fixed, so something has to take what is left or the group paints a dead strip.
+   * With no declaration anywhere that job falls to the TRAILING member, which is
+   * safe (it has no splitter handle of its own, so growing it overrides nothing the
+   * user dragged) but is not necessarily right — only you know which of your
+   * panels can actually use the room.
+   *
+   * Declare it on the panel whose content is unbounded. Declare it on SEVERAL and
+   * they share the surplus equally, each starting from its own size and scrolling
+   * past its share — the right shape when two sections both hold content of
+   * unpredictable length. The declared size (`defaultSize`, a drag, a persisted
+   * layout) becomes the flex BASIS rather than being discarded.
+   */
+  grow?: boolean;
   /** Initial size along the growth axis, px — or `'content'` to measure what the
    *  panel actually holds the first time it opens and freeze that (see
    *  `contentSize.ts` for why it freezes rather than tracking). Either way, after
@@ -198,6 +215,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         pinnable,
         closable,
         minSize: () => props.minSize,
+        grow: () => props.grow ?? false,
         railClass: () => props.railClass,
         contentId,
         isLeaf: false,
@@ -232,6 +250,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       sizePx: group.sizeOf(props.id),
       fill: group.mode() === 'fill',
       trailing: group.neighborOpenId(props.id) === undefined,
+      declaresGrow: props.grow ?? false,
+      groupHasDeclaredGrower: group.hasDeclaredGrower(),
     });
   };
 

@@ -383,6 +383,18 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     }),
   );
 
+  /**
+   * Does any OPEN member declare itself the absorber of the group's surplus?
+   *
+   * Derived over `visualOpenIds` rather than the whole registry so a CLOSED
+   * grower cannot retire the trailing default and leave the surplus promised to a
+   * panel that is not on screen — which would reinstate the dead strip the
+   * declaration exists to remove.
+   */
+  const hasDeclaredGrower = createMemo<boolean>(() =>
+    visualOpenIds().some((id) => metaOf(id)?.grow() === true),
+  );
+
   /** Divider mode follows `autoHide` unless the consumer says otherwise — see the
    *  prop's JSDoc for why that is the default rather than a separate opt-in. */
   const railDivider = (): boolean =>
@@ -723,6 +735,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     openOrder: openList,
     order: orderIds,
     visualOpenIds,
+    hasDeclaredGrower,
     panels,
     leaves,
     meta: metaOf,

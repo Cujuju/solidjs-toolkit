@@ -56,6 +56,12 @@ export interface AccordionLeafProps {
 
   accent?: string;
   minSize?: number;
+  /** This leaf absorbs the group's leftover extent in `fill` mode — the same
+   *  declaration `<AccordionPanel>` takes, and it must be honoured here too: a
+   *  leaf is usually the trailing member, so if it ignored a sibling's
+   *  declaration it would go on silently taking the surplus the consumer just
+   *  promised to that sibling. See `AccordionPanelProps.grow`. */
+  grow?: boolean;
   defaultSize?: AccordionDefaultSize;
 
   class?: string;
@@ -149,6 +155,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
         pinnable: () => false,
         closable: () => props.closable ?? true,
         minSize: () => props.minSize,
+        grow: () => props.grow ?? false,
         railClass: () => undefined,
         contentId,
         isLeaf: true,
@@ -244,6 +251,8 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
       sizePx: group.sizeOf(props.id),
       fill: group.mode() === 'fill',
       trailing: group.neighborOpenId(props.id) === undefined,
+      declaresGrow: props.grow ?? false,
+      groupHasDeclaredGrower: group.hasDeclaredGrower(),
     });
   };
 

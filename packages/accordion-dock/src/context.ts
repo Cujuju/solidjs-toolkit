@@ -102,6 +102,9 @@ export interface PanelMeta {
   closable: Accessor<boolean>;
   /** Floor for interactive resize, px. */
   minSize: Accessor<number | undefined>;
+  /** This panel absorbs the group's leftover extent in `fill` mode — see
+   *  `AccordionPanelProps.grow` and `columnFlex`. */
+  grow: Accessor<boolean>;
   /** Extra class for this panel's rail button. */
   railClass: Accessor<string | undefined>;
   /**
@@ -196,6 +199,16 @@ export interface AccordionGroupApi {
   order: Accessor<readonly string[]>;
   /** Open panels in painted sequence — `order` filtered to open, leaves appended. */
   visualOpenIds: Accessor<readonly string[]>;
+  /**
+   * Does any OPEN member declare `grow`?
+   *
+   * Read by every member's sizing, not just the growers: a declaration retires the
+   * trailing-member default for the whole group, so a member that declares nothing
+   * still has to know whether one exists. Scoped to OPEN members because a closed
+   * grower absorbs nothing — the surplus must fall back to the default rather than
+   * being promised to a panel that is not on screen.
+   */
+  hasDeclaredGrower: Accessor<boolean>;
   /** Registered panels (leaves excluded), already sorted into `order`. */
   panels: Accessor<readonly PanelMeta[]>;
   /** Registered leaves, in registration order. */
