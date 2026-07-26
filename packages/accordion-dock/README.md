@@ -80,6 +80,15 @@ that is always on screen (a canvas, an editor, a plot) in a leaf, and the things
 that should get out of its way in panels. Getting this backwards is the one
 mistake that makes the mode feel broken rather than wrong.
 
+> **Caveat — a leaf is for content the dock GOVERNS.** The advice above assumes
+> the always-present thing is inside the dock at all. If it is never opened,
+> closed, pinned, reordered or resized by the dock, it does not need to be a
+> member of it: make it a plain sibling of the group and let ordinary flex give
+> it the remaining space. Membership is not free — a leaf competes for space with
+> the panels and needs a rule saying who absorbs the surplus, which is a question
+> a sibling never asks. Reach for a leaf when the dock decides something about
+> that pane; reach for a sibling when it decides nothing.
+
 **2. There is exactly one order.** `AccordionGroupApi.order` is read twice — once
 by the rail, once by the columns — rather than being two sequences kept in sync.
 Dragging either representation moves both, because they are the same array.
