@@ -8,7 +8,9 @@ import {
   type JSX,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { flyoutDataAttr } from './autoHide';
+import { seedDefaultSize, type AccordionDefaultSize } from './contentSize';
 import {
   slotRef,
   useAccordionGroup,
@@ -56,9 +58,11 @@ export interface AccordionPanelProps {
   accent?: string;
   /** Floor for interactive resize, px. */
   minSize?: number;
-  /** Initial size along the growth axis, px. After the user drags a splitter their
-   *  size wins and this is ignored. */
-  defaultSize?: number;
+  /** Initial size along the growth axis, px — or `'content'` to measure what the
+   *  panel actually holds the first time it opens and freeze that (see
+   *  `contentSize.ts` for why it freezes rather than tracking). Either way, after
+   *  the user drags a splitter their size wins and this is ignored. */
+  defaultSize?: AccordionDefaultSize;
 
   /** Skip rendering children until first opened — for expensive content. */
   lazyMount?: boolean;
@@ -99,6 +103,12 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   const panelId = props.id;
   const registerHeaderEl = slotRef(group.activators, panelId);
   const registerPanelEl = slotRef(group.panelElements, panelId);
+  /** This panel's own column element. The group already collects these in
+   *  `panelElements`, but that map is a plain (non-reactive) store the group
+   *  measures from — a size seeded on the element's arrival needs to KNOW when it
+   *  arrives, which only a signal can say. */
+  const [panelEl, setPanelEl] = createSignal<HTMLElement | undefined>();
+  const afterPaint = createAfterPaint();
   /** One menu instance per panel, attached to whichever chrome this orientation
    *  renders — the header row (vertical) or the column title bar (horizontal). */
   const menu = createPanelMenu(group, () => props.id);
@@ -194,9 +204,19 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       },
       props.defaultOpen ?? false,
     );
-    if (props.defaultSize !== undefined && group.sizeOf(props.id) === undefined) {
-      group.setSize(props.id, props.defaultSize);
-    }
+    seedDefaultSize({
+      defaultSize: () => props.defaultSize,
+      open,
+      // The host, not the inline element: a panel whose first open is a FLYOUT
+      // has its children living in the flyout, and measuring the empty inline
+      // host would freeze the column at its chrome width.
+      host: contentMount,
+      panel: panelEl,
+      sizeOf: () => group.sizeOf(props.id),
+      setSize: (px) => group.setSize(props.id, px),
+      orientation: group.orientation,
+      afterPaint,
+    });
   });
   onCleanup(() => {
     group.unregister(props.id);
@@ -220,6 +240,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       {...dragItemAttrs()}
       ref={(el) => {
         registerPanelEl(el);
+        setPanelEl(el);
         // The reorder primitive registers its node through `itemProps.ref`; Solid
         // lets the later ref win, so it is invoked explicitly rather than dropped.
         (dragItem().ref as ((e: HTMLElement) => void) | undefined)?.(el);

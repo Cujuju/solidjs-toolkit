@@ -1,6 +1,7 @@
 import {
   Show,
   createEffect,
+  createSignal,
   createUniqueId,
   on,
   onCleanup,
@@ -8,6 +9,8 @@ import {
   untrack,
   type JSX,
 } from 'solid-js';
+import { createAfterPaint } from '@cujuju/solidjs-hooks';
+import { seedDefaultSize, type AccordionDefaultSize } from './contentSize';
 import { slotRef, useAccordionGroup } from './context';
 import { Close } from './icons';
 import { leafChainFor } from './leafChain';
@@ -53,7 +56,7 @@ export interface AccordionLeafProps {
 
   accent?: string;
   minSize?: number;
-  defaultSize?: number;
+  defaultSize?: AccordionDefaultSize;
 
   class?: string;
   contentClass?: string;
@@ -95,6 +98,12 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
    *  mounts and unmounts constantly (it is the result of a selection), so a
    *  never-cleared ref here accumulates a detached node per selection. */
   const registerPanelEl = slotRef(group.panelElements, props.id);
+  /** This leaf's own column + content elements. Signals, not the group's plain
+   *  element map, because a size seeded from a measurement has to know WHEN the
+   *  boxes arrive — and a leaf unmounts and remounts as it opens and closes. */
+  const [panelEl, setPanelEl] = createSignal<HTMLElement | undefined>();
+  const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>();
+  const afterPaint = createAfterPaint();
   const horizontal = (): boolean => group.orientation() === 'horizontal';
 
   /** Is the thing this leaf hangs off currently open? Vacuously true for an
@@ -150,9 +159,18 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
       },
       false,
     );
-    if (props.defaultSize !== undefined && group.sizeOf(props.id) === undefined) {
-      group.setSize(props.id, props.defaultSize);
-    }
+    seedDefaultSize({
+      defaultSize: () => props.defaultSize,
+      open: effectiveOpen,
+      // A leaf never flies out and never tears off — its children are always in
+      // its own content element, so host and panel come from the same subtree.
+      host: contentEl,
+      panel: panelEl,
+      sizeOf: () => group.sizeOf(props.id),
+      setSize: (px) => group.setSize(props.id, px),
+      orientation: group.orientation,
+      afterPaint,
+    });
   });
   onCleanup(() => {
     group.unregister(props.id);
@@ -248,7 +266,10 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
   return (
     <Show when={effectiveOpen()}>
       <div
-        ref={registerPanelEl}
+        ref={(el) => {
+          registerPanelEl(el);
+          setPanelEl(el);
+        }}
         class={`acc-panel acc-leaf ${props.class ?? ''}`.trim()}
         data-open="true"
         data-leaf="true"
@@ -287,7 +308,11 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
           </div>
         </Show>
 
-        <div id={contentId} class={`acc-content ${props.contentClass ?? ''}`.trim()}>
+        <div
+          ref={setContentEl}
+          id={contentId}
+          class={`acc-content ${props.contentClass ?? ''}`.trim()}
+        >
           {props.children}
         </div>
 

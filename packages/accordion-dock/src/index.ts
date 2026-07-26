@@ -65,6 +65,11 @@ export {
 } from './tearOff';
 export { DEFAULT_MIN_SIZE_PX } from './resize';
 export {
+  CONTENT_MAX_GROUP_FRACTION,
+  CONTENT_SLACK_DIGITS,
+  type AccordionDefaultSize,
+} from './contentSize';
+export {
   orderVisualOpen,
   survivesBulkClose,
   bulkClosableIds,
