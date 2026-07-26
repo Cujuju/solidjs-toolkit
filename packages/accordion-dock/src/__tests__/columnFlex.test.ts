@@ -29,6 +29,8 @@ describe('columnFlex — the default: trailing grows when nobody declares', () =
       trailing: false,
       declaresGrow: false,
       groupHasDeclaredGrower: false,
+      shrinkToContent: false,
+      axis: 'height',
     });
     const last = columnFlex({
       sizePx: SIZE_B,
@@ -36,6 +38,8 @@ describe('columnFlex — the default: trailing grows when nobody declares', () =
       trailing: true,
       declaresGrow: false,
       groupHasDeclaredGrower: false,
+      shrinkToContent: false,
+      axis: 'height',
     });
 
     expect(lead).toEqual({ flex: `0 0 ${SIZE_A}px` });
@@ -53,6 +57,8 @@ describe('columnFlex — the default: trailing grows when nobody declares', () =
         trailing: true,
         declaresGrow: false,
         groupHasDeclaredGrower: false,
+        shrinkToContent: false,
+        axis: 'height',
       }),
     ).toEqual({});
   });
@@ -65,6 +71,8 @@ describe('columnFlex — the default: trailing grows when nobody declares', () =
         trailing: true,
         declaresGrow: true,
         groupHasDeclaredGrower: true,
+        shrinkToContent: false,
+        axis: 'height',
       }),
     ).toEqual({ flex: `0 0 ${SIZE_A}px` });
   });
@@ -79,6 +87,8 @@ describe('columnFlex — a declaration beats the trailing default', () => {
         trailing: false,
         declaresGrow: true,
         groupHasDeclaredGrower: true,
+        shrinkToContent: false,
+        axis: 'height',
       }),
     ).toEqual({ flex: `1 1 ${SIZE_A}px` });
   });
@@ -94,6 +104,8 @@ describe('columnFlex — a declaration beats the trailing default', () => {
         trailing: true,
         declaresGrow: false,
         groupHasDeclaredGrower: true,
+        shrinkToContent: false,
+        axis: 'height',
       }),
     ).toEqual({ flex: `0 0 ${SIZE_B}px` });
   });
@@ -110,6 +122,8 @@ describe('columnFlex — a declaration beats the trailing default', () => {
         trailing: false,
         declaresGrow: false,
         groupHasDeclaredGrower: true,
+        shrinkToContent: false,
+        axis: 'height',
       }),
     ).toEqual({ flex: '0 0 auto' });
   });
@@ -122,6 +136,8 @@ describe('columnFlex — a declaration beats the trailing default', () => {
         trailing: false,
         declaresGrow: true,
         groupHasDeclaredGrower: true,
+        shrinkToContent: false,
+        axis: 'height',
       }),
     ).toEqual({});
   });
@@ -138,6 +154,8 @@ describe('columnFlex — several declared growers share', () => {
       trailing: false,
       declaresGrow: true,
       groupHasDeclaredGrower: true,
+      shrinkToContent: false,
+      axis: 'height',
     });
     const second = columnFlex({
       sizePx: SIZE_B,
@@ -145,9 +163,92 @@ describe('columnFlex — several declared growers share', () => {
       trailing: true,
       declaresGrow: true,
       groupHasDeclaredGrower: true,
+      shrinkToContent: false,
+      axis: 'height',
     });
 
     expect(first).toEqual({ flex: `1 1 ${SIZE_A}px` });
     expect(second).toEqual({ flex: `1 1 ${SIZE_B}px` });
+  });
+});
+
+describe('columnFlex — shrinkToContent: the size is a CEILING, not an extent', () => {
+  it('is content-sized with no ceiling when nothing has been saved', () => {
+    /* The unsized case is the one the sidebar actually ships in: no `defaultSize`,
+       so the section is simply as tall as its rows until a drag sets a ceiling.
+       `0 1 auto` — never grow past the content, but still able to shrink when the
+       group cannot hold every member. */
+    expect(
+      columnFlex({
+        sizePx: undefined,
+        fill: true,
+        trailing: false,
+        declaresGrow: false,
+        groupHasDeclaredGrower: false,
+        shrinkToContent: true,
+        axis: 'height',
+      }),
+    ).toEqual({ flex: '0 1 auto' });
+  });
+
+  it('applies a saved size as a max on the growth axis', () => {
+    expect(
+      columnFlex({
+        sizePx: SIZE_A,
+        fill: true,
+        trailing: false,
+        declaresGrow: false,
+        groupHasDeclaredGrower: false,
+        shrinkToContent: true,
+        axis: 'height',
+      }),
+    ).toEqual({ flex: '0 1 auto', maxHeight: `${SIZE_A}px` });
+  });
+
+  it('caps the WIDTH instead when the group grows horizontally', () => {
+    // The ceiling has to land on the dimension the dock sizes along, or a
+    // horizontal dock would cap a column's height and silently do nothing.
+    expect(
+      columnFlex({
+        sizePx: SIZE_A,
+        fill: true,
+        trailing: false,
+        declaresGrow: false,
+        groupHasDeclaredGrower: false,
+        shrinkToContent: true,
+        axis: 'width',
+      }),
+    ).toEqual({ flex: '0 1 auto', maxWidth: `${SIZE_A}px` });
+  });
+
+  it('never grows, even as the trailing member with no declared grower', () => {
+    // The trailing default is what would otherwise stretch a two-card section
+    // down a tall sidebar. shrinkToContent has to beat it, or the declaration
+    // does nothing in exactly the layout it exists for.
+    expect(
+      columnFlex({
+        sizePx: SIZE_A,
+        fill: true,
+        trailing: true,
+        declaresGrow: false,
+        groupHasDeclaredGrower: false,
+        shrinkToContent: true,
+        axis: 'height',
+      }),
+    ).toEqual({ flex: '0 1 auto', maxHeight: `${SIZE_A}px` });
+  });
+
+  it('beats an explicit grow on the same member rather than blending them', () => {
+    expect(
+      columnFlex({
+        sizePx: SIZE_A,
+        fill: true,
+        trailing: false,
+        declaresGrow: true,
+        groupHasDeclaredGrower: true,
+        shrinkToContent: true,
+        axis: 'height',
+      }),
+    ).toEqual({ flex: '0 1 auto', maxHeight: `${SIZE_A}px` });
   });
 });

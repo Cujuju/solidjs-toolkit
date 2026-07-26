@@ -62,6 +62,9 @@ export interface AccordionLeafProps {
    *  declaration it would go on silently taking the surplus the consumer just
    *  promised to that sibling. See `AccordionPanelProps.grow`. */
   grow?: boolean;
+  /** This leaf is never larger than its content, with its size as a ceiling it
+   *  scrolls past. See `AccordionPanelProps.shrinkToContent`. */
+  shrinkToContent?: boolean;
   defaultSize?: AccordionDefaultSize;
 
   class?: string;
@@ -253,6 +256,8 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
       trailing: group.neighborOpenId(props.id) === undefined,
       declaresGrow: props.grow ?? false,
       groupHasDeclaredGrower: group.hasDeclaredGrower(),
+      shrinkToContent: props.shrinkToContent ?? false,
+      axis: group.orientation() === 'horizontal' ? 'width' : 'height',
     });
   };
 

@@ -114,6 +114,35 @@ const KEYBOARD_COARSE_STEP_PX = KEYBOARD_STEP_PX * 10;
  * The stored px stays as the flex BASIS rather than being discarded, so a growing
  * member still starts from its remembered size when the group is too small to
  * grant the remainder, and shrinks from there like any other.
+ *
+ * ── `shrinkToContent`: the stored size as a CEILING, not an extent ───────────
+ * The two behaviours above both answer "how do we spend space the members do not
+ * individually want". A member can instead declare that it never wants more room
+ * than its content occupies — a list that is exactly as tall as its rows, and no
+ * taller, with the sidebar's leftover space simply left empty.
+ *
+ * That reading needs no new sizing machinery, because CSS already has it: a
+ * content basis (`flex: 0 1 auto`) with the stored size applied as a `max-*`. The
+ * member is then its content when short, its stored size when long, and scrolls
+ * internally past that — which is the whole rule in one declaration rather than a
+ * mode with branches. `flex-shrink` stays 1 so several such members still divide a
+ * group too small for all of them instead of overflowing it.
+ *
+ * The stored size becoming a CEILING has a consequence worth stating: dragging the
+ * splitter to make such a member BIGGER than its content does nothing visible,
+ * because the content is still where the box ends. The drag is not lost — it has
+ * raised the ceiling, and the extra room appears the moment the content reaches
+ * it. Dragging SMALLER is immediate, since that is the ceiling biting.
+ *
+ * It follows that seeding one of these from `defaultSize: 'content'` is
+ * self-defeating: a ceiling measured from the content is a ceiling the content is
+ * already touching, so the member could never grow again and would be frozen at
+ * whatever it happened to hold when it first opened. Leave such a member unsized
+ * and let the ceiling come from a deliberate drag.
+ *
+ * `shrinkToContent` and `grow` are contradictory — one never exceeds its content,
+ * the other exists to exceed it — so `shrinkToContent` wins and the declaration is
+ * ignored rather than producing a member that both does and does not absorb.
  */
 export function columnFlex(opts: {
   /** The panel's explicit size, or `undefined` while it follows the mode. */
@@ -127,7 +156,23 @@ export function columnFlex(opts: {
   /** Any OPEN member of the group declares it — which retires the trailing
    *  default, including for members that declare nothing. */
   groupHasDeclaredGrower: boolean;
-}): { flex: string } | Record<string, never> {
+  /** This member is its CONTENT's size, with `sizePx` as a ceiling it scrolls
+   *  past — never taller than what it holds. */
+  shrinkToContent: boolean;
+  /** The group's growth axis, so a ceiling is applied to the dimension the dock
+   *  actually sizes along. */
+  axis: 'width' | 'height';
+}): { flex: string; maxWidth?: string; maxHeight?: string } | Record<string, never> {
+  if (opts.shrinkToContent) {
+    // `0 1 auto`: never grow past the content, shrink if the group cannot hold
+    // every member, and take the content as the basis.
+    const flex = { flex: '0 1 auto' };
+    if (opts.sizePx === undefined) return flex;
+    return opts.axis === 'width'
+      ? { ...flex, maxWidth: `${opts.sizePx}px` }
+      : { ...flex, maxHeight: `${opts.sizePx}px` };
+  }
+
   const grows =
     opts.fill && (opts.declaresGrow || (!opts.groupHasDeclaredGrower && opts.trailing));
 

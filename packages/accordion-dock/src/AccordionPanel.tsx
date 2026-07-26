@@ -75,6 +75,25 @@ export interface AccordionPanelProps {
    * layout) becomes the flex BASIS rather than being discarded.
    */
   grow?: boolean;
+  /**
+   * This panel is never taller (or wider) than its own content.
+   *
+   * Its size becomes a CEILING rather than an extent: shorter content means a
+   * shorter panel, and content past the ceiling scrolls inside it. Whatever the
+   * group has left over stays empty — which is the point, for a nav sidebar whose
+   * sections should look like the lists they hold rather than being stretched to
+   * fill a column.
+   *
+   * Pair it with NO `defaultSize`. A ceiling measured from the content is one the
+   * content is already touching, so a `'content'` seed would freeze the panel at
+   * whatever it held when it first opened; leave it unsized and let a splitter drag
+   * set the ceiling deliberately. Note that dragging one of these LARGER than its
+   * content shows nothing until the content grows into the new ceiling — see
+   * `columnFlex`.
+   *
+   * Overrides `grow`, which asks for the opposite thing.
+   */
+  shrinkToContent?: boolean;
   /** Initial size along the growth axis, px — or `'content'` to measure what the
    *  panel actually holds the first time it opens and freeze that (see
    *  `contentSize.ts` for why it freezes rather than tracking). Either way, after
@@ -252,6 +271,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       trailing: group.neighborOpenId(props.id) === undefined,
       declaresGrow: props.grow ?? false,
       groupHasDeclaredGrower: group.hasDeclaredGrower(),
+      shrinkToContent: props.shrinkToContent ?? false,
+      axis: group.orientation() === 'horizontal' ? 'width' : 'height',
     });
   };
 
