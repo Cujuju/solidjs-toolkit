@@ -30,9 +30,27 @@
 @layer cujuju-defaults {
   :root {
     --acc-bg: #1a1f2e;
+    /* The panel's CONTENT box, separately from the panel itself. `transparent`
+       so the panel's own `--acc-bg` shows through and this token costs an
+       existing consumer nothing — it exists for the host that wants its section
+       bodies to read as a WELL the content sits in rather than as the same
+       surface the chrome is drawn on. Elevation is directional: a body toned
+       BELOW its contents is what makes those contents read as cards, and toning
+       it ABOVE inverts that, so a host reaching for this almost always wants a
+       darker value than `--acc-bg`, not a lighter one. */
+    --acc-content-bg: transparent;
     --acc-header-bg: #252d3f;
     --acc-header-bg-hover: #2c3548;
     --acc-header-bg-open: #2f3a52;
+    /* A CLOSED panel's header, which under `appearance: cards` is the WHOLE
+       card — there is no body behind it to carry a tone. Defaults to
+       `--acc-header-bg` (the value a closed header had before this token
+       existed) so the three-state header ramp is unchanged for anyone who does
+       not set it. Split out because "chrome over a body" and "chrome that IS
+       the card" are two different jobs for one colour, and a host toning
+       `--acc-content-bg` generally wants its collapsed cards to match that
+       body rather than to stay at the open header's tone. */
+    --acc-header-bg-closed: var(--acc-header-bg);
     --acc-border: #2a2e37;
     --acc-text: #e6e9ef;
     --acc-text-muted: #8b93a1;
@@ -684,6 +702,24 @@
   background: var(--acc-header-bg-hover);
 }
 
+/* A closed header. The base rule above already paints `--acc-header-bg`, so
+   this exists only to let the closed state be toned SEPARATELY from the open
+   one; with the token at its default the two rules resolve to the same colour
+   and this is a no-op. */
+.acc-panel[data-open='false'] > .acc-header-row {
+  background: var(--acc-header-bg-closed);
+}
+
+/* ...and the hover this rule would otherwise EAT. `.acc-header-row:hover` is
+   (0,2,0); the closed rule above is (0,3,0) and outranks it, which would leave
+   the dock's primary click target — a collapsed header — with no hover feedback
+   at all. Restated at (0,4,0) rather than by loosening the closed selector,
+   because the specificity is load-bearing: it is what makes the closed tone
+   beat the base one. */
+.acc-panel[data-open='false'] > .acc-header-row:hover {
+  background: var(--acc-header-bg-hover);
+}
+
 .acc-panel[data-open='true'] > .acc-header-row {
   background: var(--acc-header-bg-open);
 }
@@ -977,6 +1013,12 @@
   min-height: 0;
   min-width: 0;
   padding: var(--acc-content-pad);
+  /* Listed here rather than only on `.acc-content` for the reason the whole
+     pairing exists: a panel that flies out must be INDISTINGUISHABLE from the
+     same panel docked, and a body tone applied to one but not the other would
+     make pinning change the look — the one thing auto-hide promises it will
+     not do. */
+  background: var(--acc-content-bg);
   overflow: auto;
 }
 

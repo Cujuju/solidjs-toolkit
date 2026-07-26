@@ -207,6 +207,30 @@ ahead of specificity. No `!important`, no specificity games:
 Use `:root` rather than a scope on the group when `autoHide` is on: a flyout is
 portalled out of the group element and would otherwise stop inheriting.
 
+### The surface ramp
+
+Four of those tokens decide how the dock's own elevation reads, and they are
+worth setting together rather than one at a time:
+
+| Token | Paints | Default |
+|---|---|---|
+| `--acc-bg` | the panel | a mid surface |
+| `--acc-content-bg` | the panel's **body**, docked and flown-out alike | `transparent` — the panel shows through |
+| `--acc-header-bg-closed` | a **collapsed** panel's header | `var(--acc-header-bg)` |
+| `--acc-header-bg` / `-hover` / `-open` | the header's three states | a rising ramp |
+
+**Elevation is directional, and the direction is the whole point.** A body toned
+*below* its contents is what makes those contents read as cards; toning it
+*above* them inverts that and the same cards read as inset wells. So a host
+reaching for `--acc-content-bg` almost always wants a value **darker** than
+`--acc-bg`, not lighter — and if the body is toned, `--acc-header-bg-closed`
+usually wants to match it, because a collapsed panel is nothing but its header
+and that header is standing in for the body it no longer shows.
+
+`--acc-header-bg-closed` is a **vertical** concern: in `horizontal` a closed
+panel is `display: none` and its presence in the dock is a rail button, which
+has its own tokens.
+
 ## Tests
 
 ```sh
