@@ -327,6 +327,38 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     return map;
   });
   const stateOf = (item: T): PillDateItemState => stateByKey().get(keyOf(item)) ?? 'available';
+
+  /**
+   * The ladder as its KEYS — what the row list is actually built from.
+   *
+   * `<For>` reconciles by REFERENCE, and a caller's ladder is re-supplied
+   * whenever their data settles: an async chain filling in, an idle refetch, a
+   * live re-derive. Those arrays hold structurally-equal items with brand-new
+   * identities, so `<For each={props.items}>` tore down and rebuilt EVERY row
+   * each time — for a ladder whose contents had not changed at all. Measured in
+   * a consumer 2026-07-25: 35 rows destroyed and recreated per re-supply, with
+   * the row-building path the single largest cost in the profile.
+   *
+   * Keys are strings, so this memo's value equality is real value equality: a
+   * re-supplied ladder with the same contracts produces the same array and the
+   * rows are left alone. It is the same promise `keyOf` already makes for
+   * selection and for `stateByKey` — "stable across refetches" — finally
+   * honoured by the row list too.
+   */
+  const itemKeys = createMemo<string[]>(
+    () => props.items.map(keyOf),
+    [],
+    { equals: (a, b) => a.length === b.length && a.every((k, i) => k === b[i]) },
+  );
+
+  /** Key → the CURRENT item under it. A keyed row reads its item through this
+   *  rather than closing over one, so a re-supplied ladder updates the row in
+   *  place instead of replacing it. */
+  const itemByKey = createMemo<Map<string, T>>(() => {
+    const map = new Map<string, T>();
+    for (const item of props.items) map.set(keyOf(item), item);
+    return map;
+  });
   /** Out-of-range indices count as disabled so every caller below is total. */
   const disabledAt = (index: number): boolean => {
     const item = props.items[index];
@@ -676,14 +708,43 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
         <Show when={props.items.length > 0 && noneSelectable()}>
           <div class="cpdp-empty">{props.noneSelectableMessage ?? 'Nothing selectable'}</div>
         </Show>
-        <For each={props.items}>
-          {(item, i) => {
-            const iso = (): string => dateOf(item);
-            const dte = (): number | null => dteOf(item);
+        {/* Iterating the KEYS, not the items — see `itemKeys`. */}
+        <For each={itemKeys()}>
+          {(key, i) => {
+            /**
+             * This row's CURRENT item.
+             *
+             * Looked up by key rather than captured, because the row now
+             * outlives any single `items` array: a re-supplied ladder with equal
+             * keys keeps this row alive and hands it the fresh object here.
+             *
+             * The fallback exists for one frame: `<For>` reconciles against the
+             * new key list before it disposes the rows whose keys are gone, so a
+             * departing row can be asked to render once after its item has left
+             * the map. Rendering its last known values for that frame is
+             * correct — it is on its way out — and is the only alternative to
+             * a non-total type or a null-check in every field below.
+             */
+            let lastItem = itemByKey().get(key)!;
+            const item = (): T => {
+              const fresh = itemByKey().get(key);
+              if (fresh !== undefined) lastItem = fresh;
+              return lastItem;
+            };
+            const iso = (): string => dateOf(item());
+            /**
+             * MEMOIZED, both of them. Every field of the row context is read at
+             * least once per render pass and `dte` three times (the number, its
+             * label, its ramp colour) — and each read parsed the ISO date and
+             * allocated a `new Date()` for the clock. Two memos make that once
+             * per row per pass, and they still re-run when `props.now` moves.
+             */
+            const dte = createMemo<number | null>(() => daysToExpiration(iso(), now()));
+            const label = createMemo<string>(() => labelOf(iso()));
             // Compare on the KEY, not the date. With two same-date contracts in the ladder
             // (SPX / SPXW), a date comparison would light up BOTH rows as selected.
-            const selected = (): boolean => props.value === keyOf(item);
-            const state = (): PillDateItemState => stateOf(item);
+            const selected = (): boolean => props.value === key;
+            const state = (): PillDateItemState => stateByKey().get(key) ?? 'available';
             /**
              * Compare KEYS, not indices. `activeIndex` is a memo that scans the
              * ladder to find the cursor's row; asking it once PER ROW turns a
@@ -691,28 +752,32 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
              * comparisons per arrow key). The key comparison is the same answer
              * in O(1).
              */
-            const isActive = (): boolean => activeKey() !== null && activeKey() === keyOf(item);
-            const note = (): string | undefined => props.annotation?.(item);
+            const isActive = (): boolean => activeKey() === key;
+            const note = (): string | undefined => props.annotation?.(item());
             /**
              * The same values the built-in row renders — see PillDateRowContext.
              *
-             * Every changing field is a GETTER, not a value. A custom `renderRow`
-             * is called ONCE to build its JSX, so a plain object would hand it a
-             * snapshot: `ctx.active` would be whatever it was at first paint and
-             * the custom row would never see the cursor move (or the selection
-             * change, or a re-supplied annotation). Getters make the read happen
-             * where the consumer actually reads it — inside their JSX, which
-             * Solid compiles to a tracked expression — so the frozen-value trap
-             * cannot be fallen into by a caller who did nothing wrong.
+             * ONE object per row, and every field a GETTER.
              *
-             * `item` and `index` are the row's identity and do not change under
-             * it, so they stay plain values.
+             * The getters are what make a `renderRow` correct: a custom row is
+             * called ONCE to build its JSX, so plain values would hand it a
+             * snapshot and it would never see the cursor move (or the selection
+             * change, or a re-supplied annotation). Reading through a getter puts
+             * the read inside the consumer's own JSX, which Solid compiles to a
+             * tracked expression.
+             *
+             * Building it once is what makes it AFFORDABLE. It used to be a
+             * function called at every use site, and `<DefaultRow ctx={…}/>`
+             * passes props as getters — so each of the five fields the default
+             * row reads rebuilt the whole eight-getter object first. `item` and
+             * `index` are getters for the same reason: with a keyed row they
+             * genuinely do change underneath it (a re-supplied ladder, a reorder).
              */
-            const rowContext = (): PillDateRowContext<T> => ({
-              item,
-              index: i(),
+            const ctx: PillDateRowContext<T> = {
+              get item() { return item(); },
+              get index() { return i(); },
               get date() { return iso(); },
-              get label() { return labelOf(iso()); },
+              get label() { return label(); },
               get dte() { return dte(); },
               get dteLabel() { return formatDte(dte()); },
               get dteColor() {
@@ -722,10 +787,10 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
               get annotation() { return note(); },
               get selected() { return selected(); },
               get active() { return isActive(); },
-            });
+            };
             return (
               <div
-                id={rowId(keyOf(item))}
+                id={rowId(key)}
                 class="cpdp-row"
                 role="option"
                 aria-selected={selected()}
@@ -744,8 +809,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
                 }}
                 onClick={() => commit(i())}
               >
-                <Show when={props.renderRow} fallback={<DefaultRow ctx={rowContext()} />}>
-                  {(render) => render()(rowContext())}
+                <Show when={props.renderRow} fallback={<DefaultRow ctx={ctx} />}>
+                  {(render) => render()(ctx)}
                 </Show>
               </div>
             );
