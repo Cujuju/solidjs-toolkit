@@ -5,6 +5,7 @@ import {
   AccordionPanel,
   Breadcrumb,
   useAccordionGroup,
+  type AccordionAppearance,
   type AccordionGroupApi,
   type AccordionRailSide,
   type AccordionLayout,
@@ -148,6 +149,8 @@ export function AccordionDockPage(): JSX.Element {
   const [saved, setSaved] = createSignal<AccordionLayout | null>(null);
   const [dense, setDense] = createSignal(false);
   const [animated, setAnimated] = createSignal(true);
+
+  const [appearance, setAppearance] = createSignal<AccordionAppearance>('cards');
 
   const [autoHide, setAutoHide] = createSignal(true);
   const [hoverToOpen, setHoverToOpen] = createSignal(false);
@@ -1000,6 +1003,72 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
         <i> before</i> release, so overshooting and changing your mind is a drag back,
         not an undo — nothing collapses until you let go.
       </p>
+
+      <h2>Appearance — one frame, or a card each</h2>
+      <p class="note">
+        <code>appearance</code> is CHROME ONLY: open, pin, reorder, sizing and flyouts
+        behave identically under both, so it is safe to flip on a shipped dock.
+        <code>flush</code> (the default) draws one frame around the whole dock and
+        divides panels with hairline separators; <code>cards</code> moves the frame onto
+        each panel — its own border, radius and surface, separated by
+        <code>--acc-card-gap</code> — and the group stops drawing a frame at all, because
+        a frame around a row of framed cards is a doubled line.
+      </p>
+      <Card cap='appearance — flush vs cards, both orientations' wide>
+        <div style={{ width: '100%' }}>
+          <div style={{ display: 'flex', gap: '6px', 'margin-bottom': '8px', 'flex-wrap': 'wrap' }}>
+            <button
+              class="demo-btn"
+              data-active={appearance() === 'cards' ? '' : undefined}
+              onClick={() => setAppearance((v) => (v === 'cards' ? 'flush' : 'cards'))}
+            >
+              appearance: {appearance()}
+            </button>
+            <span class="readout">
+              both orientations, one prop
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '16px', 'align-items': 'flex-start', 'flex-wrap': 'wrap' }}>
+            <div style={{ width: '240px' }}>
+            <AccordionGroup
+              orientation="vertical"
+              appearance={appearance()}
+              policy="multi"
+              ariaLabel="Appearance demo (vertical)"
+            >
+              <AccordionPanel id="ap-v-1" title="Symbols" count={4} defaultOpen>
+                <p class="note">Cards stack with a vertical gap.</p>
+              </AccordionPanel>
+              <AccordionPanel id="ap-v-2" title="Strategies" count={2} defaultOpen>
+                <p class="note">Each section is its own surface.</p>
+              </AccordionPanel>
+            </AccordionGroup>
+            </div>
+
+            <div style={{ width: '420px' }}>
+            <AccordionGroup
+              orientation="horizontal"
+              appearance={appearance()}
+              mode="fill"
+              policy="multi"
+              height="220px"
+              ariaLabel="Appearance demo (horizontal)"
+            >
+              <AccordionPanel id="ap-h-1" title="One" defaultOpen>
+                <p class="note">Columns sit side by side with a horizontal gap.</p>
+              </AccordionPanel>
+              <AccordionPanel id="ap-h-2" title="Two" defaultOpen>
+                <p class="note">
+                  The RAIL stays flush and is not a card — it never opens, holds no
+                  content and cannot be pinned, so framing it as a peer of the panels
+                  would be a category error.
+                </p>
+              </AccordionPanel>
+            </AccordionGroup>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <h2>Keyboard</h2>
       <p class="note">

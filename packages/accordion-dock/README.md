@@ -22,12 +22,19 @@ breadcrumb over the open sequence, and **tear-off** into a second browser window
 
 ```sh
 pnpm add @cujuju/solidjs-accordion-dock \
-  @cujuju/solidjs-anchored-popover @cujuju/solidjs-context-menu @cujuju/solidjs-hooks
+  @cujuju/solidjs-anchored-popover @cujuju/solidjs-context-menu \
+  @cujuju/solidjs-hooks @cujuju/solid-reorder-list
 ```
 
-Peer dependencies: `solid-js >= 1.7.0`, plus the three toolkit packages above —
+Peer dependencies: `solid-js >= 1.7.0`, plus the four toolkit packages above —
 the popover anchors auto-hide flyouts, the context menu backs the panel and rail
-overflow menus, and hooks supplies the resize/after-paint primitives.
+overflow menus, hooks supplies the resize/after-paint primitives, and
+`@cujuju/solid-reorder-list` (`>= 0.3.0-rc.4`) is the drag-to-reorder engine
+behind both the rail and the columns.
+
+> `solid-reorder-list` was VENDORED into this package as a verbatim copy until
+> 2026-07-26 and is now a real dependency. If you are pinning versions, note that
+> reorder behaviour tracks that package rather than this one.
 
 Styles are imported by the entry point; there is nothing to include separately.
 
@@ -60,7 +67,7 @@ import { AccordionGroup, AccordionPanel, AccordionLeaf } from '@cujuju/solidjs-a
 </AccordionGroup>
 ```
 
-## The two rules worth knowing before you design with it
+## The rules worth knowing before you design with it
 
 **1. Flyout-ness is derived, never stored:**
 
@@ -77,6 +84,37 @@ mistake that makes the mode feel broken rather than wrong.
 by the rail, once by the columns — rather than being two sequences kept in sync.
 Dragging either representation moves both, because they are the same array.
 
+**3. `pinned` means "opens as docked", not "is open".** Open/closed and
+pinned/unpinned are independent axes, and the three controls on a panel's chrome
+are three genuinely different actions:
+
+| Control | Result |
+|---|---|
+| `×` | close **and** unpin — the panel forgets it was docked |
+| pin | unpin while staying open; it reverts to flyout behaviour |
+| the rest of the title bar | collapse back to a rail button, **pin survives** — reopening puts it straight back as a docked column |
+
+A rail button is therefore shown whenever a panel is **closed** (pinned or not),
+and hidden only when it is **open and pinned** — in that state the column itself
+is the panel's presence in the dock. Nothing can be stranded, because closing
+always returns a way back.
+
+**4. In `horizontal` + `autoHide`, the rail is the STATIC/DYNAMIC divider.**
+Pinning a column moves it *behind* the rail and takes its button out; the rail
+slides along to sit after the pinned columns and keeps serving whatever is still
+dynamic:
+
+```
+nothing pinned:   [rail: Sym|Strat] [ surface ]
+pin Symbols:      [Symbols] [rail: Strat] [ surface ]
+pin Strategies:   [Symbols][Strategies] [rail: —] [ surface ]
+```
+
+The static region is ordered by **pin order**. With everything pinned the rail
+collapses to zero width, and the last pinned column's splitter is suppressed —
+the rail is a boundary, not a resizer. This is the default whenever `autoHide` is
+on, since pin-means-freeze is the metaphor auto-hide already commits to.
+
 ## Group props
 
 | Prop | Type | Description |
@@ -86,7 +124,8 @@ Dragging either representation moves both, because they are the same array.
 | `mode` | `'fill' \| 'natural'` | `fill` divides a fixed extent between open panels; `natural` sizes each to its content. Default `natural`. |
 | `policy` | `'single' \| 'multi'` | `single` auto-collapses unpinned siblings. Default `single`. |
 | `openPlacement` | `'in-order' \| 'append'` | Whether opening a panel also moves it to the end of the order. Default `in-order`. |
-| `autoHide` | `boolean` | Unpinned panels open as flyouts; pin promotes to a column. `horizontal` only. |
+| `appearance` | `'flush' \| 'cards'` | Chrome only. `flush` (default) draws one frame around the dock with hairline separators between panels; `cards` gives each panel its own border, radius and surface separated by `--acc-card-gap`, and suppresses the group's own frame. Behaviour is identical under both. |
+| `autoHide` | `boolean` | Unpinned panels open as flyouts; pinning promotes them to real docked space. Works in **both** orientations — horizontal flies out over the columns, vertical below the header bar. |
 | `hoverToOpen` | `boolean` | With `autoHide`, hover also opens. Default false — hover is an accelerator, never the only way in. |
 | `maxOpen` | `number` | Cap on simultaneously open panels; opening past it evicts the least-recently-opened unpinned one. |
 | `railOverflow` | `'menu' \| 'pan'` | What the rail does when buttons do not fit. |
@@ -102,12 +141,45 @@ Dragging either representation moves both, because they are the same array.
 
 `id`, `title`, `count`, `badge` (`info` / `success` / `warning` / `danger`),
 `icon`, `railLabel`, `tooltip`, `actions`, `defaultOpen`, `pinnable`, `closable`,
-`accent`, `minSize`, `defaultSize`, `lazyMount`, `tearOffable`, and the usual
+`accent`, `minSize`, `lazyMount`, `tearOffable`, and the usual
 `class` / `headerClass` / `contentClass` / `railClass` / `style`.
 
 `count` and `badge` are deliberately separate slots: a count says *how many*, a
 badge says *something here needs you* — which has no number and often coexists
 with a count of zero.
+
+### Sizing a panel
+
+| Prop | Type | Description |
+|---|---|---|
+| `defaultSize` | `number \| 'content'` | Opening size along the growth axis. A number is applied before first paint. `'content'` MEASURES what the panel actually holds the first time it opens and freezes that — then it is an ordinary draggable, persisted size, never measured again. |
+| `grow` | `boolean` | This panel absorbs the group's leftover extent in `fill` mode. |
+| `shrinkToContent` | `boolean` | This panel is never larger than its own content; its stored size becomes a **ceiling** it scrolls past rather than an extent. |
+
+**Why `'content'` freezes instead of tracking.** A CSS `max-content` track follows
+its content forever, so in a dock holding live numbers a value crossing a digit
+boundary (`$9.99` → `$10.01`) re-resolves the track and every panel after it
+twitches. The frozen size carries one digit-width of slack — derived from the
+content's own font — because that is the failure mode freezing has. On a vertical
+(height) axis no slack is added: a row count does not grow by rollover.
+
+**Who absorbs leftover space in `fill` mode.** `fill` divides the group's whole
+extent, so once every open panel is explicitly sized something must take the
+remainder or the group paints a dead strip. With no `grow` anywhere that falls to
+the **trailing** panel — a safe default, since the trailing panel has no splitter
+handle of its own and growing it overrides nothing the user dragged. It is not
+always the *right* recipient, which is what `grow` is for. Declare it on several
+panels and they share the surplus, each keeping its own size as its basis.
+
+**`shrinkToContent` is the opposite request** — "never more room than my content"
+— so it overrides `grow` on the same panel, and the group's leftover space simply
+stays empty. Two things follow that surprise people:
+
+- Dragging such a panel **larger** than its content shows nothing until the
+  content grows into the new ceiling. Dragging it smaller is immediate.
+- Pair it with **no `defaultSize`**. A ceiling measured from the content is one
+  the content is already touching, so a `'content'` seed would freeze the panel at
+  whatever it held when it first opened.
 
 ## Theming
 
