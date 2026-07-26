@@ -202,6 +202,9 @@ export interface AccordionGroupApi {
   columnOrder: (id: string) => number;
   /** Flex `order` for the rail itself. */
   railOrder: Accessor<number>;
+  /** Is this column against a boundary (group edge or rail), so it drops its own
+   *  separator rather than doubling one that is already drawn? */
+  isEdgeColumn: (id: string) => boolean;
   /** Is this an open pinned column, i.e. in the static region? */
   isStaticColumn: (id: string) => boolean;
   /** Is this the LAST static column — the one whose trailing edge is the rail?

@@ -98,6 +98,38 @@ describe('partitionAtRail — where the columns paint', () => {
   });
 });
 
+describe('the separator-dropping edge columns', () => {
+  it('is BOTH the leading static column and the first one after the rail', () => {
+    const visualOpen = painted(['a', 'b', 'c'], ['a', 'b', 'c']);
+    const p = partitionAtRail({ visualOpen, pinOrder: ['b'], isLeaf, enabled: true });
+
+    // b is against the group's outer edge (where the rail used to be)...
+    expect(p.isEdgeColumn('b')).toBe(true);
+    // ...and a is the first column after the rail, so it abuts the rail's border.
+    expect(p.isEdgeColumn('a')).toBe(true);
+    // c abuts another column and keeps its separator.
+    expect(p.isEdgeColumn('c')).toBe(false);
+  });
+
+  it('with nothing pinned, the first column still qualifies', () => {
+    // The regression this guards: keying the attribute off "flex slot 1" alone
+    // left NO column marked when the static run was empty, so the first column
+    // drew a border a pixel from the rail's own.
+    const visualOpen = painted(['a', 'b'], ['a', 'b']);
+    const p = partitionAtRail({ visualOpen, pinOrder: [], isLeaf, enabled: true });
+
+    expect(p.isEdgeColumn('a')).toBe(true);
+    expect(p.isEdgeColumn('b')).toBe(false);
+  });
+
+  it('divider off → the column next to the rail, exactly as before', () => {
+    const visualOpen = painted(['a', 'b'], ['a', 'b']);
+    const p = partitionAtRail({ visualOpen, pinOrder: ['a'], isLeaf, enabled: false });
+    expect(p.isEdgeColumn('a')).toBe(true);
+    expect(p.isEdgeColumn('b')).toBe(false);
+  });
+});
+
 describe('showsRailButton — all four combinations of open × pinned', () => {
   const cases: { open: boolean; pinned: boolean; shown: boolean; why: string }[] = [
     { open: true, pinned: true, shown: false, why: 'the column IS the panel’s presence' },

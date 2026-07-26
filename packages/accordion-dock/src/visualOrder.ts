@@ -134,6 +134,19 @@ export interface RailPartition {
   railOrder: number;
   /** Flex `order` per open id. */
   orderOf: (id: string) => number;
+  /**
+   * Is this column hard against a boundary, so it must drop its own separator?
+   *
+   * TWO columns qualify under the divider, not one: the leading STATIC column
+   * (against the group's outer edge, where the rail used to be) and the first
+   * DYNAMIC column (against the rail itself). Either would otherwise draw a
+   * border a pixel away from an edge that already has one.
+   *
+   * With the divider off there is no static run, so this reduces to "the column
+   * immediately after the rail" — exactly the single case the attribute meant
+   * before, which is why the group needs no branch for the two layouts.
+   */
+  isEdgeColumn: (id: string) => boolean;
 }
 
 /**
@@ -169,6 +182,11 @@ export function partitionAtRail(input: RailPartitionInput): RailPartition {
     // Unopened panels never paint, so their slot is irrelevant; 0 keeps them out
     // of the numbered run rather than colliding with a real column.
     orderOf: (id) => orders.get(id) ?? 0,
+    isEdgeColumn: (id) => {
+      const o = orders.get(id);
+      if (o === undefined) return false;
+      return o === 1 || o === railOrder + 1;
+    },
   };
 }
 

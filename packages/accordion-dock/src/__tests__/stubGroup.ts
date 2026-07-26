@@ -192,6 +192,7 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
 
     railDivider,
     columnOrder: (id) => partition().orderOf(id),
+    isEdgeColumn: (id) => partition().isEdgeColumn(id),
     railOrder: () => partition().railOrder,
     isStaticColumn: (id) => partition().staticIds.includes(id),
     isRailBoundary: (id) => {

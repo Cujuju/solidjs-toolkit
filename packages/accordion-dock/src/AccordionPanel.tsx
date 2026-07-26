@@ -262,11 +262,12 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
          visually, and CSS has no "first by order" selector — so the component,
          which already knows the open index, says so out loud. Used to drop the
          separator that would otherwise double up against the rail's own edge. */
-      /* The first thing PAINTED, which under the rail divider is the leading
-         static column rather than whatever opened first. Both cases are "flex
-         slot 1", so reading the computed order says it once instead of branching
-         on which layout is active. */
-      data-col-first={horizontal() && group.columnOrder(props.id) === 1 ? 'true' : 'false'}
+      /* Hard against a boundary — the group's outer edge or the rail — so it drops
+         the separator that edge already draws. Under the divider TWO columns
+         qualify (the leading pinned one and the first one after the rail); with
+         the divider off it reduces to the single column next to the rail, which
+         is what this attribute has always meant. */
+      data-col-first={horizontal() && group.isEdgeColumn(props.id) ? 'true' : 'false'}
       /* The last pinned column: its trailing edge IS the rail. */
       data-rail-boundary={
         horizontal() && group.isRailBoundary(props.id) ? 'true' : 'false'

@@ -717,6 +717,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     openIndex: (id) => visualOpenIds().indexOf(id),
     railDivider,
     columnOrder: (id) => railPartition().orderOf(id),
+    isEdgeColumn: (id) => railPartition().isEdgeColumn(id),
     railOrder,
     isStaticColumn: (id) => railPartition().staticIds.includes(id),
     /** The last pinned column — the one whose trailing edge IS the rail. */
