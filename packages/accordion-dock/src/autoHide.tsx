@@ -15,6 +15,7 @@ import type {
   AccordionOrientation,
   AccordionPolicy,
   AccordionRailSide,
+  ActivatorHoverProps,
   PanelMeta,
 } from './context';
 
@@ -65,15 +66,33 @@ import type {
  * the handoff for the point-by-point fit assessment.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * SCOPE — auto-hide applies to `horizontal` orientation only.
+ * SCOPE — auto-hide applies to BOTH orientations. One rule, one axis rotated.
  *
- * Not an oversight: the premise of a dismissable overlay is that the activator
- * survives the dismissal, so there is always a way back. In `horizontal` the
- * rail is a permanent strip that no overlay covers. In `vertical` the activator
- * is a full-width header living in the flow, an overlay anchored to it would
- * cover its own siblings, and dismissing it leaves the user where they started
- * with no visible affordance that anything happened. `isFlyout` returns false
- * for `vertical`, so the prop is simply inert there.
+ * The invariant that matters is that THE ACTIVATOR SURVIVES THE DISMISSAL, so
+ * there is always a way back. Both orientations satisfy it, by different means:
+ *
+ *   horizontal — the activator is a rail button in a permanent strip that no
+ *                overlay covers. The flyout emerges from the rail's outer edge,
+ *                over the columns.
+ *   vertical   — the activator is the panel's own header bar, which stays in
+ *                flow. The flyout is anchored BELOW it (`bottom-start`), so it
+ *                covers the content and the sibling panels beneath — never the
+ *                bar it came from. Dismissing it returns the bar to a collapsed
+ *                panel, which is a visible change of state, not a no-op.
+ *
+ * This file previously declared vertical out of scope on the reasoning that "an
+ * overlay anchored to a full-width header would cover its own siblings". Covering
+ * siblings is what an overlay IS — the horizontal one covers the columns, which
+ * is the entire proposition. The claim that would have justified the exclusion is
+ * that it covers its own ACTIVATOR, and a bottom-anchored flyout does not: it
+ * opens away from the bar, exactly as the horizontal one opens away from the
+ * rail. The exclusion was wrong as stated and is removed.
+ *
+ * What genuinely differs between the two is the CROSS-AXIS size, and only that:
+ * a horizontal flyout is as wide as its own panel (so pinning does not resize
+ * it), while a vertical flyout is as wide as the GROUP, because a vertical
+ * panel's width has always been the dock's width — it has no private width to
+ * preserve. See `crossAxisStyle`.
  */
 
 /**
@@ -343,9 +362,16 @@ export interface AutoHideApi {
    *  belongs in its column. Consumed by `AccordionPanel`'s own Portal — see the
    *  note on `PanelOutlet`, which is exported but has no callers. */
   flyoutMountFor: (id: string) => HTMLElement | undefined;
-  /** Spread on the rail button. Empty object when hover-to-open is off, so the
-   *  listeners are not attached at all rather than attached and inert. */
-  railHoverProps: (id: string) => JSX.HTMLAttributes<HTMLElement>;
+  /**
+   * Spread on the panel's ACTIVATOR — the rail button in horizontal, the header
+   * bar in vertical. Named for the role rather than for one orientation's
+   * furniture: the hover-intent behaviour is identical either way, and calling it
+   * `railHoverProps` was what made the vertical case look like it needed its own.
+   *
+   * Empty object when hover-to-open is off, so the listeners are not attached at
+   * all rather than attached and inert.
+   */
+  activatorHoverProps: (id: string) => ActivatorHoverProps;
   /** Dismiss a flyout: closes the panel and returns focus to its rail button if
    *  focus was inside. */
   dismiss: (id: string) => void;
@@ -391,8 +417,8 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
 
   const isFlyout = (id: string): boolean => {
     if (!options.enabled()) return false;
-    // See SCOPE at the top of the file.
-    if (group.orientation() !== 'horizontal') return false;
+    // NO ORIENTATION GATE — see SCOPE at the top of the file. Both orientations
+    // have an activator that survives the dismissal, so both can fly out.
     if (!group.isOpen(id)) return false;
     if (group.isPinned(id)) return false;
     // A leaf has no rail button, so it has no anchor and could not be placed.
@@ -589,7 +615,7 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
   return {
     isFlyout,
     flyoutMountFor: (id) => (isFlyout(id) ? hosts().get(id) : undefined),
-    railHoverProps: (id) =>
+    activatorHoverProps: (id) =>
       // When hover-to-open is off there is still a reason to attach ENTER: it
       // cancels a pending leave when the pointer returns to the button of a
       // hover-opened flyout. But with hover-open off nothing can be
@@ -659,17 +685,45 @@ function Flyout(props: {
   const anchor = (): HTMLElement | null | undefined => props.group.activatorElOf(props.id);
 
   /**
-   * The flyout emerges from the rail's OUTER edge, i.e. the direction the
-   * columns grow. Rail left → columns grow right → `right-start`. This is the
-   * same anchoring rule the columns already follow, so a panel appears in the
-   * same place whether it is a flyout or a column — which is what makes pinning
+   * The flyout emerges the way the panels themselves grow, so a panel appears in
+   * the same place whether it is a flyout or docked — which is what makes pinning
    * read as "this stays" rather than as "this moved".
+   *
+   * horizontal — out of the rail's OUTER edge, the direction the columns grow.
+   *              Rail left → columns grow right → `right-start`.
+   * vertical   — DOWNWARD from the header bar, the direction the stack grows.
+   *              `below-start` also guarantees the bar is never covered by its
+   *              own flyout, which is what keeps the way back visible.
    */
-  const placement = (): AnchoredPlacement =>
-    props.group.railSide() === 'left' ? 'right-start' : 'left-start';
+  const placement = (): AnchoredPlacement => {
+    if (props.group.orientation() === 'vertical') return 'below-start';
+    return props.group.railSide() === 'left' ? 'right-start' : 'left-start';
+  };
 
-  /** Width follows the panel's own size, so promotion does not resize it. */
-  const widthPx = (): number => props.group.sizeOf(props.id) ?? FLYOUT_DEFAULT_WIDTH_PX;
+  /** The group element — the vertical flyout's width reference, and the source of
+   *  the typography the Portal would otherwise lose. */
+  const groupEl = (): Element | null | undefined => anchor()?.closest(GROUP_SELECTOR);
+
+  /**
+   * CROSS-AXIS size — the one place the two orientations genuinely differ.
+   *
+   * horizontal: the panel's OWN width, so promoting a flyout to a column does not
+   *   resize it. The panel has a private width (a column is as wide as the user
+   *   dragged it), so preserving it is meaningful.
+   * vertical: the GROUP's width. A vertical panel has never had a private width —
+   *   it spans the dock, and `sizeOf` on this axis is its HEIGHT, so feeding that
+   *   in as a width would render a 210px-tall panel 210px wide by coincidence of
+   *   sharing one number. Measured off the group rather than assumed, and falling
+   *   back to the same default the horizontal path uses if it cannot be read.
+   */
+  const crossAxisPx = (): number => {
+    if (props.group.orientation() !== 'vertical') {
+      return props.group.sizeOf(props.id) ?? FLYOUT_DEFAULT_WIDTH_PX;
+    }
+    const el = groupEl();
+    const width = el instanceof HTMLElement ? el.getBoundingClientRect().width : 0;
+    return width > 0 ? Math.round(width) : FLYOUT_DEFAULT_WIDTH_PX;
+  };
 
   /**
    * A flyout may be at most as tall as the dock. The rail is measured because it
@@ -680,9 +734,19 @@ function Flyout(props: {
   const maxHeight = (): string => {
     // Reads `anchor()`, so this re-runs when the rail button's ref lands or is
     // replaced — no second signal, and no side-effecting accessor.
-    const rail = anchor()?.closest(RAIL_SELECTOR);
-    if (rail === null || rail === undefined) return `${FLYOUT_FALLBACK_MAX_HEIGHT_VH}vh`;
-    return `${Math.round(rail.getBoundingClientRect().height)}px`;
+    //
+    // The MEASURED ELEMENT differs by orientation, for the same reason in both:
+    // measure whatever already spans exactly the dock's growth axis. Horizontal
+    // has the rail, which is that strip by construction. Vertical has no rail, so
+    // the group itself is the only thing with that extent — and a vertical flyout
+    // dropping from a header bar should not be taller than the dock it belongs
+    // to, or it reads as a menu that escaped its container.
+    const source =
+      props.group.orientation() === 'vertical'
+        ? groupEl()
+        : anchor()?.closest(RAIL_SELECTOR);
+    if (source === null || source === undefined) return `${FLYOUT_FALLBACK_MAX_HEIGHT_VH}vh`;
+    return `${Math.round(source.getBoundingClientRect().height)}px`;
   };
 
   onCleanup(() => props.registerHost(props.id, null));
@@ -703,8 +767,8 @@ function Flyout(props: {
           // Sourced from the group via the anchor: the rail button is inside the
           // group, so no second ref has to be threaded through the API for a
           // reference the flyout already holds. See `inheritedTypographyOf`.
-          ...inheritedTypographyOf(anchor()?.closest(GROUP_SELECTOR)),
-          '--acc-flyout-width': `${widthPx()}px`,
+          ...inheritedTypographyOf(groupEl()),
+          '--acc-flyout-width': `${crossAxisPx()}px`,
           '--acc-flyout-max-height': maxHeight(),
         };
         // The per-panel accent recolours the pin and the focus ring for this

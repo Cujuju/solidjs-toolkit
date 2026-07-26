@@ -43,9 +43,29 @@
  * the same cascade layer. While this file was wrapped in `@layer
  * cujuju-defaults` and that rule was not, specificity never got a vote and the
  * column stayed in the layout. See the file header.
+ *
+ * HORIZONTAL ONLY, and this is the one structural difference between the two
+ * orientations. In horizontal the panel's activator is a rail button the GROUP
+ * renders, so removing the whole column takes nothing with it. In vertical the
+ * activator is the panel's OWN header bar: hiding the panel would hide the
+ * header, which is both the flyout's anchor and the only way to dismiss it —
+ * the flyout would be left pointing at an element that no longer has a box.
+ * A vertical flying-out panel therefore stays in flow showing just its header,
+ * which is exactly what a collapsed panel looks like; its content is already
+ * out of the layout because `AccordionPanel` marks the inline host `hidden`
+ * while the subtree is portalled away.
  */
-.acc-panel[data-flyout='true'] {
+.acc-group[data-orientation='horizontal'] > .acc-panel[data-flyout='true'] {
   display: none;
+}
+
+/*
+ * Vertical: the flying-out panel must not GROW, or `fill` mode would hand an
+ * empty shell an equal share of the dock and leave a gap where the content used
+ * to be. Collapsed-panel sizing, which is the state it is visually in.
+ */
+.acc-group[data-orientation='vertical'] > .acc-panel[data-flyout='true'] {
+  flex: 0 0 auto;
 }
 
 /*

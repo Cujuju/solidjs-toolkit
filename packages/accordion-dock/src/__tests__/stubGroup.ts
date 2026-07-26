@@ -292,6 +292,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
     dock: () => {},
     tearOffMountFor: () => undefined,
     isFlyout: () => false,
+    // Hover-to-open is a live-DOM behaviour; the stub's consumers are pure rules.
+    activatorHoverProps: () => ({}),
     flyoutMountFor: () => undefined,
     activatorElOf: () => undefined,
     density: () => 'comfortable',

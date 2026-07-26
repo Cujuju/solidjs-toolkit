@@ -959,6 +959,11 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     // which panels are overlays.
     isFlyout: (id) => isFlyoutId(id),
     flyoutMountFor: (id) => autoHideApi?.flyoutMountFor(id),
+    /* The VERTICAL activator is the panel's own header bar, which the panel
+       renders — so the hover-intent listeners have to reach it through the group
+       rather than being spread by the group onto a rail button it owns. Same
+       object either way; only who spreads it differs. */
+    activatorHoverProps: (id) => autoHideApi?.activatorHoverProps(id) ?? {},
     density: () => props.density ?? 'comfortable',
 
     panelElements,
@@ -1166,7 +1171,7 @@ function RailButton(props: {
     <>
     <button
       {...dragProps()}
-      {...props.autoHide.railHoverProps(props.meta.id)}
+      {...props.autoHide.activatorHoverProps(props.meta.id)}
       {...menu.triggerProps}
       {...{ [RAIL_ITEM_ATTR]: props.meta.id }}
       data-flyout={flyoutDataAttr(props.autoHide.isFlyout(props.meta.id))}

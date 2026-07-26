@@ -285,7 +285,14 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     >
       {/* VERTICAL: the activator is a full-width header bar above the content. */}
       <Show when={!horizontal()}>
-        <div class="acc-header-row" {...menu.triggerProps}>
+        {/* The vertical activator. Under auto-hide it is also the flyout's
+            ANCHOR and its hover target — the exact role the rail button plays in
+            horizontal — so it carries the same hover-intent listeners. */}
+        <div
+          class="acc-header-row"
+          {...group.activatorHoverProps(props.id)}
+          {...menu.triggerProps}
+        >
           <button
             {...dragHandle()}
             ref={registerHeaderEl}

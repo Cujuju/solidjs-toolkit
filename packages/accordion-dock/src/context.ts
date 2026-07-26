@@ -162,6 +162,20 @@ export interface AccordionLayout {
  *  is harder to diagnose than one that obviously fell back to defaults. */
 export const ACCORDION_LAYOUT_VERSION = 1;
 
+/**
+ * The two listeners hover-to-open attaches to a panel's activator.
+ *
+ * Spelled out rather than typed as `JSX.HTMLAttributes<HTMLElement>`: the two
+ * activators are different ELEMENTS (a `<button>` in horizontal, a `<div>` header
+ * row in vertical), and the generic attribute bag carries a `ref` whose element
+ * type then has to match at every spread site. The listeners are all this
+ * actually is, so saying so makes it spreadable onto either without a cast.
+ */
+export interface ActivatorHoverProps {
+  onPointerEnter?: (e: PointerEvent) => void;
+  onPointerLeave?: () => void;
+}
+
 export interface AccordionGroupApi {
   orientation: Accessor<AccordionOrientation>;
   railSide: Accessor<AccordionRailSide>;
@@ -322,6 +336,15 @@ export interface AccordionGroupApi {
   /** Where a flying-out panel's content should mount, or undefined when it belongs
    *  inline in its own column. */
   flyoutMountFor: (id: string) => HTMLElement | undefined;
+  /**
+   * Hover-intent listeners for a panel's ACTIVATOR. Empty when hover-to-open is
+   * off, so nothing is attached rather than attached and inert.
+   *
+   * Reached through the group because WHO renders the activator differs by
+   * orientation: horizontal's rail button belongs to the group, vertical's header
+   * bar belongs to the panel. The listeners are the same object either way.
+   */
+  activatorHoverProps: (id: string) => ActivatorHoverProps;
   /**
    * The element that currently REPRESENTS this panel in the chrome, reactively.
    *

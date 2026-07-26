@@ -129,3 +129,48 @@ globalThis.requestAnimationFrame = ((fn: FrameRequestCallback): number =>
 globalThis.cancelAnimationFrame = ((id: number): void => {
   clearTimeout(id as unknown as NodeJS.Timeout);
 }) as typeof cancelAnimationFrame;
+
+/**
+ * The POPOVER API, stubbed.
+ *
+ * jsdom 24 implements neither `showPopover`/`hidePopover` nor the `[popover]`
+ * top-layer behaviour, so any test that actually OPENS a flyout threw before
+ * reaching its assertion — which is why auto-hide had no rendered-group coverage
+ * at all until vertical needed some. The tell was that the only passing flyout
+ * tests were the ones where no flyout opened.
+ *
+ * A STUB in the same sense as the ResizeObserver above: it makes the calls
+ * succeed and keeps `:popover-open` answerable, without pretending to implement a
+ * top layer jsdom has no way to paint. Tests here assert DOM STRUCTURE and group
+ * STATE — that the panel is marked as flying out, that its header survives, that
+ * its inline content host is hidden — none of which depend on the popover
+ * actually being raised. Anything that genuinely needs the top layer belongs in a
+ * browser test, which is where the horizontal flyout's own layering bug was
+ * caught (see the header of `autoHide.css`).
+ */
+type PopoverElement = HTMLElement & { __popoverOpen?: boolean };
+
+if (typeof HTMLElement !== 'undefined' && HTMLElement.prototype.showPopover === undefined) {
+  HTMLElement.prototype.showPopover = function showPopover(this: PopoverElement): void {
+    this.__popoverOpen = true;
+  };
+  HTMLElement.prototype.hidePopover = function hidePopover(this: PopoverElement): void {
+    this.__popoverOpen = false;
+  };
+  HTMLElement.prototype.togglePopover = function togglePopover(
+    this: PopoverElement,
+    force?: boolean,
+  ): boolean {
+    this.__popoverOpen = force ?? !this.__popoverOpen;
+    return this.__popoverOpen;
+  };
+
+  /* `matches(':popover-open')` throws on an unknown pseudo-class in jsdom, which
+     turns a state query into a crash. Answer it from the flag above and delegate
+     everything else to the real implementation. */
+  const realMatches = Element.prototype.matches;
+  Element.prototype.matches = function matches(this: PopoverElement, selector: string): boolean {
+    if (selector.includes(':popover-open')) return this.__popoverOpen === true;
+    return realMatches.call(this, selector);
+  };
+}
