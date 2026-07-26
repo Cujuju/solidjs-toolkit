@@ -50,8 +50,8 @@ import { DelegatedEvents, Portal, delegateEvents } from 'solid-js/web';
  * a. Anything that captured the OPENER's `window`/`document` at module scope
  *    keeps talking to the opener. In THIS control that is `resize.ts` (splitter
  *    drags add `pointermove`/`pointerup` to the opener `window`),
- *    `vendor/createReorderList.ts` (same, on the opener `document`) and
- *    `vendor/shared.ts` (menu dismissal on the opener `document`/`window`). A
+ *    `@cujuju/solid-reorder-list` (same, on the opener `document`) and
+ *    `gesture.ts` (menu dismissal on the opener `document`/`window`). A
  *    pointer gesture that starts inside the popup dispatches into the POPUP's
  *    document, so those listeners never fire and a drag would start and never
  *    end. Consequence, deliberate: only the panel's CONTENT is portalled. Do not

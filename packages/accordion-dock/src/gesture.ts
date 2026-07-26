@@ -1,26 +1,26 @@
-/* VENDORED — verbatim copy of E:\Development\Projects\solid-reorder-list\src\shared.ts
-   (@cujuju/solid-reorder-list v0.3.0-rc.4, not yet published to npm, so the
-   playground cannot depend on it as a package).
-
-   DO NOT EDIT HERE. When accordion-dock is promoted out of the mock, DELETE this
-   vendor directory and take a real dependency on @cujuju/solid-reorder-list —
-   a forked copy that drifts from the source repo is worse than either. */
-
 /**
- * Shared helpers used by both 1-D and 2-D reorder primitives.
+ * Two pointer-gesture helpers the RAIL PAN owns.
  *
- * Anything in this file MUST be contract-identical for both engines.
- * If a helper diverges between primitives, even slightly, duplicate it
- * back into the engine that needs it rather than parameterising here.
+ * ── Why these are here and not imported ─────────────────────────────────────
+ * They arrived as part of a vendored copy of `@cujuju/solid-reorder-list`, which
+ * this package now depends on for real (see `AccordionGroup`). The reorder
+ * primitive itself came back as the dependency; these two did NOT, because they
+ * are not part of that library's public surface — its `index.ts` exports only
+ * `createReorderList`, `createReorderGrid`, `DEFAULT_SKIP_SELECTOR` and their
+ * types, and its `exports` map admits no subpath, so `.../src/shared` cannot be
+ * deep-imported past it.
+ *
+ * So the choice was: reach around a package's declared API, or own the twenty
+ * lines. Owning them is the smaller lie. They are consumed by `railPan.ts` — the
+ * dock's OWN pan gesture, which is not a reorder and would need this behaviour
+ * even if the reorder library did not exist.
+ *
+ * NOT a fork, and nothing here tracks upstream: if the library ever exports them,
+ * delete this file and import them. Until then this is dock code.
+ *
+ * Original implementation © the `@cujuju/solid-reorder-list` author (same author
+ * as this package), reused here with the same intent.
  */
-
-/**
- * Default selector for skipping drag activation when the pointerdown
- * target is a focusable interactive control. Exported so consumers can
- * compose, e.g.
- * `skipSelector: DEFAULT_SKIP_SELECTOR + ', [data-no-drag]'`.
- */
-export const DEFAULT_SKIP_SELECTOR = 'button, input, a, [role="button"]';
 
 /**
  * Block the next document-level click after a drag commits.

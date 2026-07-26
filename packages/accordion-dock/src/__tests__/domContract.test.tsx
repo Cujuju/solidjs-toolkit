@@ -59,7 +59,7 @@ const CSS_SOURCES = import.meta.glob('../*.css', {
   eager: true,
 }) as Record<string, string>;
 
-const CODE_SOURCES = import.meta.glob(['../*.ts', '../*.tsx', '../vendor/*.ts'], {
+const CODE_SOURCES = import.meta.glob(['../*.ts', '../*.tsx'], {
   query: '?raw',
   import: 'default',
   eager: true,

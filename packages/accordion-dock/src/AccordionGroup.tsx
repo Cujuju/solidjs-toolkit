@@ -32,7 +32,7 @@ import { RailOverflowMenu } from './RailOverflowMenu';
 import { createRailPan } from './railPan';
 import { createAutoHide, flyoutDataAttr, type AutoHideApi } from './autoHide';
 import { createTearOff, type TearOffController } from './tearOff';
-import { createReorderList } from './vendor/createReorderList';
+import { createReorderList } from '@cujuju/solid-reorder-list';
 
 export interface AccordionGroupProps {
   children: JSX.Element;

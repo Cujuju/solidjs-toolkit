@@ -33,6 +33,9 @@ importers:
         specifier: '>=1.7.0'
         version: 1.9.12
     devDependencies:
+      '@cujuju/solid-reorder-list':
+        specifier: link:../../../solid-reorder-list
+        version: link:../../../solid-reorder-list
       '@cujuju/solidjs-anchored-popover':
         specifier: workspace:^
         version: link:../anchored-popover

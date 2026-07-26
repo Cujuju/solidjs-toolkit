@@ -44,7 +44,8 @@
     "@cujuju/solidjs-anchored-popover": "workspace:^",
     "@cujuju/solidjs-context-menu": "workspace:^",
     "@cujuju/solidjs-hooks": "workspace:^",
-    "solid-js": ">=1.7.0"
+    "solid-js": ">=1.7.0",
+    "@cujuju/solid-reorder-list": ">=0.3.0-rc.4"
   },
   "scripts": {
     "test": "vitest run",
@@ -60,7 +61,8 @@
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",
     "vite-plugin-solid": "^2.11.12",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@cujuju/solid-reorder-list": "link:../../../solid-reorder-list"
   },
   "publishConfig": {
     "access": "public"

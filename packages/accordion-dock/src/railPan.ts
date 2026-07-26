@@ -1,7 +1,7 @@
 import { createEffect, createSignal, onCleanup, type Accessor } from 'solid-js';
 import type { AccordionGroupApi } from './context';
 import { RAIL_CONTROL_SELECTOR } from './railOverflow';
-import { blockNextClick, createCancelListeners } from './vendor/shared';
+import { blockNextClick, createCancelListeners } from './gesture';
 
 /**
  * Drag-to-pan for the rail, coexisting with drag-to-reorder.
