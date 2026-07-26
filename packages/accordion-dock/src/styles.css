@@ -42,6 +42,11 @@
     --acc-header-height: 26px;
     --acc-header-pad-x: 8px;
     --acc-content-pad: 8px;
+    /* Space between cards under `appearance: cards`. Matched to the content
+       padding on purpose: the gap OUTSIDE a card and the padding INSIDE it are
+       the same rhythm, so a card's contents sit the same distance from its
+       neighbour as from its own edge. */
+    --acc-card-gap: 8px;
     --acc-title-size: 12px;
     --acc-title-weight: 600;
 
@@ -188,6 +193,7 @@
     --acc-header-height: 20px;
     --acc-header-pad-x: 6px;
     --acc-content-pad: 6px;
+    --acc-card-gap: 6px;
     /* 11px is the floor: below it UI text stops being comfortably readable, so
        the type scales less than the boxes around it. */
     --acc-title-size: 11px;
@@ -1220,3 +1226,118 @@
     transition: none !important;
   }
 }
+
+/* ── Appearance: cards ────────────────────────────────────────────────────────
+   PURELY CHROME. Nothing below changes what the dock DOES — open, pin, reorder,
+   size and flyout all behave identically; only what is drawn changes. Every rule
+   is keyed on `[data-appearance='cards']`, so the default `flush` rendering is
+   untouched by construction rather than by care.
+
+   The flush look is ONE frame with panels divided by hairlines inside it. Cards
+   inverts that: the frame moves onto each panel and the group stops drawing one,
+   with a gap doing the dividing that separators did. Both orientations get it —
+   vertical stacks the cards, horizontal sets them side by side — because the gap
+   is applied along the group's main axis and needs no per-axis rule. */
+
+.acc-group[data-appearance='cards'] {
+  /* A frame around a row of framed cards is the doubled chrome this control has
+     already had to remove once. The group keeps its layout job and gives up its
+     decoration entirely — the host's own background is what shows between the
+     cards and is what makes them read as separate surfaces. */
+  border: 0;
+  background: transparent;
+  /* The divider. Applied on the group so it follows the main axis in either
+     orientation, and so flex `order` cannot move a panel away from its gap the
+     way an adjacency selector (`+`) could. */
+  gap: var(--acc-card-gap);
+}
+
+/* The card itself. `overflow: hidden` would be the one-line way to clip the
+   header's background to these corners — and it is WRONG here: the splitter is
+   positioned OUTSIDE the panel's box so it can straddle the gap, and clipping the
+   panel would delete the resize handle. The header chrome rounds its own corners
+   just below instead. */
+.acc-group[data-appearance='cards'] > .acc-panel {
+  border: 1px solid var(--acc-border);
+  border-radius: var(--acc-radius);
+  background: var(--acc-bg);
+}
+
+/* ── Separator suppression ───────────────────────────────────────────────────
+   The flush rules below divide panels INSIDE a shared frame; in cards the gap
+   already does that, and these would either double a card's own border or, in
+   the `data-col-first` case, strip the borders off the card hard against the
+   rail. Restated at matching-or-higher specificity rather than by reordering,
+   so this does not silently depend on where in the file it sits. */
+.acc-group[data-appearance='cards'][data-orientation='vertical'] > .acc-panel + .acc-panel {
+  border: 1px solid var(--acc-border);
+}
+
+.acc-group[data-appearance='cards'][data-orientation='horizontal'] > .acc-panel,
+.acc-group[data-appearance='cards'][data-orientation='horizontal']
+  > .acc-panel[data-col-first='true'] {
+  border: 1px solid var(--acc-border);
+}
+
+/* ── Header corners ──────────────────────────────────────────────────────────
+   The header bar (vertical) and the column title bar (horizontal) both paint a
+   background at the card's leading edge, so a square corner there fills the
+   card's radius and the card reads as notched. Rounded here rather than by
+   clipping the card — see the note on the card rule. */
+.acc-group[data-appearance='cards'] > .acc-panel > .acc-header-row,
+.acc-group[data-appearance='cards'] > .acc-panel > .acc-col-bar {
+  border-top-left-radius: var(--acc-radius);
+  border-top-right-radius: var(--acc-radius);
+}
+
+/* A CLOSED panel is nothing but its header, so the header IS the card and owns
+   all four corners. */
+.acc-group[data-appearance='cards'] > .acc-panel[data-open='false'] > .acc-header-row {
+  border-radius: var(--acc-radius);
+}
+
+/* ── The rail stays FLUSH, and is not a card ─────────────────────────────────
+   Deliberate, and the one part of this with no obvious answer.
+
+   A card frame says "I am a peer of the other cards". The rail is not: it never
+   opens or closes, holds no content, cannot be pinned or reordered, and under the
+   divider model it is the BOUNDARY between the static and dynamic regions — a
+   boundary drawn as one of the things it separates is a category error. It is
+   also ~32px wide, so a frame around it would be very nearly all border.
+
+   So it keeps its flush strip against the group's edge. It still gets the gap
+   (the group's `gap` applies to every child), which reads correctly: an edge
+   fixture with the cards floating beside it at the same rhythm they float from
+   each other. Its inner border goes, because that border's whole job was to
+   divide it from columns it now has a gap from. */
+.acc-group[data-appearance='cards'][data-rail-side='left'] > .acc-rail,
+.acc-group[data-appearance='cards'][data-rail-side='right'] > .acc-rail {
+  border-inline: 0;
+  background: transparent;
+}
+
+/* ── Splitters land in the GAP ───────────────────────────────────────────────
+   Flush centres the handle on the panel's trailing EDGE, which is where the
+   divide visibly is when panels touch. With cards the divide the user sees is the
+   middle of the gap, half a gap further out — so the handle moves with it. Miss
+   this and the grab target sits on the card's border while the user aims at the
+   space between the cards. */
+.acc-group[data-appearance='cards'][data-orientation='horizontal'][data-rail-side='left']
+  .acc-splitter {
+  right: calc(-1 * (var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2));
+}
+
+.acc-group[data-appearance='cards'][data-orientation='horizontal'][data-rail-side='right']
+  .acc-splitter {
+  left: calc(-1 * (var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2));
+}
+
+.acc-group[data-appearance='cards'][data-orientation='vertical'] .acc-splitter {
+  bottom: calc(-1 * (var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2));
+}
+
+/* FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout` already draws a
+   bordered, shadowed surface, and under cards its ELEVATION is what says it is
+   floating above the docked cards rather than being one of them. Matching a
+   flyout's border to the cards' would take the only cue that distinguishes
+   transient from docked and hand it to the thing it distinguishes them from. */

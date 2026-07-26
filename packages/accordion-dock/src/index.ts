@@ -40,6 +40,7 @@ export { AccordionLeaf, type AccordionLeafProps } from './AccordionLeaf';
 export {
   useAccordionGroup,
   type AccordionGroupApi,
+  type AccordionAppearance,
   type AccordionMode,
   type AccordionOrientation,
   type AccordionPolicy,

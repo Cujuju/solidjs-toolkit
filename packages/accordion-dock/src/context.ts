@@ -17,6 +17,18 @@ export type AccordionOrientation =
   | 'horizontal';
 
 /**
+ * How the dock's CHROME is drawn. Purely visual, and orthogonal to everything
+ * else: open/pin/reorder/sizing behave identically under both.
+ */
+export type AccordionAppearance =
+  /** ONE frame around the whole dock, panels divided by hairline separators. The
+   *  default, and the only appearance that existed before this prop. */
+  | 'flush'
+  /** Each panel is its OWN card — border, radius, surface — separated from its
+   *  siblings by a gap, with the group drawing no frame of its own. */
+  | 'cards';
+
+/**
  * Which edge the rail is docked against (`horizontal` orientation only).
  *
  * The rail is the ANCHOR: columns always grow AWAY from it, in open order. Rail on

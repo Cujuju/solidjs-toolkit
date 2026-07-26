@@ -4,6 +4,7 @@ import {
   AccordionGroupContext,
   type AccordionGroupApi,
   type AccordionLayout,
+  type AccordionAppearance,
   type AccordionMode,
   type AccordionOpenPlacement,
   type AccordionOrientation,
@@ -43,6 +44,9 @@ export interface AccordionGroupProps {
   railSide?: AccordionRailSide;
   /** See `AccordionMode`. Default `natural` — the non-surprising one. */
   mode?: AccordionMode;
+  /** See `AccordionAppearance`. Default `flush` — the look this control has
+   *  always had, so an existing consumer that says nothing renders unchanged. */
+  appearance?: AccordionAppearance;
   /** See `AccordionPolicy`. Default `single` — the accordion behaviour. */
   policy?: AccordionPolicy;
   /** See `AccordionOpenPlacement`. Default `in-order` — a stable rail. */
@@ -211,6 +215,7 @@ function readPersisted(key: string | undefined): PersistedState | null {
 export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const orientation = (): AccordionOrientation => props.orientation ?? 'vertical';
   const railSide = (): AccordionRailSide => props.railSide ?? 'left';
+  const appearance = (): AccordionAppearance => props.appearance ?? 'flush';
   const mode = (): AccordionMode => props.mode ?? 'natural';
   const policy = (): AccordionPolicy => props.policy ?? 'single';
   const openPlacement = (): AccordionOpenPlacement => props.openPlacement ?? 'in-order';
@@ -1062,6 +1067,9 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         data-orientation={orientation()}
         data-rail-side={railSide()}
         data-mode={mode()}
+        /* Chrome only — every rule keyed off this lives in `styles.css`, and no
+           behaviour anywhere branches on it. */
+        data-appearance={appearance()}
         data-policy={policy()}
         data-density={props.density ?? 'comfortable'}
         data-animated={props.animated ? 'true' : 'false'}
