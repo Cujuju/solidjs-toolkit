@@ -1,6 +1,11 @@
 import type { AccordionGroupApi, PanelBadge, PanelMeta } from '../context';
 import { ACCORDION_LAYOUT_VERSION } from '../context';
-import { orderVisualOpen, survivesBulkClose } from '../visualOrder';
+import {
+  orderVisualOpen,
+  partitionAtRail,
+  showsRailButton,
+  survivesBulkClose,
+} from '../visualOrder';
 
 /**
  * A hand-built `AccordionGroupApi` for tests.
@@ -55,6 +60,9 @@ export interface StubGroupSpec {
   sizes?: Readonly<Record<string, number>>;
   reorderable?: boolean;
   resizable?: boolean;
+  /** Rail-as-divider. Defaults ON, matching an `autoHide` group — the layout the
+   *  divider tests are about. Set false for the welded-rail behaviour. */
+  railDivider?: boolean;
 }
 
 /** Every mutating call the module under test made, in order. Assertions read this
@@ -62,6 +70,10 @@ export interface StubGroupSpec {
 export interface StubCalls {
   setOpen: { id: string; open: boolean }[];
   togglePin: string[];
+  /** The column title bar's activator — collapse, keep the pin. */
+  collapseKeepPin: string[];
+  /** The column × — close AND drop the pin. */
+  closeAndUnpin: string[];
   collapseAll: number;
   resetSizes: number;
   moveBy: { id: string; delta: number }[];
@@ -106,6 +118,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
   const calls: StubCalls = {
     setOpen: [],
     togglePin: [],
+    collapseKeepPin: [],
+    closeAndUnpin: [],
     collapseAll: 0,
     resetSizes: 0,
     moveBy: [],
@@ -131,6 +145,17 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
    */
   const visualOpenIds = (): readonly string[] =>
     orderVisualOpen({ order: order(), open: openIds, isLeaf: isLeafId });
+
+  /** The same partition the real group computes, from the same function. Pin ORDER
+   *  is the `pinned` Set's insertion order here exactly as it is there. */
+  const railDivider = (): boolean => spec.railDivider ?? true;
+  const partition = () =>
+    partitionAtRail({
+      visualOpen: visualOpenIds(),
+      pinOrder: [...pinned],
+      isLeaf: isLeafId,
+      enabled: railDivider(),
+    });
 
   const setOpen = (id: string, open: boolean): void => {
     calls.setOpen.push({ id, open });
@@ -164,6 +189,30 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
     isOpen: (id) => openIds.includes(id),
     isPinned: (id) => pinned.has(id),
     openIndex: (id) => visualOpenIds().indexOf(id),
+
+    railDivider,
+    columnOrder: (id) => partition().orderOf(id),
+    railOrder: () => partition().railOrder,
+    isStaticColumn: (id) => partition().staticIds.includes(id),
+    isRailBoundary: (id) => {
+      const s = partition().staticIds;
+      return s.length > 0 && s[s.length - 1] === id;
+    },
+    showsRailButton: (id) =>
+      showsRailButton(id, {
+        isOpen: (v) => openIds.includes(v),
+        isPinned: isPinnedId,
+        enabled: railDivider(),
+      }),
+    collapseKeepPin: (id) => {
+      calls.collapseKeepPin.push(id);
+      setOpen(id, false);
+    },
+    closeAndUnpin: (id) => {
+      calls.closeAndUnpin.push(id);
+      pinned.delete(id);
+      setOpen(id, false);
+    },
     neighborOpenId: (id) => {
       const v = visualOpenIds();
       const i = v.indexOf(id);

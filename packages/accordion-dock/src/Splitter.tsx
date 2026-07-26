@@ -48,8 +48,24 @@ const TO_THE_END = 1000;
 export function Splitter(props: { id: string }): JSX.Element {
   const group = useAccordionGroup();
 
+  /**
+   * SUPPRESSED ON THE RAIL BOUNDARY.
+   *
+   * The last pinned column's trailing edge is the rail, not another column. A
+   * handle there would be a resizer whose "next panel" is on the far side of a
+   * divider the user deliberately put between them — it would either drag the
+   * rail around or resize a panel the user is not touching. The rail is a
+   * boundary, so the boundary does not resize.
+   *
+   * `neighborOpenId` still answers with the next panel in painted order (the rail
+   * is not a panel and never enters that sequence), which is exactly why this
+   * needs its own check rather than falling out of the existing one.
+   */
   const shown = (): boolean =>
-    group.resizable() && group.isOpen(props.id) && group.neighborOpenId(props.id) !== undefined;
+    group.resizable() &&
+    group.isOpen(props.id) &&
+    !group.isRailBoundary(props.id) &&
+    group.neighborOpenId(props.id) !== undefined;
 
   /** Horizontal docks grow along x, so the boundary slides left/right; vertical
    *  ones grow along y. */

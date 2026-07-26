@@ -350,7 +350,11 @@
   align-items: stretch;
   flex: 0 0 auto;
   /* Before the columns regardless of DOM position — the columns carry positive
-     `order` values so they can sit in open-order. */
+     `order` values so they can sit in open-order.
+     UNDER THE RAIL DIVIDER this is overridden inline by the group, which computes
+     the slot after the static (pinned) columns. The declaration stays as the
+     non-divider default rather than moving wholesale into JS: a dock that never
+     turns the divider on should not need a script to place its rail. */
   order: -1;
   width: var(--acc-rail-width);
   background: var(--acc-header-bg);
@@ -809,6 +813,19 @@
 
 /* ── Column title bar (horizontal) ──────────────────────────────────────── */
 
+/* EVERYTHING PINNED: the rail is serving no panels, so it takes no space. A
+   40px strip between the last static column and the leaf, with nothing in it and
+   nothing that can be put in it, is a dead strip — and the divider's whole claim
+   is that the rail marks a boundary that MEANS something. Width, padding and
+   border all go; `overflow: hidden` keeps the collapse from being undone by a
+   stray child's intrinsic width. */
+.acc-rail[data-rail-empty='true'] {
+  width: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+
 .acc-col-bar {
   display: flex;
   align-items: center;
@@ -823,6 +840,41 @@
   padding-inline: var(--acc-header-pad-x) var(--acc-col-bar-pad-end);
   background: var(--acc-header-bg-open);
   border-bottom: 1px solid var(--acc-border);
+}
+
+/* The column title bar's activator — the control that collapses a docked column
+   back to a rail button while it stays pinned.
+
+   Transparent and unpadded so the bar looks exactly as it did when it was a label:
+   the affordance is the pointer and the focus ring, not a second button face
+   inside a bar that is already chrome. It takes the free space so the whole span
+   left of the pin is the hit area, which is what makes it findable at all. */
+.acc-col-activator {
+  display: flex;
+  align-items: center;
+  gap: var(--acc-gap);
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.acc-col-activator:hover {
+  color: var(--acc-text);
+}
+
+.acc-col-activator:focus {
+  outline: none;
+}
+
+.acc-col-activator:focus-visible {
+  outline: var(--acc-focus-ring-width) solid var(--acc-accent);
+  outline-offset: var(--acc-focus-ring-offset);
 }
 
 /* ── Pin + close ────────────────────────────────────────────────────────── */

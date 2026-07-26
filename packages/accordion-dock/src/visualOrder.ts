@@ -82,6 +82,113 @@ export function orderVisualOpen(input: VisualOrderInput): readonly string[] {
 }
 
 /**
+ * THE RAIL AS A DIVIDER between a static and a dynamic region.
+ *
+ * ── The state model this implements ─────────────────────────────────────────
+ * `pinned` does NOT mean "is open". It means "opens as a docked COLUMN rather
+ * than as a flyout". Open/closed is an independent axis, which gives four states
+ * and a home for each:
+ *
+ *   open + pinned    → a docked column, sitting BEHIND the rail (static region).
+ *                      No rail button: the column IS the panel's presence, and a
+ *                      button that only ever re-reveals something already on
+ *                      screen is a control with nothing to do.
+ *   closed + pinned  → a rail button that reopens AS A COLUMN. This is the state
+ *                      the column title bar's own activator produces, and the
+ *                      reason `pinned` had to stop meaning "open": collapsing a
+ *                      docked column must not throw away the fact that it docks.
+ *   open + unpinned  → a flyout overlaying the dynamic region.
+ *   closed + unpinned→ a rail button that reopens as a flyout.
+ *
+ * So: A RAIL BUTTON IS SHOWN WHENEVER THE PANEL IS CLOSED, and hidden only when
+ * it is open AND pinned. Nothing can be stranded, in any combination.
+ *
+ * ── Why the static region comes first, and in PIN order ─────────────────────
+ * Pinning is the user saying "this one stays put". The pinned columns therefore
+ * take the group's leading edge, the rail slides to sit immediately after them,
+ * and everything still dynamic — the flyouts, which overlay from the rail
+ * onwards, and the leaf — lives past it. The rail stops being chrome bolted to
+ * one edge and becomes the boundary between what is frozen and what moves.
+ *
+ * PIN order, not panel order: the sequence records the order the user froze
+ * things in, so a newly pinned column appears at the end of the static run
+ * instead of jumping into the middle of a layout the user just arranged. Re-
+ * pinning an already-pinned panel moves it to the end for the same reason.
+ */
+export interface RailPartitionInput {
+  /** Open ids in painted order — `orderVisualOpen`'s output. */
+  visualOpen: readonly string[];
+  /** Pinned ids in PIN order (the order they were pinned in). */
+  pinOrder: readonly string[];
+  isLeaf: (id: string) => boolean;
+  /** Off → every open panel is dynamic and the rail keeps its fixed edge. */
+  enabled: boolean;
+}
+
+export interface RailPartition {
+  /** Open pinned columns, in pin order — painted BEFORE the rail. */
+  staticIds: readonly string[];
+  /** Everything else open, in painted order — after the rail. */
+  dynamicIds: readonly string[];
+  /** Flex `order` for the rail itself: after the static run, before the rest. */
+  railOrder: number;
+  /** Flex `order` per open id. */
+  orderOf: (id: string) => number;
+}
+
+/**
+ * Split the open panels either side of the rail and hand back every flex
+ * `order` the layout needs.
+ *
+ * Orders start at 1, never 0: an element with no `order` sits at 0, and the
+ * group deliberately lets consumers drop arbitrary children into it (a toolbar,
+ * a status strip). Leaving slot 0 free is what keeps those children where they
+ * were authored instead of silently promoting them ahead of the first column.
+ */
+export function partitionAtRail(input: RailPartitionInput): RailPartition {
+  const open = input.visualOpen;
+  const staticIds = input.enabled
+    ? input.pinOrder.filter((id) => open.includes(id) && !input.isLeaf(id))
+    : [];
+  const staticSet = new Set(staticIds);
+  const dynamicIds = open.filter((id) => !staticSet.has(id));
+
+  // The rail sits in the slot straight after the static run. With the divider
+  // off, that is slot 1 — ahead of every column, which is exactly where the
+  // stylesheet's fixed `order: -1` used to put it.
+  const railOrder = staticIds.length + 1;
+
+  const orders = new Map<string, number>();
+  staticIds.forEach((id, i) => orders.set(id, i + 1));
+  dynamicIds.forEach((id, i) => orders.set(id, railOrder + 1 + i));
+
+  return {
+    staticIds,
+    dynamicIds,
+    railOrder,
+    // Unopened panels never paint, so their slot is irrelevant; 0 keeps them out
+    // of the numbered run rather than colliding with a real column.
+    orderOf: (id) => orders.get(id) ?? 0,
+  };
+}
+
+/**
+ * Should this panel show a rail button?
+ *
+ * The one-line rule from the state model above, as a function, because three
+ * different places need the answer (the rail's own id list, the overflow menu,
+ * and the tests) and a rule with three implementations is a rule with three
+ * chances to disagree.
+ */
+export function showsRailButton(
+  id: string,
+  p: { isOpen: (id: string) => boolean; isPinned: (id: string) => boolean; enabled: boolean },
+): boolean {
+  if (!p.enabled) return true;
+  return !(p.isOpen(id) && p.isPinned(id));
+}
+
+/**
  * Does this panel survive a BULK close (`collapseAll`, "Close All", "Close
  * Others")?
  *

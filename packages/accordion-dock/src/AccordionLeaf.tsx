@@ -279,7 +279,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
         data-chain-depth={chain.depthOf(props.id)}
         style={{
           ...(props.accent !== undefined ? { '--acc-accent': props.accent } : {}),
-          ...(horizontal() ? { order: Math.max(group.openIndex(props.id), 0) + 1 } : {}),
+          ...(horizontal() ? { order: group.columnOrder(props.id) } : {}),
           ...sizeStyle(),
         }}
       >

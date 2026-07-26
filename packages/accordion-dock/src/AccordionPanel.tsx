@@ -262,11 +262,19 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
          visually, and CSS has no "first by order" selector — so the component,
          which already knows the open index, says so out loud. Used to drop the
          separator that would otherwise double up against the rail's own edge. */
-      data-col-first={horizontal() && group.openIndex(props.id) === 0 ? 'true' : 'false'}
+      /* The first thing PAINTED, which under the rail divider is the leading
+         static column rather than whatever opened first. Both cases are "flex
+         slot 1", so reading the computed order says it once instead of branching
+         on which layout is active. */
+      data-col-first={horizontal() && group.columnOrder(props.id) === 1 ? 'true' : 'false'}
+      /* The last pinned column: its trailing edge IS the rail. */
+      data-rail-boundary={
+        horizontal() && group.isRailBoundary(props.id) ? 'true' : 'false'
+      }
       style={{
         ...(props.accent !== undefined ? { '--acc-accent': props.accent } : {}),
         ...(horizontal()
-          ? { order: Math.max(group.openIndex(props.id), 0) + 1 }
+          ? { order: group.columnOrder(props.id) }
           : /* Vertical panels keep their DOM position but follow the user's dragged
                order via flex `order`, so reordering never remounts content. */
             { order: group.order().indexOf(props.id) + 1 }),
@@ -318,16 +326,57 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           title bar — the place the pin and the close affordance have to live, since
           a rail button is too narrow to carry either. */}
       <Show when={horizontal() && open()}>
-        <div class="acc-col-bar" {...dragHandle()} {...menu.triggerProps}>
-          <Show when={props.icon}>
-            <span class="acc-icon">{props.icon}</span>
-          </Show>
-          <span class="acc-title" id={headerId}>
-            {props.title}
-          </span>
-          <Show when={props.count !== undefined}>
-            <span class="acc-count">{props.count}</span>
-          </Show>
+        <div class="acc-col-bar" {...menu.triggerProps}>
+          {/*
+            THE TITLE BAR IS AN ACTIVATOR, not a label.
+            Clicking it COLLAPSES the column back to a rail button while the panel
+            stays pinned — "put this away, it still docks" — which is the third
+            control on a pinned column and the one that makes `pinned` mean "opens
+            as a column" rather than "is open". The × beside it is the other half:
+            same close, but it drops the pin too. Two paths, two names
+            (`collapseKeepPin` / `closeAndUnpin`), deliberately NOT folded into one
+            handler — the difference between them is the whole state model.
+
+            A real <button> with `aria-expanded` / `aria-controls` and the SAME
+            `createActivatorKeyDown` the vertical header and the rail button use.
+            The third activator in this control, and now the third to share that
+            helper rather than hand-rolling keyboard support.
+
+            The DRAG HANDLE moves onto this button too, exactly as the vertical
+            header does it: the panel is the drag ITEM and its activator is the
+            HANDLE. `createReorderList` fires its own pointerdown gesture and the
+            click only lands if the pointer never crossed the drag threshold, so a
+            reorder cannot end in an accidental collapse.
+          */}
+          <button
+            {...dragHandle()}
+            /* Claims the activator slot ONLY when no rail button exists for this
+               panel. The slot is what a flyout anchors to, and the docked shell of
+               a flying-out panel is `display:none` — so a column bar that
+               registered unconditionally would hand the flyout a zero-rect anchor
+               and place it in the corner. Under the divider the two are mutually
+               exclusive by construction (a button appears exactly when the column
+               does not), and this keeps that true rather than assuming it. */
+            ref={(el) => {
+              if (!group.showsRailButton(props.id)) registerHeaderEl(el);
+            }}
+            id={headerId}
+            type="button"
+            class="acc-col-activator"
+            title={props.tooltip}
+            aria-expanded={open()}
+            aria-controls={contentId}
+            onClick={() => group.collapseKeepPin(props.id)}
+            onKeyDown={onKeyDown}
+          >
+            <Show when={props.icon}>
+              <span class="acc-icon">{props.icon}</span>
+            </Show>
+            <span class="acc-title">{props.title}</span>
+            <Show when={props.count !== undefined}>
+              <span class="acc-count">{props.count}</span>
+            </Show>
+          </button>
           <div class="acc-header-tail">
             <Show when={props.actions}>
               <div class="acc-actions">{props.actions}</div>
@@ -349,8 +398,13 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
                 {group.isTornOff(props.id) ? '⤓' : '⤢'}
               </button>
             </Show>
+            {/* CLOSE-AND-FORGET. The sibling activator collapses and remembers;
+                this one also drops the pin, so the panel's rail button reopens it
+                as a flyout like any other unpinned panel. Nothing can be left
+                pinned-but-invisible, which is the state that would otherwise have
+                no control anywhere to undo it. */}
             <Show when={closable()}>
-              <CloseButton onClick={() => group.setOpen(props.id, false)} />
+              <CloseButton onClick={() => group.closeAndUnpin(props.id)} />
             </Show>
           </div>
         </div>

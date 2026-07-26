@@ -18,7 +18,12 @@ import {
 import { Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
 import { bindLeafChain, createLeafChain } from './leafChain';
-import { orderVisualOpen, survivesBulkClose } from './visualOrder';
+import {
+  orderVisualOpen,
+  partitionAtRail,
+  showsRailButton,
+  survivesBulkClose,
+} from './visualOrder';
 import { createResize, DEFAULT_MIN_SIZE_PX } from './resize';
 import { createPanelMenu } from './panelMenu';
 import { createRailOverflow, RAIL_ITEM_ATTR } from './railOverflow';
@@ -60,6 +65,24 @@ export interface AccordionGroupProps {
    * permanent". `horizontal` only. Default false.
    */
   autoHide?: boolean;
+
+  /**
+   * The rail acts as the BOUNDARY between the pinned columns and everything
+   * still dynamic: pinned columns paint before it (in pin order), it slides to
+   * sit after them, and flyouts overlay from there on. A pinned column shows no
+   * rail button while it is open — the column is the panel's presence — and the
+   * rail collapses to zero width once nothing is left dynamic.
+   *
+   * Defaults to whatever `autoHide` is, because this is the layout `autoHide`
+   * already implies rather than a second feature layered on it: auto-hide's whole
+   * proposition is that pinning FREEZES a panel into permanence, and a frozen
+   * panel that still sits downstream of the rail, still carrying a button that
+   * re-reveals something already on screen, is only half of that metaphor. Set it
+   * to `false` for a group that wants the rail welded to one edge.
+   *
+   * `horizontal` only, like `autoHide` itself.
+   */
+  railDivider?: boolean;
   /** With `autoHide`, also open a flyout on hover. Default false — hover is
    *  unavailable to keyboard and touch, so it is an accelerator, never the only
    *  way in. */
@@ -359,6 +382,30 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     }),
   );
 
+  /** Divider mode follows `autoHide` unless the consumer says otherwise — see the
+   *  prop's JSDoc for why that is the default rather than a separate opt-in. */
+  const railDivider = (): boolean =>
+    orientation() === 'horizontal' && (props.railDivider ?? props.autoHide ?? false);
+
+  /**
+   * The static/dynamic split and every flex `order` in the group.
+   *
+   * PIN ORDER comes from the pinned Set's own iteration order, which is insertion
+   * order — and `togglePin` re-adds on repin, so a re-pinned panel moves to the
+   * end of the static run exactly as the rule requires. That is also what the
+   * persisted `pinned` array round-trips, so the static sequence survives a
+   * reload rather than being rebuilt from panel order.
+   */
+  const railPartition = createMemo(() =>
+    partitionAtRail({
+      visualOpen: visualOpenIds(),
+      pinOrder: [...pinned()],
+      isLeaf,
+      enabled: railDivider(),
+    }),
+  );
+  const railOrder = (): number => railPartition().railOrder;
+
   /**
    * THE writer for open membership. Every path that changes which panels are open
    * goes through here — `setOpen`, `expandAll`, `collapseAll`, `setLayout` — and
@@ -612,9 +659,31 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    * `orientation`) are all available at this point, so the dependency runs one way
    * and needs no late binding.
    */
+  /**
+   * The panels the rail is actually serving.
+   *
+   * Under the divider an OPEN PINNED panel has no button — its column is its
+   * presence — so it is filtered out here rather than hidden in the button's own
+   * render. That distinction matters: the overflow measurement divides the rail's
+   * extent among the buttons it is given, and a hidden-but-counted button would
+   * reserve space for something that never paints, pushing a real button into the
+   * `⋯` menu for no reason.
+   */
+  const railServedIds = createMemo<readonly string[]>(() =>
+    panels()
+      .map((m) => m.id)
+      .filter((id) =>
+        showsRailButton(id, {
+          isOpen: (v) => openList().includes(v),
+          isPinned: (v) => pinned().has(v),
+          enabled: railDivider(),
+        }),
+      ),
+  );
+
   const railOverflow = createRailOverflow({
     railEl,
-    ids: () => panels().map((m) => m.id),
+    ids: railServedIds,
     enabled: () => orientation() === 'horizontal' && overflowStrategy() === 'menu',
   });
 
@@ -646,6 +715,40 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     isOpen: (id) => openList().includes(id),
     isPinned: (id) => pinned().has(id),
     openIndex: (id) => visualOpenIds().indexOf(id),
+    railDivider,
+    columnOrder: (id) => railPartition().orderOf(id),
+    railOrder,
+    isStaticColumn: (id) => railPartition().staticIds.includes(id),
+    /** The last pinned column — the one whose trailing edge IS the rail. */
+    isRailBoundary: (id) => {
+      const s = railPartition().staticIds;
+      return s.length > 0 && s[s.length - 1] === id;
+    },
+    showsRailButton: (id) =>
+      showsRailButton(id, {
+        isOpen: (v) => openList().includes(v),
+        isPinned: (v) => pinned().has(v),
+        enabled: railDivider(),
+      }),
+    /**
+     * Collapse a column but REMEMBER that it docks — the column title bar's own
+     * activator. Deliberately NOT the same path as the × beside it: that one is
+     * close-and-FORGET (see `closeAndUnpin`), and the only difference between
+     * them is whether `pinned` survives. Two names, because a future reader who
+     * folds them into one handler silently destroys the distinction the whole
+     * open×pinned model rests on.
+     */
+    collapseKeepPin: (id) => setOpen(id, false),
+    /**
+     * Close a column AND drop its pin — the ×. The panel forgets it was docked,
+     * so its rail button reopens it as a flyout like any other unpinned panel,
+     * and nothing is left pinned-but-invisible.
+     */
+    closeAndUnpin: (id) => {
+      const next = new Set(pinned());
+      if (next.delete(id)) commitPinned(next);
+      setOpen(id, false);
+    },
     neighborOpenId: (id) => {
       const ids = visualOpenIds();
       const i = ids.indexOf(id);
@@ -943,6 +1046,20 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
           <div
             ref={setRailEl}
             class="acc-rail"
+            /* The rail's slot is COMPUTED under the divider — it sits after the
+               static columns — where the stylesheet used to weld it to `order:
+               -1`. Written as a style so the one number the layout turns on has a
+               single source; the stylesheet reads it back through the custom
+               property and keeps `-1` as the non-divider default. */
+            style={railDivider() ? { order: railOrder() } : undefined}
+            /* Everything is pinned: nothing is left for the rail to serve, so it
+               collapses to zero width rather than leaving a dead strip between
+               the static columns and the leaf. */
+            data-rail-empty={
+              railDivider() && railOverflow.visibleIds().length === 0 && !railOverflow.hasOverflow()
+                ? 'true'
+                : 'false'
+            }
             role="tablist"
             aria-orientation="vertical"
             /* Under `multi` several tabs are selected at once, which a plain

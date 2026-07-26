@@ -193,6 +193,26 @@ export interface AccordionGroupApi {
   /** Position of `id` among the open panels, or -1. Drives the flex `order` that
    *  puts columns in open-order without reordering the DOM. */
   openIndex: (id: string) => number;
+
+  // ── Rail-as-divider (see `visualOrder.ts` for the state model) ─────────────
+  /** Is the rail acting as the static/dynamic boundary? */
+  railDivider: Accessor<boolean>;
+  /** Flex `order` for one open panel — static columns before the rail, the rest
+   *  after it. */
+  columnOrder: (id: string) => number;
+  /** Flex `order` for the rail itself. */
+  railOrder: Accessor<number>;
+  /** Is this an open pinned column, i.e. in the static region? */
+  isStaticColumn: (id: string) => boolean;
+  /** Is this the LAST static column — the one whose trailing edge is the rail?
+   *  Its splitter is suppressed: the rail is a boundary, not a resizer. */
+  isRailBoundary: (id: string) => boolean;
+  /** Shown whenever the panel is closed; hidden only when open AND pinned. */
+  showsRailButton: (id: string) => boolean;
+  /** Collapse to a rail button, KEEPING the pin (the column title bar). */
+  collapseKeepPin: (id: string) => void;
+  /** Close and DROP the pin (the column ×). */
+  closeAndUnpin: (id: string) => void;
   /** The next OPEN panel after `id` in visual sequence, or undefined if `id` is last.
    *  This is the panel a splitter dragged on `id`'s trailing edge resizes against. */
   neighborOpenId: (id: string) => string | undefined;
