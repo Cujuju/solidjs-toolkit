@@ -11,6 +11,7 @@ import {
 import { slotRef, useAccordionGroup } from './context';
 import { Close } from './icons';
 import { leafChainFor } from './leafChain';
+import { columnFlex } from './resize';
 import { Splitter } from './Splitter';
 
 export interface AccordionLeafProps {
@@ -220,9 +221,12 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
   );
 
   const sizeStyle = (): JSX.CSSProperties => {
-    const px = group.sizeOf(props.id);
-    if (px === undefined || !effectiveOpen()) return {};
-    return { flex: `0 0 ${px}px` };
+    if (!effectiveOpen()) return {};
+    return columnFlex({
+      sizePx: group.sizeOf(props.id),
+      fill: group.mode() === 'fill',
+      trailing: group.neighborOpenId(props.id) === undefined,
+    });
   };
 
   /*

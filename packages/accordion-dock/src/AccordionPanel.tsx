@@ -18,6 +18,7 @@ import {
 import { Chevron, Close, Pin } from './icons';
 import { createActivatorKeyDown } from './keys';
 import { createPanelMenu } from './panelMenu';
+import { columnFlex } from './resize';
 import { Splitter } from './Splitter';
 
 export interface AccordionPanelProps {
@@ -206,9 +207,12 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
    * a group can hold a user-dragged column next to an auto-sized one.
    */
   const sizeStyle = (): JSX.CSSProperties => {
-    const px = group.sizeOf(props.id);
-    if (px === undefined || !open()) return {};
-    return { flex: `0 0 ${px}px` };
+    if (!open()) return {};
+    return columnFlex({
+      sizePx: group.sizeOf(props.id),
+      fill: group.mode() === 'fill',
+      trailing: group.neighborOpenId(props.id) === undefined,
+    });
   };
 
   return (

@@ -68,6 +68,47 @@ const KEYBOARD_STEP_PX = 8;
  *  compose predictably. */
 const KEYBOARD_COARSE_STEP_PX = KEYBOARD_STEP_PX * 10;
 
+/**
+ * The flex declaration for ONE open column, given its explicit size (if any).
+ *
+ * ONE definition for both `<AccordionPanel>` and `<AccordionLeaf>`: the leaf is a
+ * first-class member for sizing, so two copies of this rule would be two places to
+ * forget the trailing-column case below — which is exactly how the dead gap got
+ * shipped.
+ *
+ * ── Why the trailing column is special ──────────────────────────────────────
+ * `fill` mode means "the dock has this extent and divides ALL of it". An explicit
+ * size (from a splitter drag, a `defaultSize`, or a persisted layout) turns a
+ * column into `flex: 0 0 Npx`, and once EVERY open column is explicitly sized
+ * nothing is left to absorb the remainder — the group paints a dead strip at its
+ * trailing edge and the mode has quietly stopped meaning what it says.
+ *
+ * The trailing column is the one that can absorb it without cost, because it is
+ * the ONE column whose width the user cannot drag directly: splitters sit on a
+ * column's edge FACING THE NEXT column, so the last one has no handle of its own
+ * and any size it carries is a leftover of resizing its neighbours, never a width
+ * the user asked for. Growing it therefore overrides nothing the user chose.
+ *
+ * The stored px stays as the flex BASIS rather than being discarded, so the column
+ * still starts from its remembered width when the group is too narrow to grant the
+ * remainder, and shrinks from there like any other column.
+ */
+export function columnFlex(opts: {
+  /** The panel's explicit size, or `undefined` while it follows the mode. */
+  sizePx: number | undefined;
+  /** `fill` mode — the only mode that owes the group's whole extent to its columns. */
+  fill: boolean;
+  /** True when no open column follows this one in visual order. */
+  trailing: boolean;
+}): { flex: string } | Record<string, never> {
+  if (opts.sizePx === undefined) {
+    // No explicit size: the stylesheet's mode rules already size this column, and
+    // an inline `flex` here would out-specify them for no gain.
+    return {};
+  }
+  return { flex: opts.fill && opts.trailing ? `1 1 ${opts.sizePx}px` : `0 0 ${opts.sizePx}px` };
+}
+
 export interface ResizeHost {
   /** Growth axis: 'x' for horizontal columns, 'y' for vertical fill panels. */
   axis: Accessor<'x' | 'y'>;
