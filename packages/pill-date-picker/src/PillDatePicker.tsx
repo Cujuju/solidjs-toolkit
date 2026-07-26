@@ -723,15 +723,35 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     onMount(() => place());
     return (
       <>
+        {/* Both messages are live regions, and both sit OUTSIDE the listbox.
+            Outside because a listbox may only contain options and groups — a
+            bare div among the rows is markup a screen reader is entitled to
+            drop. Live because they are the only thing that reports a ladder
+            whose rows are all inert, and their text CHANGES underneath a user
+            who is already looking at it (a caller resolving its rows against a
+            broker moves from "checking…" to the real answer): announced once on
+            open, that user would never hear the answer arrive. `role="status"`
+            is polite by definition — it waits for a pause rather than cutting
+            across whatever the reader is saying about the row under the
+            cursor. */}
         <Show when={props.items.length === 0}>
-          <div class="cpdp-empty">{props.emptyMessage ?? 'No expirations'}</div>
+          <div class="cpdp-empty" role="status">{props.emptyMessage ?? 'No expirations'}</div>
         </Show>
         {/* Rows exist but not one of them is takeable. They stay on screen —
             deleting them would misrepresent the calendar — with the reason
             stated once at the top. */}
         <Show when={props.items.length > 0 && noneSelectable()}>
-          <div class="cpdp-empty">{props.noneSelectableMessage ?? 'Nothing selectable'}</div>
+          <div class="cpdp-empty" role="status">
+            {props.noneSelectableMessage ?? 'Nothing selectable'}
+          </div>
         </Show>
+        <div
+          id={panelId}
+          class="cpdp-list"
+          role="listbox"
+          tabIndex={-1}
+          aria-label={props.ariaLabel}
+        >
         {/* Iterating the KEYS, not the items — see `itemKeys`. */}
         <For each={itemKeys()}>
           {(key, i) => {
@@ -840,6 +860,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
             );
           }}
         </For>
+        </div>
       </>
     );
   };
@@ -873,13 +894,12 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
           ours to decide even when the open STATE is not. */}
       <Show when={isOpen() && !props.disabled}>
         <Portal>
+          {/* The positioned, scrolling SHELL — deliberately role-less. The
+              listbox is the row container inside it, so the status messages can
+              be siblings of the list rather than illegal children of it. */}
           <div
             ref={panelEl}
-            id={panelId}
             class={`cpdp-popout cpdp-size-${size()}`}
-            role="listbox"
-            tabIndex={-1}
-            aria-label={props.ariaLabel}
             data-placement={popout()?.placement}
             style={{
               position: 'fixed',

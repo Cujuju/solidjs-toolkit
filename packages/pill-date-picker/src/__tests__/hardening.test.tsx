@@ -202,9 +202,44 @@ describe('4 — the active row is announceable', () => {
     const active = activeRow()!;
     expect(active.id).toBeTruthy();
     expect(combo.getAttribute('aria-activedescendant')).toBe(active.id);
-    const listbox = document.body.querySelector('.cpdp-popout') as HTMLElement;
+    // Queried by ROLE, not by class: the listbox is the row container inside
+    // the pop-out shell, and which element carries the role is exactly what
+    // `aria-controls` has to agree with.
+    const listbox = document.body.querySelector('[role="listbox"]') as HTMLElement;
     expect(combo.getAttribute('aria-controls')).toBe(listbox.id);
     expect(listbox.id).toBeTruthy();
+  });
+
+  /**
+   * The pop-out's status line is the ONLY thing that reports a ladder whose rows
+   * are all inert, and its text changes underneath a user who is already looking
+   * at it — a caller resolving rows against a broker moves it from "checking…"
+   * to the real answer. Announced once on open and never again, a screen-reader
+   * user never hears the answer arrive.
+   *
+   * It also may not live INSIDE the listbox: a listbox may only contain options
+   * and groups, so a bare div among the rows is markup a reader is entitled to
+   * drop — which would make the live region silent for the users it exists for.
+   */
+  it('announces the status line, and keeps it out of the listbox', () => {
+    mount(() => (
+      <PillDatePicker
+        items={LADDER}
+        value={null}
+        onChange={() => {}}
+        now={NOW}
+        itemState={() => 'disabled'}
+        noneSelectableMessage="Checking which expirations list 737…"
+      />
+    ));
+    click(pills()[0]);
+    const status = document.body.querySelector('.cpdp-empty') as HTMLElement;
+    expect(status.textContent).toBe('Checking which expirations list 737…');
+    expect(status.getAttribute('role')).toBe('status');
+    const listbox = document.body.querySelector('[role="listbox"]') as HTMLElement;
+    expect(listbox.contains(status)).toBe(false);
+    // …and the rows it excludes are still inside it.
+    expect(listbox.querySelectorAll('.cpdp-row').length).toBe(LADDER.length);
   });
 
   it('drops the pointer when the ladder closes — a descendant that is not in the document is a lie', () => {
@@ -225,7 +260,12 @@ describe('4 — the active row is announceable', () => {
         <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} open />
       </>
     ));
-    const ids = [...panels()].map((p) => (p as HTMLElement).id);
+    // The id lives on the LISTBOX (the row container), which is what
+    // `aria-controls` points at — the pop-out shell around it carries none.
+    expect(panels().length).toBe(2);
+    const ids = [...document.body.querySelectorAll('[role="listbox"]')].map(
+      (p) => (p as HTMLElement).id,
+    );
     expect(new Set(ids).size).toBe(2);
   });
 });
