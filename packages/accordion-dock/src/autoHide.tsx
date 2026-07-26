@@ -23,8 +23,6 @@ import type {
  * instead of as a docked column that reflows the layout. Pinning promotes it to
  * a real column; unpinning demotes it back.
  *
- * MOCK, like the rest of this folder.
- *
  * ─────────────────────────────────────────────────────────────────────────────
  * THE CENTRAL DESIGN DECISION: flyout-ness is DERIVED, never stored.
  *

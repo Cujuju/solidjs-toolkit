@@ -2,8 +2,6 @@ import type { JSX } from 'solid-js';
 import type { AccordionGroupApi, PanelMeta } from './context';
 
 /**
- * MOCK — same status as the rest of this directory.
- *
  * The DATA half of the breadcrumb: turning the group's open sequence into a path,
  * and eliding that path when it gets long. Split out of `Breadcrumb.tsx` on
  * purpose — everything interesting about a breadcrumb is the derivation and the

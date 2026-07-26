@@ -9,14 +9,20 @@ import {
   type AccordionRailSide,
   type AccordionLayout,
   DEFAULT_MIN_SIZE_PX,
-} from '../mock/accordion-dock';
+} from '@cujuju/solidjs-accordion-dock';
 import { Card, Code, EventLog, createEventLog } from '../ui';
 
 /**
- * MOCK PAGE — accordion-dock is not a package yet (it lives in playground/src/mock/).
- * This page is the design surface: it exists to answer the two questions the mock
- * was built to answer — does `fill` or `natural` sizing feel right, and does the
- * pin read as "exempt from auto-collapse" without being explained.
+ * The accordion-dock demo page, and still its DESIGN SURFACE: it exists to answer
+ * the two questions the control was built to answer — does `fill` or `natural`
+ * sizing feel right, and does the pin read as "exempt from auto-collapse" without
+ * being explained.
+ *
+ * The control was promoted out of `playground/src/mock/` into
+ * `packages/accordion-dock` on 2026-07-26, so this page now consumes it exactly
+ * the way a consumer does: by package name, through its public entry point. That
+ * is the point of importing it that way rather than by relative path — a demo that
+ * reaches past the package boundary cannot tell you when the boundary is wrong.
  */
 
 function Rows(props: { n: number; label?: string }): JSX.Element {
@@ -187,7 +193,7 @@ export function AccordionDockPage(): JSX.Element {
 
   return (
     <>
-      <h1>accordion-dock <span class="readout">MOCK — not a package yet</span></h1>
+      <h1>accordion-dock <span class="readout">@cujuju/solidjs-accordion-dock</span></h1>
       <p class="note">
         A Visual Studio style dock: a stack of collapsible panels where opening one
         auto-collapses its siblings (<code>policy="single"</code>) — except the ones
@@ -198,7 +204,7 @@ export function AccordionDockPage(): JSX.Element {
       </p>
 
       <Code cap="usage">{`
-import { AccordionGroup, AccordionPanel } from './mock/accordion-dock';
+import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
 
 <AccordionGroup mode="fill" policy="single" height="420px" storageKey="app:dock">
   <AccordionPanel id="solution" title="Solution Explorer" defaultOpen>
@@ -966,8 +972,8 @@ import { AccordionGroup, AccordionPanel } from './mock/accordion-dock';
         keyboard, always: a drag-only affordance is unreachable, not merely awkward.
         Order persists with the open/pinned state, and <code>onOrderChange</code> reports
         it. The drag itself is your own <code>@cujuju/solid-reorder-list</code> primitive
-        — vendored into <code>mock/accordion-dock/vendor/</code> because it is not on npm
-        yet, and to be replaced by a real dependency on promotion. Turn it off with
+        — vendored into <code>src/vendor/</code> because it is not on npm yet, and to be
+        replaced by a real dependency once it is. Turn it off with
         <code> reorderable={'{false}'}</code>.
       </p>
       <p class="note">

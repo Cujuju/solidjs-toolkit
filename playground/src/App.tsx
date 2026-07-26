@@ -46,9 +46,9 @@ interface Page {
  *  interesting behaviour (portalled pop-outs in hostile ancestors) and are what someone opening
  *  this is usually here for. */
 const PAGES: Page[] = [
-  // MOCK, deliberately first: it is the thing currently being designed, and it has no
-  // package behind it yet (source lives in playground/src/mock/accordion-dock).
-  { id: 'accordion-dock', blurb: 'MOCK — pinnable dock', component: AccordionDockPage },
+  // Deliberately first: it is the thing currently being designed. Promoted from a
+  // playground mock to packages/accordion-dock on 2026-07-26.
+  { id: 'accordion-dock', blurb: 'pinnable dock', component: AccordionDockPage },
   { id: 'pill-date-picker', blurb: 'expiration + DTE', component: PillDatePickerPage },
   { id: 'pill-number-picker', blurb: 'stepper', component: PillNumberPickerPage },
   { id: 'anchored-popover', blurb: 'placement primitive', component: AnchoredPopoverPage },

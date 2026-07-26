@@ -1,10 +1,10 @@
 import { createContext, onCleanup, useContext, type Accessor, type JSX } from 'solid-js';
 
 /**
- * MOCK — not a published package yet. Lives under playground/src/mock/ on purpose:
- * this is the design surface we iterate on before promoting it to
- * packages/accordion. Everything here is deliberately token-driven (--acc-*) so
- * the promotion is a file move, not a rewrite.
+ * Everything here is deliberately token-driven (--acc-*), which is what let the
+ * promotion out of playground/src/mock/ into this package (2026-07-26) be a file
+ * move rather than a rewrite: nothing in the control hard-codes a colour or a
+ * metric a consumer might need to restate.
  */
 
 /** Which axis the panels open along. */

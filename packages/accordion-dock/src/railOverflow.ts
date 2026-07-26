@@ -2,8 +2,6 @@ import { createEffect, createMemo, createSignal, onCleanup, type Accessor } from
 import { createAfterPaint, createResizeObserver } from '@cujuju/solidjs-hooks';
 
 /**
- * MOCK — same status as the rest of this directory.
- *
  * Deciding which rail buttons FIT, so the ones that do not can collapse into a
  * `⋯` menu instead of summoning a scrollbar into a 40px strip.
  *

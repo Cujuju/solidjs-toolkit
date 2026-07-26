@@ -22,8 +22,6 @@ import {
 } from './breadcrumbPath';
 
 /**
- * MOCK — same status as the rest of this directory.
- *
  * The path across the open columns, for the Miller-column use of the dock:
  * `src › components › AppShell.tsx`. Clicking a crumb truncates the chain.
  *

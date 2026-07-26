@@ -2,8 +2,6 @@ import { createSignal, type Accessor } from 'solid-js';
 import type { AccordionGroupApi } from './context';
 
 /**
- * MOCK — same status as the rest of this directory.
- *
  * The parent→child structure of a LEAF CHAIN: file → symbol → reference.
  *
  * A leaf is still terminal in every way that matters to the rail (no button, not

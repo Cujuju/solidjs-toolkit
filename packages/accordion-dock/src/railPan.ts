@@ -4,8 +4,6 @@ import { RAIL_CONTROL_SELECTOR } from './railOverflow';
 import { blockNextClick, createCancelListeners } from './vendor/shared';
 
 /**
- * MOCK — same status as the rest of this directory.
- *
  * Drag-to-pan for the rail, coexisting with drag-to-reorder.
  *
  * THE COLLISION, AND HOW IT IS RESOLVED

@@ -1,6 +1,4 @@
 /**
- * MOCK — same status as the rest of this directory.
- *
  * The two rules that decide WHICH panels are where, and which survive a bulk
  * close. Both were previously inline expressions inside `AccordionGroup`, which
  * meant every other consumer had to re-derive them:

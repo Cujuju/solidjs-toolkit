@@ -4,8 +4,6 @@ import { slotRef, RAIL_OVERFLOW_SLOT_KEY, type AccordionGroupApi } from './conte
 import { RAIL_OVERFLOW_ATTR } from './railOverflow';
 
 /**
- * MOCK — same status as the rest of this directory.
- *
  * The `⋯` at the end of the rail: the panels that did not fit, reachable as a
  * menu instead of behind a scrollbar.
  *

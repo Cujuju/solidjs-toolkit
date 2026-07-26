@@ -27,6 +27,37 @@ importers:
         specifier: ^2.11.12
         version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
 
+  packages/accordion-dock:
+    dependencies:
+      solid-js:
+        specifier: '>=1.7.0'
+        version: 1.9.12
+    devDependencies:
+      '@cujuju/solidjs-anchored-popover':
+        specifier: workspace:^
+        version: link:../anchored-popover
+      '@cujuju/solidjs-context-menu':
+        specifier: workspace:^
+        version: link:../context-menu
+      '@cujuju/solidjs-hooks':
+        specifier: workspace:^
+        version: link:../hooks
+      '@solidjs/testing-library':
+        specifier: ^0.8.0
+        version: 0.8.10(solid-js@1.9.12)
+      '@testing-library/jest-dom':
+        specifier: ^6.9.1
+        version: 6.9.1
+      jsdom:
+        specifier: ^24.0.0
+        version: 24.1.3
+      vite-plugin-solid:
+        specifier: ^2.11.12
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+
   packages/anchored-popover:
     dependencies:
       solid-js:
@@ -412,6 +443,9 @@ importers:
 
   playground:
     dependencies:
+      '@cujuju/solidjs-accordion-dock':
+        specifier: workspace:*
+        version: link:../packages/accordion-dock
       '@cujuju/solidjs-anchored-popover':
         specifier: workspace:*
         version: link:../packages/anchored-popover

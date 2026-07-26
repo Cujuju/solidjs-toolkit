@@ -4,7 +4,7 @@ import { DelegatedEvents, Portal, delegateEvents } from 'solid-js/web';
 /**
  * TEAR-OFF — pop a docked panel into a real second browser window.
  *
- * MOCK, like the rest of this folder. Fully wired: `index.ts` exports it,
+ * Fully wired: `index.ts` exports it,
  * `AccordionGroup` builds the controller, and `AccordionPanel` renders the ⤢
  * affordance behind its `tearOffable` prop. (This paragraph claimed the opposite
  * until 2026-07-25 — it was written before the wiring landed and nothing made it

@@ -8,7 +8,7 @@ import type { AccordionGroupApi } from './context';
 import { bulkClosableIds as sharedBulkClosableIds } from './visualOrder';
 
 /**
- * MOCK — same status as the rest of this directory. The right-click menu for a
+ * The right-click menu for a
  * panel's ACTIVATOR: the rail button in `horizontal`, the header bar in
  * `vertical`, and the column title bar in `horizontal`.
  *
