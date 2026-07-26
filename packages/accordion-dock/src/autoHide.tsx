@@ -10,7 +10,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { AnchoredPopover, type AnchoredPlacement } from '@cujuju/solidjs-anchored-popover';
-import { Close, Pin } from './icons';
+import { Close, Pin, PinOff } from './icons';
 import type {
   AccordionOrientation,
   AccordionPolicy,
@@ -782,7 +782,12 @@ function Flyout(props: {
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => props.group.togglePin(props.id)}
             >
-              <Pin />
+              {/* State, not action — see the column bar's pin. A flyout is by
+                  definition unpinned, so this is the un-pinned glyph until the
+                  click that docks it. */}
+              <Show when={props.group.isPinned(props.id)} fallback={<PinOff />}>
+                <Pin />
+              </Show>
             </button>
           </Show>
           <button

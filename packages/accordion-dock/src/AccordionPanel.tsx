@@ -17,7 +17,7 @@ import {
   type AccordionGroupApi,
   type PanelBadge,
 } from './context';
-import { Chevron, Close, Pin } from './icons';
+import { Chevron, Close, Pin, PinOff } from './icons';
 import { createActivatorKeyDown } from './keys';
 import { createPanelMenu } from './panelMenu';
 import { columnFlex } from './resize';
@@ -496,7 +496,12 @@ function PanelPinButton(props: {
         }
         onClick={() => props.group.togglePin(props.id)}
       >
-        <Pin />
+        {/* The glyph shows the STATE, not the action: `aria-pressed` already
+            names the action, and a control whose icon flips to the verb makes
+            "is it pinned?" unanswerable at rest. */}
+        <Show when={props.pinned} fallback={<PinOff />}>
+          <Pin />
+        </Show>
       </button>
     </Show>
   );

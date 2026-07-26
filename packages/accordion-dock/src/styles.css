@@ -96,8 +96,9 @@
     /* Chevron and close glyph. One token: they are the same visual weight and
        must stay the same size or the header reads lopsided. */
     --acc-icon-size: 12px;
-    /* Pin glyph. Deliberately 1px larger than --acc-icon-size — it is rendered
-       rotated 45°, which shrinks its apparent bounding box. */
+    /* Pin glyph. Deliberately 1px larger than --acc-icon-size: the pin is a
+       stroke icon whose ink sits inside a taller, narrower silhouette than the
+       chevron's, so matching numbers would read as a smaller pin. */
     --acc-pin-size: 13px;
     /* Pin marker on a rail button. Smaller than --acc-pin-size because there it
        is a status dot, not a control — it is not clickable on the rail. */
@@ -934,15 +935,11 @@
 .acc-pin-icon {
   width: var(--acc-pin-size);
   height: var(--acc-pin-size);
-  /* Unpinned reads as "pin lying down"; pinned snaps upright. Same glyph, so the
-     control's identity does not change when its state does. */
-  transform: rotate(45deg);
-  transition: transform var(--acc-duration) ease;
 }
 
-.acc-pin[aria-pressed='true'] .acc-pin-icon {
-  transform: rotate(0deg);
-}
+/* NO ROTATION. The two states are two Lucide glyphs now (`pin` / `pin-off`), so
+   the 45° tilt that used to stand in for "unpinned" would rotate an already-
+   correct icon into a crooked one. See the note in `icons.tsx`. */
 
 /* Torn-off state is persistent and consequential — the panel is in another
    window — so unlike the pin it stays lit without needing hover to be legible. */
