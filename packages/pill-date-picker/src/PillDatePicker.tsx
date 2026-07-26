@@ -71,7 +71,8 @@ export interface PillDateRowContext<T extends PillDateEntry = PillDateEntry> {
   date: string;
   /** The row label the built-in row would render (honours `formatDate`). */
   label: string;
-  /** Calendar days to expiration, or null when the date is unparseable. */
+  /** Days to expiration — the caller's own number when they supplied `dteOf`,
+   *  else calendar days, or null when there is none to show. */
   dte: number | null;
   /** The formatted DTE the built-in row would render (e.g. `34d`). */
   dteLabel: string;
@@ -142,8 +143,28 @@ export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
    * reaches for the ambient clock can only be tested by mocking the clock — which tests the
    * mock. A caller pinning a session date (backtesting, a replay view) also gets correct
    * DTE for free.
+   *
+   * Ignored when `dteOf` is supplied — that hands over the number itself.
    */
   now?: Date;
+  /**
+   * This item's days-to-expiration, when the CALLER already owns that number.
+   * Defaults to calendar days between `now` and the item's date.
+   *
+   * The default is a derivation, and a derivation can disagree with the domain.
+   * It does, routinely: an options venue counts the expiration day itself, so
+   * its DTE runs one HIGHER than the calendar difference — and a consumer whose
+   * chain, order tickets and position rows all render the venue's number got a
+   * ladder that quietly disagreed with every one of them (observed in a
+   * consumer 2026-07-26: `Jul 27 … 1d` in this pop-out, `Jul 27 2d` on the pill
+   * it drops out of). Neither number is wrong in the abstract; two numbers for
+   * one date on one screen is.
+   *
+   * So: if your data carries a DTE, pass it. This control cannot know your
+   * convention and should not guess it. `null` renders the same "no DTE" the
+   * default uses for an unparseable date.
+   */
+  dteOf?: (item: T) => number | null;
 
   size?: 'xs' | 'sm' | 'md';
   disabled?: boolean;
@@ -286,7 +307,10 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   const now = (): Date => props.now ?? new Date();
   const ramp = (): readonly DteColorStop[] => props.dteRamp ?? DEFAULT_DTE_RAMP;
 
-  const dteOf = (item: T): number | null => daysToExpiration(dateOf(item), now());
+  /** ONE definition of this item's DTE — the caller's if they own the number,
+   *  else calendar days. Everything that shows a DTE flows through here. */
+  const dteOf = (item: T): number | null =>
+    props.dteOf ? props.dteOf(item) : daysToExpiration(dateOf(item), now());
   const labelOf = (iso: string): string =>
     props.formatDate ? props.formatDate(iso) : formatMonthDay(iso);
 
@@ -739,7 +763,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
              * allocated a `new Date()` for the clock. Two memos make that once
              * per row per pass, and they still re-run when `props.now` moves.
              */
-            const dte = createMemo<number | null>(() => daysToExpiration(iso(), now()));
+            const dte = createMemo<number | null>(() => dteOf(item()));
             const label = createMemo<string>(() => labelOf(iso()));
             // Compare on the KEY, not the date. With two same-date contracts in the ladder
             // (SPX / SPXW), a date comparison would light up BOTH rows as selected.

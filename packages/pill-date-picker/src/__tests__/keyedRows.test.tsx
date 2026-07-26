@@ -141,3 +141,61 @@ describe('keyed rows', () => {
     expect(after[1]).toBe(before[2]);
   });
 });
+
+/**
+ * `dteOf` — the caller's own DTE, when they have one.
+ *
+ * The default derives DTE from the date, and a derivation can disagree with the
+ * domain. It does: an options venue counts the expiration day itself, so its
+ * number runs one HIGHER than the calendar difference. A consumer rendering the
+ * venue's number everywhere else got a ladder that contradicted it (observed
+ * 2026-07-26: `Jul 27 … 1d` here, `Jul 27 2d` on the pill it drops out of).
+ */
+describe('dteOf', () => {
+  const VENUE = (date: string): Entry => ({ date, expId: `${date}~SPY` });
+
+  it('renders the callers DTE instead of the calendar difference', () => {
+    // NOW is Sat 13 Jun; the 19th is 6 calendar days out, and a venue counting
+    // the expiration day itself calls the same date 7.
+    mount(() => (
+      <PillDatePicker
+        items={[VENUE('2026-06-19')]}
+        keyOf={(e) => e.expId}
+        dteOf={() => 7}
+        now={NOW}
+        open
+        onChange={() => {}}
+      />
+    ));
+    expect(rows()[0].querySelector('.cpdp-row-dte')?.textContent).toBe('7d');
+  });
+
+  it('falls back to calendar days when the caller supplies none', () => {
+    mount(() => (
+      <PillDatePicker
+        items={[VENUE('2026-06-19')]}
+        keyOf={(e) => e.expId}
+        now={NOW}
+        open
+        onChange={() => {}}
+      />
+    ));
+    expect(rows()[0].querySelector('.cpdp-row-dte')?.textContent).toBe('6d');
+  });
+
+  /** A null is "no DTE to show" — the same answer an unparseable date gives —
+   *  not a zero, which would read as "expires today". */
+  it('shows no DTE when the caller answers null', () => {
+    mount(() => (
+      <PillDatePicker
+        items={[VENUE('2026-06-19')]}
+        keyOf={(e) => e.expId}
+        dteOf={() => null}
+        now={NOW}
+        open
+        onChange={() => {}}
+      />
+    ));
+    expect(rows()[0].querySelector('.cpdp-row-dte')?.textContent).not.toBe('0d');
+  });
+});
