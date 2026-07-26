@@ -164,7 +164,23 @@
        padding around the glyph. */
     --acc-col-bar-pad-end: 4px;
 
-    --acc-duration: 140ms;
+    /* Chrome transitions — header and rail-button backgrounds, the chevron's
+       rotation, badge opacity. ZERO BY DEFAULT: these fire on every hover and
+       every open, so any duration at all is a tax paid continuously on the
+       control's most common interactions, and a dock reads as SNAPPY or it does
+       not. The transitions themselves are left declared throughout rather than
+       deleted — a 0ms transition is inert, so this is a value a consumer raises
+       to opt INTO motion rather than a feature that has to be rebuilt.
+
+       Was 140ms, on the reasoning that a colour fade at that length reads as
+       "instant but soft". It does; it is also 140ms of softness in front of a
+       click the user has already committed to. Motion here decorates a state
+       change that is already unambiguous.
+
+       This is deliberately NOT the same decision as `--acc-open-duration`
+       below, which stays non-zero because it is gated behind the `animated`
+       prop — an explicit opt-in, and zeroing it would make that prop a no-op. */
+    --acc-duration: 0ms;
 
     /* Focus ring, as tokens because five controls draw the same one and were each
        spelling out `1px solid var(--acc-accent)` with a `-2px` offset. Five copies

@@ -232,6 +232,31 @@ and that header is standing in for the body it no longer shows.
 panel is `display: none` and its presence in the dock is a rail button, which
 has its own tokens.
 
+### Motion is OFF by default
+
+| Token | Animates | Default |
+|---|---|---|
+| `--acc-duration` | chrome — header/rail-button backgrounds, chevron rotation, badge opacity | `0ms` |
+| `--acc-flyout-in-duration` | the flyout's entry reveal | `0ms` |
+| `--acc-open-duration` | open/close **geometry**, only under `animated` | `180ms` |
+
+The first two fire on every hover and every open, so any duration is a tax paid
+continuously on the control's most common interactions. They are **zero**, and
+the `transition` / `animation` declarations they feed are left in place
+throughout — a 0ms transition is inert, so these are values you raise to opt
+**into** motion, not a feature to rebuild:
+
+```css
+:root {
+  --acc-duration: 140ms;             /* the old default, if you want it back */
+  --acc-flyout-in-duration: 110ms;
+}
+```
+
+`--acc-open-duration` is the exception and stays at 180ms, because it is already
+gated behind the `animated` prop — an explicit opt-in that defaults false.
+Zeroing it would make that prop a no-op.
+
 ## Tests
 
 ```sh

@@ -224,10 +224,18 @@
 
   @layer cujuju-defaults {
     :root {
-      /* Fast enough to feel like a reveal rather than a transition the user
-         waits through; long enough that the direction of travel registers,
-         which is what tells them where the panel came from. */
-      --acc-flyout-in-duration: 110ms;
+      /* ZERO BY DEFAULT, matching `--acc-duration`: a flyout is an overlay the
+         user asked for and is already reaching toward, so time spent revealing
+         it is time it cannot be clicked. The keyframes and the `animation`
+         declaration stay — a 0ms animation is inert — so raising this token is
+         all it takes to get the reveal back.
+
+         Was 110ms, for "long enough that the direction of travel registers,
+         which is what tells them where the panel came from". That reasoning
+         holds for a RAIL, where the flyout emerges from a 40px strip and its
+         origin is genuinely ambiguous. It is much weaker for a vertical dock,
+         where the flyout drops directly under the header that was clicked. */
+      --acc-flyout-in-duration: 0ms;
     }
   }
 
