@@ -191,6 +191,44 @@ export function partitionAtRail(input: RailPartitionInput): RailPartition {
 }
 
 /**
+ * Rewrite the pin order so it agrees with a sequence the user just dragged.
+ *
+ * ── Why this function has to exist ──────────────────────────────────────────
+ * Two systems were both claiming the painted sequence and one silently won. A
+ * drag commits into the panel `order`, which `orderVisualOpen` honours — but
+ * `partitionAtRail` then re-sorts the static region by PIN order, so for a pinned
+ * column the drag committed and changed nothing on screen. In a dock where every
+ * column is pinned (which is the point of pinning) that reads as drag-to-reorder
+ * being dead, with no error and no clue.
+ *
+ * The resolution is not to drop pin order — the static sequence genuinely IS pin
+ * order, that is what makes a newly frozen column land at the end of the frozen
+ * run instead of jumping into the middle. It is that pin order is STORAGE for
+ * that sequence, so the drag must write to it. The reorder decides the sequence;
+ * the partition only decides where the rail splits it.
+ *
+ * Pinned-but-CLOSED panels keep their existing relative order at the end: they
+ * are not on screen, so a drag between two visible columns carries no information
+ * about where they belong — the same reasoning `moveOpenTo` already applies to
+ * closed panels in the panel order.
+ *
+ * A drag that touches no pinned column returns an equivalent order, so callers
+ * can apply this unconditionally rather than testing whether it was needed.
+ */
+export function repinToVisualOrder(input: {
+  /** Current pin order. */
+  pinOrder: readonly string[];
+  /** The new painted sequence of open, non-leaf columns. */
+  nextVisual: readonly string[];
+}): readonly string[] {
+  const pinnedSet = new Set(input.pinOrder);
+  const visible = input.nextVisual.filter((id) => pinnedSet.has(id));
+  const visibleSet = new Set(visible);
+  const offscreen = input.pinOrder.filter((id) => !visibleSet.has(id));
+  return [...visible, ...offscreen];
+}
+
+/**
  * Should this panel show a rail button?
  *
  * The one-line rule from the state model above, as a function, because three

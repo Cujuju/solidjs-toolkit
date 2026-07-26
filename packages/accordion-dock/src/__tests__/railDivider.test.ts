@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { orderVisualOpen, partitionAtRail, showsRailButton } from '../visualOrder';
+import {
+  orderVisualOpen,
+  partitionAtRail,
+  repinToVisualOrder,
+  showsRailButton,
+} from '../visualOrder';
 import { createStubGroup } from './stubGroup';
 
 /**
@@ -282,5 +287,64 @@ describe('the rail empties when everything is pinned', () => {
     stub.group.collapseKeepPin('a');
 
     expect(['a', 'b'].filter((id) => stub.group.showsRailButton(id))).toEqual(['a']);
+  });
+});
+
+describe('a drag actually moves a pinned column (regression)', () => {
+  /**
+   * THE BUG: the drag committed into the panel order, `orderVisualOpen` honoured
+   * it, and `partitionAtRail` then re-sorted the static region by PIN order and
+   * threw it away. Every column in an auto-hide dock is pinned, so drag-to-reorder
+   * looked dead — no error, no clue, the columns simply did not move.
+   *
+   * These assert the COMPOSED path (reorder → repin → partition), because each
+   * function was individually correct and the defect lived in how they combined.
+   */
+  it('reorders the painted static sequence, not just the panel order', () => {
+    const pinOrder = ['a', 'b', 'c'];
+    // The user drags c to the front.
+    const nextVisual = ['c', 'a', 'b'];
+
+    const nextPins = repinToVisualOrder({ pinOrder, nextVisual });
+    const p = partitionAtRail({
+      visualOpen: nextVisual,
+      pinOrder: nextPins,
+      isLeaf,
+      enabled: true,
+    });
+
+    expect(p.staticIds).toEqual(['c', 'a', 'b']);
+    expect(p.orderOf('c')).toBeLessThan(p.orderOf('a'));
+  });
+
+  it('WITHOUT the repin, the partition would discard the drag — the bug itself', () => {
+    // Pinned straight through the OLD pin order: the drag is silently undone.
+    const stale = partitionAtRail({
+      visualOpen: ['c', 'a', 'b'],
+      pinOrder: ['a', 'b', 'c'],
+      isLeaf,
+      enabled: true,
+    });
+    expect(stale.staticIds).toEqual(['a', 'b', 'c']);
+    // Which is exactly what the user saw: dragged c to the front, c stayed last.
+    expect(stale.orderOf('c')).toBeGreaterThan(stale.orderOf('a'));
+  });
+
+  it('leaves pinned-but-CLOSED panels at the end, in their existing order', () => {
+    // They are off screen, so a drag between visible columns says nothing about them.
+    const next = repinToVisualOrder({
+      pinOrder: ['a', 'closed1', 'b', 'closed2'],
+      nextVisual: ['b', 'a'],
+    });
+    expect(next).toEqual(['b', 'a', 'closed1', 'closed2']);
+  });
+
+  it('is a no-op when the drag touched no pinned column', () => {
+    // So the caller can apply it unconditionally instead of detecting the case.
+    const next = repinToVisualOrder({
+      pinOrder: ['a'],
+      nextVisual: ['a', 'x', 'y'],
+    });
+    expect(next).toEqual(['a']);
   });
 });

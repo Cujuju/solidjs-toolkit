@@ -21,6 +21,7 @@ import { bindLeafChain, createLeafChain } from './leafChain';
 import {
   orderVisualOpen,
   partitionAtRail,
+  repinToVisualOrder,
   showsRailButton,
   survivesBulkClose,
 } from './visualOrder';
@@ -636,6 +637,20 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     let cursor = 0;
     const nextOrder = orderIds().map((id) => (openSlots.has(id) ? nextVisual[cursor++] : id));
     commitOrder(nextOrder);
+
+    /*
+     * The static region is ordered by PIN order, so a drag that only wrote the
+     * panel order above would commit and paint nothing — for a pinned column the
+     * partition re-sorts over it. Pin order is the STORAGE for that sequence, so
+     * the drag writes there too. Unconditional: a drag among unpinned columns
+     * leaves the pinned ids' relative order untouched, so this is a no-op there
+     * rather than a case to detect.
+     */
+    if (railDivider()) {
+      commitPinned(
+        new Set(repinToVisualOrder({ pinOrder: [...pinned()], nextVisual })),
+      );
+    }
   };
 
   const columnReorder = createReorderList({
