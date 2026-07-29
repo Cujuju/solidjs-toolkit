@@ -77,8 +77,50 @@ A 1px separator + padding are added automatically between the entries and the `e
 | `edgePadPx` | `8` | Minimum distance from viewport edge. |
 | `minWidth`, `maxWidth` | `120`, `300` | Size bounds. |
 | `role` | `'tooltip'` | ARIA role. |
-| `ariaLabel` | — | Describes the panel for screen readers. |
+| `ariaLabel` | — | Labels the panel element itself. Note this is *not* what a screen-reader user hears — see Accessibility. |
+| `description` (wrapper) | derived from `entries` | The tooltip's text for assistive tech. Required for an `extraContent`-only tooltip (arbitrary JSX is not stringified). |
+| `describeTrigger` (wrapper) | `true` | Set `false` to opt out of the whole accessible-description contract (hidden node, `aria-describedby`, focus/Escape) and get the 0.2.x mouse-only behaviour. |
+| `focusable` (wrapper) | auto | Whether the wrapper takes `tabindex="0"`. Auto = only when the trigger contains no focusable element of its own. |
 | `class`, `panelClass`, `portalTarget` | — | Passthrough styling / mount hooks. |
+
+## Accessibility
+
+The panel is `<Portal>`-rendered, mounted only while hovered, and referenced by
+nothing, so `role="tooltip"` on it announces **nothing** — a tooltip role is
+only spoken through an `aria-describedby` relationship. Through 0.2.x that made
+this component a strictly-worse replacement for a native `title` for anyone not
+using a mouse, and you cannot keep both: a `title` and a KvTooltip on one
+trigger fire two competing popups on the same hover.
+
+From 0.3.0 the wrapper carries the text itself:
+
+- an **always-mounted, visually-hidden node** holds the description (derived
+  from `entries`, or whatever `description` says);
+- **`aria-describedby`** points at it from the wrapper *and* from your own
+  trigger element — the attribute is not inherited, so it has to sit where
+  focus lands. Existing ids on your trigger are merged, never overwritten;
+- the wrapper takes a **tab stop** only when your trigger has none of its own;
+- **focus shows** the panel, **blur hides** it, **Escape dismisses** it;
+- the visible panel is **`aria-hidden`** whenever the hidden node duplicates it,
+  so nothing is announced twice.
+
+```tsx
+// Derived: "Delta: 0.42. Gamma: 0.03"
+<KvTooltip entries={{ Delta: '0.42', Gamma: '0.03' }}>{price}</KvTooltip>
+
+// extraContent has no derivable text — say it explicitly, or the tooltip
+// stays mouse-only.
+<KvTooltip
+  entries={{}}
+  extraContent={<HelpProse />}
+  description="Live Preview mounts a real workspace per card and can lag a slow machine."
+>
+  <InfoIcon />
+</KvTooltip>
+```
+
+`KvTooltipPanel` (controlled mode) is unchanged: it renders only the panel, so
+the surrounding trigger and its description belong to the caller.
 
 ## Viewport clamping with hysteresis
 

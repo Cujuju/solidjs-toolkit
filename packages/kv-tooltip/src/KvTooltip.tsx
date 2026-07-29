@@ -1,4 +1,14 @@
-import { createSignal, createMemo, createEffect, on, onCleanup, For, Show, type JSX } from 'solid-js';
+import {
+  createSignal,
+  createMemo,
+  createEffect,
+  createUniqueId,
+  on,
+  onCleanup,
+  For,
+  Show,
+  type JSX,
+} from 'solid-js';
 import { Portal } from 'solid-js/web';
 import {
   createClampedPosition,
@@ -85,6 +95,13 @@ interface TooltipContentProps extends KvTooltipAnchoringProps {
   interactive: boolean;
   role: 'tooltip' | 'status';
   ariaLabel?: string;
+  /**
+   * Hide the panel from assistive tech. Set when the wrapper is already
+   * exposing the same text through its always-mounted description node — two
+   * copies of one tooltip is worse than one, and the hidden node is the copy
+   * that survives when the pointer is not involved.
+   */
+  ariaHidden?: boolean;
   panelClass?: string;
   portalTarget?: HTMLElement;
   /**
@@ -188,6 +205,7 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
         class={`ckv-panel ${props.panelClass ?? ''}`.trim()}
         role={props.role}
         aria-label={props.ariaLabel}
+        aria-hidden={props.ariaHidden ? 'true' : undefined}
         data-interactive={props.interactive ? 'true' : undefined}
         style={panelStyle()}
         onMouseEnter={props.onPanelMouseEnter}
@@ -338,9 +356,75 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
   ariaLabel?: string;
   role?: 'tooltip' | 'status';
 
+  /**
+   * The tooltip's text for assistive technology — what a screen-reader user
+   * gets instead of the panel.
+   *
+   * WHY THIS EXISTS. The panel is `<Portal>`-rendered, mounted only while
+   * hovered, and nothing references it, so `role="tooltip"` on it announces
+   * NOTHING: a tooltip role is only spoken through a `aria-describedby`
+   * relationship from the described element. That made this component a
+   * strictly-worse replacement for a native `title` for anyone not using a
+   * mouse — and a consumer cannot keep BOTH (a native `title` and this
+   * component fire two competing popups on the same hover). So the accessible
+   * text has to come from here.
+   *
+   * Absent → derived from `entries` ("key: value" per pair). An
+   * `extraContent`-only tooltip has no derivable text (the content is
+   * arbitrary JSX this component will not stringify) and MUST pass this
+   * explicitly, or it stays mouse-only.
+   */
+  description?: string;
+  /**
+   * Opt out of the accessible-description machinery entirely (hidden node,
+   * `aria-describedby`, focus/Escape handling): `false` restores the 0.2.x
+   * mouse-only behaviour.
+   *
+   * Default `true`. It is on by default deliberately — an a11y contract that
+   * every consumer must remember to opt into is the contract that gets
+   * forgotten, which is exactly how this component shipped without one.
+   */
+  describeTrigger?: boolean;
+  /**
+   * Whether the wrapper takes `tabindex="0"` so a keyboard user can reach the
+   * tooltip.
+   *
+   * Default: AUTO — the wrapper becomes focusable only when it contains no
+   * focusable element of its own. A trigger that is already a button/link/
+   * input must not gain a second tab stop wrapping it, and a plain text or
+   * icon trigger is unreachable without one. Pass `true`/`false` to force it.
+   */
+  focusable?: boolean;
+
   class?: string;
   panelClass?: string;
   portalTarget?: HTMLElement;
+}
+
+/**
+ * Visually hidden, still read by assistive tech. Inline (not a CSS class) on
+ * purpose: the description must not become visible text in a consumer that
+ * forgot to import the package stylesheet.
+ */
+const SR_ONLY_STYLE: JSX.CSSProperties = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  padding: '0',
+  margin: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  'white-space': 'nowrap',
+  border: '0',
+};
+
+/** Elements that already take keyboard focus — see the `focusable` prop. */
+const FOCUSABLE_SELECTOR =
+  'a[href], button, input, select, textarea, [contenteditable=""], [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+
+/** `key: value` per pair — the fallback accessible text for a KV tooltip. */
+function describeEntries(entries: Array<[string, string]>): string {
+  return entries.map(([k, v]) => `${k}: ${v}`).join('. ');
 }
 
 /** Content + reference position held for the lifetime of one show, per `freezeOnShow`. */
@@ -442,10 +526,103 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     ),
   );
 
+  // ── Accessible description ────────────────────────────────────────────────
+  // The hidden node is the ONLY thing a screen reader can reach (the panel is
+  // portalled, transient, and unreferenced). It is always mounted so
+  // `aria-describedby` never dangles, and it is what makes this component a
+  // legitimate replacement for a native `title` rather than a mouse-only
+  // decoration.
+  const describeTrigger = (): boolean => props.describeTrigger ?? true;
+  const descriptionId = createUniqueId();
+  const description = (): string => {
+    if (!describeTrigger()) return '';
+    const explicit = props.description?.trim();
+    if (explicit) return explicit;
+    return describeEntries(filtered());
+  };
+  const hasDescription = (): boolean => description().length > 0;
+
+  let wrapperEl: HTMLSpanElement | undefined;
+
+  /**
+   * `aria-describedby` is NOT inherited: a screen reader announces the element
+   * the user is on, so the attribute has to sit on the trigger the user
+   * actually reaches. That is the wrapper when the trigger is inert text/an
+   * icon, but the CHILD when the caller wrapped a real control — announcing a
+   * button reads the button's own describedby, never its parent's. So both get
+   * it, and the child's existing ids are preserved rather than overwritten.
+   */
+  createEffect(() => {
+    const el = wrapperEl;
+    if (!el || !hasDescription()) return;
+    const child = el.firstElementChild as HTMLElement | null;
+    if (!child || child.id === descriptionId) return;
+    const existing = (child.getAttribute('aria-describedby') ?? '')
+      .split(/\s+/)
+      .filter(Boolean);
+    if (existing.includes(descriptionId)) return;
+    child.setAttribute('aria-describedby', [...existing, descriptionId].join(' '));
+    onCleanup(() => {
+      const left = (child.getAttribute('aria-describedby') ?? '')
+        .split(/\s+/)
+        .filter((id) => id && id !== descriptionId);
+      if (left.length > 0) child.setAttribute('aria-describedby', left.join(' '));
+      else child.removeAttribute('aria-describedby');
+    });
+  });
+
+  /**
+   * AUTO focusability: only wrap-level `tabindex` when the caller's own trigger
+   * has none, so a wrapped button keeps exactly one tab stop. Measured from the
+   * live DOM (a `<Show>`-gated control can appear later), not from the props.
+   */
+  const [childFocusable, setChildFocusable] = createSignal(false);
+  createEffect(() => {
+    // Track the description so the probe re-runs on the same edges the wiring
+    // above does; the DOM read itself is untracked by nature.
+    hasDescription();
+    const el = wrapperEl;
+    if (!el) return;
+    setChildFocusable(el.querySelector(FOCUSABLE_SELECTOR) !== null);
+  });
+  const wrapperTabIndex = (): number | undefined => {
+    if (!describeTrigger() || !hasDescription()) return undefined;
+    const forced = props.focusable;
+    if (forced !== undefined) return forced ? 0 : undefined;
+    return childFocusable() ? undefined : 0;
+  };
+
+  /**
+   * Escape dismisses a visible panel (WAI-ARIA tooltip pattern). Unconditional
+   * and un-propped: a panel the user cannot dismiss without moving the pointer
+   * is a keyboard trap over whatever it covers. Listener exists only while the
+   * panel does.
+   */
+  createEffect(() => {
+    if (!visible()) return;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') hoverIntent.hideNow();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    onCleanup(() => document.removeEventListener('keydown', onKeyDown, true));
+  });
+
   return (
     <span
+      ref={wrapperEl}
       class={props.class}
+      tabindex={wrapperTabIndex()}
+      aria-describedby={hasDescription() ? descriptionId : undefined}
       style={{ position: 'relative', display: 'inline', overflow: 'hidden', 'text-overflow': 'ellipsis' }}
+      // Keyboard parity with hover: focus shows the panel, blur hides it.
+      // `focusin`/`focusout` (not focus/blur) so focus landing on a CHILD
+      // control counts — those bubble, focus/blur do not.
+      onFocusIn={() => {
+        if (describeTrigger()) hoverIntent.showNow();
+      }}
+      onFocusOut={() => {
+        if (describeTrigger()) hoverIntent.hideNow();
+      }}
       onMouseEnter={(e) => {
         // Seed the cursor point from the ENTER event, not the last mousemove.
         // Without this the panel's first frame uses a stale point (or 0,0 on
@@ -470,6 +647,14 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
       onPointerDown={hoverIntent.onTriggerPointerDown}
     >
       {props.children}
+      {/* Always mounted (not gated on `visible`): a description that exists
+          only while hovered is a description a screen reader can never reach,
+          and `aria-describedby` must not point at a missing node. */}
+      <Show when={hasDescription()}>
+        <span id={descriptionId} style={SR_ONLY_STYLE}>
+          {description()}
+        </span>
+      </Show>
       <Show when={visible() && shouldShow()}>
         <TooltipContent
           entries={panelEntries()}
@@ -485,6 +670,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
           interactive={interactive()}
           role={props.role ?? 'tooltip'}
           ariaLabel={props.ariaLabel}
+          ariaHidden={hasDescription()}
           panelClass={props.panelClass}
           portalTarget={props.portalTarget}
           onPanelMouseEnter={hoverIntent.onPanelEnter}

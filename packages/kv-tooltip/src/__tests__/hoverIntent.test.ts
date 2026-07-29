@@ -405,4 +405,32 @@ describe('createHoverIntent', () => {
     expect(h.setVisible).toHaveBeenCalledTimes(1);
     expect(h.setVisible).toHaveBeenCalledWith(false);
   });
+
+  // ─── Contract: showNow skips the rest-delay but keeps every show gate ───
+
+  it('showNow shows immediately despite a pending showDelayMs', () => {
+    const h = createHarness({ showDelayMs: 500 });
+    h.api.showNow();
+    expect(h.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('showNow cancels a pending deferred show rather than double-firing', () => {
+    const h = createHarness({ showDelayMs: 500 });
+    h.api.onTriggerEnter();  // arms the deferred show
+    h.api.showNow();         // shows now, and the armed one must die
+    h.setVisible.mockClear();
+
+    vi.advanceTimersByTime(1000);
+    expect(h.setVisible).not.toHaveBeenCalled();
+  });
+
+  it('showNow still respects blockShow and shouldShow', () => {
+    const blocked = createHarness({ blockShow: true });
+    blocked.api.showNow();
+    expect(blocked.setVisible).not.toHaveBeenCalled();
+
+    const nothingToShow = createHarness({ shouldShow: false });
+    nothingToShow.api.showNow();
+    expect(nothingToShow.setVisible).not.toHaveBeenCalled();
+  });
 });

@@ -136,6 +136,17 @@ export interface HoverIntentApi {
   onTriggerLeave: () => void;
   onPanelEnter: () => void;
   onPanelLeave: () => void;
+  /**
+   * Show immediately, skipping `showDelayMs`, but honouring every show GATE
+   * (pointerdown suppression, `blockShow`, `shouldShow`).
+   *
+   * For show causes that are not a pointer resting on the trigger — keyboard
+   * focus above all. The rest-delay exists to stop a pointer sweeping THROUGH
+   * a dense row from flashing panels behind it; a focus event has no such
+   * failure mode (focus lands on exactly one trigger deliberately), and
+   * deferring it would just make the keyboard path feel broken.
+   */
+  showNow: () => void;
   /** Pointer pressed on the trigger — see `hideOnPointerDown`. */
   onTriggerPointerDown: () => void;
   /**
@@ -217,6 +228,11 @@ export function createHoverIntent(opts: HoverIntentOptions): HoverIntentApi {
       suppressedUntilReenter = false;
       if (opts.interactive()) armHide();
       else opts.setVisible(false);
+    },
+    showNow: (): void => {
+      cancelHide();
+      cancelShow();
+      show();
     },
     onPanelEnter: (): void => {
       if (opts.interactive()) cancelHide();
