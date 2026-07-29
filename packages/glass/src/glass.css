@@ -20,10 +20,30 @@
    those live on the consumer's class so each surface controls its own
    geometry. These rules are purely visual treatment.
 
-   Token defaults live in `@layer cujuju-defaults` so an unlayered host
-   theme overrides them regardless of CSS load order. The only HOST
-   tokens read are `--color-surface` and `--color-border`; both carry
-   layered fallbacks here so the package renders standalone.
+   THIS PACKAGE NEVER DECLARES A HOST TOKEN. The only HOST tokens read
+   are `--color-surface` and `--color-border`, and they are read through
+   the package-private `--cujuju-glass-*` mirrors below, each carrying an
+   inline fallback so the package still renders standalone.
+
+   It used to DECLARE both in `@layer cujuju-defaults`, on the reasoning
+   that "an unlayered host theme overrides them regardless of CSS load
+   order". That reasoning is sound but the premise fails against the most
+   common host setup there is: a Tailwind v4 host defines its palette in
+   `@theme`, and Tailwind emits `@theme` into `@layer theme` — so the
+   host's palette is LAYERED, not unlayered. Layer priority is order of
+   first appearance, and a host that imports Tailwind before this file
+   registers `theme` first, which puts `cujuju-defaults` LAST and
+   therefore HIGHEST. The fallbacks then beat the real theme.
+
+   That is not a hypothetical: it silently repainted every divider in a
+   consuming app to this file's 10%-white fallback, and no amount of
+   specificity on the host side could have won it back.
+
+   A library cannot know whether a host's tokens are layered, so it must
+   never compete for the name at all. Reading with `var(--host-token,
+   fallback)` is layer-proof by construction: it takes whatever value won
+   the host's own cascade, and falls back only when the host truly has
+   no such token.
 
    `.glass-menu` text/border/raised/input tokens are intentionally
    HARDCODED white-alpha — the menu assumes a smoked-dark backdrop
@@ -36,21 +56,25 @@
 
 @layer cujuju-defaults {
   :root {
-    /* Host theme inputs — fallbacks only; a host theme's unlayered
-       definitions override these. */
-    --color-surface: #16213e;
-    --color-border: rgba(255, 255, 255, 0.1);
+    /* Host theme inputs, MIRRORED not declared. These are the only place
+       the standalone fallback literals live, and they sit in the
+       package-private `--cujuju-glass-*` namespace so this file can never
+       collide with a host token of the same name. Everything below reads
+       the mirror; nothing reads `--color-surface` / `--color-border`
+       directly at :root. */
+    --cujuju-glass-surface: var(--color-surface, #16213e);
+    --cujuju-glass-border: var(--color-border, rgba(255, 255, 255, 0.1));
 
     /* Glassmorphism — translucent panel surface + backdrop blur.
        Saturate >100% prevents the blur from washing out colors behind.
-       `--surface-glass-border` sits brighter than `--color-border` so
+       `--surface-glass-border` sits brighter than the host border so
        the panel edge stays legible against translucent body content.
        The outer drop layers are extracted so `.glass-menu` can
        reference them without re-declaring the literals. */
     --surface-glass-blur: 10px;
     --surface-glass-saturate: 140%;
-    --surface-glass: color-mix(in srgb, var(--color-surface) 35%, transparent);
-    --surface-glass-border: color-mix(in srgb, white 14%, var(--color-border));
+    --surface-glass: color-mix(in srgb, var(--cujuju-glass-surface) 35%, transparent);
+    --surface-glass-border: color-mix(in srgb, white 14%, var(--cujuju-glass-border));
     --surface-glass-shadow-outer:
       0 16px 48px rgba(0, 0, 0, 0.55),
       0 2px 6px rgba(0, 0, 0, 0.35);
@@ -91,7 +115,7 @@
     --user-menu-tint-backdrop-saturate: 0.8;
     --user-menu-tint-blur: 10px;
 
-    /* Menu surface tint — derived from `--color-surface`, mutated by
+    /* Menu surface tint — derived from the host surface, mutated by
        the knobs above. Uses CSS relative-color syntax to read surface
        hsl + scale saturation, then mixes with black, then composites
        with transparent. Host surface swaps flow through automatically. */
@@ -100,13 +124,13 @@
       color-mix(
         in srgb,
         black var(--user-menu-tint-darken),
-        hsl(from var(--color-surface) h calc(s * var(--user-menu-tint-saturate)) l)
+        hsl(from var(--cujuju-glass-surface) h calc(s * var(--user-menu-tint-saturate)) l)
       ) var(--user-menu-tint-alpha),
       transparent
     );
 
     /* Menu text/border/surface tier — the smoked-glass menu tint sits
-       darker than `--color-surface`, so menu surfaces need their own
+       darker than the host surface, so menu surfaces need their own
        contrast ladder. `.glass-menu` rebinds the page-level aliases to
        these values so every descendant picks them up automatically.
        All values are hardcoded white-alpha — the menu always paints
