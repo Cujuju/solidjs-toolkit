@@ -415,6 +415,15 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    * reproduce. The trade-off is that a boxless wrapper cannot host a focus ring
    * or a tab stop, so `focusable` is ignored in this mode and the CHILD must be
    * focusable for the keyboard path to work.
+   *
+   * Two facts about `'contents'`, verified in Chromium 2026-07-29 rather than
+   * assumed, because the mode is useless if either is false:
+   *   - hover still works: `mouseenter`/`mouseleave` ARE dispatched to a
+   *     boxless ancestor when the pointer enters its child, so the wrapper's
+   *     listeners fire exactly as in the other modes;
+   *   - the wrapper's own `getBoundingClientRect()` is all zeros. Never derive
+   *     an `anchor` from the wrapper element in this mode — anchor to the CHILD,
+   *     or stay in cursor placement.
    */
   wrapperLayout?: 'text' | 'control' | 'contents';
 
