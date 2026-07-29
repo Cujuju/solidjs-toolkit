@@ -48,7 +48,8 @@
    `.glass-menu` text/border/raised/input tokens are intentionally
    HARDCODED white-alpha — the menu assumes a smoked-dark backdrop
    regardless of host theme. A light theme cannot use `.glass-menu`
-   without redesigning the `--color-menu-*` aliases.
+   without redesigning the `--cujuju-glass-menu-*` aliases, which is a
+   deliberate call: set them yourself or use `applyGlassMenuPalette()`.
 
    The menu tint is user-tunable at runtime via the five
    `--user-menu-tint-*` variables — see `menuTint.ts` / `MenuTintSection`,
@@ -135,13 +136,30 @@
        these values so every descendant picks them up automatically.
        All values are hardcoded white-alpha — the menu always paints
        over a smoked-dark backdrop and does NOT participate in theme
-       swaps. */
-    --color-menu-text: rgba(255, 255, 255, 0.95);
-    --color-menu-text-secondary: rgba(255, 255, 255, 0.78);
-    --color-menu-text-muted: rgba(255, 255, 255, 0.65);
-    --color-menu-border: rgba(255, 255, 255, 0.18);
-    --color-menu-surface-raised: rgba(255, 255, 255, 0.1);
-    --color-menu-input-bg: rgba(255, 255, 255, 0.08);
+       swaps.
+
+       NAMESPACED `--cujuju-glass-menu-*`, not `--color-menu-*`. These
+       are this package's OWN vocabulary, not host inputs, and the old
+       names sat squarely in the host's `--color-` namespace — a host
+       that happened to define `--color-menu-border` would have been
+       silently overriding a library internal, or been overridden by it,
+       depending on nothing more than layer order. That is the same trap
+       the two host inputs above were caught in; a name is not private
+       just because a library author thinks of it as internal.
+
+       These carry NO host fallback ON PURPOSE. There is no
+       `var(--color-menu-text, …)` here, because reading a host token by
+       name is exactly the implicit coupling being removed: a host must
+       not be able to change the menu palette by accidentally owning a
+       name. Overriding is DELIBERATE and explicit — set these variables
+       yourself, or call `applyGlassMenuPalette()` from `menuPalette.ts`,
+       which is the supported runtime path. */
+    --cujuju-glass-menu-text: rgba(255, 255, 255, 0.95);
+    --cujuju-glass-menu-text-secondary: rgba(255, 255, 255, 0.78);
+    --cujuju-glass-menu-text-muted: rgba(255, 255, 255, 0.65);
+    --cujuju-glass-menu-border: rgba(255, 255, 255, 0.18);
+    --cujuju-glass-menu-surface-raised: rgba(255, 255, 255, 0.1);
+    --cujuju-glass-menu-input-bg: rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -164,12 +182,12 @@
    reverts to the host body's computed color — re-resolve `color` at
    that descendant or drop the `color: inherit`. */
 .glass-menu {
-  --color-text: var(--color-menu-text);
-  --color-text-secondary: var(--color-menu-text-secondary);
-  --color-text-muted: var(--color-menu-text-muted);
-  --color-border: var(--color-menu-border);
-  --color-surface-raised: var(--color-menu-surface-raised);
-  --color-surface: var(--color-menu-input-bg);
+  --color-text: var(--cujuju-glass-menu-text);
+  --color-text-secondary: var(--cujuju-glass-menu-text-secondary);
+  --color-text-muted: var(--cujuju-glass-menu-text-muted);
+  --color-border: var(--cujuju-glass-menu-border);
+  --color-surface-raised: var(--cujuju-glass-menu-surface-raised);
+  --color-surface: var(--cujuju-glass-menu-input-bg);
   /* Re-resolve `color` at this scope boundary using the rebound
      `--color-text`. Without this the menu surface inherits the literal
      computed value from the host <body>'s page-level `color`, which was
