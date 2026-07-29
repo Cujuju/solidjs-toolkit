@@ -190,6 +190,46 @@ describe('KvTooltip accessibility', () => {
     dispose();
   });
 
+  // ─── wrapperLayout: the wrapper must not reflow or clip a control ────────
+
+  it("default 'text' layout keeps the historical inline+ellipsis box", () => {
+    const { dispose, container } = renderTooltip({ entries: { A: '1' }, children: 'text' });
+    const style = getWrapper(container).style;
+    expect(style.display).toBe('inline');
+    expect(style.overflow).toBe('hidden');
+    expect(style.textOverflow).toBe('ellipsis');
+    dispose();
+  });
+
+  it("'control' layout drops the clip so a wrapped button keeps its own box", () => {
+    const { dispose, container } = renderTooltip({
+      entries: { A: '1' },
+      wrapperLayout: 'control',
+      children: 'x',
+    });
+    const style = getWrapper(container).style;
+    expect(style.display).toBe('inline-flex');
+    expect(style.overflow).toBe('');
+    expect(style.textOverflow).toBe('');
+    dispose();
+  });
+
+  it("'contents' layout removes the wrapper from layout and takes no tab stop", () => {
+    const { dispose, container } = renderTooltip({
+      entries: { A: '1' },
+      wrapperLayout: 'contents',
+      children: 'x',
+    });
+    const wrapper = getWrapper(container);
+    expect(wrapper.style.display).toBe('contents');
+    // A boxless wrapper cannot draw a focus ring, so the child owns the
+    // keyboard path — see the wrapperLayout doc.
+    expect(wrapper.getAttribute('tabindex')).toBeNull();
+    // The description still exists; only the tab stop is delegated.
+    expect(getDescriptionNode(container)).not.toBeNull();
+    dispose();
+  });
+
   it('describeTrigger={false} restores the 0.2.x mouse-only behaviour', () => {
     const { dispose, container } = renderTooltip({
       entries: { Delta: '0.42' },

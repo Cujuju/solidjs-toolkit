@@ -81,6 +81,7 @@ A 1px separator + padding are added automatically between the entries and the `e
 | `description` (wrapper) | derived from `entries` | The tooltip's text for assistive tech. Required for an `extraContent`-only tooltip (arbitrary JSX is not stringified). |
 | `describeTrigger` (wrapper) | `true` | Set `false` to opt out of the whole accessible-description contract (hidden node, `aria-describedby`, focus/Escape) and get the 0.2.x mouse-only behaviour. |
 | `focusable` (wrapper) | auto | Whether the wrapper takes `tabindex="0"`. Auto = only when the trigger contains no focusable element of its own. |
+| `wrapperLayout` (wrapper) | `'text'` | How the wrapper lays out. `'text'` = inline + ellipsis clip (right for prose, wrong for controls). `'control'` = `inline-flex`, no clip — use when wrapping a button/icon/badge. `'contents'` = `display: contents`, wrapper leaves layout entirely so the child stays the parent's flex/grid item; `focusable` is ignored (a boxless wrapper cannot host a focus ring) so the child must be focusable. |
 | `class`, `panelClass`, `portalTarget` | — | Passthrough styling / mount hooks. |
 
 ## Accessibility

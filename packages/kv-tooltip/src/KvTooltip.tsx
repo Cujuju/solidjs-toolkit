@@ -396,6 +396,28 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    */
   focusable?: boolean;
 
+  /**
+   * How the wrapper element itself lays out.
+   *
+   * `'text'` (default) is the 0.1.x–0.3.x behaviour: an inline box with
+   * `overflow: hidden` + `text-overflow: ellipsis`, which is right for wrapping
+   * a run of TEXT and wrong for anything else — wrapping a flex-child button in
+   * it makes the wrapper the flex item, re-sizes it as inline content, and
+   * clips the child's focus ring.
+   *
+   * `'control'` is the layout-neutral mode for wrapping an existing element
+   * (button, icon, badge): `display: inline-flex`, no overflow rule, so the
+   * child keeps its own box and the wrapper adds no clipping. Use it whenever
+   * the trigger is a control rather than prose.
+   *
+   * `'contents'` removes the wrapper from layout entirely (`display: contents`)
+   * — the child becomes the parent's own flex/grid item, which nothing else can
+   * reproduce. The trade-off is that a boxless wrapper cannot host a focus ring
+   * or a tab stop, so `focusable` is ignored in this mode and the CHILD must be
+   * focusable for the keyboard path to work.
+   */
+  wrapperLayout?: 'text' | 'control' | 'contents';
+
   class?: string;
   panelClass?: string;
   portalTarget?: HTMLElement;
@@ -421,6 +443,25 @@ const SR_ONLY_STYLE: JSX.CSSProperties = {
 /** Elements that already take keyboard focus — see the `focusable` prop. */
 const FOCUSABLE_SELECTOR =
   'a[href], button, input, select, textarea, [contenteditable=""], [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Wrapper box per `wrapperLayout`. `'text'` keeps the historical inline+ellipsis
+ * rule; the other two exist so wrapping a control does not reflow or clip it.
+ * `position: relative` is deliberately absent from the non-text modes: the panel
+ * is `position: fixed` in a Portal, so the wrapper is not its containing block
+ * and relative positioning only risks creating a stacking context the consumer
+ * did not ask for.
+ */
+function wrapperStyle(layout: 'text' | 'control' | 'contents'): JSX.CSSProperties {
+  if (layout === 'contents') return { display: 'contents' };
+  if (layout === 'control') return { display: 'inline-flex', 'align-items': 'center' };
+  return {
+    position: 'relative',
+    display: 'inline',
+    overflow: 'hidden',
+    'text-overflow': 'ellipsis',
+  };
+}
 
 /** `key: value` per pair — the fallback accessible text for a KV tooltip. */
 function describeEntries(entries: Array<[string, string]>): string {
@@ -585,8 +626,13 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     if (!el) return;
     setChildFocusable(el.querySelector(FOCUSABLE_SELECTOR) !== null);
   });
+  const wrapperLayout = (): 'text' | 'control' | 'contents' => props.wrapperLayout ?? 'text';
   const wrapperTabIndex = (): number | undefined => {
     if (!describeTrigger() || !hasDescription()) return undefined;
+    // A `display: contents` wrapper generates no box, so a tab stop on it would
+    // be a focus target with nowhere to draw a focus ring — the child owns the
+    // keyboard path in that mode (see `wrapperLayout`).
+    if (wrapperLayout() === 'contents') return undefined;
     const forced = props.focusable;
     if (forced !== undefined) return forced ? 0 : undefined;
     return childFocusable() ? undefined : 0;
@@ -613,7 +659,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
       class={props.class}
       tabindex={wrapperTabIndex()}
       aria-describedby={hasDescription() ? descriptionId : undefined}
-      style={{ position: 'relative', display: 'inline', overflow: 'hidden', 'text-overflow': 'ellipsis' }}
+      style={wrapperStyle(wrapperLayout())}
       // Keyboard parity with hover: focus shows the panel, blur hides it.
       // `focusin`/`focusout` (not focus/blur) so focus landing on a CHILD
       // control counts — those bubble, focus/blur do not.
