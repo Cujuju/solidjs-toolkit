@@ -410,6 +410,16 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    * child keeps its own box and the wrapper adds no clipping. Use it whenever
    * the trigger is a control rather than prose.
    *
+   * `'block'` fills the parent's content box (`display: block; width: 100%`).
+   * It exists for the one container that CANNOT be wrapped from outside: a
+   * table cell. `<span><td>…</td></span>` is not parseable — the HTML parser
+   * hoists any non-cell element out of the row — so the tooltip has to live
+   * inside the cell. A plain inline wrapper then covers only the text, leaving
+   * the cell's padding dead to hover, which is a real loss on a data table. In
+   * `'block'` mode the caller moves the cell's own padding onto this wrapper
+   * (cell padding to 0, same padding class passed via `class`) and the hover
+   * surface becomes the whole cell again.
+   *
    * `'contents'` removes the wrapper from layout entirely (`display: contents`)
    * — the child becomes the parent's own flex/grid item, which nothing else can
    * reproduce. The trade-off is that a boxless wrapper cannot host a focus ring
@@ -425,7 +435,7 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    *     an `anchor` from the wrapper element in this mode — anchor to the CHILD,
    *     or stay in cursor placement.
    */
-  wrapperLayout?: 'text' | 'control' | 'contents';
+  wrapperLayout?: 'text' | 'control' | 'contents' | 'block';
 
   class?: string;
   panelClass?: string;
@@ -461,8 +471,9 @@ const FOCUSABLE_SELECTOR =
  * and relative positioning only risks creating a stacking context the consumer
  * did not ask for.
  */
-function wrapperStyle(layout: 'text' | 'control' | 'contents'): JSX.CSSProperties {
+function wrapperStyle(layout: 'text' | 'control' | 'contents' | 'block'): JSX.CSSProperties {
   if (layout === 'contents') return { display: 'contents' };
+  if (layout === 'block') return { display: 'block', width: '100%' };
   if (layout === 'control') return { display: 'inline-flex', 'align-items': 'center' };
   return {
     position: 'relative',
@@ -635,7 +646,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     if (!el) return;
     setChildFocusable(el.querySelector(FOCUSABLE_SELECTOR) !== null);
   });
-  const wrapperLayout = (): 'text' | 'control' | 'contents' => props.wrapperLayout ?? 'text';
+  const wrapperLayout = (): 'text' | 'control' | 'contents' | 'block' => props.wrapperLayout ?? 'text';
   const wrapperTabIndex = (): number | undefined => {
     if (!describeTrigger() || !hasDescription()) return undefined;
     // A `display: contents` wrapper generates no box, so a tab stop on it would
