@@ -65,6 +65,40 @@ const [side, setSide] = createSignal('buy');
           <span class="readout">size <b>{size()}</b></span>
         </Card>
       </div>
+
+      <h2>Hints</h2>
+      <p class="note">
+        One prop — <code>title</code> — with two renderers. The package imports no tooltip
+        library (an optional peer cannot be imported without making it mandatory for every
+        consumer's build), so an app hands one in: this playground calls
+        <code> setSegTooltipHost(KvTooltip)</code> in <code>main.tsx</code>, which is why the
+        hints below are panels rather than native OS tooltips. Remove that line and the same
+        markup falls back to a native <code>title</code> with nothing else changing.
+      </p>
+      <Code cap="wiring the host (once, at app boot)">{`
+import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
+import { setSegTooltipHost, setSegTooltipDefaults } from '@cujuju/solidjs-seg-buttons';
+
+setSegTooltipHost(KvTooltip);
+setSegTooltipDefaults({ delayMs: 600 });   // optional — re-times every hint at once
+
+<SegButton value="buy" label="Buy" title="Long the underlying" />
+`}</Code>
+      <div class="row">
+        <Card cap="hover a segment — the host renders the hint">
+          <SegGroup value={side()} onChange={setSide} role="radiogroup" ariaLabel="Side">
+            <SegButton value="buy" label="Buy" title="Long the underlying at the ask." />
+            <SegButton value="sell" label="Sell" title="Short the underlying at the bid." />
+          </SegGroup>
+        </Card>
+        <Card cap="tooltipDelayMs overrides the shared delay for one button">
+          <SegGroup ariaLabel="Delays">
+            <SegButton label="default" title="Waits the shared default before showing." />
+            <SegButton label="instant" title="Shows immediately." tooltipDelayMs={0} />
+            <SegButton label="no hint" />
+          </SegGroup>
+        </Card>
+      </div>
     </>
   );
 }

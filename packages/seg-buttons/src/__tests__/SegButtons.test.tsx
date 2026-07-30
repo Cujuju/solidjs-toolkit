@@ -14,9 +14,15 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
-import { createSignal } from 'solid-js';
+import { createSignal, type JSX } from 'solid-js';
 import { SegGroup } from '../SegGroup';
 import { SegButton } from '../SegButton';
+import {
+  setSegTooltipHost,
+  setSegTooltipDefaults,
+  segTooltipDefaults,
+  type SegTooltipHostProps,
+} from '../tooltipHost';
 
 let dispose: (() => void) | null = null;
 
@@ -347,5 +353,143 @@ describe('sizing', () => {
 
     expect(buttons(c)[0].querySelector('[data-custom]')).not.toBeNull();
     expect(buttons(c)[0].dataset.label).toBe('Buy');
+  });
+});
+
+/**
+ * The `title` hint has TWO renderers (see ../tooltipHost.ts): the browser's native
+ * `title` attribute, and whatever component a consumer registers with
+ * `setSegTooltipHost`. The contract under test is that the CALLER never picks —
+ * one prop, and the mechanism follows the registration — and that registering a
+ * host does not break the two things a wrapper element could break: the group's
+ * direct-child CSS and the radiogroup's DOM-walking roving focus.
+ */
+describe('tooltip host', () => {
+  /** Props the fake host was last called with. Solid props are getters, so the
+   *  object stays live; only scalars are read back. */
+  let seen: SegTooltipHostProps | null = null;
+
+  function FakeHost(props: SegTooltipHostProps): JSX.Element {
+    seen = props;
+    // `display: contents` mirrors what a real host does under `wrapperLayout`,
+    // so the group's `> * > .csb-btn` rules are exercised on the real shape.
+    return (
+      <span data-fake-host style={{ display: 'contents' }}>
+        {props.children}
+      </span>
+    );
+  }
+
+  const ORIGINAL_DEFAULTS = segTooltipDefaults();
+
+  afterEach(() => {
+    // Both are MODULE-level singletons: without this reset a registration leaks
+    // into every later test in the file.
+    setSegTooltipHost(null);
+    setSegTooltipDefaults(ORIGINAL_DEFAULTS);
+    seen = null;
+  });
+
+  it('renders a native `title` when no host is registered', () => {
+    const c = mount(() => (
+      <SegGroup>
+        <SegButton label="A" title="Explain A" />
+      </SegGroup>
+    ));
+
+    expect(buttons(c)[0].getAttribute('title')).toBe('Explain A');
+    expect(c.querySelector('[data-fake-host]')).toBeNull();
+  });
+
+  it('renders NO wrapper and no title when there is no hint to give', () => {
+    setSegTooltipHost(FakeHost);
+    const c = mount(() => (
+      <SegGroup>
+        <SegButton label="A" />
+      </SegGroup>
+    ));
+
+    expect(buttons(c)[0].getAttribute('title')).toBeNull();
+    expect(c.querySelector('[data-fake-host]')).toBeNull();
+    expect(seen).toBeNull();
+  });
+
+  it('routes the hint through a registered host INSTEAD of the native title — never both', () => {
+    setSegTooltipHost(FakeHost);
+    const c = mount(() => (
+      <SegGroup>
+        <SegButton label="A" title="Explain A" />
+      </SegGroup>
+    ));
+
+    // The double-popup this indirection exists to prevent.
+    expect(buttons(c)[0].getAttribute('title')).toBeNull();
+    expect(c.querySelector('[data-fake-host]')).not.toBeNull();
+    expect(buttons(c)[0].closest('[data-fake-host]')).not.toBeNull();
+    expect(seen?.description).toBe('Explain A');
+    // Required by SegGroup's layout — a host that boxes the button breaks the
+    // joined-control look.
+    expect(seen?.wrapperLayout).toBe('contents');
+    expect(seen?.hideOnPointerDown).toBe(true);
+  });
+
+  it('upgrades ALREADY-MOUNTED buttons when the host is registered later', () => {
+    // Registration order vs. render order is not something a consumer controls in
+    // every framework entry point, so the host is a signal rather than a constant.
+    const c = mount(() => (
+      <SegGroup>
+        <SegButton label="A" title="Explain A" />
+      </SegGroup>
+    ));
+    expect(buttons(c)[0].getAttribute('title')).toBe('Explain A');
+
+    setSegTooltipHost(FakeHost);
+
+    expect(c.querySelector('[data-fake-host]')).not.toBeNull();
+    expect(buttons(c)[0].getAttribute('title')).toBeNull();
+  });
+
+  it('passes the shared defaults, and lets a per-button prop override the delay', () => {
+    setSegTooltipHost(FakeHost);
+    setSegTooltipDefaults({ delayMs: 111, maxWidth: 222 });
+
+    const c = mount(() => (
+      <SegGroup>
+        <SegButton label="A" title="Explain A" />
+      </SegGroup>
+    ));
+    expect(seen?.showDelayMs).toBe(111);
+    expect(seen?.maxWidth).toBe(222);
+    expect(buttons(c).length).toBe(1);
+
+    dispose?.();
+    dispose = null;
+    mount(() => (
+      <SegGroup>
+        <SegButton label="A" title="Explain A" tooltipDelayMs={7} />
+      </SegGroup>
+    ));
+    expect(seen?.showDelayMs).toBe(7);
+    expect(seen?.maxWidth).toBe(222); // width still comes from the shared default
+  });
+
+  it('keeps roving focus working when every button sits inside a host wrapper', () => {
+    // The regression the host introduced: the handler used to query the button's
+    // PARENT for siblings, and with a wrapper the parent holds exactly one button,
+    // so arrow keys went dead. It scopes to `.csb-group` instead.
+    setSegTooltipHost(FakeHost);
+    const [value, setValue] = createSignal('a');
+    const c = mount(() => (
+      <SegGroup value={value()} onChange={setValue} role="radiogroup">
+        <SegButton value="a" label="A" title="a" />
+        <SegButton value="b" label="B" title="b" />
+        <SegButton value="c" label="C" title="c" />
+      </SegGroup>
+    ));
+
+    expect(buttons(c).length).toBe(3);
+    key(buttons(c)[0], 'ArrowRight');
+    expect(value()).toBe('b');
+    expect(document.activeElement).toBe(buttons(c)[1]);
   });
 });

@@ -31,7 +31,15 @@
   display: inline-flex;
 }
 
-.csb-group > .csb-btn {
+/* A button may be a DIRECT child of the group, or sit one level down inside a
+   tooltip host (see tooltipHost.ts — the host is `display: contents`, so it is
+   invisible to LAYOUT but still a node, and a `>` selector does not see past
+   it). Every group rule therefore matches both shapes. Written as an explicit
+   pair rather than a descendant selector: a plain `.csb-group .csb-btn` would
+   also style a nested group's buttons, which is a real shape (a segmented
+   control inside a popover inside another one). */
+.csb-group > .csb-btn,
+.csb-group > * > .csb-btn {
   /* Inner buttons: square corners, overlap borders by -1px. CSS logical
      properties so RTL layouts flip correctly. */
   border-radius: 0;
@@ -39,24 +47,32 @@
   position: relative;
 }
 
-.csb-group > .csb-btn:first-child {
+/* End caps key off the HOST's position among the group's children when a host
+   is present — `:first-child` on the button itself would be true for every
+   wrapped button, since each is an only child of its own host. */
+.csb-group > .csb-btn:first-child,
+.csb-group > *:first-child > .csb-btn {
   border-start-start-radius: var(--seg-radius);
   border-end-start-radius: var(--seg-radius);
   margin-inline-start: 0;
 }
 
-.csb-group > .csb-btn:last-child {
+.csb-group > .csb-btn:last-child,
+.csb-group > *:last-child > .csb-btn {
   border-start-end-radius: var(--seg-radius);
   border-end-end-radius: var(--seg-radius);
 }
 
-.csb-group > .csb-btn:only-child {
+.csb-group > .csb-btn:only-child,
+.csb-group > *:only-child > .csb-btn {
   border-radius: var(--seg-radius);
 }
 
 /* Raise active button so its accent border shows fully above neighbours. */
 .csb-group > .csb-btn[aria-pressed="true"],
-.csb-group > .csb-btn[aria-checked="true"] {
+.csb-group > .csb-btn[aria-checked="true"],
+.csb-group > * > .csb-btn[aria-pressed="true"],
+.csb-group > * > .csb-btn[aria-checked="true"] {
   z-index: 1;
 }
 
@@ -118,4 +134,13 @@
   overflow: hidden;
   pointer-events: none;
   visibility: hidden;
+}
+
+/* Hint text painted inside a registered tooltip host's panel (see
+   tooltipHost.ts). The host owns the panel's chrome — this is only the styling
+   hook for the text, plus an explicit `white-space: normal` so a long hint
+   wraps as prose no matter what the host's panel inherits. */
+.csb-tip {
+  display: block;
+  white-space: normal;
 }

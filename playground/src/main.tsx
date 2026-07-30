@@ -1,4 +1,6 @@
 import { render } from 'solid-js/web';
+import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
+import { setSegTooltipHost } from '@cujuju/solidjs-seg-buttons';
 
 /**
  * Every package's stylesheet, imported the way a real consumer would import it.
@@ -34,6 +36,16 @@ import '@cujuju/solidjs-tri-state-chip/styles.css';
 import './theme.css';
 
 import { App } from './App';
+
+/**
+ * Upgrade every SegButton `title` hint from a native tooltip to a KvTooltip.
+ *
+ * seg-buttons deliberately does NOT import kv-tooltip (see its `tooltipHost.ts`
+ * — an optional peer cannot be imported without making the consumer's build
+ * depend on it), so the consumer hands the component in. This is the one line a
+ * real app writes, exercised here for the same reason the stylesheets above are.
+ */
+setSegTooltipHost(KvTooltip);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root missing from index.html');
