@@ -277,9 +277,11 @@
 
 /* Open: the anchor is a layout placeholder for the row. Dimmed, because the
    live control is the panel floating above it — two identical numbers at equal
-   weight would be a puzzle. */
+   weight would be a puzzle. Tokenized: a consumer whose anchor stays a LIVE
+   readout during the session (commit:'change' publishes every step, so the
+   anchor keeps updating) can soften the dim without overriding the rule. */
 .cpnp-root[data-collapsible][data-open] .cpnp-anchor .cpnp-value {
-  opacity: 0.45;
+  opacity: var(--pnp-open-anchor-opacity, 0.45);
 }
 
 .cpnp-popout {

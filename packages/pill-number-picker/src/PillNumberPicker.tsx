@@ -138,6 +138,27 @@ export interface PillNumberPickerProps {
   incrementIcon?: JSX.Element;
   decrementIcon?: JSX.Element;
 
+  /**
+   * RESET — the value this control considers its DEFAULT.
+   *
+   * When set, the control grows one more segment AFTER the last stepper button
+   * (for the default `value-inc-dec` layout: `[value][+][−][↺]`), flush with
+   * the pill — it joins the same items row, so the shared 1px borders and the
+   * outer-corner-only radius apply to it positionally like every other segment.
+   *
+   * Clicking it publishes `resetTo` through the SAME channel as a step: inside
+   * an editing session it updates the draft (and 'finish' mode still withholds
+   * `onChange` until commit), and session cancel still restores the value the
+   * session opened with. Disabled while the value already equals `resetTo`.
+   *
+   * A stepped control accumulates drift by nature; this is the one-press way
+   * back that doesn't require the consumer to bolt a foreign button beside a
+   * sealed pop-out.
+   */
+  resetTo?: number;
+  /** Glyph for the reset segment. Default '↺'. */
+  resetIcon?: JSX.Element;
+
   // Min/max display:
   showRange?: boolean;
   rangeFormat?: (value: number, min: number, max: number) => string;
@@ -156,6 +177,8 @@ export interface PillNumberPickerProps {
   ariaLabel?: string;
   incrementLabel?: string;
   decrementLabel?: string;
+  /** aria-label for the reset segment. Default 'Reset'. */
+  resetLabel?: string;
   disabled?: boolean;
 
   // Passthrough:
@@ -571,6 +594,33 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     </button>
   );
 
+  /** The reset target, clamped/rounded like any other publish, so `resetTo`
+   *  outside [min,max] (or off-grid for the precision) still lands legal. */
+  const resetTarget = (): number => clamp(props.resetTo ?? 0);
+
+  const resetButton = (): JSX.Element => (
+    <button
+      type="button"
+      data-pos="reset"
+      class="cpnp-btn"
+      style={{
+        width: toCssSize(props.buttonWidth),
+        height: toCssSize(props.height),
+        'font-size': toCssSize(props.fontSize),
+      }}
+      disabled={props.disabled || current() === resetTarget()}
+      aria-label={props.resetLabel ?? 'Reset'}
+      onClick={() => {
+        if (props.disabled) return;
+        // Same channel as a step: drafts stay in sync, 'finish' mode still
+        // withholds onChange until commit, and cancel still reverts.
+        if (current() !== resetTarget()) emit(resetTarget());
+      }}
+    >
+      {props.resetIcon ?? '↺'}
+    </button>
+  );
+
   const valueText = (): string =>
     current() === 0 && props.zeroLabel
       ? props.zeroLabel
@@ -714,11 +764,16 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   // ── Layout assembly ──────────────────────────────────────────────────
   const items = (): JSX.Element[] => {
     const parts = layout().replace(/^v-/, '').split('-') as Array<'value' | 'inc' | 'dec'>;
-    return parts.map((p) => {
+    const out = parts.map((p) => {
       if (p === 'value') return valueNode('panel');
       if (p === 'inc') return incButton();
       return decButton();
     });
+    // Reset joins the items row LAST, whatever the layout — as a row member it
+    // picks up the positional flush-border + outer-corner rules like any other
+    // segment (for the default layout that is “right of the − button”).
+    if (props.resetTo !== undefined) out.push(resetButton());
+    return out;
   };
 
   const rangeText = (): string => {
