@@ -198,10 +198,61 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
     ...(props.maxWidth !== undefined ? { 'max-width': toCssSize(props.maxWidth) } : {}),
   });
 
+  /**
+   * TOP LAYER — why the panel is a popover.
+   *
+   * A `position: fixed` element in a Portal is ordinary stacking content, and
+   * the browser's top layer sits above the ENTIRE normal stacking context. So a
+   * surface shown with `showPopover()` — every `@cujuju/solidjs-anchored-popover`
+   * menu, a `<dialog>`, anything native — paints over this panel at any
+   * z-index. `z-index: 2147483647` loses to it exactly as `z-index: 1` does.
+   *
+   * That made this component a REGRESSION against the native `title` it
+   * replaces: a native tooltip is drawn by the OS above everything, so a
+   * consumer migrating off `title` lost tooltips inside their own menus
+   * (reported 2026-07-30 on a chart toolbar whose controls open popovers).
+   *
+   * Promoting the panel into the top layer too is the only fix that is not
+   * luck: top-layer paint order is LIFO by `showPopover()` call, and a tooltip
+   * is always shown AFTER the surface it describes is already open, so it lands
+   * on top by construction.
+   *
+   * `manual`, never `auto`: an auto popover light-dismisses its peers, so
+   * showing the tooltip would close the very menu the user is reading. Manual
+   * mode also leaves dismissal entirely to the hover-intent machine, which
+   * already owns it.
+   *
+   * Degrades cleanly: where `showPopover` is absent the element is a plain
+   * `div` with the same fixed position and z-index — i.e. exactly the 0.5.x
+   * behaviour, back under the top layer but never invisible.
+   */
+  const promoteToTopLayer = (el: HTMLElement): void => {
+    if (typeof el.showPopover !== 'function') return;
+    // The attribute is added HERE, not in the JSX, and only kept if the promotion
+    // actually succeeds. `[popover]:not(:popover-open)` is `display: none` in the
+    // UA sheet, so an element carrying the attribute without a successful
+    // `showPopover()` is an INVISIBLE tooltip — strictly worse than one painted
+    // under a menu. Adding it only around a successful call means the failure
+    // mode is "back to 0.5.x stacking", never "no tooltip at all".
+    el.setAttribute('popover', 'manual');
+    try {
+      el.showPopover();
+    } catch {
+      el.removeAttribute('popover');
+    }
+  };
+
   return (
     <Portal mount={props.portalTarget ?? document.body}>
       <div
-        ref={ref}
+        ref={(el) => {
+          ref = el;
+          // AFTER insertion: `showPopover()` throws on a disconnected node, and
+          // a Solid ref fires before the element is in the document.
+          queueMicrotask(() => {
+            if (el.isConnected) promoteToTopLayer(el);
+          });
+        }}
         class={`ckv-panel ${props.panelClass ?? ''}`.trim()}
         role={props.role}
         aria-label={props.ariaLabel}

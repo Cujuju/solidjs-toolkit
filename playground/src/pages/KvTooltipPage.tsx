@@ -1,5 +1,6 @@
 import { createSignal, createMemo, onCleanup, For, type JSX } from 'solid-js';
 import { KvTooltip, KvTooltipPanel } from '@cujuju/solidjs-kv-tooltip';
+import AnchoredPopover from '@cujuju/solidjs-anchored-popover';
 import { Code, Card, ClipBox, EdgeRight, ScrollBox } from '../ui';
 
 const QUOTE = {
@@ -22,6 +23,93 @@ const LONG = {
 /** Far enough off the cursor that the panel never sits under the pointer itself. */
 const FAR_OFFSET_X = 28;
 const FAR_OFFSET_Y = 28;
+
+
+/**
+ * TOP LAYER — the case a tooltip must win.
+ *
+ * `AnchoredPopover` shows itself with the native `showPopover()`, so it paints
+ * in the browser's TOP LAYER. A Portal-rendered panel is ordinary stacking
+ * content and cannot reach that layer at ANY z-index, so a tooltip triggered
+ * from inside an open popover renders UNDERNEATH the thing it describes —
+ * which a native `title` never did.
+ *
+ * The trigger sits at the popover's top edge and the panel is pushed up over
+ * the popover body, so the two overlap by construction rather than by luck.
+ * `e2e/topLayer.spec.ts` reads the pixel at that overlap.
+ */
+function TopLayerCase(): JSX.Element {
+  const [open, setOpen] = createSignal(false);
+  const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
+  return (
+    <Card title="Tooltip over an open popover (top layer)">
+      <button
+        ref={(el) => setAnchor(el)}
+        data-testid="tl-open"
+        onClick={() => setOpen((o) => !o)}
+        style={{ padding: '6px 10px' }}
+      >
+        {open() ? 'Close menu' : 'Open menu'}
+      </button>
+      <AnchoredPopover open={open} anchor={anchor} onDismiss={() => setOpen(false)} placement="below-start">
+        <div
+          data-testid="tl-popover"
+          style={{
+            width: '280px',
+            height: '160px',
+            background: 'rgb(0, 0, 255)',
+            padding: '10px',
+            color: 'white',
+            'font-size': '12px',
+          }}
+        >
+          <span>popover body (blue)</span>
+          {/* INTERACTIVE variant: `pointer-events: auto`, so this one must also
+              win HIT-TESTING inside the top layer, not merely paint above. */}
+          <div style={{ 'margin-top': '40px' }}>
+            <KvTooltip
+              entries={{}}
+              interactive
+              extraContent={
+                <div data-testid="tl-tip-body-i" style={{ background: 'rgb(200, 0, 200)', padding: '10px' }}>
+                  interactive tooltip (magenta)
+                </div>
+              }
+              // Far enough ABOVE the trigger that the panel lands on the
+              // popover body without covering the trigger itself: an
+              // interactive panel takes pointer events, so a panel over its own
+              // trigger would intercept the hover that opened it.
+              mouseOffsetY={-70}
+              mouseOffsetX={0}
+            >
+              <span data-testid="tl-trigger-i" style={{ background: 'rgb(255,255,255)', color: 'black', padding: '2px 6px' }}>
+                hover me (interactive)
+              </span>
+            </KvTooltip>
+          </div>
+          <div style={{ 'margin-top': '40px' }}>
+            <KvTooltip
+              entries={{}}
+              extraContent={
+                <div data-testid="tl-tip-body" style={{ background: 'rgb(0, 200, 0)', padding: '10px' }}>
+                  tooltip panel (green)
+                </div>
+              }
+              // Straight up from the trigger, so the panel lands ON the popover
+              // body above it rather than below the popover's bottom edge.
+              mouseOffsetY={-90}
+              mouseOffsetX={0}
+            >
+              <span data-testid="tl-trigger" style={{ background: 'rgb(255,255,255)', color: 'black', padding: '2px 6px' }}>
+                hover me
+              </span>
+            </KvTooltip>
+          </div>
+        </div>
+      </AnchoredPopover>
+    </Card>
+  );
+}
 
 export function KvTooltipPage(): JSX.Element {
   // Controlled mode: the caller owns visibility + coordinates. Useful when the trigger is not
@@ -58,6 +146,7 @@ export function KvTooltipPage(): JSX.Element {
 
   return (
     <>
+      <TopLayerCase />
       <h1>@cujuju/solidjs-kv-tooltip</h1>
       <p class="note">
         Mouse-follow key/value tooltip. Portal-rendered (so an <code>overflow: hidden</code> parent

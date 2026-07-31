@@ -23,7 +23,17 @@
 
 .ckv-panel {
   position: fixed;
+  /* Kept for the no-`showPopover` fallback path (see promoteToTopLayer): in the
+     top layer this value is not consulted at all, since that layer is above
+     every stacking context rather than inside one. */
   z-index: 9999;
+  /* Neutralise the UA's `[popover]` box. The popover attribute is on this
+     element for ONE reason — the top layer — and its default styling would
+     otherwise centre the panel with `inset: 0; margin: auto` and repaint the
+     border, discarding the measured position the clamp just computed. */
+  margin: 0;
+  inset: auto;
+  overflow: visible;
   background: var(--kv-bg);
   border: 1px solid var(--kv-border);
   border-radius: var(--kv-radius);
