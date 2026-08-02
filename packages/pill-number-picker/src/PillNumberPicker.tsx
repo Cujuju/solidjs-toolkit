@@ -72,6 +72,19 @@ export interface PillNumberPickerProps {
    */
   collapsible?: boolean;
   /**
+   * EXCLUDE ZERO — 0 is not a legal value and the picker never emits it.
+   *
+   * For fields where the SIGN is a semantic axis (a signed order quantity:
+   * +N long / −N short) and zero is a non-entity rather than a value:
+   * stepping across zero CONTINUES in the travel direction (−1 → +1 in one
+   * step — wheel, buttons, arrow keys and auto-repeat alike), and a typed 0
+   * commits to the smallest step on the current value's side. If the min/max
+   * bounds force the skip back onto 0, the move is a no-op instead.
+   *
+   * Off by default; without it 0 clamps and rounds like any other value.
+   */
+  excludeZero?: boolean;
+  /**
    * Controlled open state. Omit for uncontrolled (the component owns it).
    * Pair with `onOpenChange` to drive it yourself.
    */
@@ -211,6 +224,18 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   // produces a new value (inc, dec, wheel, keyboard, edit-commit, auto-repeat)
   // so FP drift from accumulated step arithmetic never leaks into props.value.
   const clamp = (v: number): number => clampAndRound(v, min(), max(), precision());
+
+  const excludeZero = (): boolean => props.excludeZero ?? false;
+  /** Resolve a candidate produced by MOVEMENT in direction `dir`: clamp, then —
+   *  under `excludeZero` — skip an exact-0 landing by continuing one step in
+   *  the same direction. If the bounds force the skip back onto 0, the move is
+   *  a no-op at the current value (never an emitted 0). */
+  const resolveStep = (raw: number, dir: 1 | -1): number => {
+    const next = clamp(raw);
+    if (!excludeZero() || next !== 0) return next;
+    const skipped = clamp(dir * step());
+    return skipped === 0 ? current() : skipped;
+  };
 
   // ── Local editing state ──────────────────────────────────────────────
   const [editing, setEditing] = createSignal(false);
@@ -432,7 +457,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     e.preventDefault();
     e.stopPropagation();
     const delta = e.deltaY < 0 ? step() * direction : -step() * direction;
-    const next = clamp(current() + delta);
+    const next = resolveStep(current() + delta, delta > 0 ? 1 : -1);
     setDraft(formatValue(next, precision()));
     emit(next);
   };
@@ -478,7 +503,15 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       setDraft(formatValue(current(), precision()));
       return;
     }
-    const clamped = clamp(parsed);
+    let clamped = clamp(parsed);
+    // Typed 0 under excludeZero: no travel direction exists, so resolve to the
+    // smallest step on the CURRENT value's side (typing 0 reads as "minimum",
+    // not "flip"); bounds forcing it back to 0 keep the current value.
+    if (excludeZero() && clamped === 0) {
+      const side: 1 | -1 = current() >= 0 ? 1 : -1;
+      const nearest = clamp(side * step());
+      clamped = nearest === 0 ? current() : nearest;
+    }
     setDraft(formatValue(clamped, precision()));
     if (clamped !== current()) emit(clamped);
   };
@@ -504,7 +537,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     holdStart = Date.now();
 
     const doStep = (): void => {
-      const next = clamp(current() + step() * direction);
+      const next = resolveStep(current() + step() * direction, direction);
       if (next === current()) { stopRepeat(); return; }
       emit(next);
     };
@@ -531,12 +564,14 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   const onKeyDown = (e: KeyboardEvent): void => {
     if (props.disabled) return;
     let next: number | null = null;
-    if (e.key === 'ArrowUp') next = clamp(current() + step());
-    else if (e.key === 'ArrowDown') next = clamp(current() - step());
-    else if (e.key === 'PageUp') next = clamp(current() + step() * 10);
-    else if (e.key === 'PageDown') next = clamp(current() - step() * 10);
-    else if (e.key === 'Home') next = min();
-    else if (e.key === 'End') next = max();
+    if (e.key === 'ArrowUp') next = resolveStep(current() + step(), 1);
+    else if (e.key === 'ArrowDown') next = resolveStep(current() - step(), -1);
+    else if (e.key === 'PageUp') next = resolveStep(current() + step() * 10, 1);
+    else if (e.key === 'PageDown') next = resolveStep(current() - step() * 10, -1);
+    // Home/End jump TO a bound; under excludeZero a 0 bound resolves one step
+    // INWARD (the only legal direction from a bound).
+    else if (e.key === 'Home') next = resolveStep(min(), 1);
+    else if (e.key === 'End') next = resolveStep(max(), -1);
     if (next !== null) {
       e.preventDefault();
       if (next !== current()) emit(next);
