@@ -23,6 +23,56 @@ export type PnpLayout =
   | 'v-inc-value-dec'
   | 'v-dec-value-inc';
 
+/**
+ * What a custom segment's `onSelect` receives — the picker's own publish/session
+ * channel, never raw internals. A segment cannot corrupt the editing session
+ * because everything it can do goes through the same paths a stepper uses.
+ */
+export interface PnpSegmentApi {
+  /** The value at click time (draft-aware inside an editing session). */
+  value: number;
+  /**
+   * Publish a value through the picker's own channel: clamped to [min,max],
+   * rounded to precision, draft-synced, resolved under `excludeZero` (an exact-0
+   * set lands on the smallest step on the current value's side), and — inside a
+   * `commit:'finish'` session — withheld from `onChange` until the session commits.
+   */
+  setValue: (v: number) => void;
+  /** End an open editing session as a COMMIT (no-op when none is open). */
+  commit: () => void;
+  /** End an open editing session as a CANCEL (no-op when none is open). */
+  cancel: () => void;
+}
+
+/**
+ * A CUSTOM SEGMENT — a consumer-defined button that joins the items row as a
+ * first-class member: it gets the shared 1px flush borders, the positional
+ * outer-corner radius, the size preset's dimensions and the disabled treatment,
+ * exactly like the built-in steppers. Declared as DATA (not passed-in JSX) so
+ * the component stays the owner of button rendering and session semantics.
+ */
+export interface PnpSegment {
+  /** Stable, unique key — rendered as `data-pos="seg-<key>"` for CSS/tests. */
+  key: string;
+  /** Segment content: a glyph or short text. */
+  icon: JSX.Element;
+  /** aria-label. Required — every segment is labelled. */
+  label: string;
+  /**
+   * 'start' renders before the layout's value/steppers (and picks up the
+   * start corners as :first-child); 'end' renders after them. Default 'end'.
+   * Array order is preserved within each side. When `resetTo` is also set,
+   * the reset segment stays OUTERMOST-last, after every 'end' segment.
+   */
+  position?: 'start' | 'end';
+  /** Disable predicate over the current value; omitted = always enabled. */
+  disabled?: (current: number) => boolean;
+  /** Click handler. `api.value` is a click-time snapshot. */
+  onSelect: (api: PnpSegmentApi) => void;
+  /** Width override (for text segments); defaults to the stepper button width. */
+  width?: number | string;
+}
+
 export interface PillNumberPickerProps {
   value: number;
   onChange: (v: number) => void;
@@ -172,6 +222,16 @@ export interface PillNumberPickerProps {
   /** Glyph for the reset segment. Default '↺'. */
   resetIcon?: JSX.Element;
 
+  /**
+   * CUSTOM SEGMENTS — arbitrary consumer-defined buttons joining the items row.
+   *
+   * Each descriptor renders as a `.cpnp-btn` with the row's flush borders and
+   * positional corner rounding; its `onSelect` receives a `PnpSegmentApi` bound
+   * to the picker's own publish/session channel (see the type docs). `resetTo`
+   * is sugar over this same contract — one render path for every segment.
+   */
+  segments?: PnpSegment[];
+
   // Min/max display:
   showRange?: boolean;
   rangeFormat?: (value: number, min: number, max: number) => string;
@@ -235,6 +295,18 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     if (!excludeZero() || next !== 0) return next;
     const skipped = clamp(dir * step());
     return skipped === 0 ? current() : skipped;
+  };
+  /** Resolve a DIRECTLY SET value — typed text, a segment's `setValue`, reset.
+   *  Clamp/round, then under `excludeZero` resolve an exact-0 landing to the
+   *  smallest step on the CURRENT value's side (a set has no travel direction;
+   *  0 reads as "minimum", not "flip"). Bounds forcing it back onto 0 keep the
+   *  current value — a set can never emit an illegal 0. */
+  const resolveSet = (raw: number): number => {
+    const clamped = clamp(raw);
+    if (!excludeZero() || clamped !== 0) return clamped;
+    const side: 1 | -1 = current() >= 0 ? 1 : -1;
+    const nearest = clamp(side * step());
+    return nearest === 0 ? current() : nearest;
   };
 
   // ── Local editing state ──────────────────────────────────────────────
@@ -503,15 +575,9 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       setDraft(formatValue(current(), precision()));
       return;
     }
-    let clamped = clamp(parsed);
-    // Typed 0 under excludeZero: no travel direction exists, so resolve to the
-    // smallest step on the CURRENT value's side (typing 0 reads as "minimum",
-    // not "flip"); bounds forcing it back to 0 keep the current value.
-    if (excludeZero() && clamped === 0) {
-      const side: 1 | -1 = current() >= 0 ? 1 : -1;
-      const nearest = clamp(side * step());
-      clamped = nearest === 0 ? current() : nearest;
-    }
+    // Shared direct-set resolution (clamp + excludeZero-0 handling) — the same
+    // rule a segment's `setValue` and the reset segment go through.
+    const clamped = resolveSet(parsed);
     setDraft(formatValue(clamped, precision()));
     if (clamped !== current()) emit(clamped);
   };
@@ -633,28 +699,59 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
    *  outside [min,max] (or off-grid for the precision) still lands legal. */
   const resetTarget = (): number => clamp(props.resetTo ?? 0);
 
-  const resetButton = (): JSX.Element => (
+  /**
+   * The channel a segment's `onSelect` gets. Built fresh per click so `value`
+   * is an honest snapshot. `setValue` goes through the SAME paths a step does:
+   * drafts stay in sync, 'finish' mode still withholds onChange until commit,
+   * and session cancel still reverts.
+   */
+  const segmentApi = (): PnpSegmentApi => ({
+    value: current(),
+    setValue: (v: number): void => {
+      const next = resolveSet(v);
+      if (next !== current()) emit(next);
+    },
+    commit: (): void => {
+      if (sessionOpen()) commitSession();
+    },
+    cancel: (): void => {
+      if (sessionOpen()) cancelSession();
+    },
+  });
+
+  /** ONE render path for every segment — built-in reset and consumer-declared
+   *  alike — so flush borders, sizing, disabled treatment and the publish
+   *  channel can never diverge between them. */
+  const segmentButton = (seg: PnpSegment): JSX.Element => (
     <button
       type="button"
-      data-pos="reset"
+      data-pos={`seg-${seg.key}`}
       class="cpnp-btn"
       style={{
-        width: toCssSize(props.buttonWidth),
+        width: toCssSize(seg.width ?? props.buttonWidth),
         height: toCssSize(props.height),
         'font-size': toCssSize(props.fontSize),
       }}
-      disabled={props.disabled || current() === resetTarget()}
-      aria-label={props.resetLabel ?? 'Reset'}
+      disabled={props.disabled || (seg.disabled?.(current()) ?? false)}
+      aria-label={seg.label}
       onClick={() => {
         if (props.disabled) return;
-        // Same channel as a step: drafts stay in sync, 'finish' mode still
-        // withholds onChange until commit, and cancel still reverts.
-        if (current() !== resetTarget()) emit(resetTarget());
+        seg.onSelect(segmentApi());
       }}
     >
-      {props.resetIcon ?? '↺'}
+      {seg.icon}
     </button>
   );
+
+  /** `resetTo` is sugar over the segment contract — proof the generic API
+   *  subsumes the built-in, and the reason there is only one render path. */
+  const resetSegment = (): PnpSegment => ({
+    key: 'reset',
+    icon: props.resetIcon ?? '↺',
+    label: props.resetLabel ?? 'Reset',
+    disabled: (v) => v === resetTarget(),
+    onSelect: (api) => api.setValue(resetTarget()),
+  });
 
   const valueText = (): string =>
     current() === 0 && props.zeroLabel
@@ -798,16 +895,24 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
 
   // ── Layout assembly ──────────────────────────────────────────────────
   const items = (): JSX.Element[] => {
+    const segs = props.segments ?? [];
     const parts = layout().replace(/^v-/, '').split('-') as Array<'value' | 'inc' | 'dec'>;
-    const out = parts.map((p) => {
-      if (p === 'value') return valueNode('panel');
-      if (p === 'inc') return incButton();
-      return decButton();
-    });
-    // Reset joins the items row LAST, whatever the layout — as a row member it
-    // picks up the positional flush-border + outer-corner rules like any other
-    // segment (for the default layout that is “right of the − button”).
-    if (props.resetTo !== undefined) out.push(resetButton());
+    // Row order: [start segments…][layout parts][end segments…][reset]. Every
+    // member picks up the positional flush-border + outer-corner rules — a
+    // 'start' segment becomes :first-child and gets the start corners, the
+    // final member gets the end corners.
+    const out: JSX.Element[] = segs
+      .filter((s) => s.position === 'start')
+      .map(segmentButton);
+    for (const p of parts) {
+      if (p === 'value') out.push(valueNode('panel'));
+      else if (p === 'inc') out.push(incButton());
+      else out.push(decButton());
+    }
+    out.push(...segs.filter((s) => (s.position ?? 'end') === 'end').map(segmentButton));
+    // Reset stays OUTERMOST-last — after every consumer 'end' segment — so its
+    // 0.4.0 position (the row's final segment) holds whatever a consumer adds.
+    if (props.resetTo !== undefined) out.push(segmentButton(resetSegment()));
     return out;
   };
 

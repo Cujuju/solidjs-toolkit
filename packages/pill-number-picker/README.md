@@ -49,6 +49,9 @@ const [qty, setQty] = createSignal(1);
 | `zeroLabel` | — | Display text when value is 0 (e.g., `"∞"`). |
 | `displayValue(v)` | — | Format the displayed value. |
 | `incrementIcon`, `decrementIcon` | `+`, `−` | JSX content for the buttons. |
+| `resetTo` | — | Adds a flush reset segment (`↺`) as the row's last member; clicking it sets this value through the normal publish channel. Disabled while the value already equals it. Sugar over `segments`. |
+| `resetIcon`, `resetLabel` | `'↺'`, `'Reset'` | Reset segment glyph + aria-label. |
+| `segments` | — | Custom segments joining the items row — see below. |
 | `showRange`, `rangeFormat` | `false` | Show `"3 / 100"`-style range. |
 | `invertScroll` | `false` | Wheel-up decrements instead of increments. |
 | `disableWheel` | `false` | No mouse-wheel handling. |
@@ -121,6 +124,47 @@ Clicking the collapsed pill opens the **editor**: the pop-out, with the value fi
 **Cancel reverts** by default, and means the same thing in both modes. In `'finish'` that's free (the draft is dropped). In `'change'` the consumer has already *seen* the intermediate values, so the revert is published as a real `onChange(valueAtOpen)` — without that, "cancel" would mean *undo* in one mode and *keep* in the other. Opt out with `revertOnCancel={false}`.
 
 **The collapsed pill still steps in place.** Wheel and arrow keys on the resting pill open no session and publish immediately in both modes — there's nothing to confirm, and requiring a confirmation for a scroll gesture would tax the fastest path the control has.
+
+## Custom segments (`segments`)
+
+Any button can join the pill as a first-class row member — same flush 1px
+borders, positional corner rounding, size-preset dimensions and disabled
+treatment as the built-in steppers. Segments are declared as **data**, not
+passed-in JSX, so the component stays the owner of button rendering and the
+editing-session semantics:
+
+```tsx
+<PillNumberPicker
+  value={qty()} onChange={setQty} min={1} max={500}
+  segments={[
+    { key: 'min', icon: '⤓', label: 'Set to minimum', position: 'start',
+      onSelect: (api) => api.setValue(1) },
+    { key: 'x2', icon: '×2', label: 'Double', width: 24,
+      disabled: (v) => v * 2 > 500,
+      onSelect: (api) => api.setValue(api.value * 2) },
+    { key: 'done', icon: '✓', label: 'Confirm',
+      onSelect: (api) => api.commit() },
+  ]}
+/>
+```
+
+Row order is `[start segments…][layout parts][end segments…][reset]` — a
+`'start'` segment becomes `:first-child` and picks up the start corners; the
+reset segment (when `resetTo` is set) stays outermost-last. Each segment
+renders with `data-pos="seg-<key>"`.
+
+`onSelect` receives a **`PnpSegmentApi`** bound to the picker's own channel:
+
+| Member | Behaviour |
+|---|---|
+| `value` | The value at click time (draft-aware inside a session). |
+| `setValue(v)` | Clamped/rounded, draft-synced, `excludeZero`-resolved; inside a `commit:'finish'` session it edits the draft and stays silent until the session commits. |
+| `commit()` | Ends an open editing session as a confirmation (no-op when none is open). |
+| `cancel()` | Ends an open editing session as a cancel (no-op when none is open). |
+
+Because everything flows through the same channel a stepper uses, a segment can
+never bypass the session: cancel still reverts a segment's edit, and `'finish'`
+mode still withholds `onChange` until confirmation.
 
 ## A11y
 
