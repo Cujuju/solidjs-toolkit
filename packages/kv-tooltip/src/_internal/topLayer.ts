@@ -1,14 +1,21 @@
 /**
  * Detection for "is a browser TOP LAYER surface currently open?".
  *
- * Why this exists: `KvTooltipPanel` is a `<Portal>`-ed div with
- * `position: fixed; z-index: 9999` — ordinary stacking-context content. The
- * native Popover API (`popover` attribute + `showPopover()`) and `<dialog>`'s
- * `showModal()` promote their element into the browser's TOP LAYER, which
- * paints above the entire stacking-context tree REGARDLESS of z-index. There
- * is no z-index that wins. So while such a surface is open, a tooltip can only
- * be invisible behind it or — worse, if it happens to be beside it — a
- * distraction competing with a surface that has the user's attention.
+ * Why this exists: the native Popover API (`popover` attribute +
+ * `showPopover()`) and `<dialog>`'s `showModal()` promote their element into
+ * the browser's TOP LAYER, which paints above the entire stacking-context tree
+ * REGARDLESS of z-index. There is no z-index that wins.
+ *
+ * Through 0.5.x that made this an availability question — the panel was
+ * ordinary `position: fixed` content and could only be invisible behind such a
+ * surface. Since 0.6.0 the panel is promoted into the top layer itself, so the
+ * question this helper answers has narrowed to two live cases, both real:
+ *   - the DEGRADED path, where `showPopover` is unavailable or promotion
+ *     failed and the panel genuinely is ordinary content again; and
+ *   - DEFERENCE — a consumer choosing that a hover tooltip should not compete
+ *     with a menu or dialog the user deliberately opened, even though it would
+ *     paint fine.
+ * Both are opt-in through `suppressWhileTopLayerOpen`; see that prop.
  *
  * `pointerdown` on the trigger catches the common case (user clicks the field
  * that opens a menu), but not keyboard activation, programmatic opens, or a

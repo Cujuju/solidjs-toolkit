@@ -43,10 +43,14 @@ function resolveAnchor(anchor: KvTooltipAnchor | undefined): DOMRect | null {
  * Why anchoring exists at all: a panel placed at a cursor POINT can only be
  * kept clear of a surface that opens from the same trigger by luck. Anchoring
  * to the trigger's RECT lets the tooltip take one side (say, above) while a
- * menu takes the other (below), so neither can cover the other. That matters
- * specifically because the native Popover API paints in the browser TOP LAYER:
- * this Portal-rendered panel is normal stacking content and can never paint
- * above an open popover at any z-index. Placement, not z-index, is the fix.
+ * menu takes the other (below), so neither can cover the other.
+ *
+ * Note this is about OVERLAP, not about paint order. Since 0.6.0 the panel is
+ * itself promoted into the top layer (see `promoteToTopLayer`), so it is no
+ * longer stuck under an open popover — anchoring is not the workaround for
+ * that any more. It stays valuable for the reason above: a tooltip that COVERS
+ * the menu it describes is barely better than one hidden behind it, and only
+ * placement can keep the two apart.
  */
 export interface KvTooltipAnchoringProps {
   /**
@@ -116,11 +120,42 @@ interface TooltipContentProps extends KvTooltipAnchoringProps {
    */
   onPanelMouseEnter?: () => void;
   onPanelMouseLeave?: () => void;
+  /**
+   * Called when the PLATFORM closed the panel's popover out from under us —
+   * another tooltip took the single hint slot, an `auto` popover opened, the
+   * user clicked outside or pressed Escape. See `promoteToTopLayer` for the
+   * full list and `onPlatformDismiss` on `KvTooltipPanelProps` for what a
+   * caller should do with it.
+   */
+  onPlatformDismiss?: () => void;
 }
 
 function toCssSize(v: number | string | undefined): string | undefined {
   if (v === undefined) return undefined;
   return typeof v === 'number' ? `${v}px` : v;
+}
+
+/**
+ * The popover TYPE the panel is promoted with — the single line this whole
+ * component's top-layer behaviour turns on. `hint` is the platform's tooltip
+ * type: it paints above like `manual` did, and additionally gives us
+ * one-at-a-time, yield-to-`auto`-popovers, and platform dismissal. See the
+ * measured behaviour list on `promoteToTopLayer`.
+ */
+const PANEL_POPOVER_TYPE = 'hint';
+
+/** Matches a popover that is actually in the top layer right now. */
+const POPOVER_OPEN_SELECTOR = ':popover-open';
+
+/**
+ * The `toggle` event a popover dispatches. Declared locally rather than using
+ * `lib.dom`'s `ToggleEvent`, which only exists in newer TypeScript DOM libs —
+ * this package is consumed from source (the `solid` export condition), so it
+ * must typecheck against the CONSUMER's lib version, which is not ours to pick.
+ */
+interface PopoverToggleEvent extends Event {
+  readonly newState?: string;
+  readonly oldState?: string;
 }
 
 /**
@@ -199,28 +234,61 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
   });
 
   /**
-   * TOP LAYER — why the panel is a popover.
+   * TOP LAYER — why the panel is a popover, and why `hint` rather than `manual`.
    *
    * A `position: fixed` element in a Portal is ordinary stacking content, and
    * the browser's top layer sits above the ENTIRE normal stacking context. So a
    * surface shown with `showPopover()` — every `@cujuju/solidjs-anchored-popover`
-   * menu, a `<dialog>`, anything native — paints over this panel at any
+   * menu, a `<dialog>`, anything native — paints over ordinary content at any
    * z-index. `z-index: 2147483647` loses to it exactly as `z-index: 1` does.
    *
    * That made this component a REGRESSION against the native `title` it
    * replaces: a native tooltip is drawn by the OS above everything, so a
    * consumer migrating off `title` lost tooltips inside their own menus
    * (reported 2026-07-30 on a chart toolbar whose controls open popovers).
-   *
-   * Promoting the panel into the top layer too is the only fix that is not
-   * luck: top-layer paint order is LIFO by `showPopover()` call, and a tooltip
-   * is always shown AFTER the surface it describes is already open, so it lands
+   * 0.6.0 fixed the paint by promoting this panel with `showPopover()` too —
+   * top-layer paint order is LIFO by `showPopover()` call, and a tooltip is
+   * always shown AFTER the surface it describes is already open, so it lands
    * on top by construction.
    *
-   * `manual`, never `auto`: an auto popover light-dismisses its peers, so
-   * showing the tooltip would close the very menu the user is reading. Manual
-   * mode also leaves dismissal entirely to the hover-intent machine, which
-   * already owns it.
+   * WHY `hint` AND NOT `manual` (0.7.0). `manual` takes the paint win and
+   * hands us nothing else: no one-at-a-time, no yielding to menus, no platform
+   * dismissal. So 0.6.0 hand-rolled all three, badly — two tooltips could
+   * coexist, a panel leaked by a missed `mouseleave` sat above the whole UI
+   * with nothing to dismiss it, and Escape worked only through our own
+   * listener. `hint` is the platform's tooltip popover type: it keeps the same
+   * LIFO paint and supplies exactly those three behaviours. `auto` remains
+   * wrong for the reason it always was — an auto popover light-dismisses its
+   * peers, so showing the tooltip would close the very menu the user is
+   * reading.
+   *
+   * The behaviours below are MEASURED, not read off the spec — probed
+   * 2026-08-04 in Chromium 148 (Windows) and 151 (WSL), which bracket
+   * Electron 43's Chromium 150:
+   *   - a hint shown while an `auto` popover is open does NOT close it, and
+   *     paints and hit-tests above it — the 0.6.0 paint win is preserved, so
+   *     this migration costs nothing it gained;
+   *   - showing a SECOND hint closes the first: one-at-a-time is enforced by
+   *     the platform instead of by us;
+   *   - opening an `auto` popover AFTER the hint closes the hint — the tooltip
+   *     yields to a real surface with no code of ours involved;
+   *   - a `manual` popover shown after the hint still paints ABOVE it (LIFO is
+   *     unchanged), so nothing regresses for app menus, which are `manual`;
+   *   - a click OUTSIDE light-dismisses the hint; a click inside does not;
+   *   - Escape closes the hint and leaves an open `auto` popover alone;
+   *   - an unknown popover value behaves as `manual` (the spec's invalid-value
+   *     default), so an engine that does not know `hint` degrades to exactly
+   *     0.6.0 rather than losing the top layer. Verified in Chromium only —
+   *     Firefox/Safari behaviour is assumed from the spec, not measured.
+   *
+   * KNOWN INTERACTION — documented, deliberately not fixed:
+   * `@cujuju/solidjs-anchored-popover` re-promotes a parent menu
+   * (`hidePopover(); showPopover()`) when a submenu opens. Probed 2026-08-04
+   * with that exact choreography: the hint SURVIVES it (stays open), but the
+   * re-promoted menu then paints above the hint, because the re-promote is a
+   * fresh `showPopover()` and LIFO puts it last. Accepted: by the time a
+   * submenu opens, the pointer has left the tooltip's trigger in every layout
+   * we have.
    *
    * Degrades cleanly: where `showPopover` is absent the element is a plain
    * `div` with the same fixed position and z-index — i.e. exactly the 0.5.x
@@ -234,7 +302,7 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
     // `showPopover()` is an INVISIBLE tooltip — strictly worse than one painted
     // under a menu. Adding it only around a successful call means the failure
     // mode is "back to 0.5.x stacking", never "no tooltip at all".
-    el.setAttribute('popover', 'manual');
+    el.setAttribute('popover', PANEL_POPOVER_TYPE);
     try {
       el.showPopover();
     } catch {
@@ -242,13 +310,75 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
     }
   };
 
+  /**
+   * The platform closed our popover. Everything `hint` gives us arrives through
+   * this one event: another tooltip taking the single hint slot, an `auto`
+   * popover opening, a click outside, Escape.
+   *
+   * The response is to DEMOTE, never to hide: drop the `popover` attribute so
+   * the element falls back to the 0.5.x fixed/z-index box — visible, merely no
+   * longer in the top layer — and then tell the owner. The alternative (leave
+   * the attribute on a closed popover) is `display: none` per the UA sheet,
+   * i.e. a mounted panel the caller believes is on screen and the user cannot
+   * see. A tooltip painted under a menu is a degradation; an invisible one is a
+   * lie about state, so the degradation is the only acceptable landing.
+   *
+   * Deliberately NOT re-promoted: two mounted panels each re-promoting on the
+   * other's close would fight the platform's one-at-a-time rule forever.
+   *
+   * Why the state is re-checked instead of trusted: `toggle` is QUEUED, not
+   * synchronous (`beforetoggle` is the synchronous one), so a close and a
+   * re-open inside one task coalesce. Probed 2026-08-04 in Chromium 151, that
+   * pair dispatches a SINGLE `toggle` with `oldState:'open', newState:'open'` —
+   * which this handler ignores anyway — but the coalescing is an
+   * implementation detail of one engine, and acting on a stale `newState`
+   * would strip the attribute off a popover that is currently open. Reading
+   * the element at dispatch time cannot be stale.
+   */
+  const onPopoverToggle = (el: HTMLElement, e: Event): void => {
+    if ((e as PopoverToggleEvent).newState !== 'closed') return;
+    let stillOpen = false;
+    try {
+      stillOpen = el.matches(POPOVER_OPEN_SELECTOR);
+    } catch {
+      // An engine that cannot parse `:popover-open` cannot have put anything in
+      // the top layer either. Treating it as closed is the safe branch: it
+      // leads to removing the attribute, which can only make the panel MORE
+      // visible.
+      stillOpen = false;
+    }
+    if (stillOpen) return;
+    // A panel removed from the DOM needs nothing done to it — and Chromium
+    // dispatches no `toggle` at all for that case (probed 2026-08-04: removing
+    // an open hint fires neither `beforetoggle` nor `toggle`), so this guard is
+    // for engines that do.
+    if (!el.isConnected) return;
+    el.removeAttribute('popover');
+    props.onPlatformDismiss?.();
+  };
+
   return (
     <Portal mount={props.portalTarget ?? document.body}>
       <div
         ref={(el) => {
           ref = el;
-          // AFTER insertion: `showPopover()` throws on a disconnected node, and
-          // a Solid ref fires before the element is in the document.
+          // The listener and its `onCleanup` are registered SYNCHRONOUSLY, here
+          // in the ref, because this is the only place still running under the
+          // Solid owner: `onCleanup` called from inside the `queueMicrotask`
+          // below has no owner and would silently never run, leaking a listener
+          // per panel mount.
+          //
+          // It attaches unconditionally rather than only on a successful
+          // promotion. An element that never becomes a popover never fires
+          // `toggle`, so the unconditional listener is inert on the degraded
+          // path — and keeping it promotion-independent means the handler's
+          // contract can be tested without a Popover API implementation.
+          const onToggle = (e: Event): void => onPopoverToggle(el, e);
+          el.addEventListener('toggle', onToggle);
+          onCleanup(() => el.removeEventListener('toggle', onToggle));
+          // Promotion, by contrast, must wait for insertion: `showPopover()`
+          // throws on a disconnected node, and a Solid ref fires before the
+          // element is in the document.
           queueMicrotask(() => {
             if (el.isConnected) promoteToTopLayer(el);
           });
@@ -372,18 +502,43 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
    * that just opened.
    *
    * Default `false` = pointerdown is not observed at all (0.1.x behaviour).
+   *
+   * RELATION TO PLATFORM LIGHT-DISMISS (0.7.0). A `hint` popover is
+   * light-dismissed by a click outside it — confirmed by probe 2026-08-04, and
+   * accepted rather than worked around: a click dismissing a hover tooltip is
+   * standard behaviour and can only shorten a tooltip's life. That path is
+   * distinct from this prop in two ways that matter:
+   *   - it does NOT set the until-you-leave-and-return suppression. That
+   *     remains this prop's contract, and it is the half that stops a deferred
+   *     `showDelayMs` show from firing on top of whatever the click opened;
+   *   - it cannot fire before the panel is up. A click during a pending
+   *     `showDelayMs` has no open popover to dismiss, so the deferred show
+   *     still fires — unchanged from 0.6.0. Only this prop suppresses it.
    */
   hideOnPointerDown?: boolean;
 
   /**
-   * Refuse to show while any native popover is open in the browser's top
-   * layer (`[popover]:popover-open`).
+   * Refuse to show while any native popover other than a tooltip panel is open
+   * in the browser's top layer.
    *
    * `hideOnPointerDown` covers the click that opens a menu; this covers the
    * opens it cannot see — keyboard activation, programmatic opens, a surface
-   * opened from elsewhere on the page. The panel is ordinary
-   * stacking-context content, so it can never paint above the top layer at
-   * any z-index; showing it there produces an invisible or competing tooltip.
+   * opened from elsewhere on the page.
+   *
+   * WHAT IT IS FOR NOW (0.7.0). It is no longer "the panel would be
+   * invisible": the panel is promoted into the top layer itself and paints
+   * above an open popover. Two things keep this prop meaningful:
+   *   - the DEGRADED path. Where `showPopover` is unavailable, or promotion
+   *     throws, the panel really is ordinary stacking content again and really
+   *     does end up under the open surface. This is the only control that
+   *     prevents that;
+   *   - DEFERENCE as a choice. A consumer may simply not want a hover tooltip
+   *     competing for attention with a menu or dialog the user deliberately
+   *     opened, even though it would paint fine.
+   *
+   * Tooltip panels are excluded from the check (`_internal/topLayer.ts`), so
+   * one visible tooltip never suppresses another — that was a real 0.6.0 bug,
+   * fixed in the commit before this one.
    *
    * Default `false`, and deliberately so despite being a bug fix: the check is
    * document-global, so defaulting it on would silently break a KvTooltip
@@ -720,12 +875,29 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
    * Escape dismisses a visible panel (WAI-ARIA tooltip pattern). Unconditional
    * and un-propped: a panel the user cannot dismiss without moving the pointer
    * is a keyboard trap over whatever it covers. Listener exists only while the
-   * panel does.
+   * panel does, so reaching the handler at all means there IS a visible panel
+   * and `hideNow()` genuinely consumes the key.
+   *
+   * LAYERING CONTRACT — why the consumed key is `preventDefault`ed. A tooltip
+   * is very often open on top of a menu, and both want Escape. The rule this
+   * establishes is innermost-first: the first Escape closes the tooltip, the
+   * second closes the menu. That works because this listener is CAPTURE-phase
+   * while `@cujuju/solidjs-anchored-popover`'s is bubble-phase and skips an
+   * event whose `defaultPrevented` is set — so marking the key consumed here
+   * is what keeps the menu open. Without it, one keypress would close both and
+   * the user would lose the surface they were reading in order to dismiss a
+   * tooltip about it.
+   *
+   * The platform would also close the `hint` on Escape by itself; that path
+   * stays as a backstop for controlled-mode panels, which have no wrapper and
+   * so never reach this handler.
    */
   createEffect(() => {
     if (!visible()) return;
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') hoverIntent.hideNow();
+      if (e.key !== 'Escape') return;
+      hoverIntent.hideNow();
+      e.preventDefault();
     };
     document.addEventListener('keydown', onKeyDown, true);
     onCleanup(() => document.removeEventListener('keydown', onKeyDown, true));
@@ -799,6 +971,13 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
           portalTarget={props.portalTarget}
           onPanelMouseEnter={hoverIntent.onPanelEnter}
           onPanelMouseLeave={hoverIntent.onPanelLeave}
+          // Platform dismissal resyncs the state machine: without this the
+          // wrapper would still believe it is showing a panel the browser has
+          // already taken away, and the next hover would be a no-op because
+          // `visible()` never went false. Unmounting also means the demoted,
+          // normal-stacking frame the toggle handler leaves behind lasts at
+          // most one paint.
+          onPlatformDismiss={hoverIntent.hideNow}
           anchor={panelAnchor()}
           placement={props.placement}
           anchorGapPx={props.anchorGapPx}
@@ -834,6 +1013,29 @@ export interface KvTooltipPanelProps extends KvTooltipAnchoringProps {
   ariaLabel?: string;
   role?: 'tooltip' | 'status';
 
+  /**
+   * The browser closed the panel's popover out from under you. Set your own
+   * visibility state to false here.
+   *
+   * The panel is promoted into the top layer as a `hint` popover, and the
+   * platform owns that layer: it closes this panel when a second tooltip
+   * appears (one hint at a time), when an `auto` popover opens, on Escape, and
+   * on a click outside. None of those go through the caller, so without this
+   * callback the caller's `visible` flag drifts out of sync with what the user
+   * can actually see.
+   *
+   * DEFAULT WITHOUT THIS PROP (safe, not silent): the panel demotes to normal
+   * stacking and stays VISIBLE — the pre-0.6.0 `position: fixed; z-index`
+   * behaviour, painted under any open top-layer surface. It is never left
+   * mounted-but-invisible. So omitting this is a degradation, not a bug; pass
+   * it when you would rather the panel go away than sit under a menu.
+   *
+   * The panel is NOT re-promoted afterwards: two panels each re-promoting on
+   * the other's close would fight the platform's one-at-a-time rule forever.
+   * Unmount and re-mount to get the top layer back.
+   */
+  onPlatformDismiss?: () => void;
+
   class?: string;
   panelClass?: string;
   portalTarget?: HTMLElement;
@@ -863,6 +1065,7 @@ export function KvTooltipPanel(props: KvTooltipPanelProps): JSX.Element {
         ariaLabel={props.ariaLabel}
         panelClass={props.panelClass}
         portalTarget={props.portalTarget}
+        onPlatformDismiss={props.onPlatformDismiss}
         anchor={props.anchor}
         placement={props.placement}
         anchorGapPx={props.anchorGapPx}

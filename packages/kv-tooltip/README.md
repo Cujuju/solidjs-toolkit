@@ -70,7 +70,8 @@ A 1px separator + padding are added automatically between the entries and the `e
 | `anchorGapPx` | `4` | Gap between the anchor edge and the panel edge. Matches `DEFAULT_POPOVER_OFFSET_PX` in `@cujuju/solidjs-anchored-popover`. |
 | `freezeOnShow` (wrapper) | `false` | Snapshot entries + reference position at show time and hold both until hidden. For live-ticking entry sources that would otherwise re-measure the panel every frame. |
 | `hideOnPointerDown` (wrapper) | `false` | Pointerdown on the trigger hides the panel and suppresses re-show until the pointer leaves and re-enters. |
-| `suppressWhileTopLayerOpen` (wrapper) | `false` | Refuse to show while any native popover is open (`[popover]:popover-open`). |
+| `suppressWhileTopLayerOpen` (wrapper) | `false` | Refuse to show while any native popover other than a tooltip panel is open. Since the panel now paints in the top layer itself, this is for the degraded (no `showPopover`) path and for deliberately deferring to an open surface — see Top layer. |
+| `onPlatformDismiss` (panel) | — | The browser closed the panel's popover (another tooltip, an `auto` popover opening, Escape, a click outside). Set your own visibility state to `false` here. Omitting it is safe: the panel demotes to normal stacking and stays visible, never invisible. The wrapper wires this up for you. |
 | `hideOnScroll` (wrapper) | `false` | Dismiss on any scroll. Position *recompute* on scroll is unconditional and needs no prop. |
 | `mouseOffsetX`, `mouseOffsetY` | `12`, `16` | Gap from cursor to tooltip in px. |
 | `hysteresisPx` | `20` | Clearance required before un-flipping from an edge-overflow position. Prevents flicker. Bypassed in anchored mode. |
@@ -144,7 +145,7 @@ let field!: HTMLDivElement;
 </KvTooltip>
 ```
 
-Why it exists: a panel placed at a cursor *point* can only stay clear of a menu opening from the same trigger by luck. Anchoring to the trigger's *rect* lets the tooltip take one side while the menu takes the other, so neither covers the other. That matters specifically because the native Popover API paints in the browser **top layer** — this Portal-rendered panel is ordinary stacking content and can never paint above an open popover at *any* z-index. Placement, not z-index, is the fix.
+Why it exists: a panel placed at a cursor *point* can only stay clear of a menu opening from the same trigger by luck. Anchoring to the trigger's *rect* lets the tooltip take one side while the menu takes the other, so neither covers the other. This is about **overlap**, not paint order — since 0.6.0 the panel paints above open popovers anyway (see Top layer), but a tooltip that *covers* the menu it describes is barely better than one hidden behind it, and only placement keeps the two apart.
 
 Overflow flips to the opposite side of the **rect**, never onto it: an `above-*` placement on a trigger near the top of the window moves *below* the trigger rather than sliding down on top of it. Horizontal overflow switches `-start` alignment to `-end` (and back) rather than jumping a full panel width. `hysteresisPx` is bypassed here — it damps a moving cursor, and a static rect cannot flicker.
 
@@ -153,6 +154,35 @@ If the panel fits on neither side, it keeps the side with more room and stays fl
 ## Scroll
 
 Any clamped position — anchored or cursor — re-derives on scroll, via a single shared capture-phase listener (`scroll` does not bubble out of a nested scroller, so a bubble-phase listener would miss exactly the case that matters). An `anchor` passed as an accessor therefore tracks its element down the page on its own. Set `hideOnScroll` when the tooltip's *content* goes stale on scroll, not merely its geometry.
+
+## Top layer
+
+The panel is promoted into the browser's **top layer** as a `popover="hint"`,
+so it paints above open menus, dialogs and other popovers — which ordinary
+`position: fixed` content cannot do at *any* z-index. That restores parity with
+the native `title` this component replaces.
+
+`hint` is the platform's tooltip popover type, and picking it (over `manual`)
+hands four behaviours to the browser instead of to this library:
+
+- **one tooltip at a time** — a second tooltip closes the first;
+- **yielding** — opening an `auto` popover closes the tooltip, while showing
+  the tooltip does *not* close an already-open one;
+- **Escape**, and **click-outside light-dismiss**.
+
+When any of those fire, the panel **demotes to normal stacking and stays
+visible** (the pre-0.6.0 fixed/z-index box) and `onPlatformDismiss` is called.
+It is never left mounted-but-invisible, so a controlled-mode caller that omits
+the callback degrades rather than breaks. The panel is not re-promoted
+afterwards — two panels re-promoting on each other's close would fight the
+one-at-a-time rule forever; unmount and remount to get the top layer back.
+
+Escape is layered innermost-first: the first press closes the tooltip, the
+second closes the menu underneath it. Where `showPopover` is unavailable the
+panel is a plain `div` with the same position and z-index — under the top
+layer, but never invisible; an engine that does not recognise `hint` treats it
+as `manual` per the spec's invalid-value default, which is exactly the 0.6.0
+behaviour.
 
 ## Theming
 
@@ -175,6 +205,27 @@ Any clamped position — anchored or cursor — re-derives on scroll, via a sing
   --kv-max-width: 300px;
 }
 ```
+
+## Version notes
+
+### 0.7.0
+
+- The panel's popover type changes from `manual` to **`hint`** (see Top layer).
+  Paint order is unchanged; what is new is that the platform now enforces
+  one-tooltip-at-a-time, closes the tooltip when an `auto` popover opens, and
+  dismisses it on Escape or an outside click.
+- New **`onPlatformDismiss`** on `KvTooltipPanel`, for resyncing controlled
+  visibility state when the browser closes the panel. The hover wrapper wires
+  it internally. Omitting it in controlled mode is safe: the panel demotes to
+  normal stacking and stays visible.
+- Escape consumed by a visible tooltip is now `preventDefault`ed, so a menu
+  underneath survives the first press and closes on the second.
+- Fixed: a visible tooltip counted as an open top-layer surface in its own
+  `suppressWhileTopLayerOpen` check (a 0.6.0 regression), which blocked every
+  consumer of that prop.
+- Behaviour change to be aware of: a click anywhere outside the panel now
+  dismisses it. `hideOnPointerDown` is still the only thing that suppresses a
+  pending `showDelayMs` show.
 
 ## Future ideas (not shipped)
 
