@@ -23,10 +23,31 @@
  */
 
 /**
+ * Identity marker set on every tooltip panel by `TooltipContent` (KvTooltip.tsx).
+ * Private on purpose: the public `.ckv-panel` class is a styling hook a consumer
+ * can apply to, or strip from, whatever they like, so it cannot carry identity.
+ */
+const OWN_PANEL_ATTRIBUTE = 'data-ckv-tooltip-panel';
+
+/**
  * `:popover-open` matches only popovers currently in the top layer, so this is
  * the whole condition — no per-element `matches()` walk needed.
+ *
+ * The `:not([data-ckv-tooltip-panel])` half fixes a SELF-POISONING bug
+ * introduced in 0.6.0. That release started promoting the tooltip panel into
+ * the top layer with `showPopover()`, which made our own panel match the
+ * original bare `[popover]:popover-open` selector. The result: any visible
+ * KvTooltip anywhere in the document reported "a top-layer surface is open",
+ * so every `suppressWhileTopLayerOpen` consumer was blocked by a tooltip
+ * rather than by the menus and dialogs the prop exists to defer to — and,
+ * because one tooltip suppressed the next, the prop effectively became
+ * "only one tooltip on the page, ever". It was latent only because no
+ * consumer had opted into `suppressWhileTopLayerOpen` yet.
+ *
+ * A tooltip panel is never a surface another tooltip should yield to: it is
+ * transient, non-interactive by default, and owned by this same library.
  */
-const TOP_LAYER_OPEN_SELECTOR = '[popover]:popover-open';
+const TOP_LAYER_OPEN_SELECTOR = `[popover]:popover-open:not([${OWN_PANEL_ATTRIBUTE}])`;
 
 export function isTopLayerSurfaceOpen(): boolean {
   if (typeof document === 'undefined') return false;

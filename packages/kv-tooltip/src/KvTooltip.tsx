@@ -254,6 +254,13 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
           });
         }}
         class={`ckv-panel ${props.panelClass ?? ''}`.trim()}
+        // Private identity marker — NOT a styling hook, and deliberately not the
+        // public `.ckv-panel` class (a consumer may put that class on something
+        // else, or restyle around it; identity must not be forgeable by CSS
+        // convention). `_internal/topLayer.ts` excludes elements carrying this
+        // attribute from its "is a top-layer surface open?" query, so a promoted
+        // tooltip panel cannot count as the surface a tooltip should defer to.
+        data-ckv-tooltip-panel=""
         role={props.role}
         aria-label={props.ariaLabel}
         aria-hidden={props.ariaHidden ? 'true' : undefined}
