@@ -144,3 +144,148 @@ test.describe('tooltip vs. an open native popover', () => {
     await expect(page.getByTestId('tl-popover')).toBeVisible();
   });
 });
+
+/**
+ * PLATFORM DISMISSAL (0.7.0, `popover="hint"`).
+ *
+ * The suite above asks "which surface paints on top?". This one asks the
+ * opposite question — "when does the platform take the tooltip AWAY, and does
+ * our state resync when it does?" — which is the entire reason the panel moved
+ * from `manual` to `hint`. None of it is expressible in jsdom: every assertion
+ * here needs a real top layer.
+ */
+
+/**
+ * Assertion budget for "the panel is gone". Deliberately well UNDER the demo's
+ * `PLATFORM_CASE_HIDE_DELAY_MS` (5s) so a pass can never be our own hide timer
+ * finally firing — the only thing that can unmount a panel this fast is
+ * `onPlatformDismiss`. Also under Playwright's 5s expect default, which would
+ * otherwise straddle the debounce.
+ */
+const PLATFORM_DISMISS_TIMEOUT_MS = 2000;
+
+/**
+ * How long to let a show that must NOT happen fail to happen. A show is
+ * synchronous on `mouseenter` (no `showDelayMs` on these triggers), so anything
+ * past one frame is generous; 300ms absorbs a slow CI frame without making the
+ * negative test a wait-and-hope.
+ */
+const NO_SHOW_SETTLE_MS = 300;
+
+/** Open the demo's `auto` popover WITHOUT a click — see the demo's comment. */
+async function openAutoPopover(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const el = document.getElementById('pd-auto');
+    if (!el) throw new Error('demo fixture #pd-auto is missing');
+    (el as HTMLElement).showPopover();
+  });
+  await expect(page.getByTestId('pd-auto')).toBeVisible();
+}
+
+test.describe('platform dismissal of a hint tooltip', () => {
+  test('T5: a second tooltip closes the first, and the first UNMOUNTS', async ({ page }) => {
+    // `hint` is one-at-a-time: the platform closes tooltip A when tooltip B is
+    // shown. The half that is OURS is what happens next — the wrapper must hear
+    // about it (`onPlatformDismiss` → `hideNow`) and unmount, or it would sit
+    // there believing it is still showing a panel the browser has taken away,
+    // and the next hover would be a no-op because `visible()` never went false.
+    //
+    // So the assertion is DETACHED, not merely invisible: a demoted-but-mounted
+    // node is exactly the failure this test exists to catch.
+    await page.goto('/#kv-tooltip');
+    await page.getByTestId('pd-trigger-a').hover();
+    await expect(page.getByTestId('pd-tip-a')).toBeVisible();
+
+    await page.getByTestId('pd-trigger-b').hover();
+    await expect(page.getByTestId('pd-tip-b')).toBeVisible();
+
+    await expect(page.getByTestId('pd-tip-a')).toHaveCount(0, {
+      timeout: PLATFORM_DISMISS_TIMEOUT_MS,
+    });
+  });
+
+  test('T5-control: leaving the trigger for a NON-tooltip does not remove the panel', async ({ page }) => {
+    // The control that stops T5/T7 from passing for the wrong reason. Both
+    // assert "the panel disappeared within 2s of the pointer leaving trigger A";
+    // that would be true of ANY tooltip if the hide were the usual immediate
+    // one. Here the pointer leaves A for an inert button, so the ONLY pending
+    // cause of a hide is the 5s debounce — and the panel must still be there.
+    await page.goto('/#kv-tooltip');
+    await page.getByTestId('pd-trigger-a').hover();
+    await expect(page.getByTestId('pd-tip-a')).toBeVisible();
+
+    await page.getByTestId('pd-auto-open').hover();
+    await page.waitForTimeout(PLATFORM_DISMISS_TIMEOUT_MS);
+    await expect(page.getByTestId('pd-tip-a')).toBeVisible();
+  });
+
+  test('T6: Escape closes the tooltip first, the menu second', async ({ page }) => {
+    // The layering contract (D3). Both KvTooltip and AnchoredPopover want
+    // Escape, and a single keypress closing BOTH would mean dismissing a
+    // tooltip costs the user the surface they were reading. KvTooltip's
+    // capture-phase handler runs first and `preventDefault`s the key it
+    // consumed; AnchoredPopover's bubble-phase handler skips a defaultPrevented
+    // event. Innermost first.
+    await openMenuAndHover(page);
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('tl-tip-body')).toHaveCount(0, {
+      timeout: PLATFORM_DISMISS_TIMEOUT_MS,
+    });
+    await expect(page.getByTestId('tl-popover')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('tl-popover')).toBeHidden();
+  });
+
+  test('T7: an auto popover opened afterwards closes the tooltip', async ({ page }) => {
+    // The tooltip yields to a real surface with no code of ours involved. The
+    // popover is opened programmatically on purpose: a CLICK would also
+    // light-dismiss the hint, and then a pass would not distinguish "auto
+    // popovers close hints" from "clicks close hints".
+    await page.goto('/#kv-tooltip');
+    await page.getByTestId('pd-trigger-a').hover();
+    await expect(page.getByTestId('pd-tip-a')).toBeVisible();
+
+    await openAutoPopover(page);
+
+    await expect(page.getByTestId('pd-tip-a')).toHaveCount(0, {
+      timeout: PLATFORM_DISMISS_TIMEOUT_MS,
+    });
+  });
+
+  test('T8: a suppressWhileTopLayerOpen tooltip still shows while another TOOLTIP is up', async ({ page }) => {
+    // The end-to-end proof of the `:not([data-ckv-tooltip-panel])` exclusion.
+    // Before it, tooltip A's own promoted panel matched the "is a top-layer
+    // surface open?" query, so A suppressed S — the prop degenerated into "only
+    // one tooltip on the page, ever".
+    await page.goto('/#kv-tooltip');
+    await page.getByTestId('pd-trigger-a').hover();
+    await expect(page.getByTestId('pd-tip-a')).toBeVisible();
+
+    // Without this, T8 could pass because tooltip A never made it into the top
+    // layer at all — in which case the exclusion was never exercised. It also
+    // pins the migration's central line: the panel is an OPEN `hint`.
+    const panelState = await page.evaluate(() => {
+      const el = document.querySelector('[data-ckv-tooltip-panel]');
+      if (!el) return null;
+      return { type: el.getAttribute('popover'), open: el.matches(':popover-open') };
+    });
+    expect(panelState).toEqual({ type: 'hint', open: true });
+
+    await page.getByTestId('pd-trigger-s').hover();
+    await expect(page.getByTestId('pd-tip-s')).toBeVisible();
+  });
+
+  test('T8b: the same tooltip DOES defer to a real popover', async ({ page }) => {
+    // The other half of T8, and the reason T8 is not satisfied by a prop that
+    // simply stopped working: with a genuine `auto` popover open, the suppressed
+    // tooltip must refuse to show at all.
+    await page.goto('/#kv-tooltip');
+    await openAutoPopover(page);
+
+    await page.getByTestId('pd-trigger-s').hover();
+    await page.waitForTimeout(NO_SHOW_SETTLE_MS);
+    await expect(page.getByTestId('pd-tip-s')).toHaveCount(0);
+  });
+});

@@ -111,6 +111,128 @@ function TopLayerCase(): JSX.Element {
   );
 }
 
+/**
+ * Hide-debounce for the platform-dismissal triggers, deliberately far longer
+ * than any assertion window in `e2e/topLayer.spec.ts`.
+ *
+ * The whole point of this case is to distinguish "the PLATFORM took the panel
+ * away" from "our own hide timer expired". With `interactive` + a 5s debounce,
+ * a panel that vanishes within the tests' 2s window CANNOT have been hidden by
+ * the timer — the only remaining cause is `onPlatformDismiss`.
+ */
+const PLATFORM_CASE_HIDE_DELAY_MS = 5000;
+
+/**
+ * The panel sits BELOW the trigger row (positive Y offset) so the horizontal
+ * path from one trigger to the next never crosses an open panel. These panels
+ * are `interactive`, i.e. they take pointer events, and a panel lying across
+ * that path would swallow the hover that the next tooltip needs.
+ */
+const PLATFORM_CASE_PANEL_OFFSET_Y = 50;
+
+/**
+ * PLATFORM DISMISSAL — what `popover="hint"` actually buys (0.7.0).
+ *
+ * Three of the behaviours the migration is FOR are invisible to the top-layer
+ * paint tests above, because they are about a panel going AWAY rather than
+ * about which one paints on top:
+ *
+ *   - showing a second tooltip closes the first (one hint at a time), and the
+ *     first's wrapper resyncs through `onPlatformDismiss` so its panel
+ *     UNMOUNTS instead of lingering as a demoted, stale node;
+ *   - an `auto` popover opening closes an already-visible tooltip;
+ *   - a tooltip panel is NOT a surface another tooltip defers to, so
+ *     `suppressWhileTopLayerOpen` still shows while another tooltip is up (the
+ *     0.6.0 self-poisoning bug) while still deferring to a real popover.
+ *
+ * Everything here is driven from `e2e/topLayer.spec.ts` (T5, T7, T8). The
+ * `auto` popover is opened PROGRAMMATICALLY by that spec, not by clicking this
+ * button: a click would ALSO light-dismiss the hint, and then the test could
+ * not tell which of the two causes closed it. The button exists so the case is
+ * explorable by hand.
+ */
+function PlatformDismissalCase(): JSX.Element {
+  let autoPopover: HTMLDivElement | undefined;
+  const tipBody = (testid: string, label: string): JSX.Element => (
+    <div data-testid={testid} style={{ background: 'rgb(0, 200, 0)', padding: '8px' }}>
+      {label}
+    </div>
+  );
+  return (
+    <Card cap="platform dismissal (hint): one-at-a-time, yield to auto, tooltip-excluded suppression">
+      <div class="row" style={{ gap: '48px', 'align-items': 'center' }}>
+        <KvTooltip
+          entries={{}}
+          interactive
+          hideDelayMs={PLATFORM_CASE_HIDE_DELAY_MS}
+          mouseOffsetX={0}
+          mouseOffsetY={PLATFORM_CASE_PANEL_OFFSET_Y}
+          extraContent={tipBody('pd-tip-a', 'tooltip A')}
+        >
+          <span data-testid="pd-trigger-a" class="strike" style={{ 'margin-left': '0' }}>
+            trigger A
+          </span>
+        </KvTooltip>
+        <KvTooltip
+          entries={{}}
+          interactive
+          hideDelayMs={PLATFORM_CASE_HIDE_DELAY_MS}
+          mouseOffsetX={0}
+          mouseOffsetY={PLATFORM_CASE_PANEL_OFFSET_Y}
+          extraContent={tipBody('pd-tip-b', 'tooltip B')}
+        >
+          <span data-testid="pd-trigger-b" class="strike" style={{ 'margin-left': '0' }}>
+            trigger B
+          </span>
+        </KvTooltip>
+        {/* The one that opts into deference. It must still show while another
+            TOOLTIP is up, and must still refuse while a real popover is up. */}
+        <KvTooltip
+          entries={{}}
+          interactive
+          suppressWhileTopLayerOpen
+          hideDelayMs={PLATFORM_CASE_HIDE_DELAY_MS}
+          mouseOffsetX={0}
+          mouseOffsetY={PLATFORM_CASE_PANEL_OFFSET_Y}
+          extraContent={tipBody('pd-tip-s', 'tooltip S (suppressWhileTopLayerOpen)')}
+        >
+          <span data-testid="pd-trigger-s" class="strike" style={{ 'margin-left': '0' }}>
+            trigger S
+          </span>
+        </KvTooltip>
+        <button
+          class="demo-btn"
+          data-testid="pd-auto-open"
+          onClick={() => autoPopover?.showPopover()}
+        >
+          open an auto popover
+        </button>
+      </div>
+      {/* Pinned to the top-right corner rather than left at the UA's centred
+          default: centred, it would cover the triggers above and make them
+          unhoverable, which is exactly what the suppression half of T8 needs to
+          do. */}
+      <div
+        ref={autoPopover}
+        id="pd-auto"
+        data-testid="pd-auto"
+        popover="auto"
+        style={{
+          inset: 'auto',
+          top: '8px',
+          right: '8px',
+          background: 'rgb(0, 0, 255)',
+          color: 'white',
+          padding: '10px',
+          'font-size': '12px',
+        }}
+      >
+        auto popover (blue)
+      </div>
+    </Card>
+  );
+}
+
 export function KvTooltipPage(): JSX.Element {
   // Controlled mode: the caller owns visibility + coordinates. Useful when the trigger is not
   // a simple hover target (a virtualised table row, a canvas hit-test).
@@ -147,6 +269,7 @@ export function KvTooltipPage(): JSX.Element {
   return (
     <>
       <TopLayerCase />
+      <PlatformDismissalCase />
       <h1>@cujuju/solidjs-kv-tooltip</h1>
       <p class="note">
         Mouse-follow key/value tooltip. Portal-rendered (so an <code>overflow: hidden</code> parent
