@@ -34,6 +34,13 @@ export interface ChipOption {
   group?: string;
 }
 
+/** One tab in the panel's optional tab strip. `id` is the value echoed
+ *  back through `onTabChange`; `label` is the visible text. */
+export interface ChipFlyoutTab {
+  id: string;
+  label: string;
+}
+
 interface BaseProps {
   /** Label shown on the trigger button and as the panel header (unless
    *  `panelTitle` is set). */
@@ -72,6 +79,19 @@ interface BaseProps {
   onSearchInput?: (next: string) => void;
   /** Optional JSX rendered between the header and the search input. */
   topSlot?: JSX.Element;
+  // ── Tab strip ─────────────────────────────────────────
+  // A controlled strip rendered above the search input, splitting one
+  // option pool into caller-defined slices (e.g. one per content
+  // source). The component owns no tab state — it renders `activeTab`
+  // and reports clicks/arrow-keys through `onTabChange`; the caller
+  // re-supplies `options` for the newly active tab. Omitted or empty
+  // `tabs` renders nothing, so untabbed callers are unaffected.
+  /** Tabs to render above the search input. Empty/undefined = no strip. */
+  tabs?: readonly ChipFlyoutTab[];
+  /** Id of the active tab. Defaults to the first tab when unset. */
+  activeTab?: string;
+  /** Fired with the newly selected tab id on click or arrow-key move. */
+  onTabChange?: (id: string) => void;
 }
 
 interface TriStateProps extends BaseProps {
@@ -319,6 +339,32 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     return [...m.entries()];
   });
 
+  // ── Tab strip ───────────────────────────────────────────────────
+  // Fully controlled: the strip renders `props.tabs` and highlights
+  // `props.activeTab`, falling back to the first tab so a caller that
+  // supplies tabs without a selection still shows a sensible default.
+  const tabs = createMemo<readonly ChipFlyoutTab[]>(() => props.tabs ?? []);
+  const activeTabId = createMemo(() => props.activeTab ?? tabs()[0]?.id);
+  // Roving-tabindex targets — the strip exposes ONE tab stop, and arrow
+  // keys move focus between the buttons directly.
+  const tabEls: (HTMLButtonElement | undefined)[] = [];
+
+  function onTabKeyDown(e: KeyboardEvent, index: number): void {
+    const list = tabs();
+    if (list.length === 0) return;
+    let next: number;
+    if (e.key === 'ArrowRight') next = (index + 1) % list.length;
+    else if (e.key === 'ArrowLeft') next = (index - 1 + list.length) % list.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = list.length - 1;
+    else return;
+    e.preventDefault();
+    const target = list[next];
+    if (!target) return;
+    props.onTabChange?.(target.id);
+    tabEls[next]?.focus();
+  }
+
   function renderChip(opt: ChipOption): JSX.Element {
     const state = () => chipState(opt.value);
     // The indicator is PINNED, not inherited. A tri-state chip has three
@@ -393,6 +439,32 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
             onClose={closePanel}
           >
             <div class="cujuju-cf-body">
+              <Show when={tabs().length > 0}>
+                <div
+                  class="cujuju-cf-tabs"
+                  role="tablist"
+                  aria-label={`${props.panelTitle ?? props.label} tabs`}
+                >
+                  <For each={tabs()}>
+                    {(tab, i) => (
+                      <button
+                        ref={(el) => (tabEls[i()] = el)}
+                        type="button"
+                        role="tab"
+                        class={`cujuju-cf-tab${
+                          tab.id === activeTabId() ? ' cujuju-cf-tab--active' : ''
+                        }`}
+                        aria-selected={tab.id === activeTabId()}
+                        tabIndex={tab.id === activeTabId() ? 0 : -1}
+                        onClick={() => props.onTabChange?.(tab.id)}
+                        onKeyDown={(e) => onTabKeyDown(e, i())}
+                      >
+                        {tab.label}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </Show>
               <Show when={props.topSlot}>{props.topSlot}</Show>
               <Show when={props.onSearchInput !== undefined}>
                 <input

@@ -7,6 +7,7 @@ export {
   ChipFlyout,
   type ChipFlyoutProps,
   type ChipOption,
+  type ChipFlyoutTab,
 } from './ChipFlyout';
 
 // Re-exported for convenience — a `tri-state` ChipFlyout consumer needs

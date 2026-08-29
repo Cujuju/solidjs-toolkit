@@ -150,6 +150,58 @@
   box-shadow: 0 0 0 2px var(--color-primary-alpha-10, rgba(99, 102, 241, 0.14));
 }
 
+/* ── Tab strip ─────────────────────────────────────────────────── */
+
+/* Rendered at the top of the panel body when the caller passes `tabs`.
+   An UNDERLINE strip rather than a segmented control: the tabs slice the
+   option pool below them, so the active tab has to read as continuous
+   with the list, and a filled pill would compete with the selected
+   chips for the same "this one is on" cue. Scrolls horizontally when
+   more sources are present than the panel width fits. */
+.cujuju-cf-tabs {
+  display: flex;
+  gap: var(--spacing-xs, 4px);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border, #334155);
+  margin-bottom: var(--spacing-xs, 4px);
+  scrollbar-width: thin;
+}
+
+.cujuju-cf-tab {
+  flex: 0 0 auto;
+  border: none;
+  /* Bottom border doubles as the active indicator; transparent when
+     inactive so switching tabs never shifts the strip's height. */
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 5px 10px;
+  color: var(--color-text-secondary, #94a3b8);
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--transition-speed, 120ms),
+    border-color var(--transition-speed, 120ms);
+}
+
+.cujuju-cf-tab:hover {
+  color: var(--color-text, #e2e8f0);
+}
+
+/* Colour + underline only — deliberately NOT a weight change, which
+   would re-measure the label and jitter the strip's layout on every
+   switch. */
+.cujuju-cf-tab--active {
+  color: var(--color-primary, #6366f1);
+  border-bottom-color: var(--color-primary, #6366f1);
+}
+
+.cujuju-cf-tab:focus-visible {
+  outline: 1px solid var(--color-primary, #6366f1);
+  outline-offset: -1px;
+}
+
 /* Single-line affordance for "Loading…" / "No matches." text. */
 .cujuju-cf-status {
   font-size: var(--font-size-xs, 11px);

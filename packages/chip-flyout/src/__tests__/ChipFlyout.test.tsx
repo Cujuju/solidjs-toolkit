@@ -207,3 +207,138 @@ describe('ChipFlyout — grouping & typeahead', () => {
     expect(onSearchInput).toHaveBeenCalledWith('al');
   });
 });
+
+describe('ChipFlyout — tab strip', () => {
+  const TABS = [
+    { id: 'mangadex', label: 'MangaDex' },
+    { id: 'local', label: 'Local' },
+  ];
+
+  function tabButtons(): HTMLButtonElement[] {
+    return [...document.querySelectorAll<HTMLButtonElement>('.cujuju-cf-tab')];
+  }
+
+  it('renders no tab strip when `tabs` is absent', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    expect(document.querySelector('[role="tablist"]')).toBeNull();
+    expect(tabButtons()).toHaveLength(0);
+  });
+
+  it('renders no tab strip when `tabs` is empty', () => {
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={[]}
+      />
+    ));
+    fireEvent.click(trigger(container));
+    expect(document.querySelector('[role="tablist"]')).toBeNull();
+  });
+
+  it('renders one tab per entry and marks the active one', () => {
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={TABS}
+        activeTab="local"
+        onTabChange={() => {}}
+      />
+    ));
+    fireEvent.click(trigger(container));
+    const tabs = tabButtons();
+    expect(tabs.map((t) => t.textContent)).toEqual(['MangaDex', 'Local']);
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true']);
+    // Roving tabindex: exactly one tab stop, on the active tab.
+    expect(tabs.map((t) => t.getAttribute('tabindex'))).toEqual(['-1', '0']);
+  });
+
+  it('falls back to the first tab when `activeTab` is unset', () => {
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={TABS}
+      />
+    ));
+    fireEvent.click(trigger(container));
+    expect(tabButtons()[0]!.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('fires onTabChange with the clicked tab id', () => {
+    const onTabChange = vi.fn();
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={TABS}
+        activeTab="mangadex"
+        onTabChange={onTabChange}
+      />
+    ));
+    fireEvent.click(trigger(container));
+    fireEvent.click(tabButtons()[1]!);
+    expect(onTabChange).toHaveBeenCalledWith('local');
+  });
+
+  it('moves between tabs with arrow keys, wrapping at the ends', () => {
+    const onTabChange = vi.fn();
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={TABS}
+        activeTab="mangadex"
+        onTabChange={onTabChange}
+      />
+    ));
+    fireEvent.click(trigger(container));
+    fireEvent.keyDown(tabButtons()[0]!, { key: 'ArrowRight' });
+    expect(onTabChange).toHaveBeenLastCalledWith('local');
+    fireEvent.keyDown(tabButtons()[0]!, { key: 'ArrowLeft' });
+    expect(onTabChange).toHaveBeenLastCalledWith('local');
+    fireEvent.keyDown(tabButtons()[1]!, { key: 'End' });
+    expect(onTabChange).toHaveBeenLastCalledWith('local');
+    fireEvent.keyDown(tabButtons()[1]!, { key: 'Home' });
+    expect(onTabChange).toHaveBeenLastCalledWith('mangadex');
+  });
+
+  it('renders the tab strip above the search input', () => {
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        onSearchInput={() => {}}
+        tabs={TABS}
+      />
+    ));
+    fireEvent.click(trigger(container));
+    const body = document.querySelector('.cujuju-cf-body')!;
+    const strip = body.querySelector('[role="tablist"]')!;
+    const search = body.querySelector('.cujuju-cf-search')!;
+    expect(strip.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+  });
+});

@@ -56,6 +56,38 @@ Multi-select:
 | `panelMinWidth` / `panelMaxWidth` | `number?` | Default 280 / 480. |
 | `open` / `onOpenChange` | `boolean?` / `(b) => void` | Optional controlled open state. |
 | `loading`, `hasMore`, `onLoadMore`, `searchValue`, `onSearchInput`, `topSlot` | — | Server-backed typeahead extensions; each is independent. |
+| `tabs` | `readonly ChipFlyoutTab[]?` | `{ id, label }` per tab. Renders a tab strip above the search input; empty/omitted renders nothing. |
+| `activeTab` / `onTabChange` | `string?` / `(id) => void` | Controlled tab selection. Defaults to the first tab when `activeTab` is unset. |
+
+### Tabs
+
+The panel can carry a **tab strip** above the search input, splitting one
+option pool into caller-defined slices (e.g. one per content source).
+It is fully controlled: `ChipFlyout` renders `activeTab` and reports
+selection through `onTabChange`; the caller re-supplies `options` for the
+newly active tab.
+
+```tsx
+const [source, setSource] = createSignal('mangadex');
+
+<ChipFlyout
+  mode="tri-state"
+  label="Tags"
+  tabs={[{ id: 'mangadex', label: 'MangaDex' }, { id: 'local', label: 'Local' }]}
+  activeTab={source()}
+  onTabChange={setSource}
+  options={tagsFor(source())}
+  value={tags()}
+  onChange={setTags}
+/>;
+```
+
+Selection (`value`) is global — it is not scoped to a tab, so chips
+selected under one tab stay selected when the user switches away.
+
+The strip is a `role="tablist"` of `role="tab"` buttons with
+`aria-selected`, a roving `tabindex` (one tab stop), and
+Left/Right/Home/End arrow-key navigation.
 
 ## Styling
 
