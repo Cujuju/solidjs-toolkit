@@ -2,6 +2,7 @@ import {
   createSignal,
   createMemo,
   createEffect,
+  createUniqueId,
   on,
   For,
   Show,
@@ -88,9 +89,12 @@ interface BaseProps {
   // `tabs` renders nothing, so untabbed callers are unaffected.
   /** Tabs to render above the search input. Empty/undefined = no strip. */
   tabs?: readonly ChipFlyoutTab[];
-  /** Id of the active tab. Defaults to the first tab when unset. */
+  /** Id of the active tab. Defaults to the first tab when unset — and
+   *  also when it names a tab that isn't in `tabs`, so a caller whose tab
+   *  list shrinks can't leave the strip with nothing selected. */
   activeTab?: string;
-  /** Fired with the newly selected tab id on click or arrow-key move. */
+  /** Fired with the selected tab id. MANUAL activation: a click, or
+   *  Enter/Space on a focused tab. Arrow keys only move focus. */
   onTabChange?: (id: string) => void;
 }
 
@@ -344,11 +348,36 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   // `props.activeTab`, falling back to the first tab so a caller that
   // supplies tabs without a selection still shows a sensible default.
   const tabs = createMemo<readonly ChipFlyoutTab[]>(() => props.tabs ?? []);
-  const activeTabId = createMemo(() => props.activeTab ?? tabs()[0]?.id);
+  // Effective selection. `activeTab` is VALIDATED against the current
+  // list, not trusted: a caller whose tabs are fed by an async query can
+  // hand us an id that has since disappeared, and an id matching no tab
+  // would leave every button `aria-selected=false` with `tabindex=-1` —
+  // a strip that is unreachable by keyboard and looks like nothing is
+  // selected. Falling back to the first tab keeps the invariant that a
+  // non-empty strip always has exactly one selected tab and one tab stop.
+  const activeTabId = createMemo(() => {
+    const list = tabs();
+    const wanted = props.activeTab;
+    return wanted !== undefined && list.some((t) => t.id === wanted)
+      ? wanted
+      : list[0]?.id;
+  });
   // Roving-tabindex targets — the strip exposes ONE tab stop, and arrow
   // keys move focus between the buttons directly.
   const tabEls: (HTMLButtonElement | undefined)[] = [];
+  // Stable id base for the tab <-> tabpanel `aria-controls` /
+  // `aria-labelledby` pairing. Per instance, so two flyouts on one page
+  // never collide.
+  const uid = createUniqueId();
+  const tabDomId = (i: number) => `${uid}-tab-${i}`;
+  const panelDomId = `${uid}-tabpanel`;
 
+  /** MANUAL activation (WAI-ARIA APG): arrows/Home/End move FOCUS only.
+   *  Automatic activation would fire `onTabChange` on every keypress, and
+   *  each of those is a re-query for a catalog-backed caller — arrowing
+   *  across five sources would launch five fetches the user never asked
+   *  for. Enter/Space activates, which the native <button> already turns
+   *  into a click, so no key handling is needed for it here. */
   function onTabKeyDown(e: KeyboardEvent, index: number): void {
     const list = tabs();
     if (list.length === 0) return;
@@ -359,9 +388,6 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     else if (e.key === 'End') next = list.length - 1;
     else return;
     e.preventDefault();
-    const target = list[next];
-    if (!target) return;
-    props.onTabChange?.(target.id);
     tabEls[next]?.focus();
   }
 
@@ -451,6 +477,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                         ref={(el) => (tabEls[i()] = el)}
                         type="button"
                         role="tab"
+                        id={tabDomId(i())}
+                        aria-controls={panelDomId}
                         class={`cujuju-cf-tab${
                           tab.id === activeTabId() ? ' cujuju-cf-tab--active' : ''
                         }`}
@@ -478,30 +506,47 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                   aria-label={`Search ${props.panelTitle ?? props.label}`}
                 />
               </Show>
-              <Show
-                when={grouped()}
-                fallback={
-                  <div class="cujuju-cf-chips">
-                    <For each={sortedOptions()}>{renderChip}</For>
-                  </div>
+              {/* The option list is what a tab controls, so it carries
+                  the `tabpanel` role and points back at the active tab.
+                  Rendered unconditionally (untabbed panels just get a
+                  plain wrapper) and styled as the same flex column the
+                  body is, so the chips/group-header spacing is identical
+                  with and without tabs. */}
+              <div
+                class="cujuju-cf-tabpanel"
+                id={panelDomId}
+                role={tabs().length > 0 ? 'tabpanel' : undefined}
+                aria-labelledby={
+                  tabs().length > 0
+                    ? tabDomId(tabs().findIndex((t) => t.id === activeTabId()))
+                    : undefined
                 }
               >
-                <For each={grouped()!}>
-                  {([groupLabel, opts]) => (
-                    <>
-                      <Show when={groupLabel}>
-                        <div class="cujuju-cf-group-header">
-                          {groupLabel.charAt(0).toUpperCase() +
-                            groupLabel.slice(1)}
+                <Show
+                  when={grouped()}
+                  fallback={
+                    <div class="cujuju-cf-chips">
+                      <For each={sortedOptions()}>{renderChip}</For>
+                    </div>
+                  }
+                >
+                  <For each={grouped()!}>
+                    {([groupLabel, opts]) => (
+                      <>
+                        <Show when={groupLabel}>
+                          <div class="cujuju-cf-group-header">
+                            {groupLabel.charAt(0).toUpperCase() +
+                              groupLabel.slice(1)}
+                          </div>
+                        </Show>
+                        <div class="cujuju-cf-chips">
+                          <For each={opts}>{renderChip}</For>
                         </div>
-                      </Show>
-                      <div class="cujuju-cf-chips">
-                        <For each={opts}>{renderChip}</For>
-                      </div>
-                    </>
-                  )}
-                </For>
-              </Show>
+                      </>
+                    )}
+                  </For>
+                </Show>
+              </div>
               <Show when={props.loading}>
                 <div class="cujuju-cf-status" aria-live="polite">
                   Loading…

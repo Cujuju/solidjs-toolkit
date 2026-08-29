@@ -213,6 +213,14 @@ describe('ChipFlyout — tab strip', () => {
     { id: 'mangadex', label: 'MangaDex' },
     { id: 'local', label: 'Local' },
   ];
+  /** Three entries so a wrap-around and a Home/End jump land somewhere
+   *  DIFFERENT from the neighbour step — with two tabs every movement
+   *  assertion is satisfied by the same element and can never fail. */
+  const THREE_TABS = [
+    { id: 'mangadex', label: 'MangaDex' },
+    { id: 'nhentai', label: 'nhentai' },
+    { id: 'local', label: 'Local' },
+  ];
 
   function tabButtons(): HTMLButtonElement[] {
     return [...document.querySelectorAll<HTMLButtonElement>('.cujuju-cf-tab')];
@@ -297,7 +305,7 @@ describe('ChipFlyout — tab strip', () => {
     expect(onTabChange).toHaveBeenCalledWith('local');
   });
 
-  it('moves between tabs with arrow keys, wrapping at the ends', () => {
+  it('arrow keys move FOCUS only, wrapping at the ends', () => {
     const onTabChange = vi.fn();
     const { container } = render(() => (
       <ChipFlyout
@@ -306,20 +314,111 @@ describe('ChipFlyout — tab strip', () => {
         options={OPTIONS}
         value={[]}
         onChange={() => {}}
-        tabs={TABS}
+        tabs={THREE_TABS}
+        activeTab="mangadex"
+        onTabChange={onTabChange}
+      />
+    ));
+    fireEvent.click(trigger(container));
+    const [first, middle, last] = tabButtons() as [
+      HTMLButtonElement,
+      HTMLButtonElement,
+      HTMLButtonElement,
+    ];
+
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(middle);
+    fireEvent.keyDown(first, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(middle, { key: 'End' });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(middle, { key: 'Home' });
+    expect(document.activeElement).toBe(first);
+
+    // Manual activation: moving focus must not select, or a caller that
+    // re-queries per tab would fetch once for every keypress.
+    expect(onTabChange).not.toHaveBeenCalled();
+    // ...and the selection is unmoved.
+    expect(first.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('activates the focused tab on Enter', () => {
+    const onTabChange = vi.fn();
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={THREE_TABS}
         activeTab="mangadex"
         onTabChange={onTabChange}
       />
     ));
     fireEvent.click(trigger(container));
     fireEvent.keyDown(tabButtons()[0]!, { key: 'ArrowRight' });
-    expect(onTabChange).toHaveBeenLastCalledWith('local');
-    fireEvent.keyDown(tabButtons()[0]!, { key: 'ArrowLeft' });
-    expect(onTabChange).toHaveBeenLastCalledWith('local');
-    fireEvent.keyDown(tabButtons()[1]!, { key: 'End' });
-    expect(onTabChange).toHaveBeenLastCalledWith('local');
-    fireEvent.keyDown(tabButtons()[1]!, { key: 'Home' });
-    expect(onTabChange).toHaveBeenLastCalledWith('mangadex');
+    // A native <button> turns Enter/Space into a click; assert through the
+    // click the browser would synthesise on the now-focused tab.
+    fireEvent.click(document.activeElement!);
+    expect(onTabChange).toHaveBeenCalledTimes(1);
+    expect(onTabChange).toHaveBeenCalledWith('nhentai');
+  });
+
+  it('falls back to the first tab when `activeTab` names no tab', () => {
+    // A caller whose tab list is fed by an async query can hold an id that
+    // has since vanished; the strip must not end up with zero selected
+    // tabs and therefore zero tab stops.
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={TABS}
+        activeTab="a-source-that-was-removed"
+      />
+    ));
+    fireEvent.click(trigger(container));
+    const tabs = tabButtons();
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false']);
+    expect(tabs.map((t) => t.getAttribute('tabindex'))).toEqual(['0', '-1']);
+  });
+
+  it('pairs each tab with the option list via aria-controls', () => {
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={TABS}
+        activeTab="local"
+      />
+    ));
+    fireEvent.click(trigger(container));
+    const panel = document.querySelector('[role="tabpanel"]')!;
+    expect(panel).not.toBeNull();
+    const tabs = tabButtons();
+    for (const t of tabs) {
+      expect(t.getAttribute('aria-controls')).toBe(panel.id);
+    }
+    // The panel names the ACTIVE tab as its label.
+    expect(panel.getAttribute('aria-labelledby')).toBe(tabs[1]!.id);
+    // The chips live inside it.
+    expect(panel.querySelector('.cujuju-cf-chips')).not.toBeNull();
+  });
+
+  it('adds no tabpanel role when there are no tabs', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    expect(document.querySelector('[role="tabpanel"]')).toBeNull();
+    // The wrapper still renders, so layout is identical either way.
+    expect(document.querySelector('.cujuju-cf-tabpanel')).not.toBeNull();
   });
 
   it('renders the tab strip above the search input', () => {

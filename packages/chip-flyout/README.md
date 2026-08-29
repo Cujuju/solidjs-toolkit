@@ -57,7 +57,7 @@ Multi-select:
 | `open` / `onOpenChange` | `boolean?` / `(b) => void` | Optional controlled open state. |
 | `loading`, `hasMore`, `onLoadMore`, `searchValue`, `onSearchInput`, `topSlot` | — | Server-backed typeahead extensions; each is independent. |
 | `tabs` | `readonly ChipFlyoutTab[]?` | `{ id, label }` per tab. Renders a tab strip above the search input; empty/omitted renders nothing. |
-| `activeTab` / `onTabChange` | `string?` / `(id) => void` | Controlled tab selection. Defaults to the first tab when `activeTab` is unset. |
+| `activeTab` / `onTabChange` | `string?` / `(id) => void` | Controlled tab selection. Falls back to the first tab when `activeTab` is unset **or names no tab in `tabs`**. `onTabChange` fires on click and on Enter/Space — not on arrow keys. |
 
 ### Tabs
 
@@ -85,9 +85,31 @@ const [source, setSource] = createSignal('mangadex');
 Selection (`value`) is global — it is not scoped to a tab, so chips
 selected under one tab stay selected when the user switches away.
 
-The strip is a `role="tablist"` of `role="tab"` buttons with
-`aria-selected`, a roving `tabindex` (one tab stop), and
-Left/Right/Home/End arrow-key navigation.
+`activeTab` is validated against `tabs` rather than trusted: an id that
+matches no tab resolves to the first one. A caller feeding `tabs` from an
+async query can therefore hold a stale id without the strip ending up
+with no selected tab (and, because the tab stop follows the selection, no
+keyboard entry point).
+
+#### Keyboard and ARIA
+
+Activation is **manual**, per the WAI-ARIA APG: Left/Right/Home/End move
+focus along the strip, and only click or Enter/Space fires `onTabChange`.
+Automatic activation would emit one change per keypress, which for a
+catalog-backed caller is one fetch per keypress.
+
+What the component provides, in full:
+
+| | |
+| --- | --- |
+| Strip | `role="tablist"`, `aria-label="<panelTitle ?? label> tabs"` |
+| Each tab | `role="tab"`, unique `id`, `aria-selected`, `aria-controls` → the option list, roving `tabindex` (`0` on the active tab, `-1` on the rest) |
+| Option list | `role="tabpanel"`, `id`, `aria-labelledby` → the active tab |
+
+The option list keeps its wrapper element when `tabs` is empty, but
+without the `tabpanel` role — so an untabbed panel exposes no orphan
+panel, and the layout is identical either way. The panel is not itself
+focusable; the chips inside it are.
 
 ## Styling
 

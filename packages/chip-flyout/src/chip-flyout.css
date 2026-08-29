@@ -163,8 +163,16 @@
   gap: var(--spacing-xs, 4px);
   overflow-x: auto;
   border-bottom: 1px solid var(--color-border, #334155);
-  margin-bottom: var(--spacing-xs, 4px);
   scrollbar-width: thin;
+}
+
+/* Wrapper around the option list (the `tabpanel`). Re-declares the body's
+   column layout so wrapping the chips in it — which the ARIA pairing
+   requires — leaves the group-header / chip-row spacing untouched. */
+.cujuju-cf-tabpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 4px);
 }
 
 .cujuju-cf-tab {
