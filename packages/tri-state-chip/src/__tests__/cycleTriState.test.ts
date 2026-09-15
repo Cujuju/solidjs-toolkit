@@ -113,9 +113,8 @@ describe('EMPTY_TRI_STATE', () => {
   });
 
   it('is not frozen (callers may spread to clone)', () => {
-    // Documented contract — spread-clone is the recommended mutation entry,
-    // but the instance itself is intentionally not Object.frozen so callers
-    // that pass it straight to a setter don't crash if the store mutates.
+    // Documented contract: not Object.frozen, so callers passing it straight to a
+    // mutating store setter don't crash.
     expect(Object.isFrozen(EMPTY_TRI_STATE)).toBe(false);
   });
 });

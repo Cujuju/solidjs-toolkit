@@ -47,8 +47,11 @@ const options = ['action', 'comedy', 'drama'];
 | `onCycle` | (required) | Fires with the next state on click. |
 | `disabled` | `false` | Non-interactive, dimmed. |
 | `nextState` | `cycleTriState` | Override the cycle order. |
-| `includePrefix` | `'+ '` | Glyph shown before the label when included. Pass `''` to suppress. |
-| `excludePrefix` | `'− '` | Glyph shown before the label when excluded. |
+| `indicator` | `'hatch'` | How state is signalled: `'hatch'` / `'strike'` / `'cut'` / `'glyph'` / `'marks'` / `'badge'` / `'rail'` / `'tint'`. Only `'glyph'` puts a character in the text flow. |
+| `includePrefix` | `'✓ '` | Glyph shown before the label when included. Pass `''` to suppress. Only consulted by `indicator="glyph"`. |
+| `excludePrefix` | `'✗ '` | Glyph shown before the label when excluded. Only consulted by `indicator="glyph"`. |
+| `neutralPrefix` | `''` | Glyph shown before the label when unselected. Only consulted by `indicator="glyph"`. |
+| `hatchAngle`, `hatchStripeWidth`, `hatchGapWidth` | stylesheet (`45deg`, `4px`, `6px`) | Per-chip hatch geometry as CSS strings; write `--ctc-hatch-*` inline. Only consulted by `indicator="hatch"`. |
 | `ariaLabel` | — | Override for screen readers. |
 | `class`, `style`, `dataAttr` | — | Passthrough. |
 
@@ -98,7 +101,7 @@ All pure, no Solid dependency — safe to import in stores, tests, or workers.
 
 ## A11y
 
-The chip emits `aria-pressed="true"` when the state is `included` or `excluded`, and `aria-pressed="false"` when `unselected`. The include-vs-exclude distinction is carried visually (color, prefix glyph) and via `data-state="included" | "excluded" | "unselected"` on the root for CSS / automation. `aria-pressed="mixed"` is intentionally NOT used — per W3C, `mixed` is reserved for partially-selected groups, not for distinguishing two pressed flavors of a single toggle. Pass `ariaLabel="Genre: action (included)"` from the consumer if richer screen-reader output is needed.
+The chip emits `aria-pressed="true"` when the state is `included` or `excluded`, and `aria-pressed="false"` when `unselected`. The include-vs-exclude distinction is carried visually (color, plus the `indicator` mark — hatch stripes by default; a prefix glyph only with `indicator="glyph"`) and via `data-state="included" | "excluded" | "unselected"` on the root for CSS / automation. `aria-pressed="mixed"` is intentionally NOT used — per W3C, `mixed` is reserved for partially-selected groups, not for distinguishing two pressed flavors of a single toggle. Pass `ariaLabel="Genre: action (included)"` from the consumer if richer screen-reader output is needed.
 
 ## License
 

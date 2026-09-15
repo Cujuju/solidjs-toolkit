@@ -4,45 +4,33 @@
 
 @layer cujuju-defaults {
   :root {
-    /* Unselected — neutral chip. */
     --ctc-bg: transparent;
     --ctc-color: inherit;
     --ctc-border: 1px solid currentColor;
     --ctc-border-hover: 1px solid #6366f1;
 
-    /* Opaque colour BEHIND the chip. The strike's knockout has to repaint the
-       chip's own surface to punch a gap in the label, and a translucent fill
-       cannot hide the glyphs underneath — so the knockout is composited
-       against this. Set it to whatever the chip actually sits on. */
+    /* Opaque colour behind the chip: the strike knockout repaints the chip surface, and a
+           translucent fill can't hide glyphs. Set it to what the chip sits on. */
     --ctc-surface: #0f172a;
-    /* Fill strength of the include/exclude tint. Shared by the state
-       backgrounds AND the strike knockout, so the knockout is by construction
-       the same colour the chip renders — they cannot drift apart. */
+    /* Shared by state backgrounds AND the strike knockout, so the knockout matches the
+           chip's colour by construction. */
     --ctc-tint-strength: 15%;
-    /* Hover fill strength. Its own token because the strike knockout has to be
-       composited at whichever strength the chip is CURRENTLY painting — a
-       knockout mixed at the resting 15% shows up as a dark band across a chip
-       hovered at 25%, which is what made a 1px line look thick. */
+    /* Own token: the knockout must composite at the strength currently painted, or a
+           hovered chip shows a dark band across the label. */
     --ctc-tint-strength-hover: 25%;
 
-    /* Included — emerald accent. */
     --ctc-bg-included: color-mix(in srgb, var(--ctc-color-included) var(--ctc-tint-strength), transparent);
     --ctc-color-included: #10b981;
     --ctc-border-included: 1px solid #10b981;
     --ctc-bg-included-hover: color-mix(in srgb, var(--ctc-color-included) var(--ctc-tint-strength-hover), transparent);
 
-    /* Excluded — rose accent. */
     --ctc-bg-excluded: color-mix(in srgb, var(--ctc-color-excluded) var(--ctc-tint-strength), transparent);
     --ctc-color-excluded: #f43f5e;
     --ctc-border-excluded: 1px solid #f43f5e;
     --ctc-bg-excluded-hover: color-mix(in srgb, var(--ctc-color-excluded) var(--ctc-tint-strength-hover), transparent);
 
-    /* Layout. */
-    /* Fixed width of the leading glyph column (glyph indicator). Sized to hold
-       one glyph plus its trailing space — the default `'✓ '` / `'✗ '` measure
-       ~1.02em, so 1.15em clears them with a hair of gap. Raise it for a wider
-       custom prefix (it clips past this width); the neutral-centring offset
-       tracks it automatically. */
+    /* Fits one default glyph plus space (~1.02em). Wider custom prefixes clip; raise this.
+           Neutral centring tracks it. */
     --ctc-glyph-col: 1.15em;
     --ctc-padding: 5px 10px;
     --ctc-radius: 6px;
@@ -51,32 +39,18 @@
     --ctc-gap: 0;
     --ctc-transition: 150ms ease;
 
-    /* States. */
     --ctc-disabled-opacity: 0.5;
-    /* Thin INSET focus ring, coloured as a LIGHTENED version of the control
-       itself rather than a fixed accent — on a chip that means the current
-       state's own colour (neutral/emerald/rose) lifted toward white, so the
-       ring always belongs to the chip it is on. Override
-       `--ctc-focus-ring-color` for a brighter, higher-contrast ring. */
+    /* Inset ring in the chip's current state colour lifted toward white, so it belongs to
+           its chip. Override for higher contrast. */
     --ctc-focus-ring-color: color-mix(in srgb, currentColor 55%, #fff);
     --ctc-focus-ring: 1px solid var(--ctc-focus-ring-color);
     --ctc-focus-ring-offset: -1px;
 
-    /* Glyph-free indicator tunables (see the indicator rules below).
-
-       The strike is a thin line wrapped in a KNOCKOUT: a band of the chip's
-       own colour that erases the label glyphs on either side of the line, so
-       the line reads as cut through the word rather than laid on top of it.
-       `--ctc-strike-knockout` is the composite the chip actually renders —
-       the excluded tint over `--ctc-surface` — so the punched band is
-       indistinguishable from the chip around it. */
+    /* Strike = thin line inside a KNOCKOUT band of the chip's own composite (excluded tint
+           over --ctc-surface), so the line cuts through the word. */
     --ctc-strike-thickness: 1px;
-    /* Half a pixel of dead space each side, so the whole mark is 2px of
-       interruption instead of 3px. At DPR 1 the browser composites this as one
-       row at ~half alpha rather than a full row — the knockout is a near-chip
-       colour anyway (1/255 off the chip's own fill), so a half-strength band of
-       it is exactly the intended near-invisible separation. At DPR 2 it is a
-       true device row. */
+    /* 0.5px each side: at DPR 1 it composites as one half-alpha row (near-invisible, as
+           intended); at DPR 2 it is a true device row. */
     --ctc-strike-knockout-width: 0.5px;
     --ctc-strike-knockout: color-mix(
       in srgb,
@@ -89,30 +63,11 @@
       var(--ctc-color-excluded) var(--ctc-tint-strength-hover),
       var(--ctc-surface)
     );
-    /* `cut` — the INVERSE strike: the knockout with no line inside it. The
-       label is broken by a band of the chip's own colour and nothing is drawn
-       on top, so the word reads as severed rather than crossed out.
-
-       The band is the WHOLE mark, so this token alone decides how loud the cut
-       is: 1px is the faintest it can be (one erased device row, which at the
-       10px `xs` size can vanish into the glyphs' own antialiasing), 2px reads
-       clearly at every size the chip ships, and past ~3px it stops looking
-       like a cut and starts looking like the label is missing a stripe.
-       Deliberately NOT sharing `--ctc-strike-thickness`: those are opposite
-       quantities — for a line thinner is crisper, for a gap thinner is fainter
-       — so the two will never want to move together. */
+    /* `cut` band: 1px can vanish at xs; 2px reads; >3px looks like a missing stripe. Not
+           shared with strike: thinner line is crisper, thinner gap fainter. */
     --ctc-cut-thickness: 2px;
-    /* `hatch` — diagonal hazard stripes across the whole excluded chip, the
-       barricade-tape / "this control is barred" idiom. Geometry is three
-       tokens so the tape can be re-pitched without touching the gradient.
-       4px bar / 6px space at 45deg is a period of 10px measured along the
-       gradient normal — roughly 14px along the chip's horizontal, so a chip
-       carries two or three full bars: unmistakably tape, rather than either a
-       couple of stray lines or a dense wash. Bar and space are kept at the
-       same 2:3 duty cycle at any pitch; scale both together to zoom the tape,
-       raise only the bar to make it heavier.
-       The colour is the excluded tint at a LOWER strength than the chip's own
-       fill, because the stripes sit over that fill and the two multiply. */
+    /* `hatch` tape: 4px bar / 6px gap at 45deg gives two or three bars per chip. Scale both
+           to re-pitch. Colour is weaker than the fill because they multiply. */
     --ctc-hatch-angle: 45deg;
     --ctc-hatch-stripe-width: 4px;
     --ctc-hatch-gap-width: 6px;
@@ -148,13 +103,8 @@
     color var(--ctc-transition);
 }
 
-/* Leading glyph column — a FIXED `--ctc-glyph-col` wide in every state, so the
-   chip's width never changes with state. A fixed token (not the glyph's
-   intrinsic advance) is deliberate: the neutral-centering offset below must be
-   exactly half the column, and only a known value can be halved. `pre` keeps
-   the trailing space in the default `'✓ '` / `'✗ '`; `overflow: hidden` makes a
-   too-wide custom prefix clip rather than shove the label — size the token up
-   for a wider prefix. */
+/* Fixed token width (not intrinsic) so the centring offset can be exactly half; stable
+   across states. `pre` keeps the trailing space; wide prefixes clip. */
 .ctc-chip-prefix {
   display: inline-block;
   width: var(--ctc-glyph-col);
@@ -163,16 +113,14 @@
   text-align: start;
 }
 
-/* Centre the bare label. When the current state shows NO glyph, the reserved
-   column would otherwise leave the label shoved right; shift it back by half
-   the column to centre it. A `transform` (not a margin) so the chip's width is
-   untouched. `data-glyph-empty` — not `data-state` — so a chip with a
-   `neutralPrefix` glyph stays offset like the marked states. LTR by default;
-   the RTL rule flips the direction. */
+/* No glyph shown: shift the label back half a column to centre it. Transform keeps width
+   untouched; data-glyph-empty (not data-state) respects neutralPrefix. */
 .ctc-chip[data-indicator="glyph"][data-glyph-empty] .ctc-chip-label {
   transform: translateX(calc(var(--ctc-glyph-col) / -2));
 }
-[dir="rtl"] .ctc-chip[data-indicator="glyph"][data-glyph-empty] .ctc-chip-label {
+/* `:dir(rtl)`, not a `[dir="rtl"]` ancestor: it reads the resolved direction, so
+   `dir="auto"` and a `dir` on the chip itself also flip. */
+.ctc-chip[data-indicator="glyph"][data-glyph-empty]:dir(rtl) .ctc-chip-label {
   transform: translateX(calc(var(--ctc-glyph-col) / 2));
 }
 
@@ -202,18 +150,11 @@
   border: var(--ctc-border-excluded);
 }
 
-/* ── Glyph-free indicators ───────────────────────────────────────────────
-   Each carries the state WITHOUT a character in the text flow, so the chip is
-   exactly its label's width in every state — no reserved column, nothing
-   blank while unselected, and no neutral mark to invent. `data-indicator` is
-   set by the component; the reserved-column markup above renders only for the
-   default `glyph` indicator. */
+/* ── Glyph-free indicators: state carried without a text character, so chip width equals
+   its label in every state. */
 
-/* strike / marks — the mark is drawn ON the label at zero layout width. The
-   strike is a pseudo-element line (not `text-decoration: line-through`) so it
-   can carry a `--ctc-strike-gap` of DEAD SPACE: a band of the surface colour
-   punched above and below the line via box-shadow spread, so the line reads as
-   floating clear of the glyphs rather than welded through them. */
+/* strike / marks — a pseudo-element line (not line-through) so it can carry a knockout
+   band of surface colour, floating clear of the glyphs. */
 .ctc-chip[data-indicator="strike"] .ctc-chip-label,
 .ctc-chip[data-indicator="cut"] .ctc-chip-label,
 .ctc-chip[data-indicator="marks"] .ctc-chip-label {
@@ -224,23 +165,14 @@
   content: "";
   position: absolute;
   inset-inline: 0;
-  /* Centred with AUTO MARGINS, not `top: 50%` + `translateY(-50%)`.
-     A transformed element is composited without pixel snapping, so the old
-     centring put the line's top edge at an arbitrary sub-pixel offset: at
-     125% / 150% display scaling it landed mid-device-row and the browser
-     smeared a 1px line across TWO rows at partial alpha — which is exactly
-     what a "2px" strike looks like. `inset-block: 0` + `margin-block: auto`
-     centres it in LAYOUT instead, where the box is snapped to the device
-     grid and the line paints as one crisp row. */
+  /* Auto-margin centring, not translateY(-50%): transforms skip pixel snapping, so at
+       125%/150% scaling a 1px line smeared across two rows. */
   inset-block: 0;
   margin-block: auto;
   height: var(--ctc-strike-thickness);
   background: currentColor;
-  /* The KNOCKOUT. A box-shadow spread paints `--ctc-strike-knockout` on every
-     side of the line; the ::after stacks above the label's text, so that band
-     erases the glyphs it covers and leaves clean chip surface hugging the
-     line. Same trick as a knocked-out icon slash: wide background-coloured
-     stroke first, thin coloured stroke on top. */
+  /* The KNOCKOUT: spread shadow in chip colour above the label's text erases glyphs
+       around the line. */
   box-shadow: 0 0 0 var(--ctc-strike-knockout-width) var(--ctc-strike-knockout);
 }
 
@@ -250,11 +182,8 @@
 .ctc-chip[data-indicator="marks"][data-state="excluded"]:hover:not(:disabled) .ctc-chip-label::after {
   box-shadow: 0 0 0 var(--ctc-strike-knockout-width) var(--ctc-strike-knockout-hover);
 }
-/* cut — the strike with the line removed. Same geometry, same auto-margin
-   centring, but the band IS the knockout: it repaints the chip's own composite
-   over the glyphs and stops. Nothing is added to the label, so there is no
-   "how thick is the line" question to get wrong — the only ink on screen is
-   the label's own, minus the rows the cut erases. */
+/* cut — strike geometry, but the band IS the knockout: it erases glyph rows and draws
+   no line. */
 .ctc-chip[data-indicator="cut"][data-state="excluded"] .ctc-chip-label::after {
   content: "";
   position: absolute;
@@ -271,42 +200,16 @@
   background: var(--ctc-strike-knockout-hover);
 }
 
-/* marks additionally underlines included, so include vs neutral is not
-   distinguished by colour alone (WCAG 1.4.1 — colour is not the only cue).
-   Underline stays `text-decoration` (thin, no dead space asked for). */
+/* marks also underlines included, so include vs neutral isn't colour-only (WCAG 1.4.1). */
 .ctc-chip[data-indicator="marks"][data-state="included"] .ctc-chip-label {
   text-decoration: underline;
   text-underline-offset: var(--ctc-underline-offset);
   text-decoration-thickness: var(--ctc-underline-thickness);
 }
 
-/* hatch — diagonal hazard stripes over the whole excluded chip, the way a
-   barricade tape or a disabled control is marked. Unlike strike/cut, which
-   mark the WORD, this marks the CONTROL: nothing is drawn on the label at all.
-
-   The stripes are painted by a `::before` covering the chip, NOT by a
-   background-image on the chip itself — the chip's `background` already
-   carries the state fill, and a gradient there would have to re-declare it on
-   every state. `border-radius: inherit` keeps the tape inside the chip's
-   corners; `pointer-events: none` keeps it out of hit-testing.
-
-   Which side of the LABEL the tape lands on is `--ctc-hatch-tape-z`, because
-   both readings are legitimate and neither is a bug: tape ACROSS the text is
-   the literal barricade (a door taped shut), tape BEHIND it is the legible
-   one. Default is BEHIND, and that follows from the pitch: at the shipped 4px
-   bar the stripes are wider than a glyph stroke at the 10-13px sizes this chip
-   renders at, so crossing the text would break the letterforms rather than
-   veil them. The barricade reading survives regardless — the tape spans the
-   whole chip either way, it just passes under the word. Flip to 1 for the
-   literal look; that is safe at a thin bar and a low `--ctc-hatch-color`, and
-   progressively less so as either goes up.
-
-   It works by z-index because the label is `position: relative` with an AUTO
-   z-index, which paints at the same level as z-index 0 but later in tree
-   order. So tape at 1 wins over the label; tape at 0 ties on level and loses
-   the tie-break to the label, which comes after it in the tree. Both stay
-   inside the chip's stacking context, so neither can escape behind the chip's
-   own background the way a negative z-index would. */
+/* hatch — `::before` tape (chip background holds the state fill). Label is
+   position:relative, z-index auto: tape-z 0 paints behind it (tree order), 1 across.
+   Negative escapes behind the chip. */
 .ctc-chip[data-indicator="hatch"] {
   position: relative;
 }
@@ -369,18 +272,22 @@
   background: var(--ctc-color-excluded);
 }
 
-/* rail — a stripe down the inline-start edge, painted with an inset shadow so
-   it occupies no layout. Logical-property-safe via inset-inline. */
+/* rail — inset shadow, so no layout. Shadow offsets are physical, so x flips under
+   :dir(rtl) to stay on inline-start. */
 .ctc-chip[data-indicator="rail"][data-state="included"] {
   box-shadow: inset var(--ctc-rail-width) 0 0 var(--ctc-color-included);
 }
 .ctc-chip[data-indicator="rail"][data-state="excluded"] {
   box-shadow: inset var(--ctc-rail-width) 0 0 var(--ctc-color-excluded);
 }
+.ctc-chip[data-indicator="rail"][data-state="included"]:dir(rtl) {
+  box-shadow: inset calc(-1 * var(--ctc-rail-width)) 0 0 var(--ctc-color-included);
+}
+.ctc-chip[data-indicator="rail"][data-state="excluded"]:dir(rtl) {
+  box-shadow: inset calc(-1 * var(--ctc-rail-width)) 0 0 var(--ctc-color-excluded);
+}
 
-/* tint — no glyph, no decoration; the base background/colour rules alone
-   carry the state. Nothing to add here; the selector documents that `tint`
-   is a first-class, intentional choice rather than a missing case. */
+/* tint: base background/colour rules alone carry the state. */
 
 .ctc-chip:disabled {
   cursor: not-allowed;

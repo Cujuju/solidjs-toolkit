@@ -16,61 +16,23 @@ export interface TriStateChipProps {
   /** Override the cycle order. Default is {@link cycleTriState} (unselected
    *  → included → excluded → unselected). */
   nextState?: (current: TriState) => TriState;
-  /** Glyph rendered before the label when state=`included`. Default `'+ '`.
-   *  Pass `''` to suppress. */
+  /** Glyph rendered before the label when state=`included`. Default `'✓ '`.
+   *  Pass `''` to suppress. Only consulted by the `glyph` indicator. */
   includePrefix?: string;
-  /** Glyph rendered before the label when state=`excluded`. Default `'− '`. */
+  /** Glyph rendered before the label when state=`excluded`. Default `'✗ '`.
+   *  Only consulted by the `glyph` indicator. */
   excludePrefix?: string;
-  /** Glyph rendered before the label when state=`unselected`. Default `''`.
-   *  Only consulted by the `glyph` indicator; the glyph column is reserved in
-   *  every state, so leaving this empty leaves a visible blank where the glyph
-   *  would go — supply a neutral mark (e.g. `'_ '`) to fill it. */
+  /** Glyph before the label when state=`unselected`. Default `''`. `glyph` indicator only;
+   *  its column is always reserved, so empty leaves a visible blank. */
   neutralPrefix?: string;
   /**
-   * How the chip signals its state.
-   *
-   * - `hatch` (default) — diagonal hazard stripes across the whole EXCLUDED
-   *   chip, the barricade-tape idiom. Marks the control rather than the word —
-   *   nothing is drawn on the label itself. Geometry is tunable per chip via
-   *   `hatchAngle` / `hatchStripeWidth` / `hatchGapWidth`, or app-wide via the
-   *   matching `--ctc-hatch-*` custom properties.
-   * - `strike` — no glyph at all; the EXCLUDED label is struck
-   *   through. The chip is exactly its label's width in every state, nothing
-   *   reserved, nothing blank. Included stays tint-only.
-   * - `glyph` — a leading `✓ ` / `✗ ` in the text flow, in a fixed-width
-   *   column so width is stable. The neutral state has no glyph and its label
-   *   is centred; a glyph offsets the label to the right. `neutralPrefix` can
-   *   fill the neutral state with a mark (which then keeps it offset, not
-   *   centred).
-   * - `cut` — the INVERSE strike: the same band, but painted in the chip's
-   *   own colour with no line inside it, so the excluded label is severed
-   *   rather than crossed out. Adds no ink to the chip.
-   * - `marks` — `strike`, plus an underline on the INCLUDED label, so
-   *   include / neutral is not distinguished by colour alone (WCAG 1.4.1).
-   * - `badge` — a small ✓ / ✗ disc pinned to the chip's top-INLINE-end
-   *   corner, out of flow. Keeps a literal glyph at zero layout cost; can be
-   *   clipped by an ancestor with `overflow: hidden`.
-   * - `rail` — a coloured stripe down the chip's inline-start edge, painted
-   *   with an inset shadow so it never occupies layout.
-   * - `tint` — background + text colour only, no glyph and no decoration.
-   *
-   * Every indicator except `glyph` carries the state WITHOUT a character in
-   * the text flow, so none of them reserve a column or need a neutral mark.
+   * State signal. `hatch` (default) stripes the chip; `strike`/`cut` mark the label;
+   * `glyph` adds a leading ✓/✗ column; `marks`, `badge`, `rail`, `tint` — see styles.css.
    */
   indicator?: 'glyph' | 'strike' | 'cut' | 'hatch' | 'marks' | 'badge' | 'rail' | 'tint';
   /**
-   * Hatch geometry, per chip. These write the `--ctc-hatch-*` custom
-   * properties inline, so they are the same knobs a stylesheet would set —
-   * just reachable from a callsite that themes one chip differently from its
-   * neighbours (a legend, a demo, a density toggle). Set them at `:root` for
-   * an app-wide look and leave these alone.
-   *
-   * Values are CSS strings, not numbers, because each one is a real CSS
-   * quantity with a unit that matters: `'-45deg'` vs `'45deg'`, and a bar the
-   * caller may well want in `em` so it tracks the chip's font size. A bare
-   * number would have to guess `px` and would quietly bar `em`/`%`.
-   *
-   * Only consulted by `indicator="hatch"`; harmless otherwise.
+   * Per-chip hatch geometry, e.g. `'45deg'`; writes `--ctc-hatch-*` inline. CSS strings, not
+   * numbers, so units like `em` survive. Only used by `indicator="hatch"`.
    */
   hatchAngle?: string;
   /** Bar width, e.g. `'4px'`. See {@link TriStateChipProps.hatchAngle}. */
@@ -87,35 +49,21 @@ export interface TriStateChipProps {
   dataAttr?: Record<string, string>;
 }
 
-/* ✓ / ✗ rather than + / −: the chip answers "is this in or out", which is a
-   yes/no, not an arithmetic operation. `+`/`−` also read as "add another" /
-   "remove one" on a control that toggles a single item. The ballot X (U+2717)
-   is the deliberate pair for the check — a multiplication sign (U+00D7) is
-   lighter and reads as an operator rather than a rejection. */
+/* ✓/✗ not +/−: the chip answers in/out, not add/remove. Ballot X (U+2717) pairs with the
+   check; × (U+00D7) reads as an operator. */
 const DEFAULT_INCLUDE_PREFIX = '✓ ';
 const DEFAULT_EXCLUDE_PREFIX = '✗ ';
 /** Empty by default: adding a neutral mark to every existing consumer's
  *  unselected chips would be a visual change they did not ask for. */
 const DEFAULT_NEUTRAL_PREFIX = '';
 
-/** Default state indicator. `hatch` — diagonal tape across the excluded chip —
- *  marks the CONTROL rather than the word, which is what makes it the right
- *  resting look: no glyph column, no reserved width, nothing blank in the
- *  neutral state, the chip is exactly its label's width, AND the label itself
- *  is never defaced, so legibility does not depend on tuning a mark against
- *  the text. Opt into `strike`, `cut`, the leading `glyph`, or any other via
- *  the `indicator` prop. */
+/** `hatch` marks the control, not the word: no reserved glyph column, width equals the
+ *  label, and the label is never defaced. */
 const DEFAULT_INDICATOR = 'hatch' as const;
 
 /**
- * A single tri-state filter chip — one button that cycles through
- * `unselected` → `included` → `excluded` → `unselected` on click. Visual
- * theme via CSS custom properties on the `.ctc-chip` selector. Pure
- * presentation; state lives upstream (`TriStateValue`).
- *
- * For the whole flyout shell (trigger, panel, viewport clamping, dismiss
- * triggers, group headers) keep it in your app — this primitive is just the
- * button that lives inside that shell.
+ * One tri-state filter chip cycling unselected → included → excluded on click. Themed via
+ * `.ctc-chip` custom properties; state lives upstream (`TriStateValue`).
  */
 export function TriStateChip(props: TriStateChipProps): JSX.Element {
   const next = (): TriState =>
@@ -136,15 +84,8 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
   const indicator = (): NonNullable<TriStateChipProps['indicator']> =>
     props.indicator ?? DEFAULT_INDICATOR;
 
-  /**
-   * The hatch props, as inline custom properties.
-   *
-   * Each one is emitted ONLY when supplied — writing `--ctc-hatch-angle:
-   * undefined` would be dropped by the DOM anyway, but writing an empty string
-   * would not: it would set the property to the empty value and invalidate
-   * every `var()` that reads it, collapsing the gradient. Omission has to stay
-   * omission so the stylesheet's own value survives.
-   */
+  /** Emitted only when supplied: an empty-string custom property invalidates every `var()`
+   *  reading it, collapsing the gradient. */
   const hatchVars = (): JSX.CSSProperties => ({
     ...(props.hatchAngle !== undefined ? { '--ctc-hatch-angle': props.hatchAngle } : {}),
     ...(props.hatchStripeWidth !== undefined
@@ -155,7 +96,6 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       : {}),
   });
 
-  /** Glyph for the CURRENT state. */
   const prefixGlyph = (): string =>
     props.value === 'included'
       ? includePrefix()
@@ -163,17 +103,12 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
         ? excludePrefix()
         : neutralPrefix();
 
-  /** Whether the reserved glyph column renders. Only the `glyph` indicator
-   *  uses it, and only when at least one state supplies a mark. */
   const hasPrefix = (): boolean =>
     indicator() === 'glyph' &&
     (includePrefix() !== '' || excludePrefix() !== '' || neutralPrefix() !== '');
 
-  // aria-pressed semantics: a tri-state toggle is best expressed as
-  // 'true' (pressed/non-neutral) vs 'false' (neutral). The specific
-  // include-vs-exclude meaning is carried visually + via data-state for
-  // CSS/automation. 'mixed' is reserved by the spec for partially-selected
-  // GROUPS, not for distinguishing two pressed flavors of a single toggle.
+  // aria-pressed is true for any non-neutral state; 'mixed' is spec-reserved for
+  // partially-selected groups. Include vs exclude is carried by data-state.
   const ariaPressed = (): 'true' | 'false' =>
     props.value === 'unselected' ? 'false' : 'true';
 
@@ -183,11 +118,9 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       class={`ctc-chip ${props.class ?? ''}`.trim()}
       data-state={props.value}
       data-indicator={indicator()}
-      // Set only when the CURRENT state shows no glyph, so the stylesheet can
-      // centre the bare label without centring a label that has a glyph beside
-      // it. Distinct from data-state: a `neutralPrefix` makes the neutral state
-      // non-empty, and a custom cycle could leave include/exclude empty.
-      data-glyph-empty={prefixGlyph() === '' ? '' : undefined}
+      // Only when the current state shows no glyph, so CSS centres the bare label. Not
+      // data-state: prefixes can be custom. Needs hasPrefix(): no column, no shift.
+      data-glyph-empty={hasPrefix() && prefixGlyph() === '' ? '' : undefined}
       aria-pressed={ariaPressed()}
       aria-label={props.ariaLabel}
       disabled={props.disabled}
@@ -198,17 +131,8 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       onClick={handleClick}
       {...(props.dataAttr ?? {})}
     >
-      {/* Leading glyph column, a FIXED `--ctc-glyph-col` wide in every state,
-          so the chip's width never changes with state. The width is a token,
-          not the glyph's intrinsic advance, precisely so the neutral-centering
-          offset (below) can be exactly half of it — an intrinsic column has no
-          value CSS can halve. A prefix wider than the token clips rather than
-          shoving the label; size the token to your widest prefix.
-
-          When the CURRENT state has no glyph (bare neutral), the label is
-          shifted back by half the column to CENTRE it — see the `data-glyph-
-          empty` rule in styles.css. When a glyph IS shown, the label stays
-          offset after the column, so the glyph pushes it right. */}
+      {/* Fixed-width column (a token, so CSS can halve it to centre a glyph-less
+                label); wider prefixes clip. See styles.css. */}
       <Show when={hasPrefix()}>
         <span aria-hidden="true" class="ctc-chip-prefix">
           {prefixGlyph()}

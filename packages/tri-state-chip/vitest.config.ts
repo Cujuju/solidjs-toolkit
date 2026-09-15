@@ -8,6 +8,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Stylesheets load for real (default is an empty stub) so CSS-contract tests read actual rules.
+    css: true,
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
     server: {
       deps: {

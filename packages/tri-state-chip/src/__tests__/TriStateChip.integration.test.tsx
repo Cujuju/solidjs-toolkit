@@ -106,11 +106,8 @@ describe('TriStateChip rendering', () => {
   });
 
   it('glyph-free indicators render no prefix and no glyph in textContent', () => {
-    // The whole point of a non-glyph indicator: the state is carried by CSS
-    // (hatch/strike/cut/badge/rail), never by a character in the flow, so the
-    // chip's text is exactly the label in every state. Every member of the
-    // union except `glyph` belongs in this list — a new indicator that forgets
-    // to appear here is exactly the kind that quietly reintroduces a glyph.
+    // Every indicator except `glyph` carries state in CSS, so text equals the label.
+    // New indicators belong in this list.
     for (const indicator of [
       'hatch',
       'strike',
@@ -175,6 +172,35 @@ describe('TriStateChip rendering', () => {
     expect(style.getPropertyValue('--ctc-hatch-angle')).toBe('-45deg');
     expect(style.getPropertyValue('--ctc-hatch-stripe-width')).toBe('');
     expect(style.getPropertyValue('--ctc-hatch-gap-width')).toBe('');
+  });
+
+  it('no data-glyph-empty when no glyph column renders (every prefix empty)', () => {
+    // The centring rule shifts the label back by half the column; with no
+    // column rendered, that shift pushes the label off-centre.
+    dispose = render(
+      () => (
+        <TriStateChip
+          label="X"
+          value="included"
+          indicator="glyph"
+          includePrefix=""
+          excludePrefix=""
+          onCycle={() => {}}
+        />
+      ),
+      document.body,
+    );
+    expect(findChip().querySelector('.ctc-chip-prefix')).toBeNull();
+    expect(findChip().hasAttribute('data-glyph-empty')).toBe(false);
+  });
+
+  it('data-glyph-empty is set when the column renders but the current state has no glyph', () => {
+    dispose = render(
+      () => <TriStateChip label="X" value="unselected" indicator="glyph" onCycle={() => {}} />,
+      document.body,
+    );
+    expect(findChip().querySelector('.ctc-chip-prefix')).not.toBeNull();
+    expect(findChip().hasAttribute('data-glyph-empty')).toBe(true);
   });
 
   it('glyph indicator keeps the reserved prefix column', () => {
@@ -302,10 +328,8 @@ describe('TriStateChip disabled', () => {
 
 describe('TriStateChip click event handling', () => {
   it('calls stopPropagation on the click event', () => {
-    // Solid uses delegated events at the document root, so testing
-    // bubble-vs-no-bubble against a parent listener races the delegation
-    // order. Spy directly on stopPropagation instead — that's the contract
-    // we control inside the click handler.
+    // Solid delegates events at the document root, so a parent listener races delegation
+    // order; spy on stopPropagation, the contract we control.
     const onCycle = vi.fn();
     dispose = render(
       () => <TriStateChip label="X" value="unselected" onCycle={onCycle} />,

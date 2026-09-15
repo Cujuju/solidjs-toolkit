@@ -1,14 +1,5 @@
-/**
- * Pure state helpers for the tri-state chip pattern.
- *
- * A tri-state chip cycles through three states: `unselected` → `included` →
- * `excluded` → `unselected`. Consumers track a {@link TriStateValue} (two
- * disjoint string sets, one for included items, one for excluded items) and
- * map each option to its current state via {@link tristateOf}. UI rendering
- * (the chip itself) is in {@link TriStateChip}; state transitions are these
- * pure helpers so they can be reused in stores, tests, and callsites that
- * don't render the chip directly.
- */
+/** Pure state helpers for tri-state chips, reusable in stores and tests without rendering
+ *  {@link TriStateChip}. */
 
 export type TriState = 'unselected' | 'included' | 'excluded';
 
@@ -41,11 +32,8 @@ export function tristateOf(value: TriStateValue, item: string): TriState {
   return 'unselected';
 }
 
-/** Return a NEW {@link TriStateValue} with `item` placed into the `next`
- *  state. Always removes `item` from both sets first to guarantee the
- *  disjoint invariant, even if the caller passes a value that already
- *  violates it. Stable string order within each set is preserved for items
- *  other than `item`. */
+/** Return a NEW {@link TriStateValue} with `item` in `next`. Removes `item` from both sets
+ *  first, so disjointness holds even for invalid input; other items keep order. */
 export function applyTriState(
   value: TriStateValue,
   item: string,
