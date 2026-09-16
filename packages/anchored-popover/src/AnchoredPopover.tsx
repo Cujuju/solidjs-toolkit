@@ -6,7 +6,7 @@ import {
   type JSX,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { createAfterPaint } from '@cujuju/solidjs-hooks';
+import { createAfterPaint, createEscapeOwner, createResizeObserver } from '@cujuju/solidjs-hooks';
 
 type HTMLDivAttrs = JSX.HTMLAttributes<HTMLDivElement>;
 
@@ -15,11 +15,15 @@ type HTMLDivAttrs = JSX.HTMLAttributes<HTMLDivElement>;
  *  trigger, large enough to prevent border/shadow bleed. */
 const DEFAULT_POPOVER_OFFSET_PX = 4;
 
-/** Minimum gap between popover edge and viewport edge after clamp,
- *  in CSS pixels. Stops the popover from touching the viewport's
- *  hard boundary. 8px is enough visual breathing room without
- *  wasting space on wide screens. */
+/** Minimum clamp gap to the viewport edge: breathing room without wasting space on wide
+ *  screens. */
 const DEFAULT_POPOVER_VIEWPORT_MARGIN_PX = 8;
+
+/** The separator set `DOMTokenList` rejects inside a single token. */
+const ASCII_WHITESPACE = /[\t\n\f\r ]+/;
+
+/* Dismiss order lives in `createEscapeOwner`'s shared stack, not a module-scope array here:
+ * this component is inlined into several dists, and a per-module stack gave each one its own. */
 
 export type AnchoredPlacement =
   | 'below-start'
@@ -32,52 +36,20 @@ export type AnchoredPlacement =
   | 'left-end';
 
 export interface AnchoredPopoverProps {
-  /** Reactive open state. The popover's browser state is synced TO
-   *  this: flipping true calls `showPopover()`, flipping false calls
-   *  `hidePopover()`. The consumer flips it back to false in response
-   *  to `onDismiss` when an outside click or Escape fires. */
+  /** Browser popover state is synced TO this. The consumer sets it false in response to
+   *  `onDismiss`. */
   open: Accessor<boolean>;
-  /** Anchor element accessor. Reactive — DOM swaps (e.g. an anchor
-   *  being replaced after a state change) reposition the popover
-   *  automatically. Returning `null` or `undefined` skips positioning
-   *  but the popover can still be open (position stays stale until a
-   *  real anchor is provided). The anchor element is also EXCLUDED
-   *  from outside-click dismiss — clicks on it are the consumer's
-   *  toggle, not a dismiss request.
-   *
-   *  When `horizontalAnchor` is also set, this `anchor`'s rect drives
-   *  ONLY the perpendicular axis (vertical for `right`/`left`
-   *  placements, horizontal for `below`/`above`). The split-anchor
-   *  shape mirrors a submenu pattern: x reads from the parent popover
-   *  (so under-tuck lands at the parent's outer right edge, not at an
-   *  inner row), y reads from the trigger row inside the parent (so
-   *  the submenu vertically aligns with the row that spawned it). */
+  /** Reactive anchor; `null` skips positioning. Excluded from outside-click dismiss (clicks on
+   *  it are the toggle). With `horizontalAnchor`, drives only the perpendicular axis. */
   anchor: Accessor<HTMLElement | null | undefined>;
-  /** Optional secondary anchor for the side-axis only (horizontal for
-   *  `right`/`left` placements). When present, x positioning reads
-   *  from this rect's right/left edge while y still reads from
-   *  `anchor`. For `below`/`above` placements this prop is ignored
-   *  (the side axis IS y, which `anchor` already drives). Excluded
-   *  from outside-click dismiss alongside `anchor`.
-   *
-   *  Use case: parent/child popover pairs (popover inside popover,
-   *  context-menu submenu inside parent menu) need child x =
-   *  parent.right − overlap, child y = trigger-row.top. */
+  /** Side-axis anchor for `right`/`left` placements (ignored otherwise), e.g. a submenu's x
+   *  from the parent panel, y from its trigger row. Excluded from outside-click dismiss. */
   horizontalAnchor?: Accessor<HTMLElement | null | undefined>;
-  /** Optional parent popover element. When supplied, the open effect
-   *  re-promotes the parent (hidePopover() + showPopover()
-   *  synchronously) inside `afterPaint` AFTER showing this popover.
-   *  Top-layer order is LIFO of `showPopover()` calls; without re-
-   *  promote a child popover always paints ABOVE its parent, which
-   *  defeats any under-tuck overlap. The parent must already be in
-   *  the top layer (`popover='manual'` and currently `:popover-open`)
-   *  — the primitive guards on both before issuing the hide/show
-   *  pair, so a missing/closed parent is a no-op rather than a
-   *  crash. */
+  /** Parent popover re-promoted after this one shows: top-layer order is LIFO, so otherwise the
+   *  child paints above its parent. No-op unless the parent is `:popover-open`. */
   parentPopoverRef?: Accessor<HTMLElement | null | undefined>;
-  /** Fired when the user clicks outside both the popover panel and
-   *  the anchor element, or presses Escape while the popover is open.
-   *  NOT fired when the consumer itself flips `open` to false. */
+  /** Fired on outside click (panel and anchor excluded) or Escape while open; not when the
+   *  consumer sets `open` false. */
   onDismiss: () => void;
   /** Which corner of the anchor to align with. Default `below-start`
    *  (popover's top-left at anchor's bottom-left). All placements
@@ -99,98 +71,38 @@ export interface AnchoredPopoverProps {
    *  trigger button needs to wire `aria-controls`. */
   id?: string;
   /**
-   * Fired once the popover is SHOWN and POSITIONED — after `showPopover()` and
-   * after the clamp has run.
-   *
-   * The distinction matters for anything that has to act on the element rather
-   * than merely render it. A popover is `display: none` until it enters the top
-   * layer and is unpositioned for a frame after that, and both states silently
-   * swallow `.focus()` — an element that cannot be painted cannot be focused. A
-   * consumer therefore cannot schedule that work itself: a ref fires too early, an
-   * effect created in the consumer's body runs before this component's, and one
-   * `requestAnimationFrame` is a guess that is right on some machines.
-   *
-   * Fires on every open, not just the first.
+   * Fired on every open once shown AND positioned. Before that `.focus()` silently fails
+   * (`display: none`, then unpositioned), and consumer refs, effects or one rAF can't reliably wait.
    */
   onShown?: () => void;
-  /** Optional ref to the CONTENT element — the one carrying `class` /
-   *  `role` / `aria-label`, i.e. the whole visible surface including
-   *  any chrome the consumer renders around its main body.
-   *
-   *  Exists for listeners that CANNOT be expressed on the children:
-   *  `pointerenter` / `pointerleave` do not bubble, so a consumer whose
-   *  "is the pointer over this surface?" question spans several sibling
-   *  children has no element of its own to ask it on. Attaching to one
-   *  child answers a narrower question and silently misreports a move
-   *  between siblings as a departure.
-   *
-   *  Not for reaching in to restyle — `class`, `shellClass` and
-   *  `shellStyle` own presentation, and the cascade-trap warning on
-   *  `shellClass` applies to anything set through here too. */
+  /** Ref to the CONTENT element, for non-bubbling listeners (`pointerenter`/`pointerleave`)
+   *  spanning sibling children. Not for restyling; `shellClass`'s cascade-trap warning applies. */
   contentRef?: (el: HTMLDivElement) => void;
-  /** Optional class applied to the SHELL element (the one that carries
-   *  the `popover` attribute). Use this when you need to attach
-   *  `:popover-open::backdrop` styles or other shell-scoped CSS that
-   *  must reach the actual popover element rather than the inner
-   *  content div. Most consumers should leave this undefined and
-   *  style via `class` (the content).
-   *
-   *  **Cascade-trap warning**: do NOT use shellClass to set `display`,
-   *  `visibility`, or any other layout rule on the shell. The UA's
-   *  `[popover]:not(:popover-open) { display: none }` closed-state
-   *  hiding wins by virtue of having no author class competing at
-   *  equal specificity. Restrict shellClass rules to `::backdrop` and
-   *  shell-scoped CSS variables. */
+  /** Class on the SHELL (the `popover` element), for `::backdrop` and shell-scoped variables
+   *  only. Never set `display`/`visibility`: it would beat the UA's closed-state `display: none`. */
   shellClass?: string;
-  /** Optional inline-style accessor applied to the SHELL element.
-   *  Reactive — the effect re-runs and re-sets each property when
-   *  the accessor's tracked dependencies change. Useful for setting
-   *  CSS custom properties that need shell-element scope (e.g.
-   *  `--popover-backdrop-top` for `::backdrop` styles, since
-   *  `::backdrop` inherits from its originating popover element,
-   *  not from `:root`). */
+  /** Reactive inline styles on the SHELL, e.g. custom properties for `::backdrop`, which
+   *  inherits from its popover, not `:root`. */
   shellStyle?: Accessor<Record<string, string>>;
-  /** When true, override `placement`'s horizontal anchoring and center
-   *  the popover horizontally in the viewport. Vertical positioning
-   *  still uses the anchor (top = anchor.bottom + offset for below
-   *  placements). Useful for wide panels where the anchor sits at one
-   *  edge of the bar but the panel itself should appear visually
-   *  centered. */
+  /** Centre horizontally in the viewport for vertical placements; vertical position still
+   *  follows the anchor. */
   centered?: boolean;
-  /** Optional predicate consulted on every outside-click dismiss
-   *  evaluation. Receives the click target as an `Element`. When it
-   *  returns true, dismiss is SUPPRESSED.
-   *
-   *  Use this to coordinate with sibling popover-like surfaces that
-   *  live in a Portal (so they appear "outside" by DOM walk but are
-   *  logically nested). Typical predicate:
-   *    `(t) => !!t.closest('[popover]:popover-open, [data-my-popover-stack]')`
-   *
-   *  When omitted, the only dismiss exclusions are the panel itself,
-   *  the anchor, and the horizontalAnchor. */
+  /** Outside-click dismiss is suppressed when this returns true for the target, e.g. for
+   *  portalled nested surfaces: `(t) => !!t.closest('[popover]:popover-open')`. */
   shouldSuppressDismiss?: (target: Element) => boolean;
   children: JSX.Element;
 }
 
 /**
- * Anchored popover primitive using the HTML Popover API in MANUAL mode
- * with a custom outside-click dismiss.
- *
- * Manual mode (vs `popover="auto"`) gives full control over dismiss
- * semantics — critically, we exclude the anchor element from "outside"
- * so clicking the trigger toggles cleanly without racing the UA's
- * light-dismiss handler.
- *
- * Two-element shape (shell + content) is load-bearing: the shell carries
- * `popover="manual"` and no author class; the content carries `class` and
- * receives all consumer styling. This prevents an author `display: flex`
- * on the popover element from overriding the UA's closed-state
- * `display: none`.
+ * Popover API in MANUAL mode, so the anchor is excluded from outside-click and toggles without
+ * racing light-dismiss. Shell + content split keeps author `display` off the `popover` element.
  */
 export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Element {
   const [panelEl, setPanelEl] = createSignal<HTMLDivElement | undefined>(undefined);
   const [pos, setPos] = createSignal<{ top: number; left: number } | null>(null);
   const afterPaint = createAfterPaint();
+  /** Set on an open transition, consumed by the frame that fires re-promote + onShown. */
+  let showPending = false;
 
   function computeAndClamp(): void {
     const anchor = props.anchor();
@@ -256,34 +168,37 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
 
   // Sync open() → browser popover state. Reading anchor() / panelEl()
   // tracks them so DOM swaps + ref population re-fire the effect.
-  createEffect(() => {
+  createEffect<boolean>((wasOpen) => {
     const el = panelEl();
-    if (!el) return;
-    if (props.open()) {
+    if (!el) return wasOpen;
+    const isOpen = props.open();
+    if (isOpen) {
       void props.anchor();
       void props.horizontalAnchor?.();
+      // An anchor swap while open only repositions; re-promote and onShown
+      // belong to the open transition.
+      if (!wasOpen) {
+        showPending = true;
+      }
       if (!el.matches(':popover-open')) {
         el.showPopover();
       }
       // Measure after show — panel must be in top layer to have
       // non-zero dimensions.
       afterPaint(() => {
+        // A close before this frame leaves nothing to position or announce.
+        if (!props.open()) return;
         computeAndClamp();
-        // Re-promote the parent popover (if any) AFTER our showPopover
-        // and AFTER measure. Top-layer order is LIFO of showPopover()
-        // calls — without this, our just-shown popover would paint
-        // above its parent and any under-tuck overlap would invert
-        // visually. Guarded on `:popover-open` so a parent that hasn't
-        // entered top layer yet is a silent no-op rather than
-        // InvalidStateError.
+        if (!showPending) return;
+        showPending = false;
+        // Re-promote the parent AFTER our show and measure (LIFO top layer), else we paint
+        // above it. Guarded on `:popover-open` to avoid InvalidStateError.
         const parent = props.parentPopoverRef?.();
         if (parent && parent.matches(':popover-open')) {
           parent.hidePopover();
           parent.showPopover();
         }
-        // Last, deliberately: a consumer moving focus into the panel must run
-        // after the panel is both painted and in its final position, or it
-        // focuses an element the browser still considers unrenderable.
+        // Last: focus moved into the panel needs it painted and in its final position.
         props.onShown?.();
       });
     } else {
@@ -291,7 +206,8 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
         el.hidePopover();
       }
     }
-  });
+    return isOpen;
+  }, false);
 
   // Outside-click dismiss on document pointerdown. Excludes the panel,
   // the anchor, the horizontalAnchor, and anything the consumer's
@@ -315,18 +231,14 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
   document.addEventListener('pointerdown', onPointerDown);
   onCleanup(() => document.removeEventListener('pointerdown', onPointerDown));
 
-  // Escape dismiss. Matches the UA's auto-popover behavior. A popover-
-  // internal handler can preventDefault to keep its own Escape semantics
-  // (e.g. an inline rename input cancelling its edit instead of
-  // dismissing the popover).
-  const onKeyDown = (e: KeyboardEvent): void => {
-    if (!props.open()) return;
-    if (e.key !== 'Escape') return;
-    if (e.defaultPrevented) return;
-    props.onDismiss();
-  };
-  document.addEventListener('keydown', onKeyDown);
-  onCleanup(() => document.removeEventListener('keydown', onKeyDown));
+  // Escape dismiss, like the UA's auto popovers. Only the topmost open surface in the app
+  // dismisses, and it consumes the key — pill pickers and chip flyouts share the same stack.
+  createEscapeOwner({
+    open: () => props.open(),
+    onDismiss: () => props.onDismiss(),
+    // Inner handlers keep their own Escape: one raised inside the panel or an anchor reaches them first.
+    owns: () => [panelEl(), props.anchor(), props.horizontalAnchor?.()],
+  });
 
   // Reposition on resize. Closing would also be reasonable; consumer
   // can achieve that by calling onDismiss themselves.
@@ -335,17 +247,20 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
   };
   window.addEventListener('resize', onResize);
   onCleanup(() => window.removeEventListener('resize', onResize));
+  // Content-driven size changes (rows added, late data) invalidate the clamp too.
+  createResizeObserver(panelEl, onResize);
 
   // Reactive shellClass application. Tracks the prop so a consumer
   // that swaps shellClass gets the old class removed and the new one
   // added — avoids stale classes accumulating on the DOM node.
-  createEffect<string | undefined>((prev) => {
+  createEffect<string[]>((prev) => {
     const el = panelEl();
     if (!el) return prev;
-    if (prev) el.classList.remove(prev);
-    if (props.shellClass) el.classList.add(props.shellClass);
-    return props.shellClass;
-  });
+    const next = props.shellClass?.split(ASCII_WHITESPACE).filter(Boolean) ?? [];
+    el.classList.remove(...prev);
+    el.classList.add(...next);
+    return next;
+  }, []);
 
   // Reactive shellStyle application. Diffs against the previous run
   // so removed keys get explicitly cleared (avoids stale CSS vars
@@ -367,44 +282,26 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
 
   return (
     <Portal>
-      {/* Two-element shape — the SHELL carries `popover` and position-
-       *  fixed coordinates. Consumers cannot style it (no `class` prop
-       *  reaches it). UA's `[popover]:not(:popover-open) { display:
-       *  none }` rule has no author CSS competing at this level, so
-       *  closed-state hiding always works.
-       *
-       *  The CONTENT element inside carries `props.class`. Consumers
-       *  can write any layout rule there without needing
-       *  `:popover-open` qualifiers. */}
+      {/* Two elements: the unstyleable SHELL carries `popover` and fixed coordinates, so
+       *  UA closed-state `display: none` always wins; the CONTENT carries `props.class`. */}
       <div
         ref={(el) => {
           setPanelEl(el);
-          // Setting via ref rather than JSX attribute: Solid's JSX
-          // types don't yet include the `popover` global attribute,
-          // and prop-spread of an object isn't reliably rendered as
-          // an HTML attribute. setAttribute is unambiguous.
+          // Via ref: Solid's JSX types lack the `popover` attribute, and object spread doesn't
+          // reliably render it.
           el.setAttribute('popover', 'manual');
         }}
-        // Shell has NO author class. Layout rules from consumers can
-        // never reach this element, so the UA's closed-state
-        // `display: none` always wins.
-        //
-        // Inline-style overrides three UA-stylesheet quirks:
-        //   1. `[popover]` defaults to `overflow: auto` — would clip
-        //      drop shadow on inner content. Force `overflow: visible`.
-        //   2. `[popover]` defaults to `inset: 0; margin: auto` — would
-        //      center closed-and-reopened popovers. Override via
-        //      `top/left + margin: 0`; keep width/height unset so they
-        //      inherit `fit-content`.
-        //   3. `[popover]` defaults to `background-color: Canvas`
-        //      (resolves to system color). Force transparent so only
-        //      the inner's bg paints.
+        // No author class, so UA closed-state `display: none` always wins. Inline overrides UA
+        // `[popover]` defaults: overflow (clips shadows), inset/margin (recentres; right: auto
+        // for rtl), Canvas background.
         style={
           pos()
             ? {
                 position: 'fixed',
                 top: `${pos()!.top}px`,
                 left: `${pos()!.left}px`,
+                right: 'auto',
+                bottom: 'auto',
                 margin: '0',
                 overflow: 'visible',
                 background: 'transparent',
@@ -415,6 +312,8 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
             : {
                 position: 'fixed',
                 visibility: 'hidden',
+                right: 'auto',
+                bottom: 'auto',
                 margin: '0',
                 overflow: 'visible',
                 background: 'transparent',

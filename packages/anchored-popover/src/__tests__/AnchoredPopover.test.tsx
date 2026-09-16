@@ -3,11 +3,8 @@ import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import AnchoredPopover from '../AnchoredPopover';
 
-// jsdom does not implement the Popover API natively. Stub
-// HTMLElement.prototype with instrumented versions per test so the
-// primitive's sync-with-browser behavior can be observed through the
-// seams: showPopover/hidePopover call counts + a controllable
-// :popover-open matcher.
+// jsdom lacks the Popover API; per-test stubs count showPopover/hidePopover calls and
+// control `:popover-open`.
 
 interface PopoverStub {
   showPopover: ReturnType<typeof vi.fn>;
@@ -296,6 +293,59 @@ describe('AnchoredPopover', () => {
     document.dispatchEvent(evt);
 
     expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('lets an anchor input keep its own Escape, and dismisses when it does not claim it', () => {
+    const onDismiss = vi.fn();
+    const [claims, setClaims] = createSignal(true);
+    let input!: HTMLInputElement;
+    dispose = render(
+      () => (
+        <>
+          <input
+            ref={input}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && claims()) e.preventDefault();
+            }}
+          />
+          <AnchoredPopover open={() => true} anchor={() => input} onDismiss={onDismiss}>
+            <div>content</div>
+          </AnchoredPopover>
+        </>
+      ),
+      document.body,
+    );
+
+    const press = (): KeyboardEvent => {
+      const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+      input.dispatchEvent(e);
+      return e;
+    };
+    press();
+    expect(onDismiss, 'the combobox anchor lost its Escape').not.toHaveBeenCalled();
+
+    setClaims(false);
+    expect(press().defaultPrevented).toBe(true);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses on an unclaimed Escape raised inside the panel', () => {
+    const onDismiss = vi.fn();
+    const anchor = makeAnchor();
+    dispose = render(
+      () => (
+        <AnchoredPopover open={() => true} anchor={() => anchor} onDismiss={onDismiss}>
+          <button class="inside">content</button>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    const evt = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.querySelector('.inside')!.dispatchEvent(evt);
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(evt.defaultPrevented).toBe(true);
   });
 
   it('computes initial position below-start of anchor by default', async () => {
@@ -832,5 +882,283 @@ describe('AnchoredPopover', () => {
 
       expect(stubs.showPopover).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+function nextFrame(): Promise<void> {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+function makeOpenParent(): { parent: HTMLElement; parentHide: ReturnType<typeof vi.fn> } {
+  const parent = document.createElement('div');
+  document.body.appendChild(parent);
+  const parentHide = vi.fn();
+  Object.defineProperty(parent, 'hidePopover', { value: parentHide, configurable: true });
+  Object.defineProperty(parent, 'showPopover', { value: vi.fn(), configurable: true });
+  const originalParentMatches = parent.matches.bind(parent);
+  parent.matches = (selector: string): boolean =>
+    selector === ':popover-open' ? true : originalParentMatches(selector);
+  return { parent, parentHide };
+}
+
+describe('onShown / parent re-promote fire once per open transition', () => {
+  it('does not re-fire onShown or re-promote the parent when the anchor is replaced while open', async () => {
+    const onShown = vi.fn();
+    const [anchor, setAnchor] = createSignal<HTMLElement>(makeAnchor());
+    const { parent, parentHide } = makeOpenParent();
+    dispose = render(
+      () => (
+        <AnchoredPopover
+          open={() => true}
+          anchor={anchor}
+          parentPopoverRef={() => parent}
+          onShown={onShown}
+          onDismiss={() => {}}
+        >
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    await nextFrame();
+    expect(onShown).toHaveBeenCalledTimes(1);
+    expect(parentHide).toHaveBeenCalledTimes(1);
+
+    setAnchor(makeAnchor({ top: 300, bottom: 330 }));
+    await nextFrame();
+
+    expect(onShown).toHaveBeenCalledTimes(1);
+    expect(parentHide).toHaveBeenCalledTimes(1);
+    expect(findPopoverElement().style.top).toBe('334px');
+  });
+
+  it('still fires onShown when the anchor lands in the same frame as the open', async () => {
+    const onShown = vi.fn();
+    const [open, setOpen] = createSignal(false);
+    const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
+    dispose = render(
+      () => (
+        <AnchoredPopover open={open} anchor={anchor} onShown={onShown} onDismiss={() => {}}>
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    setOpen(true);
+    setAnchor(makeAnchor());
+    await nextFrame();
+
+    expect(onShown).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onShown again on every reopen', async () => {
+    const onShown = vi.fn();
+    const [open, setOpen] = createSignal(true);
+    const anchor = makeAnchor();
+    dispose = render(
+      () => (
+        <AnchoredPopover open={open} anchor={() => anchor} onShown={onShown} onDismiss={() => {}}>
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    await nextFrame();
+    setOpen(false);
+    setOpen(true);
+    await nextFrame();
+
+    expect(onShown).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not fire onShown or re-promote when open flips back to false before the frame', async () => {
+    const onShown = vi.fn();
+    const [open, setOpen] = createSignal(false);
+    const anchor = makeAnchor();
+    const { parent, parentHide } = makeOpenParent();
+    dispose = render(
+      () => (
+        <AnchoredPopover
+          open={open}
+          anchor={() => anchor}
+          parentPopoverRef={() => parent}
+          onShown={onShown}
+          onDismiss={() => {}}
+        >
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    setOpen(true);
+    setOpen(false);
+    await nextFrame();
+
+    expect(onShown).not.toHaveBeenCalled();
+    expect(parentHide).not.toHaveBeenCalled();
+  });
+});
+
+describe('Escape dismisses only the topmost open popover', () => {
+  function pressEscape(): void {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  }
+
+  it('dismisses the most recently opened popover first, regardless of mount order', () => {
+    const [parentOpen, setParentOpen] = createSignal(false);
+    const [childOpen, setChildOpen] = createSignal(false);
+    const parentDismiss = vi.fn(() => setParentOpen(false));
+    const childDismiss = vi.fn(() => setChildOpen(false));
+    const anchor = makeAnchor();
+    dispose = render(
+      () => (
+        <>
+          <AnchoredPopover open={childOpen} anchor={() => anchor} onDismiss={childDismiss}>
+            <div>child</div>
+          </AnchoredPopover>
+          <AnchoredPopover open={parentOpen} anchor={() => anchor} onDismiss={parentDismiss}>
+            <div>parent</div>
+          </AnchoredPopover>
+        </>
+      ),
+      document.body,
+    );
+
+    setParentOpen(true);
+    setChildOpen(true);
+
+    pressEscape();
+    expect(childDismiss).toHaveBeenCalledTimes(1);
+    expect(parentDismiss).not.toHaveBeenCalled();
+
+    pressEscape();
+    expect(childDismiss).toHaveBeenCalledTimes(1);
+    expect(parentDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a popover from the stack when it unmounts while open', () => {
+    const lowerDismiss = vi.fn();
+    const upperDismiss = vi.fn();
+    const anchor = makeAnchor();
+    dispose = render(
+      () => (
+        <AnchoredPopover open={() => true} anchor={() => anchor} onDismiss={lowerDismiss}>
+          <div>lower</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const disposeUpper = render(
+      () => (
+        <AnchoredPopover open={() => true} anchor={() => anchor} onDismiss={upperDismiss}>
+          <div>upper</div>
+        </AnchoredPopover>
+      ),
+      host,
+    );
+
+    disposeUpper();
+    pressEscape();
+
+    expect(upperDismiss).not.toHaveBeenCalled();
+    expect(lowerDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('shellClass with multiple tokens', () => {
+  it('applies and swaps a whitespace-separated shellClass', () => {
+    const [shellClass, setShellClass] = createSignal<string | undefined>('menu-shell theme-dark');
+    const anchor = makeAnchor();
+    dispose = render(
+      () => (
+        <AnchoredPopover
+          open={() => false}
+          anchor={() => anchor}
+          shellClass={shellClass()}
+          onDismiss={() => {}}
+        >
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    const el = findPopoverElement();
+    expect(el.classList.contains('menu-shell')).toBe(true);
+    expect(el.classList.contains('theme-dark')).toBe(true);
+
+    setShellClass('  other  ');
+    expect(el.classList.contains('menu-shell')).toBe(false);
+    expect(el.classList.contains('theme-dark')).toBe(false);
+    expect(el.classList.contains('other')).toBe(true);
+  });
+});
+
+describe('panel resize while open', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('re-clamps when the panel grows after it was positioned', async () => {
+    const observerCallbacks: Array<(entries: ResizeObserverEntry[]) => void> = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: (entries: ResizeObserverEntry[]) => void) {
+          observerCallbacks.push(cb);
+        }
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+    const anchor = makeAnchor({ top: 670, bottom: 700 });
+    dispose = render(
+      () => (
+        <AnchoredPopover open={() => true} anchor={() => anchor} onDismiss={() => {}}>
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    await nextFrame();
+    const el = findPopoverElement();
+    expect(el.style.top).toBe('704px');
+
+    const grownHeight = 300;
+    el.getBoundingClientRect = () =>
+      ({ top: 704, left: 50, right: 250, bottom: 1004, width: 200, height: grownHeight, x: 50, y: 704, toJSON: () => ({}) }) as DOMRect;
+    for (const cb of observerCallbacks) cb([{ target: el } as unknown as ResizeObserverEntry]);
+
+    expect(el.style.top).toBe(`${768 - grownHeight - 8}px`);
+  });
+});
+
+describe('UA [popover] inset override', () => {
+  it('sets right/bottom to auto so only top/left constrain the shell', async () => {
+    const anchor = makeAnchor();
+    dispose = render(
+      () => (
+        <AnchoredPopover open={() => true} anchor={() => anchor} onDismiss={() => {}}>
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    const el = findPopoverElement();
+    expect(el.style.right).toBe('auto');
+    expect(el.style.bottom).toBe('auto');
+
+    await nextFrame();
+    expect(el.style.top).not.toBe('');
+    expect(el.style.right).toBe('auto');
+    expect(el.style.bottom).toBe('auto');
   });
 });
