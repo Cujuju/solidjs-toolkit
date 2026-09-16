@@ -493,18 +493,28 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   });
 
   /**
+   * The ids that have a draggable node. The rail renders only `visibleIds`; an id with no
+   * node measures as a zero rect, which the primitive counts as overlapped when it follows the source.
+   */
+  const reorderIds = (): readonly string[] =>
+    orientation() === 'horizontal'
+      ? railOverflow.visibleIds()
+      : panels().map((m) => m.id);
+
+  /**
    * Drag-reorder through the project's own vendored primitive, rather than a third hand-rolled
    * pointer drag. Both orientations stack activators vertically, so the axis is 'y' either way.
    */
   const reorder = createReorderList({
-    ids: () => panels().map((m) => m.id),
+    ids: () => [...reorderIds()],
     axis: 'y',
     skipSelector: REORDER_SKIP_SELECTOR,
     stopPropagation: false,
     onReorder: (fromIndex, toIndex) => {
-      const ids = panels().map((m) => m.id);
+      const ids = reorderIds();
       const moved = ids[fromIndex];
-      if (moved !== undefined) moveTo(moved, toIndex);
+      const target = ids[toIndex];
+      if (moved !== undefined && target !== undefined) moveTo(moved, orderIds().indexOf(target));
     },
   });
 
