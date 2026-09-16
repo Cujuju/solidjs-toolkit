@@ -15,6 +15,15 @@ import {
   type KvTooltipPlacement,
 } from './clamp';
 
+export function filterEntries(
+  entries: Record<string, string>,
+  showEmpty: boolean,
+): Array<[string, string]> {
+  return Object.entries(entries).filter(([, v]) =>
+    showEmpty ? true : v !== '' && v !== undefined,
+  );
+}
+
 /**
  * A caller-captured rect or a re-measuring accessor. Prefer the accessor: position recomputes
  * on resize/scroll, and a bare `DOMRect` goes stale if the anchor moves.

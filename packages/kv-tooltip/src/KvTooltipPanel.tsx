@@ -1,6 +1,5 @@
 import { createMemo, Show, type JSX } from 'solid-js';
-import { TooltipContent, type KvTooltipAnchoringProps } from './TooltipContent';
-import { filterEntries } from './KvTooltip';
+import { TooltipContent, filterEntries, type KvTooltipAnchoringProps } from './TooltipContent';
 
 // ── Controlled mode: caller owns x/y + visibility ──────────────────────────
 export interface KvTooltipPanelProps extends KvTooltipAnchoringProps {

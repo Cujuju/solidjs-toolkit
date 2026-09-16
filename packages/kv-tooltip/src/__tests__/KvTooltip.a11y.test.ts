@@ -160,6 +160,40 @@ describe('KvTooltip accessibility', () => {
     dispose();
   });
 
+  // Non-interactive panels do not freeze position, so only they expose re-anchoring.
+  it.each([true, false])('focus moving into an extraContent control keeps the panel; leaving hides it (interactive=%s)', (interactive) => {
+    const copy = document.createElement('button');
+    copy.textContent = 'Copy';
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    const { dispose, container } = renderTooltip({
+      entries: { Delta: '0.42' },
+      interactive,
+      extraContent: copy,
+      children: 'text',
+    });
+    const wrapper = getWrapper(container);
+    const triggerRect = { top: 200, bottom: 224, left: 300, right: 420 } as DOMRect;
+    wrapper.getBoundingClientRect = () => triggerRect;
+    copy.getBoundingClientRect = () => ({ top: 500, bottom: 520, left: 50, right: 90 }) as DOMRect;
+
+    wrapper.focus();
+    expect(getPanel()).not.toBeNull();
+
+    copy.focus();
+    expect(document.activeElement).toBe(copy);
+    expect(getPanel()).not.toBeNull();
+    // Focus within the panel must not re-anchor the panel to its own child.
+    expect(getPanel()!.style.top).toBe(`${triggerRect.bottom + GAP}px`);
+    expect(getPanel()!.style.left).toBe(`${triggerRect.left}px`);
+
+    outside.focus();
+    expect(getPanel()).toBeNull();
+
+    dispose();
+    outside.remove();
+  });
+
   it('a focus show places the panel against the focused trigger, not a stale cursor point', () => {
     const rect = { top: 200, bottom: 224, left: 300, right: 420 } as DOMRect;
     const { dispose, container } = renderTooltip({ entries: { Delta: '0.42' }, children: 'text' });

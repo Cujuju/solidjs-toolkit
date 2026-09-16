@@ -18,19 +18,11 @@ import { createHoverIntent } from './_internal/hoverIntent';
 import { isTopLayerSurfaceOpen } from './_internal/topLayer';
 import {
   TooltipContent,
+  filterEntries,
   resolveAnchor,
   type KvTooltipAnchor,
   type KvTooltipAnchoringProps,
 } from './TooltipContent';
-
-export function filterEntries(
-  entries: Record<string, string>,
-  showEmpty: boolean,
-): Array<[string, string]> {
-  return Object.entries(entries).filter(([, v]) =>
-    showEmpty ? true : v !== '' && v !== undefined,
-  );
-}
 
 // ── Wrapper mode: hover-triggered ──────────────────────────────────────────
 export interface KvTooltipProps extends KvTooltipAnchoringProps {
@@ -349,6 +341,8 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   };
 
   let panelEl: HTMLElement | undefined;
+  const withinTooltip = (node: EventTarget | null): boolean =>
+    node instanceof Node && (!!panelEl?.contains(node) || !!wrapperEl?.contains(node));
   /**
    * Escape dismisses a visible panel (WAI-ARIA). A tooltip over an open menu sits above it on
    * the shared stack, so it hides alone.
@@ -371,14 +365,17 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
       // `focusin`/`focusout` (not focus/blur) so focus landing on a CHILD
       // control counts — those bubble, focus/blur do not.
       onFocusIn={(e) => {
+        // Focus moving into the portalled panel is not a new trigger; keep the current anchor.
+        if (e.target instanceof Node && panelEl?.contains(e.target)) return;
         if (describeTrigger()) {
           // A pointer on the trigger means the cursor point is fresh (e.g. a click focused it).
           setFocusTarget(pointerOnTrigger ? null : (e.target as Element));
           hoverIntent.showNow();
         }
       }}
-      onFocusOut={() => {
-        if (describeTrigger()) hoverIntent.hideNow();
+      onFocusOut={(e) => {
+        // Focus moving between trigger and panel (e.g. an extraContent Copy button) keeps it open.
+        if (describeTrigger() && !withinTooltip(e.relatedTarget)) hoverIntent.hideNow();
       }}
       onMouseEnter={(e) => {
         // Seed from the ENTER event: otherwise `freezeOnShow` captures a stale point (0,0 on first hover).
