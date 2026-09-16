@@ -276,9 +276,8 @@ describe('radiogroup keyboard (roving focus)', () => {
   });
 
   it('mirrors the arrows under dir="rtl", where the next DOM sibling is drawn to the LEFT', () => {
-    // jsdom computes no `direction` (it returns ""), so the stub stands in for the browser's `[dir=rtl]` rule.
-    // Only the GROUP is rtl here: flex items are ordered by the container, so the buttons' own
-    // `direction` must not be what the arrows read.
+    // jsdom computes no `direction`, so the stub stands in for `[dir=rtl]`. Only the GROUP is
+    // rtl: flex items are ordered by the container, not by the buttons' own direction.
     const realGetComputedStyle = window.getComputedStyle.bind(window);
     const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((el) =>
       el.classList.contains('csb-group')
