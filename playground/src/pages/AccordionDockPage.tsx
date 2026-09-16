@@ -14,16 +14,9 @@ import {
 import { Card, Code, EventLog, createEventLog } from '../ui';
 
 /**
- * The accordion-dock demo page, and still its DESIGN SURFACE: it exists to answer
- * the two questions the control was built to answer — does `fill` or `natural`
- * sizing feel right, and does the pin read as "exempt from auto-collapse" without
- * being explained.
- *
- * The control was promoted out of `playground/src/mock/` into
- * `packages/accordion-dock` on 2026-07-26, so this page now consumes it exactly
- * the way a consumer does: by package name, through its public entry point. That
- * is the point of importing it that way rather than by relative path — a demo that
- * reaches past the package boundary cannot tell you when the boundary is wrong.
+ * The accordion-dock demo and its DESIGN SURFACE: does `fill` or `natural` sizing feel right,
+ * and does the pin read as "exempt from auto-collapse"? Consumed by package name, like a
+ * consumer.
  */
 
 function Rows(props: { n: number; label?: string }): JSX.Element {
@@ -48,11 +41,8 @@ const FOLDERS = [
 ];
 
 /**
- * Symbols per file, for the CHAINED-leaf demo (file → symbol).
- *
- * Deliberately not every file: a chain that always continues never shows the user
- * where it ENDS, and "this leaf is terminal for this selection" is half of what
- * the chain is demonstrating.
+ * Symbols per file, for the CHAINED-leaf demo. Deliberately not every file: a chain that always
+ * continues never shows where it ENDS.
  */
 const SYMBOLS: Record<string, string[]> = {
   'AppShell.tsx': ['<AppShell>', 'useShellLayout', 'SHELL_MIN_WIDTH'],
@@ -65,11 +55,8 @@ const symbolsFor = (file: string | null): string[] =>
   file === null ? [] : (SYMBOLS[file] ?? []);
 
 /**
- * Panels for the rail-overflow card.
- *
- * Twelve, which is enough that the tail cannot fit any dock height this page uses
- * — the card is about the buttons that DON'T fit, so a count that merely might
- * overflow would make the demo depend on the reader's window size.
+ * Panels for the rail-overflow card. Twelve, so the tail cannot fit any dock height here — a
+ * count that merely might overflow would depend on the reader's window size.
  */
 const OVERFLOW_PANEL_TITLES = [
   'Watchlist', 'Positions', 'Orders', 'Chain', 'Risk', 'Alerts',
@@ -162,9 +149,8 @@ export function AccordionDockPage(): JSX.Element {
   const files = (): string[] => FOLDERS.find((f) => f.name === folder())?.files ?? [];
 
   /**
-   * A SIGNAL, not a `let`. The breadcrumb below renders from this group's API, and
-   * a plain variable assigned in `apiRef` would never notify the JSX that it had
-   * arrived — the bar would stay empty for the life of the page.
+   * A SIGNAL, not a `let`: the breadcrumb renders from this group's API, and a plain variable
+   * assigned in `apiRef` would never notify the JSX.
    */
   const [millerApi, setMillerApi] = createSignal<AccordionGroupApi>();
 
@@ -175,11 +161,9 @@ export function AccordionDockPage(): JSX.Element {
   });
 
   /**
-   * Truncating the path closes columns, and the ones this browser owns as SIGNALS
-   * have to be cleared here — `<AccordionLeaf>` is controlled, so the breadcrumb
-   * deliberately cannot close a leaf behind the consumer's back. Clearing a level
-   * clears everything downstream of it, which is the same cascade the chain
-   * enforces structurally.
+   * Truncating the path closes columns; the signal-owned ones must be cleared here, since
+   * `<AccordionLeaf>` is controlled and the breadcrumb cannot close a leaf behind the
+   * consumer's back.
    */
   const truncateMiller = (closedIds: readonly string[]): void => {
     if (closedIds.includes('mc-symbol')) setSymbol(null);
@@ -600,16 +584,9 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
       <div class="row">
         <Card cap="click a folder → a file → a symbol → the chained leaves" wide>
           <div style={{ width: '100%' }}>
-            {/* Above the group, not inside it: in `horizontal` orientation anything
-                inside the group IS a column, so the bar would become one. This is why
-                <Breadcrumb> takes a `group` prop as well as reading context.
-
-                The <Show> is load-bearing, not defensive. `apiRef` fires while the
-                group renders, which is AFTER this sibling is created — so on the first
-                pass the signal is still undefined, and <Breadcrumb> treats a group it
-                can reach neither by prop nor by context as a usage error and throws.
-                Gating on the signal defers the breadcrumb's creation to the pass where
-                the API exists. */}
+            {/* Above the group, not inside it: in `horizontal` orientation anything inside IS a
+                column. The <Show> is load-bearing — `apiRef` fires after this sibling, and
+                <Breadcrumb> throws on an unreachable group. */}
             <Show when={millerApi()}>
               {(api) => <Breadcrumb group={api()} onTruncate={truncateMiller} />}
             </Show>
@@ -671,9 +648,8 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
                 <PickList items={symbolsFor(file())} selected={symbol()} onPick={setSymbol} />
               </AccordionLeaf>
 
-              {/* The CHAINED leaf. `parentId` is what makes it a waypoint rather than a
-                  second terminal pane: it orders the columns and it makes the cascade
-                  structural, so this can never outlive the file it describes. */}
+              {/* The CHAINED leaf. `parentId` makes it a waypoint rather than a second terminal
+                  pane: it orders the columns and makes the cascade structural. */}
               <AccordionLeaf
                 id="mc-symbol"
                 parentId="mc-detail"
@@ -728,9 +704,8 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
                   group={api()}
                   onTruncate={truncateMiller}
                   ariaLabel="Breadcrumb with custom crumbs"
-                  /* Inline expressions, not stored nodes: Solid wraps a prop expression
-                     in a getter, so each separator slot gets its own node. A variable
-                     holding one node would be moved to the last slot and appear once. */
+                  /* Inline expressions, not stored nodes: Solid wraps a prop expression in a
+                                       getter, so each separator slot gets its own node. */
                   separator={<span style={{ opacity: 0.4 }}>/</span>}
                   renderCrumb={(crumb) => (
                     <span style={{ display: 'inline-flex', gap: '4px', 'align-items': 'center' }}>

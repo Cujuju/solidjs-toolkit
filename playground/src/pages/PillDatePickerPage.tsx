@@ -7,11 +7,8 @@ import {
 import { Code, Card, ClipBox, EdgeRight, ScrollBox, Tall } from '../ui';
 
 /**
- * A realistic expiration ladder, built off the REAL today so the DTEs on screen are live.
- *
- * Weeklies (the next four Fridays) then monthlies (the third Friday of the next four months)
- * then one LEAPS — the shape of an actual chain, which is what the control has to survive.
- * Anything the picker does with a made-up flat list is uninteresting.
+ * A realistic expiration ladder off the REAL today, so the DTEs are live: four weeklies, four
+ * monthlies, one LEAPS — the shape of an actual chain.
  */
 function iso(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -77,14 +74,8 @@ const LADDER = buildLadder(new Date());
 const DATES = LADDER.map((e) => e.date);
 
 /**
- * The state demo's premise, because an abstract "some rows are disabled" proves
- * nothing about whether the API is the right shape.
- *
- * A real chain's strike grid COARSENS with time: 1-point rungs in the front
- * weeks, 5-point a few months out, 25-point on the LEAPS. So a leg held at 152
- * exists exactly where the grid is fine enough, sits between rungs further out
- * (pickable, but the strike moves), and past the last listed month does not
- * exist at all. That is one row of each state, from one honest rule.
+ * A real chain's strike grid COARSENS with time, so a leg held at 152 sits on a rung up front,
+ * between rungs later, and unlisted past the last month.
  */
 const HELD_STRIKE = 152;
 

@@ -26,17 +26,8 @@ const FAR_OFFSET_Y = 28;
 
 
 /**
- * TOP LAYER — the case a tooltip must win.
- *
- * `AnchoredPopover` shows itself with the native `showPopover()`, so it paints
- * in the browser's TOP LAYER. A Portal-rendered panel is ordinary stacking
- * content and cannot reach that layer at ANY z-index, so a tooltip triggered
- * from inside an open popover renders UNDERNEATH the thing it describes —
- * which a native `title` never did.
- *
- * The trigger sits at the popover's top edge and the panel is pushed up over
- * the popover body, so the two overlap by construction rather than by luck.
- * `e2e/topLayer.spec.ts` reads the pixel at that overlap.
+ * TOP LAYER — the case a tooltip must win. A Portal-rendered panel cannot reach the top layer
+ * at ANY z-index, so a tooltip inside an open popover renders underneath it.
  */
 function TopLayerCase(): JSX.Element {
   const [open, setOpen] = createSignal(false);
@@ -75,10 +66,9 @@ function TopLayerCase(): JSX.Element {
                   interactive tooltip (magenta)
                 </div>
               }
-              // Far enough ABOVE the trigger that the panel lands on the
-              // popover body without covering the trigger itself: an
-              // interactive panel takes pointer events, so a panel over its own
-              // trigger would intercept the hover that opened it.
+              // Far enough ABOVE the trigger that the panel lands on the popover body without
+              // covering the trigger: an interactive panel would intercept the hover that
+              // opened it.
               mouseOffsetY={-70}
               mouseOffsetX={0}
             >
@@ -112,44 +102,20 @@ function TopLayerCase(): JSX.Element {
 }
 
 /**
- * Hide-debounce for the platform-dismissal triggers, deliberately far longer
- * than any assertion window in `e2e/topLayer.spec.ts`.
- *
- * The whole point of this case is to distinguish "the PLATFORM took the panel
- * away" from "our own hide timer expired". With `interactive` + a 5s debounce,
- * a panel that vanishes within the tests' 2s window CANNOT have been hidden by
- * the timer — the only remaining cause is `onPlatformDismiss`.
+ * Hide-debounce far longer than any assertion window in `e2e/topLayer.spec.ts`: with a 5s
+ * debounce, a panel that vanishes within 2s cannot have been our timer.
  */
 const PLATFORM_CASE_HIDE_DELAY_MS = 5000;
 
 /**
- * The panel sits BELOW the trigger row (positive Y offset) so the horizontal
- * path from one trigger to the next never crosses an open panel. These panels
- * are `interactive`, i.e. they take pointer events, and a panel lying across
- * that path would swallow the hover that the next tooltip needs.
+ * The panel sits BELOW the trigger row so the path between triggers never crosses an open
+ * panel — these are `interactive`, so a panel on that path would swallow the hover.
  */
 const PLATFORM_CASE_PANEL_OFFSET_Y = 50;
 
 /**
- * PLATFORM DISMISSAL — what `popover="hint"` actually buys (0.7.0).
- *
- * Three of the behaviours the migration is FOR are invisible to the top-layer
- * paint tests above, because they are about a panel going AWAY rather than
- * about which one paints on top:
- *
- *   - showing a second tooltip closes the first (one hint at a time), and the
- *     first's wrapper resyncs through `onPlatformDismiss` so its panel
- *     UNMOUNTS instead of lingering as a demoted, stale node;
- *   - an `auto` popover opening closes an already-visible tooltip;
- *   - a tooltip panel is NOT a surface another tooltip defers to, so
- *     `suppressWhileTopLayerOpen` still shows while another tooltip is up (the
- *     0.6.0 self-poisoning bug) while still deferring to a real popover.
- *
- * Everything here is driven from `e2e/topLayer.spec.ts` (T5, T7, T8). The
- * `auto` popover is opened PROGRAMMATICALLY by that spec, not by clicking this
- * button: a click would ALSO light-dismiss the hint, and then the test could
- * not tell which of the two causes closed it. The button exists so the case is
- * explorable by hand.
+ * PLATFORM DISMISSAL — what `popover="hint"` buys (0.7.0): one hint at a time, an `auto`
+ * popover closing a visible tooltip, and a tooltip never deferring to another tooltip.
  */
 function PlatformDismissalCase(): JSX.Element {
   let autoPopover: HTMLDivElement | undefined;
@@ -208,10 +174,9 @@ function PlatformDismissalCase(): JSX.Element {
           open an auto popover
         </button>
       </div>
-      {/* Pinned to the top-right corner rather than left at the UA's centred
-          default: centred, it would cover the triggers above and make them
-          unhoverable, which is exactly what the suppression half of T8 needs to
-          do. */}
+      {/* Pinned to the top-right corner rather than the UA's centred default: centred, it
+          would cover the triggers above and make them unhoverable — which T8's suppression
+          half needs. */}
       <div
         ref={autoPopover}
         id="pd-auto"

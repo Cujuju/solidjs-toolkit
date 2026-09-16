@@ -82,10 +82,8 @@ export function PillNumberPickerPage(): JSX.Element {
   const [controlledOpen, setControlledOpen] = createSignal(false);
   const [controlledVal, setControlledVal] = createSignal(4);
 
-  // commit: 'finish' — the pop-out edits a local draft; onChange and onCommit fire together ONLY
-  // on commit (Enter, or clicking the pill to close). The difference between "re-render a
-  // chart" and "send an order". Escape or an outside click reverts and fires onCancel. Wheel or
-  // arrow keys on the collapsed pill still stream onChange.
+  // commit: 'finish' — the pop-out edits a local draft; onChange and onCommit fire together only
+  // on commit. Escape or an outside click reverts. Wheel/arrows on the pill still stream onChange.
   const [limit, setLimit] = createSignal(412.5);
   const [committed, setCommitted] = createSignal(412.5);
   const [cancels, setCancels] = createSignal(0);

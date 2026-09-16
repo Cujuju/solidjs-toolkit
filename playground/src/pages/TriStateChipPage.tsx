@@ -11,9 +11,8 @@ import { Card, Code } from '../ui';
 const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
 
 /**
- * The built-in state indicators. Everything except `glyph` carries the state
- * WITHOUT a character in the text flow, so no column is reserved, nothing sits
- * blank in the neutral state, and the chip is exactly its label's width.
+ * The built-in state indicators. Everything except `glyph` carries state WITHOUT a character in
+ * the text flow, so no column is reserved and the chip is its label's width.
  */
 const INDICATORS = [
   { id: 'hatch', cap: 'hatch — the default; hazard tape across the chip' },
@@ -27,10 +26,9 @@ const INDICATORS = [
 ] as const;
 
 /**
- * The `hatch` tape is entirely token-driven, so every variation below is the
- * SAME indicator with different custom properties — no second component, no
- * second code path. Each entry is exactly the override you would paste into
- * your own stylesheet.
+ * The `hatch` tape is entirely token-driven: every variation below is the SAME indicator with
+ * different custom properties — each entry is the override you would paste into your own
+ * stylesheet.
  */
 const HATCH_VARIANTS = [
   {
@@ -84,10 +82,8 @@ function ChipRow(props: {
 }
 
 /**
- * A hatch row that STARTS with one chip excluded — the variants differ only in
- * the excluded state, so a row you have to click twice before it shows anything
- * is useless for comparing them side by side. The other two chips stay live so
- * the transition is still there to click through.
+ * A hatch row that STARTS with one chip excluded — the variants differ only in the excluded
+ * state, so a row needing two clicks first is useless for comparison.
  */
 function HatchRow(props: { vars: Record<string, string> }): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({

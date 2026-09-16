@@ -17,11 +17,8 @@ const PLACEMENTS: AnchoredPlacement[] = [
 ];
 
 /**
- * One trigger + its popover.
- *
- * `AnchoredPopover` is ALWAYS controlled — `open` is an `Accessor<boolean>` the consumer owns
- * and `onDismiss` is a request, not a state change. Every instance here holds its own signal;
- * there is no uncontrolled mode to demonstrate because the package does not have one.
+ * One trigger + its popover. `AnchoredPopover` is ALWAYS controlled — `open` is an accessor the
+ * consumer owns and `onDismiss` is a request. There is no uncontrolled mode.
  */
 function Pop(props: {
   log: EventLogApi;
@@ -53,9 +50,8 @@ function Pop(props: {
         anchor={anchor}
         onDismiss={() => {
           setOpen(false);
-          // onDismiss fires for BOTH Escape and outside-pointerdown, and the primitive does not
-          // say which. A real gap for anything that wants to treat them differently (restore
-          // focus on Escape, but not on a click that already moved focus somewhere else).
+          // onDismiss fires for BOTH Escape and outside-pointerdown without saying which — a real
+          // gap for anything wanting to treat them differently.
           props.log.log('onDismiss', { who: tag(), cause: 'escape-or-outside (not distinguished)' });
         }}
         placement={props.placement}

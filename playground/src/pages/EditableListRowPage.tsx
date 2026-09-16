@@ -10,8 +10,8 @@ const INITIAL: Item[] = [
   { id: '3', name: 'Earnings plays', checked: true },
 ];
 
-/** The rename/delete handlers are async on purpose — the row shows a busy state while they
- *  are in flight, which is the whole reason it owns them rather than exposing raw callbacks. */
+/** The rename/delete handlers are async on purpose — the row shows a busy state while they are
+ *  in flight, which is why it owns them. */
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }

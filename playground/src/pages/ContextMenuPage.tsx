@@ -17,9 +17,8 @@ export function ContextMenuPage(): JSX.Element {
   const [snap, setSnap] = createSignal(true);
   const [showAdvanced, setShowAdvanced] = createSignal(false);
 
-  /** Every entry kind the package supports, so a regression in any one of them is visible in the
-   *  same place on every open. `when` entries are included precisely because a conditional row
-   *  that stops appearing is the kind of bug nobody notices. */
+  /** Every entry kind the package supports, so a regression in any one is visible. `when` entries
+   *  included: a conditional row that stops appearing is the bug nobody notices. */
   const items = (): ContextMenuEntry[] => [
     { label: 'Duplicate panel', shortcut: 'Ctrl+D', onClick: () => log.log('item', 'duplicate') },
     { label: 'Rename…', shortcut: 'F2', onClick: () => log.log('item', 'rename') },
