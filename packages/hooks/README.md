@@ -50,6 +50,60 @@ Fires on Escape keydown.
 createEscapeKey(() => setOpen(false), { enabled: open });
 ```
 
+### `createEscapeOwner(options)`
+
+One Escape-owner stack for the whole app, held on `globalThis` under a `Symbol.for` key so
+separately bundled copies share it. Stacked surfaces push in show order; **only the topmost one
+is dismissed**, and it consumes the key (`preventDefault` + `stopPropagation`) so the surfaces
+below and any enclosing handler never see it. Use this instead of `createEscapeKey` for anything
+dismissible that can be stacked — popovers, flyouts, pickers.
+
+```tsx
+const { isTop } = createEscapeOwner({
+  open,
+  onDismiss: () => setOpen(false),
+  // Optional. An Escape raised inside an owned node reaches that node's own handlers FIRST
+  // (native and Solid-delegated), so a nested inline editor keeps its Escape by calling
+  // `preventDefault`. Omit and it is always consumed. Escapes from anywhere else are consumed
+  // in the capture phase.
+  owns: () => [panelEl, anchorEl],
+});
+
+// Gate other document-level keys on ownership too, so a surface underneath stays inert.
+document.addEventListener('keydown', (e) => {
+  if (!isTop()) return;
+  // …
+});
+```
+
+The entry is pushed on the `open()` false→true edge and popped on the true→false edge or on
+unmount — every path out. Re-runs of `open` that do not change its value keep show order.
+
+For an Escape raised inside an owned node, the owner dismisses from that node's slot in Solid's
+delegated walk: descendant handlers go first, and an enclosing `onKeyDown` never sees a consumed
+key. A handler inside that calls **only `stopPropagation`** also keeps the surface open, but the
+key is left unconsumed (`defaultPrevented` stays false) — call `preventDefault` too.
+
+This couples to Solid's `$$<event>` delegation convention: the owner chains itself into an owned
+node's `$$keydown` slot on first use and restores it on release. If the slot is reassigned while
+open (spread props), a document-bubble fallback still dismisses, but an enclosing delegated
+`onKeyDown` then sees the key first.
+
+`transparent: true` is for hint surfaces (tooltips): the entry is transparent to other entries'
+`isTop()`, but still owns Escape when on top. An entry reports `isTop()` when no
+**non-transparent** entry is above it. So a tooltip shown over an open picker hides on Escape, and
+the picker's arrow keys keep working meanwhile. Default `false`.
+
+A **refused** dismissal (the consumer leaves `open` true after `onDismiss`) keeps the entry on
+top: the key is still consumed, `isTop()` stays true, and the next Escape asks again. Residual:
+a consumer that refuses forever makes Escape a no-op for every layer below it — that is the
+consumer's bug, not the stack's.
+
+`isEscapeDismissing()` is true while a dismissal is running, including any refocus it causes
+synchronously. The window is **synchronous only**: a refocus deferred to a microtask or frame
+falls outside it. Focus-out logic must ignore focus moves seen inside it — Escape dismisses ONE
+layer, and the layer above hands focus back on its way out.
+
 ### `createHotkey(combo, handler, options?)`
 
 Keyboard shortcuts. Combo syntax: modifiers (`ctrl`, `shift`, `alt`, `meta`) separated by `+`, then the key. Case-insensitive. `cmd`/`command` alias `meta`; `option` aliases `alt`. Modifier-only combos never match.

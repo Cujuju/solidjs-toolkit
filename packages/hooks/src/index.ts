@@ -1,6 +1,13 @@
 export { createClickOutside, type CreateClickOutsideOptions } from './createClickOutside';
 export { contains } from './contains';
 export { createEscapeKey, type CreateEscapeKeyOptions } from './createEscapeKey';
+export {
+  createEscapeOwner,
+  isEscapeDismissing,
+  ESCAPE_OWNERS_KEY,
+  type CreateEscapeOwnerOptions,
+  type CreateEscapeOwnerReturn,
+} from './createEscapeOwner';
 export { createHotkey, type CreateHotkeyOptions } from './createHotkey';
 export { createLocalStorage } from './createLocalStorage';
 export {
