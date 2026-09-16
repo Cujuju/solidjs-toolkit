@@ -51,30 +51,9 @@
       transparent
     );
 
-    /* Menu text/border/surface tier — the smoked-glass menu tint sits
-       darker than the host surface, so menu surfaces need their own
-       contrast ladder. `.glass-menu` rebinds the page-level aliases to
-       these values so every descendant picks them up automatically.
-       All values are hardcoded white-alpha — the menu always paints
-       over a smoked-dark backdrop and does NOT participate in theme
-       swaps.
-
-       NAMESPACED `--cujuju-glass-menu-*`, not `--color-menu-*`. These
-       are this package's OWN vocabulary, not host inputs, and the old
-       names sat squarely in the host's `--color-` namespace — a host
-       that happened to define `--color-menu-border` would have been
-       silently overriding a library internal, or been overridden by it,
-       depending on nothing more than layer order. That is the same trap
-       the two host inputs above were caught in; a name is not private
-       just because a library author thinks of it as internal.
-
-       These carry NO host fallback ON PURPOSE. There is no
-       `var(--color-menu-text, …)` here, because reading a host token by
-       name is exactly the implicit coupling being removed: a host must
-       not be able to change the menu palette by accidentally owning a
-       name. Overriding is DELIBERATE and explicit — set these variables
-       yourself, or call `applyGlassMenuPalette()` from `menuPalette.ts`,
-       which is the supported runtime path. */
+    /* Menu tier: hardcoded white-alpha over a smoked-dark backdrop, so it ignores theme
+       swaps. Namespaced and fallback-free on purpose — override the variables directly or
+       call applyGlassMenuPalette(). */
     --cujuju-glass-menu-text: rgba(255, 255, 255, 0.95);
     --cujuju-glass-menu-text-secondary: rgba(255, 255, 255, 0.78);
     --cujuju-glass-menu-text-muted: rgba(255, 255, 255, 0.65);
