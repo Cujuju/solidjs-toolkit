@@ -17,12 +17,9 @@ export interface ContextMenuItem {
   keepOpen?: boolean;
   /** When present and returning false, the row is not rendered. */
   when?: () => boolean;
-  /** When defined, renders a checkbox-style state indicator on the
-   *  right side of the row — a checkmark when `true`, a reserved blank
-   *  of the same width when `false`. Lets a stable-label toggle item
-   *  replace a flip-label ("Stack" / "Unstack") pattern: the action
-   *  label stays constant and the checkmark communicates state.
-   *  Undefined means no indicator (plain action item). */
+  /** Renders a checkbox-style indicator: a check when `true`, a reserved blank when `false`.
+   *  Lets a stable label carry state instead of flipping ("Stack"/"Unstack"). Undefined means
+   *  no indicator. */
   checked?: boolean;
   /** Right-aligned shortcut hint (e.g. `'Alt+R'`), rendered dim + monospace
    *  after the label. Display-only; the host owns the actual key binding. */
@@ -73,10 +70,8 @@ export interface ContextMenuButtonRow {
   }>;
 }
 
-/** A fully custom row — the host supplies arbitrary JSX (e.g. a color
- *  swatch grid, a split pair of buttons, a key/value info block). The menu
- *  renders it in a row wrapper with no default padding/hover so the custom
- *  content owns its own layout + interactions. */
+/** A fully custom row — the host supplies arbitrary JSX. Rendered in a wrapper with no default
+ *  padding or hover, so the content owns its layout and interactions. */
 export interface ContextMenuCustom {
   custom: () => JSX.Element;
 }

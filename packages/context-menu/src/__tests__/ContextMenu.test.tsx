@@ -3,10 +3,8 @@ import { render } from 'solid-js/web';
 import { ContextMenu } from '../ContextMenu';
 import type { ContextMenuEntry } from '../types';
 
-// jsdom does not implement the Popover API. Stub HTMLElement.prototype
-// with no-op showPopover/hidePopover + a :popover-open matcher so the
-// onMount → showPopover() path doesn't blow up. matches() falls back
-// to the original for every other selector.
+// jsdom has no Popover API; stub no-op showPopover/hidePopover and a `:popover-open` matcher,
+// falling back for every other selector.
 const originalMatches = HTMLElement.prototype.matches;
 
 function installPopoverStubs(): void {
@@ -81,10 +79,8 @@ describe('ContextMenu — dismiss', () => {
   });
 
   it('does NOT call onClose when mousedown is inside an element marked [data-popover-stack]', () => {
-    // Regression guard: a submenu is Portal'd to <body>, OUTSIDE the
-    // menu root. The dismiss check must skip clicks inside any element
-    // marked with the [data-popover-stack] wire-contract attribute.
-    // This sets ONLY the attribute (no class), proving the contract.
+    // Regression guard: a Portal'd submenu sits outside the menu root, so dismiss must skip
+    // clicks inside any [data-popover-stack] element. Attribute only, proving the contract.
     const onClose = vi.fn();
     renderMenu([{ label: 'Item', onClick: () => {} }], onClose);
 

@@ -1,27 +1,17 @@
-/* @cujuju/solidjs-context-menu — menu row + submenu chrome.
-
-   Plain prefixed global classes (`cujuju-context-menu*`), matching the
-   toolkit. The panel surface (tint / blur / border / radius / shadow)
-   comes from `@cujuju/solidjs-glass-menu` (`GlassMenu`); this stylesheet
-   owns only the rows, dividers, submenu chrome, slider, and button row.
-
-   References host theme tokens with inline fallbacks, so the menu
-   renders standalone over a dark backdrop and themes when a host
-   provides them. `data-popover-stack` is a wire contract — see
-   `_internal/popoverStack.ts`. */
+/* @cujuju/solidjs-context-menu — rows, dividers, submenu chrome, slider and button row; the
+   panel surface comes from `GlassMenu`. Host tokens carry inline fallbacks.
+   `data-popover-stack` is a wire contract (`_internal/popoverStack.ts`). */
 
 .cujuju-context-menu {
   position: fixed;
   z-index: var(--z-top, 9999);
   padding: 4px;
+  /* The inline viewport `max-height` must include padding + border to fit on-screen. */
+  box-sizing: border-box;
   min-width: 160px;
-  /* UA-default overrides for [popover]. The UA sets `inset: 0;
-     margin: auto` to center an unsized popover; the menu and its
-     submenus position with explicit top/left from inline style, so
-     `margin: 0` + `inset: auto` stop the UA right/bottom: 0 from
-     fighting that placement. Border-radius, overflow, and the glass
-     surface are owned by `GlassMenu` (rendered `overflow="visible"`
-     so submenu shadows paint past the edge). */
+  /* UA `[popover]` defaults center an unsized popover with `inset: 0; margin: auto`; the
+   menu positions from inline top/left, so cancel them. Radius and surface belong to
+   `GlassMenu`. */
   margin: 0;
   inset: auto;
 }
@@ -60,11 +50,8 @@
   min-width: 0;
 }
 
-/* Toggle-style state indicator on the right side of an item. The slot
-   is always the same width (reserved by the span even when empty) so
-   adjacent checked/unchecked items align vertically. `data-checked`
-   "true" paints the check; "false" leaves the slot blank. Rendered
-   only when `ContextMenuItem.checked` is defined. */
+/* Toggle indicator on the right. The slot keeps its width even when empty so adjacent
+   checked/unchecked items align; `data-checked="true"` paints the check. */
 .cujuju-context-menu-check {
   display: inline-flex;
   align-items: center;
@@ -76,7 +63,7 @@
   margin-left: 8px;
 }
 
-.cujuju-context-menu-item:hover {
+.cujuju-context-menu-item:hover:not(:disabled) {
   background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
 }
 
@@ -89,7 +76,7 @@
   color: var(--color-danger, #f87171);
 }
 
-.cujuju-context-menu-item-danger:hover {
+.cujuju-context-menu-item-danger:hover:not(:disabled) {
   background: var(--color-danger-alpha-10, rgba(248, 113, 113, 0.1));
 }
 
@@ -99,7 +86,6 @@
   margin: 4px 0;
 }
 
-/* Submenu flyout */
 .cujuju-context-menu-submenu-wrapper {
   position: relative;
 }
@@ -121,7 +107,9 @@
   border-bottom: 1px solid var(--color-white-alpha-10, rgba(255, 255, 255, 0.1));
   position: sticky;
   top: 0;
-  background: var(--color-surface, #16213e);
+  /* Sticky-chrome backing: glass's public `--cujuju-glass-menu-chrome-bg` (the menu tint
+     without alpha; opaque only when the host surface is). Not rebound by `.glass-menu`. */
+  background: var(--cujuju-glass-menu-chrome-bg, var(--color-surface, #16213e));
   z-index: 1;
 }
 
@@ -162,7 +150,7 @@
   cursor: pointer;
 }
 
-.cujuju-context-menu-row-btn:hover {
+.cujuju-context-menu-row-btn:hover:not(:disabled) {
   background: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
 }
 
@@ -213,13 +201,23 @@
   display: block;
 }
 
+/* Optional header band above the items, on both surfaces; `--solid` re-skins it below. */
+.cujuju-context-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-white-alpha-10, rgba(255, 255, 255, 0.1));
+  font-size: var(--font-size-sm, 0.8125rem);
+  font-weight: 600;
+  color: var(--color-text, rgba(255, 255, 255, 0.95));
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 /* ── Solid surface variant ──────────────────────────────────────────────────
-   Opt-in via the component's `surface="solid"` prop (adds
-   `.cujuju-context-menu--solid` to the menu root + every submenu flyout). A
-   plain opaque card instead of the `GlassMenu` glass shell, for hosts that want
-   a flat native-style context menu. References the host's flat theme tokens
-   (with dark fallbacks so it still renders standalone) and re-skins the rows so
-   a solid menu reads with the host palette, not the glass white-alpha ladder. */
+   Opt-in via `surface="solid"`: a plain opaque card instead of the glass shell, using the
+   host's flat theme tokens (dark fallbacks) and re-skinned rows. */
 .cujuju-context-menu--solid {
   background: var(--color-surface-base, #1a1f2e);
   border: 1px solid var(--color-border-base, #334155);
@@ -228,16 +226,15 @@
     0 10px 28px -10px rgba(0, 0, 0, 0.7),
     0 3px 8px -3px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  /* Scroll, not clip, under the inline max-height — the solid twin of GlassMenu's scrolling body. */
+  overflow-y: auto;
   min-width: 220px;
   padding: 0;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
-  /* Pin line-height: a host ancestor that sets `line-height: 0` (common on
-     chart/canvas containers to kill inline-gap) would otherwise collapse the
-     label spans — which carry `overflow:hidden` for ellipsis — to 0 height,
-     clipping the text to nothing (icons + shortcut, lacking overflow:hidden,
-     still paint, so only the labels vanish). The Portal escapes most ancestor
-     cascade; this is the belt-and-suspenders so menu text is never clipped. */
+  /* Pin line-height: a host ancestor with `line-height: 0` would collapse the label spans
+   (they carry `overflow: hidden`) to zero height, clipping text to nothing.
+   Belt-and-suspenders with the Portal. */
   line-height: 1.4;
   color: var(--color-text-secondary, #94a3b8);
   user-select: none;
@@ -251,7 +248,7 @@
   font-family: inherit;
   transition: background 0.1s, color 0.1s;
 }
-.cujuju-context-menu--solid .cujuju-context-menu-item:hover {
+.cujuju-context-menu--solid .cujuju-context-menu-item:hover:not(:disabled) {
   background: var(--color-surface-input, #252d3f);
 }
 .cujuju-context-menu--solid .cujuju-context-menu-item:active:not(:disabled) {
@@ -265,7 +262,7 @@
 .cujuju-context-menu--solid .cujuju-context-menu-item-danger {
   color: #ef4444;
 }
-.cujuju-context-menu--solid .cujuju-context-menu-item-danger:hover {
+.cujuju-context-menu--solid .cujuju-context-menu-item-danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.12);
   color: #f87171;
 }
@@ -276,9 +273,8 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--color-text-muted, #64748b);
 }
-/* Explicit label colour (belt-and-suspenders with the Portal): the label span
-   would otherwise inherit, and a hostile host-ancestor `color` could tint it
-   invisible. Pin it to the row's intended secondary text colour. */
+/* Explicit label colour (with the Portal, belt-and-suspenders): otherwise a hostile ancestor
+   `color` could tint the label invisible. */
 .cujuju-context-menu--solid .cujuju-context-menu-label {
   color: var(--color-text-secondary, #94a3b8);
 }
@@ -302,6 +298,10 @@
 .cujuju-context-menu--solid .cujuju-context-menu-custom {
   padding: 0;
   cursor: default;
+}
+/* Search row backs onto the solid card, not the glass chrome token. */
+.cujuju-context-menu--solid .cujuju-context-menu-flyout-search {
+  background: var(--color-surface-base, #1a1f2e);
 }
 .cujuju-context-menu--solid .cujuju-context-menu-header {
   display: flex;

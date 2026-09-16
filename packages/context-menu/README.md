@@ -66,14 +66,19 @@ Stylesheets register themselves on import — nothing to import manually.
 | `x` | `number` | Viewport x of the requested open point (e.g. `event.clientX`). |
 | `y` | `number` | Viewport y of the requested open point. |
 | `onClose` | `() => void` | Called when the menu should close — outside click, Escape, or a non-`keepOpen` item activation. The caller owns open state. |
+| `surface` | `'glass' \| 'solid'` | Default `'glass'` (the `GlassMenu` shell); `'solid'` renders a flat opaque card (`.cujuju-context-menu--solid`, host-themed). Submenus inherit it. |
+| `header` | `() => JSX.Element` | Optional header band above the items (`.cujuju-context-menu-header`). |
+| `minWidth` | `number` | Minimum menu width in border-box px (padding and border included); overrides the stylesheet floor. |
 
 The open point is clamped into the viewport after the menu measures
-itself, so a near-edge `x`/`y` still renders fully on-screen.
+itself, so a near-edge `x`/`y` still renders fully on-screen. Height is
+capped to the viewport; a taller menu scrolls. Changing `x`/`y` on a
+mounted menu re-clamps at the new point.
 
 ## Entry types
 
 `ContextMenuEntry` is a union; each entry is discriminated by a marker
-key (`divider` / `slider` / `submenu` / `row`) or is a plain item.
+key (`divider` / `slider` / `submenu` / `row` / `custom`) or is a plain item.
 
 ### `ContextMenuItem` — a plain action row
 
@@ -86,7 +91,9 @@ key (`divider` / `slider` / `submenu` / `row`) or is a plain item.
 | `icon` | `JSX.Element \| (() => JSX.Element \| undefined)` | Leading icon; a function form is re-evaluated each render. |
 | `keepOpen` | `boolean?` | Keep the menu open after the click instead of closing. |
 | `when` | `() => boolean` | When it returns false, the row is not rendered. |
-| `checked` | `boolean?` | When defined, renders a right-aligned checkbox indicator — a check when `true`, a reserved blank when `false` (so adjacent toggle rows align). Undefined = no indicator. |
+| `checked` | `boolean?` | When defined, renders a right-aligned checkbox indicator — a check when `true`, a reserved blank when `false` (so adjacent toggle rows align). Undefined = no indicator. Exposed to assistive tech as `aria-pressed`. |
+| `shortcut` | `string?` | Right-aligned shortcut hint (display-only; the host owns the key binding). |
+| `disabledTooltip` | `string?` | `title` shown while `disabled` (e.g. why it's unavailable). |
 
 ### `ContextMenuDivider` — `{ divider: true }`
 
@@ -103,12 +110,25 @@ A labelled range slider embedded as a row: `label`, `min`, `max`,
 A row that opens a nested submenu on hover: `label`, `icon?`,
 `children: ContextMenuEntry[]`, `scrollable?`. A `scrollable` submenu
 caps its height and shows a search field that filters its children by
-label. Submenus nest arbitrarily deep.
+label (a JSX or number label matches on its rendered text). Submenus nest
+arbitrarily deep. An open submenu closes a hover-intent grace period
+(scaled to the parent menu's measured width) after the pointer first
+moves elsewhere in its parent menu, unless it re-enters the trigger or
+the flyout first. It also closes when the parent menu scrolls or on any
+`x`/`y` update. A window resize or a reflow that shifts the trigger
+(e.g. a `when` toggle above it) still leaves an open flyout at its old
+position; observing the trigger rect is future work.
 
 ### `ContextMenuButtonRow` — `{ row: true, buttons: [...] }`
 
 A row of compact side-by-side buttons (e.g. a chapter-nav cluster).
 Each button: `{ label, onClick, disabled?, icon? }`.
+
+### `ContextMenuCustom` — `{ custom: () => JSX.Element }`
+
+A fully host-rendered row (e.g. a swatch grid or key/value block),
+wrapped in `.cujuju-context-menu-custom` with no default padding or
+hover — the custom content owns its layout and interactions.
 
 ## Anatomy
 
@@ -128,6 +148,9 @@ entry rows. Stable global classes (prefixed `cujuju-context-menu*`):
 | `cujuju-context-menu-flyout` / `-flyout-search` | a Portal'd submenu panel + its search field |
 | `cujuju-context-menu-button-row` / `-row-btn` | a button row |
 | `cujuju-context-menu-slider-row` / `-slider*` | a slider row |
+| `cujuju-context-menu-custom` | a `custom` row wrapper |
+| `cujuju-context-menu-header` | the optional `header` band |
+| `cujuju-context-menu--solid` | root + flyouts when `surface="solid"` |
 
 Each Portal'd submenu also carries `data-popover-stack` — see
 [Positioning & dismiss](#positioning--dismiss).
@@ -137,8 +160,8 @@ Each Portal'd submenu also carries `data-popover-stack` — see
 - **Top layer.** The menu and every submenu are `popover="manual"`
   elements promoted with `showPopover()`, so they paint above every
   normal stacking context — including other top-layer popovers. When a
-  submenu opens, its parent is re-promoted so the parent paints above
-  it, and the submenu's leading edge tucks a few pixels under the
+  submenu opens, its ancestor menus are re-promoted (nearest first) so
+  every parent paints above its child, and the submenu's leading edge tucks a few pixels under the
   parent.
 - **Submenus are Portal'd to `<body>`** to escape any `backdrop-filter`
   / `transform` ancestor that would otherwise re-anchor their

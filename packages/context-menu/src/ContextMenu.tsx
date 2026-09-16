@@ -1,4 +1,4 @@
-import { createSignal, createMemo, onMount, Show, type JSX } from 'solid-js';
+import { createSignal, createMemo, createEffect, on, onMount, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
@@ -19,10 +19,8 @@ export interface ContextMenuProps {
    *  non-`keepOpen` item activation. The caller owns open state; render
    *  `<ContextMenu>` while open and stop rendering it on `onClose`. */
   onClose: () => void;
-  /** Surface treatment. `'glass'` (default) renders the glassmorphism
-   *  `GlassMenu` shell; `'solid'` renders a plain opaque card
-   *  (`.cujuju-context-menu--solid`, host-themed) for apps that want a flat
-   *  menu instead of glass. Submenu flyouts inherit it. */
+  /** Surface treatment. `'glass'` (default) renders the `GlassMenu` shell; `'solid'` renders a
+   *  plain opaque card (`.cujuju-context-menu--solid`, host-themed). Submenus inherit it. */
   surface?: ContextMenuSurface;
   /** Optional custom header band rendered above the items, inside the menu
    *  surface (e.g. a title + metadata row). */
@@ -32,18 +30,9 @@ export interface ContextMenuProps {
 }
 
 /**
- * A cursor-positioned context menu.
- *
- * Presentation-plus-behavior, but caller-driven: it does NOT own its
- * open state. Render `<ContextMenu items x y onClose>` while the menu
- * should be visible (typically from a `contextmenu` handler that
- * stores the click point) and stop rendering it inside `onClose`.
- *
- * The menu promotes itself into the browser's top layer
- * (`popover="manual"`) so it paints above every normal stacking
- * context. It dismisses on outside `mousedown` and on `Escape`; clicks
- * inside a Portal'd submenu (marked `data-popover-stack`) are treated
- * as inside. The open point is clamped into the viewport after render.
+ * Cursor-positioned context menu; the caller owns open state — render it while open, stop
+ * rendering inside `onClose`. Promotes into the top layer (`popover="manual"`); dismisses on
+ * outside mousedown and Escape.
  */
 export function ContextMenu(props: ContextMenuProps) {
   let menuRef: HTMLDivElement | undefined;
@@ -58,11 +47,8 @@ export function ContextMenu(props: ContextMenuProps) {
     if (!menuRef) return;
     const target = e.target as Node;
     if (menuRef.contains(target)) return;
-    // Submenus are Portal'd to <body> so they sit OUTSIDE menuRef's
-    // subtree, but they belong to THIS menu's dismiss scope. Without
-    // this skip, clicking a slider/item inside a submenu would call
-    // onClose() — unmounting the submenu before the click event fires,
-    // which the WHATWG event spec then suppresses. See `popoverStack`.
+    // Submenus are Portal'd outside menuRef's subtree but belong to this dismiss scope; closing
+    // would unmount the submenu before its click fires. See `popoverStack`.
     const targetEl =
       target.nodeType === Node.ELEMENT_NODE
         ? (target as Element)
@@ -74,54 +60,54 @@ export function ContextMenu(props: ContextMenuProps) {
   createDocumentListener('keydown', onKeyDown);
   createDocumentListener('mousedown', onMouseDown);
 
+  function clampToViewport() {
+    if (!menuRef) return;
+    const w = menuRef.offsetWidth;
+    const h = menuRef.offsetHeight;
+    // Clamp so the menu never starts past the viewport; with the `max-width` cap this also
+    // covers content wider than a narrow window.
+    setPos({
+      x: Math.max(
+        VIEWPORT_MARGIN_PX,
+        Math.min(props.x, window.innerWidth - w - VIEWPORT_MARGIN_PX),
+      ),
+      y: Math.max(
+        VIEWPORT_MARGIN_PX,
+        Math.min(props.y, window.innerHeight - h - VIEWPORT_MARGIN_PX),
+      ),
+    });
+  }
+
   onMount(() => {
-    // Promote into the top layer so the menu paints above every normal
-    // stacking context — including other top-layer popovers. Top-layer
-    // order is LIFO of showPopover() calls, so a menu opened on top of
-    // an already-open popover lands above it. The `popover` attribute
-    // is set in the ref callback below, before this onMount fires.
+    // Top layer paints above every stacking context, and LIFO order puts a menu opened over an
+    // existing popover above it. The `popover` attribute is set in the ref below.
     if (menuRef && !menuRef.matches(':popover-open')) {
       menuRef.showPopover();
     }
-    afterPaint(() => {
-      if (!menuRef) return;
-      const w = menuRef.offsetWidth;
-      const h = menuRef.offsetHeight;
-      // Clamp so the menu never starts past the viewport. Combined
-      // with the `max-width` cap below, this also handles the
-      // narrow-window case where intrinsic content is wider than the
-      // viewport — the CSS caps the width, this keeps it in frame.
-      setPos({
-        x: Math.max(
-          VIEWPORT_MARGIN_PX,
-          Math.min(props.x, window.innerWidth - w - VIEWPORT_MARGIN_PX),
-        ),
-        y: Math.max(
-          VIEWPORT_MARGIN_PX,
-          Math.min(props.y, window.innerHeight - h - VIEWPORT_MARGIN_PX),
-        ),
-      });
-    });
+    afterPaint(clampToViewport);
   });
 
-  // Set `popover` via ref, not a JSX attribute (Solid's JSX types lack the
-  // global `popover` attr). Manual mode — the document listeners above own
-  // dismiss. Shared by both surface branches so positioning + dismiss are
-  // identical regardless of glass/solid.
+  // A caller can move the open point without remounting (same `<Show>` branch);
+  // re-clamp at the new point.
+  createEffect(on(() => [props.x, props.y], () => afterPaint(clampToViewport), { defer: true }));
+
+  // Set `popover` via ref: Solid's JSX types lack the global attr. Manual mode — the document
+  // listeners own dismiss. Shared by both surface branches.
   const setMenu = (el: HTMLDivElement) => {
     menuRef = el;
     el.setAttribute('popover', 'manual');
   };
 
-  // Reactive style so the onMount clamp (setPos) repositions the menu. A memo
-  // read in the JSX style binding stays reactive; a plain object built once
-  // would freeze left/top at the pre-clamp coords.
+  // Reactive style so the onMount clamp repositions the menu; a plain object built once would
+  // freeze left/top at the pre-clamp coords.
   const menuStyle = createMemo<JSX.CSSProperties>(() => ({
     position: 'fixed',
     left: `${pos().x}px`,
     top: `${pos().y}px`,
     // Cap width so very narrow viewports wrap/truncate inside rather than clip.
     'max-width': `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
+    // Cap height too, so a tall menu scrolls (GlassMenu body / solid card) instead of running off-screen.
+    'max-height': `calc(100vh - ${VIEWPORT_MARGIN_PX * 2}px)`,
     ...(props.minWidth ? { 'min-width': `${props.minWidth}px` } : {}),
   }));
 
@@ -136,14 +122,13 @@ export function ContextMenu(props: ContextMenuProps) {
         onClose={props.onClose}
         parentMenuRef={() => menuRef ?? null}
         surface={props.surface ?? 'glass'}
+        anchor={() => [props.x, props.y]}
       />
     </>
   );
 
-  // Portal to <body> so the menu does NOT inherit the consumer's ancestor
-  // cascade (e.g. a chart panel that sets `color` on its subtree would otherwise
-  // tint the menu's un-coloured label spans invisible). Painting is already
-  // top-layer via popover; the Portal is purely to escape DOM-ancestry styling.
+  // Portal to <body> so the menu escapes the consumer's ancestor cascade (an ancestor `color`
+  // could tint the labels invisible). Painting is already top-layer.
   return (
     <Portal>
       {props.surface === 'solid' ? (
