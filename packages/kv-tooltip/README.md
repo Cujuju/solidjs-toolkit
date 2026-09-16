@@ -227,10 +227,6 @@ behaviour.
   dismisses it. `hideOnPointerDown` is still the only thing that suppresses a
   pending `showDelayMs` show.
 
-## Future ideas (not shipped)
-
-- Full WAI-ARIA focus-triggered tooltip pattern (also appears on keyboard focus, dismisses on Escape). Current version is mouse-only.
-
 ## License
 
 MIT

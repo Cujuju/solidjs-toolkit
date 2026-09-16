@@ -2,23 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent, createSignal } from 'solid-js';
 import { KvTooltip } from '../KvTooltip';
+import { DEFAULT_ANCHOR_GAP_PX } from '../clamp';
 
 /**
- * Integration tests — mount the actual KvTooltip component in jsdom and
- * exercise the trigger/panel event flow end-to-end. These cover what the
- * hoverIntent unit tests can't:
- *
- *  1. The wiring between the helper and the JSX. If a future refactor
- *     misnames a handler (passes onTriggerEnter to onMouseLeave, etc.),
- *     unit tests pass and these fail.
- *
- *  2. The CSS / JS contract for the `interactive` prop. Bug history: this
- *     prop was wired in CSS (`pointer-events: auto` via
- *     `[data-interactive="true"]`) but JS hid the panel on mouseleave,
- *     making the panel unreachable. The test asserts both the
- *     data-attribute presence (CSS contract) AND the hide behavior
- *     (JS contract) — preventing future drift between the two layers.
+ * Mounts KvTooltip in jsdom to lock what hoverIntent unit tests can't: handler wiring, and
+ * the `interactive` CSS attribute agreeing with JS hide behaviour.
  */
+
+const GAP = DEFAULT_ANCHOR_GAP_PX;
 
 function renderTooltip(props: Parameters<typeof KvTooltip>[0]): { dispose: () => void; container: HTMLDivElement } {
   const container = document.createElement('div');
@@ -95,10 +86,7 @@ describe('KvTooltip (integration)', () => {
   });
 
   it('interactive: panel mouseenter cancels pending hide (the original bug, regression-locked)', () => {
-    // This test is the regression lock for the exact bug the fix addresses.
-    // Pre-fix: trigger mouseleave → panel unmounted immediately → user
-    // never reached panel → panel mouseenter never fired. The test would
-    // have failed because the panel wouldn't exist to dispatch on.
+    // Regression lock: pre-fix, trigger mouseleave unmounted the panel before the pointer reached it.
     const { dispose, container } = renderTooltip({
       entries: { Foo: 'Bar' },
       children: 'trigger',
@@ -145,12 +133,8 @@ describe('KvTooltip (integration)', () => {
   // ─── CSS / JS contract: data-interactive matches the prop ───────────────
 
   it('data-interactive attribute matches the interactive prop (CSS / JS layer agreement)', () => {
-    // Why this test exists: the original bug was CSS and JS layers each
-    // implementing half of `interactive` and disagreeing. styles.css uses
-    // [data-interactive="true"] to set pointer-events: auto. This test
-    // asserts the JS layer sets the attribute correctly so future
-    // refactors that rename the prop or change the JSX wiring can't
-    // silently desync the two layers.
+    // styles.css keys pointer-events on [data-interactive="true"]; this locks the JS side so the
+    // layers can't desync.
 
     // interactive=false (default): no attribute or attribute is undefined
     {
@@ -188,7 +172,6 @@ describe('KvTooltip (integration)', () => {
     // jsdom reports offsetWidth/offsetHeight as 0, so the panel falls back to
     // its 150x100 assumed size — enough to prove which reference was used.
     const ASSUMED_H = 100;
-    const GAP = 4; // DEFAULT_ANCHOR_GAP_PX
     const rect = { top: 400, bottom: 424, left: 300, right: 420 } as DOMRect;
 
     const { dispose, container } = renderTooltip({
@@ -209,7 +192,6 @@ describe('KvTooltip (integration)', () => {
   });
 
   it('anchor near the top edge flips below the rect instead of onto it', () => {
-    const GAP = 4;
     const rect = { top: 10, bottom: 34, left: 300, right: 420 } as DOMRect;
 
     const { dispose, container } = renderTooltip({
@@ -224,6 +206,83 @@ describe('KvTooltip (integration)', () => {
     expect(panel!.style.top).toBe(`${rect.bottom + GAP}px`);
 
     dispose();
+  });
+
+  it('re-measures the panel when the viewport resizes', () => {
+    // The natural size is viewport-dependent (width capped at the viewport,
+    // content rewraps taller), so a stale height mis-decides the flip.
+    const NARROW_VW = 250;
+    const WIDE_H = 60;
+    const NARROW_H = 200;
+    const rect = { top: 576, bottom: 600, left: 10, right: 130 } as DOMRect;
+    const originalInnerWidth = window.innerWidth;
+    const heightSpy = vi
+      .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+      .mockImplementation(() => (window.innerWidth <= NARROW_VW ? NARROW_H : WIDE_H));
+    const setInnerWidth = (value: number): void => {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value });
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      anchor: rect,
+      placement: 'below-start',
+    });
+
+    try {
+      fire(getTrigger(container), 'mouseenter');
+      expect(getPanel()!.style.top).toBe(`${rect.bottom + GAP}px`);
+
+      setInnerWidth(NARROW_VW);   // re-wraps to NARROW_H: no longer fits below
+      expect(getPanel()!.style.top).toBe(`${rect.top - NARROW_H - GAP}px`);
+    } finally {
+      dispose();
+      heightSpy.mockRestore();
+      setInnerWidth(originalInnerWidth);
+    }
+  });
+
+  it('re-measures when extraContent reflows with no prop change', () => {
+    // An image loading or a live row appearing inside `extraContent` changes the
+    // panel's natural height without any tracked signal ticking.
+    const SHORT_H = 60;
+    const TALL_H = 200;
+    const rect = { top: 576, bottom: 600, left: 10, right: 130 } as DOMRect;
+    let panelHeight = SHORT_H;
+    const heightSpy = vi
+      .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+      .mockImplementation(() => panelHeight);
+    const reflow: Array<() => void> = [];
+    class StubResizeObserver {
+      constructor(private readonly cb: () => void) {}
+      observe(): void { reflow.push(() => this.cb()); }
+      disconnect(): void {}
+    }
+    vi.stubGlobal('ResizeObserver', StubResizeObserver);
+
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      extraContent: 'prose',
+      children: 'trigger',
+      anchor: rect,
+      placement: 'below-start',
+    });
+
+    try {
+      fire(getTrigger(container), 'mouseenter');
+      expect(getPanel()!.style.top).toBe(`${rect.bottom + GAP}px`);
+
+      panelHeight = TALL_H;             // grew in place: no longer fits below
+      expect(reflow).toHaveLength(1);
+      reflow.forEach((fireReflow) => fireReflow());
+      expect(getPanel()!.style.top).toBe(`${rect.top - TALL_H - GAP}px`);
+    } finally {
+      dispose();
+      heightSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   // ─── freezeOnShow: content + position held for the life of one show ──────
@@ -268,6 +327,25 @@ describe('KvTooltip (integration)', () => {
     dispose();
   });
 
+  it('freezeOnShow keeps the held panel up when the live source empties mid-show', () => {
+    // Visibility must be gated on the list the panel RENDERS, not the live one.
+    const [quote, setQuote] = createSignal({ Bid: '412.18' });
+    const { dispose, container } = renderTooltip({
+      get entries() { return quote(); },
+      children: 'trigger',
+      freezeOnShow: true,
+    });
+
+    fire(getTrigger(container), 'mouseenter');
+    expect(getPanel()!.textContent).toContain('412.18');
+
+    setQuote({ Bid: '' });   // cleared bid; showEmpty=false empties the live list
+    expect(getPanel()).not.toBeNull();
+    expect(getPanel()!.textContent).toContain('412.18');
+
+    dispose();
+  });
+
   it('freezeOnShow holds the cursor point captured at show time', () => {
     const OFFSET_X = 12;
     const OFFSET_Y = 16;
@@ -295,16 +373,8 @@ describe('KvTooltip (integration)', () => {
   // ─── Measurement must not leave the panel parked at the origin ──────────
 
   it('the measure pass restores the panel position it borrowed', () => {
-    // measureNaturalSize temporarily flushes the panel to left: 0 so its
-    // shrink-to-fit width is not capped by its own current left (a fixed
-    // element's available width is `viewport - left`, which makes measuring
-    // in place a feedback loop). If the restore ever regresses, every panel
-    // pins itself to the left edge of the screen.
-    //
-    // jsdom has no layout engine — offsetWidth is always 0 — so the natural
-    // SIZE this produces cannot be asserted here; that half is verified in a
-    // real browser via the playground. What is assertable, and what actually
-    // breaks visibly, is that `left` comes back.
+    // measureNaturalSize borrows left: 0; a failed restore pins every panel to the left edge.
+    // jsdom has no layout, so only the restore is assertable.
     const OFFSET_X = 12;
     const { dispose, container } = renderTooltip({
       entries: { Foo: 'Bar' },

@@ -1,14 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHoverIntent, type HoverIntentApi } from '../_internal/hoverIntent';
 
-/**
- * Tests for the hover-intent state machine that drives KvTooltip's
- * interactive mode.
- *
- * Each test wires the four event handlers + a setVisible spy + accessor
- * functions, then drives the state machine via the returned handlers. Fake
- * timers control hideDelayMs deterministically.
- */
+/** Hover-intent state machine tests; fake timers drive hideDelayMs deterministically. */
 
 interface Harness {
   api: HoverIntentApi;
@@ -87,7 +80,6 @@ describe('createHoverIntent', () => {
     h.api.onPanelLeave();
     expect(h.setVisible).not.toHaveBeenCalled();
 
-    // No timer fires either.
     vi.advanceTimersByTime(1000);
     expect(h.setVisible).not.toHaveBeenCalled();
   });
@@ -100,7 +92,6 @@ describe('createHoverIntent', () => {
     h.setVisible.mockClear();
 
     h.api.onTriggerLeave();
-    // Hide is armed but not fired.
     expect(h.setVisible).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(99);
@@ -170,7 +161,6 @@ describe('createHoverIntent', () => {
     h.api.onTriggerEnter();
     h.setVisible.mockClear();
 
-    // Change the delay BEFORE arming.
     h.setHideDelay(50);
     h.api.onTriggerLeave();
 
@@ -186,7 +176,6 @@ describe('createHoverIntent', () => {
   it('triggerEnter does not setVisible(true) when shouldShow returns false', () => {
     const h = createHarness({ shouldShow: false });
     h.api.onTriggerEnter();
-    // shouldShow=false → no visibility change.
     expect(h.setVisible).not.toHaveBeenCalled();
   });
 

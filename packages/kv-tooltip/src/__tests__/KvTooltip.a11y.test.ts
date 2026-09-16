@@ -1,29 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
-import { createComponent } from 'solid-js';
+import { createComponent, createSignal, Show, type JSX } from 'solid-js';
 import { KvTooltip } from '../KvTooltip';
+import { DEFAULT_ANCHOR_GAP_PX } from '../clamp';
 
 /**
- * Accessibility contract.
- *
- * The panel is portalled, mounted only while hovered, and referenced by
- * nothing — so `role="tooltip"` on it announces nothing at all. Before this
- * contract, replacing a native `title` with a KvTooltip silently deleted the
- * text for every screen-reader and keyboard user, and a consumer could not
- * keep both (two popups fire on one hover).
- *
- * What is guaranteed here:
- *   1. An always-mounted, visually-hidden description node carries the text.
- *   2. `aria-describedby` points at it from the wrapper AND from the caller's
- *      own trigger element (merged, never overwriting existing ids) — the
- *      attribute is not inherited, so it must sit where focus lands.
- *   3. `description` overrides the text derived from `entries`.
- *   4. The wrapper takes a tab stop only when the caller's trigger has none.
- *   5. Focus shows the panel, blur hides it, Escape dismisses it.
- *   6. The visible panel is `aria-hidden` whenever the hidden node duplicates
- *      it, so nothing is announced twice.
- *   7. `describeTrigger={false}` restores the 0.2.x mouse-only behaviour.
+ * Accessibility contract: the portalled panel's `role="tooltip"` announces nothing, so a
+ * hidden describedby node, focus/blur/Escape and tab-stop rules carry the tooltip.
  */
+
+/** `createComponent` infers from Show's LAST (keyed) overload; pin the non-keyed one. */
+const UnkeyedShow = Show as (props: {
+  when: boolean;
+  fallback: JSX.Element;
+  children: JSX.Element;
+}) => JSX.Element;
+
+const GAP = DEFAULT_ANCHOR_GAP_PX;
+/** The pointer coordinate `fireMouse` reports, in both axes. */
+const POINTER_CLIENT_XY = 10;
 
 function renderTooltip(props: Parameters<typeof KvTooltip>[0]): {
   dispose: () => void;
@@ -54,7 +49,9 @@ function getDescriptionNode(container: HTMLElement): HTMLElement | null {
 }
 
 function fireMouse(el: EventTarget, type: 'mouseenter' | 'mouseleave'): void {
-  el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: 10, clientY: 10 }));
+  el.dispatchEvent(
+    new MouseEvent(type, { bubbles: true, clientX: POINTER_CLIENT_XY, clientY: POINTER_CLIENT_XY }),
+  );
 }
 
 function fireFocus(el: EventTarget, type: 'focusin' | 'focusout'): void {
@@ -159,6 +156,147 @@ describe('KvTooltip accessibility', () => {
 
     fireFocus(wrapper, 'focusout');
     expect(getPanel()).toBeNull();
+
+    dispose();
+  });
+
+  it('a focus show places the panel against the focused trigger, not a stale cursor point', () => {
+    const rect = { top: 200, bottom: 224, left: 300, right: 420 } as DOMRect;
+    const { dispose, container } = renderTooltip({ entries: { Delta: '0.42' }, children: 'text' });
+    const wrapper = getWrapper(container);
+    wrapper.getBoundingClientRect = () => rect;
+
+    fireFocus(wrapper, 'focusin'); // never hovered: the cursor point is (0,0)
+    expect(getPanel()!.style.top).toBe(`${rect.bottom + GAP}px`);
+    expect(getPanel()!.style.left).toBe(`${rect.left}px`);
+
+    dispose();
+  });
+
+  it('focus while the pointer is on the trigger keeps cursor placement', () => {
+    // Clicking a hovered control focuses it; the panel must not jump.
+    const OFFSET_X = 12;
+    const OFFSET_Y = 16;
+    const { dispose, container } = renderTooltip({ entries: { Delta: '0.42' }, children: 'text' });
+    const wrapper = getWrapper(container);
+    wrapper.getBoundingClientRect = () => ({ top: 200, bottom: 224, left: 300, right: 420 }) as DOMRect;
+
+    fireMouse(wrapper, 'mouseenter');
+    fireFocus(wrapper, 'focusin');
+    expect(getPanel()!.style.left).toBe(`${POINTER_CLIENT_XY + OFFSET_X}px`);
+    expect(getPanel()!.style.top).toBe(`${POINTER_CLIENT_XY + OFFSET_Y}px`);
+
+    dispose();
+  });
+
+  it('re-wires aria-describedby when a Show-gated trigger swaps in', async () => {
+    const [loaded, setLoaded] = createSignal(false);
+    const button = document.createElement('button');
+    const placeholder = document.createElement('span');
+    const { dispose, container } = renderTooltip({
+      entries: { Delta: '0.42' },
+      get children() {
+        return createComponent(UnkeyedShow, {
+          get when() { return loaded(); },
+          fallback: placeholder,
+          children: button,
+        });
+      },
+    });
+    const descId = getWrapper(container).getAttribute('aria-describedby')!;
+    expect(placeholder.getAttribute('aria-describedby')).toBe(descId);
+
+    setLoaded(true);
+    await Promise.resolve();
+    expect(button.getAttribute('aria-describedby')).toBe(descId);
+    // Removal is keyed to the element it was applied to.
+    expect(placeholder.getAttribute('aria-describedby')).toBeNull();
+
+    dispose();
+  });
+
+  it('does not rewrite the trigger aria-describedby across a show/hide cycle', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const button = document.createElement('button');
+    const dispose = render(
+      () => createComponent(KvTooltip, { entries: { Delta: '0.42' }, children: button }),
+      container,
+    );
+    await Promise.resolve();
+
+    const writes: MutationRecord[] = [];
+    const spy = new MutationObserver((records) => writes.push(...records));
+    spy.observe(button, { attributes: true, attributeFilter: ['aria-describedby'] });
+
+    const wrapper = getWrapper(container);
+    fireMouse(wrapper, 'mouseenter');
+    expect(getPanel()).not.toBeNull();
+    await Promise.resolve();
+    fireMouse(wrapper, 'mouseleave');
+    expect(getPanel()).toBeNull();
+    await Promise.resolve();
+
+    // Solid's Portal marker enters and leaves the wrapper on every show; the
+    // trigger element itself never changed, so the id must not be re-applied.
+    expect(writes).toHaveLength(0);
+    expect(button.getAttribute('aria-describedby')).not.toBeNull();
+
+    spy.disconnect();
+    dispose();
+    container.remove();
+  });
+
+  it('does not rewrite the trigger aria-describedby when entries tick with the same text', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const button = document.createElement('button');
+    const [entries, setEntries] = createSignal<Record<string, string>>({ Delta: '0.42' });
+    const dispose = render(
+      () => createComponent(KvTooltip, { get entries() { return entries(); }, children: button }),
+      container,
+    );
+    await Promise.resolve();
+
+    const writes: MutationRecord[] = [];
+    const spy = new MutationObserver((records) => writes.push(...records));
+    spy.observe(button, { attributes: true, attributeFilter: ['aria-describedby'] });
+
+    setEntries({ Delta: '0.42' });
+    await Promise.resolve();
+    setEntries({ Delta: '0.43' });
+    await Promise.resolve();
+
+    expect(writes).toHaveLength(0);
+    expect(button.getAttribute('aria-describedby')).not.toBeNull();
+
+    spy.disconnect();
+    dispose();
+    container.remove();
+  });
+
+  it('re-probes the AUTO tab stop when a focusable trigger appears or disappears', async () => {
+    const [loaded, setLoaded] = createSignal(false);
+    const { dispose, container } = renderTooltip({
+      entries: { Delta: '0.42' },
+      get children() {
+        return createComponent(UnkeyedShow, {
+          get when() { return loaded(); },
+          fallback: document.createElement('span'),
+          children: document.createElement('button'),
+        });
+      },
+    });
+    const wrapper = getWrapper(container);
+    expect(wrapper.getAttribute('tabindex')).toBe('0');
+
+    setLoaded(true);
+    await Promise.resolve();
+    expect(wrapper.getAttribute('tabindex')).toBeNull(); // one tab stop, the button's
+
+    setLoaded(false);
+    await Promise.resolve();
+    expect(wrapper.getAttribute('tabindex')).toBe('0');  // reachable again
 
     dispose();
   });

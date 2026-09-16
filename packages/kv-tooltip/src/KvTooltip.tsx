@@ -5,6 +5,7 @@ import {
   createUniqueId,
   on,
   onCleanup,
+  onMount,
   For,
   Show,
   type JSX,
@@ -14,6 +15,7 @@ import {
   createClampedPosition,
   ensureViewportListeners,
   viewportScrollTick,
+  viewportSize,
   DEFAULT_ANCHOR_GAP_PX,
   type KvTooltipPlacement,
 } from './clamp';
@@ -21,11 +23,8 @@ import { createHoverIntent } from './_internal/hoverIntent';
 import { isTopLayerSurfaceOpen } from './_internal/topLayer';
 
 /**
- * An anchor is either a rect captured by the caller, or an accessor that
- * re-measures on demand. Prefer the accessor form: the position recomputes on
- * viewport resize and on any scroll (see `clamp.ts`), and only the accessor
- * form can return a fresh rect at that moment. A bare `DOMRect` is a snapshot
- * and will go stale if the anchor element moves.
+ * A caller-captured rect or a re-measuring accessor. Prefer the accessor: position recomputes
+ * on resize/scroll, and a bare `DOMRect` goes stale if the anchor moves.
  */
 export type KvTooltipAnchor = DOMRect | (() => DOMRect | null);
 
@@ -36,34 +35,18 @@ function resolveAnchor(anchor: KvTooltipAnchor | undefined): DOMRect | null {
 }
 
 /**
- * Anchored-placement props. Shared by the hover wrapper and the controlled
- * panel — one declaration so the two entry points can never drift apart on
- * what anchoring means.
- *
- * Why anchoring exists at all: a panel placed at a cursor POINT can only be
- * kept clear of a surface that opens from the same trigger by luck. Anchoring
- * to the trigger's RECT lets the tooltip take one side (say, above) while a
- * menu takes the other (below), so neither can cover the other.
- *
- * Note this is about OVERLAP, not about paint order. Since 0.6.0 the panel is
- * itself promoted into the top layer (see `promoteToTopLayer`), so it is no
- * longer stuck under an open popover — anchoring is not the workaround for
- * that any more. It stays valuable for the reason above: a tooltip that COVERS
- * the menu it describes is barely better than one hidden behind it, and only
- * placement can keep the two apart.
+ * Anchored placement, shared by wrapper and panel. Anchoring to the trigger RECT lets a tooltip
+ * and a menu take opposite sides, so neither covers the other.
  */
 export interface KvTooltipAnchoringProps {
   /**
-   * Anchor the panel to a rect instead of to `x`/`y`. When supplied, `x`/`y`
-   * are ignored and `hysteresisPx` is bypassed (a static rect cannot flicker).
-   * Prefer the accessor form so the rect is re-read on resize / scroll.
+   * Anchor to a rect instead of `x`/`y`; `x`/`y` and `hysteresisPx` are then ignored.
+   * Prefer the accessor form so the rect is re-read on resize/scroll.
    */
   anchor?: KvTooltipAnchor;
   /**
-   * Which side of the `anchor` the panel takes, and how it aligns along that
-   * side. Default `'cursor'` = the 0.1.0 mouse-follow behaviour. Supplying an
-   * `anchor` while leaving this at `'cursor'` resolves to `'below-start'`.
-   * Overflow flips to the opposite side of the RECT — never onto it.
+   * Side and alignment against `anchor`. Default `'cursor'` (mouse-follow); with an `anchor`
+   * it resolves to `'below-start'`. Overflow flips to the rect's opposite side, never onto it.
    */
   placement?: KvTooltipPlacement;
   /**
@@ -74,7 +57,6 @@ export interface KvTooltipAnchoringProps {
   anchorGapPx?: number;
 }
 
-// ── Filter helper ──────────────────────────────────────────────────────────
 function filterEntries(
   entries: Record<string, string>,
   showEmpty: boolean,
@@ -100,32 +82,21 @@ interface TooltipContentProps extends KvTooltipAnchoringProps {
   role: 'tooltip' | 'status';
   ariaLabel?: string;
   /**
-   * Hide the panel from assistive tech. Set when the wrapper is already
-   * exposing the same text through its always-mounted description node — two
-   * copies of one tooltip is worse than one, and the hidden node is the copy
-   * that survives when the pointer is not involved.
+   * Hide from assistive tech when the wrapper's always-mounted description node already
+   * exposes the text; one copy, not two.
    */
   ariaHidden?: boolean;
   panelClass?: string;
   portalTarget?: HTMLElement;
   /**
-   * Optional handlers wired onto the panel's outer div. KvTooltip wrapper
-   * uses these to participate in the hover-intent state machine (cancel
-   * pending hide on enter, re-arm on leave). KvTooltipPanel (controlled
-   * mode) omits them — consumer owns visibility.
-   *
-   * Safe to attach unconditionally: when `interactive=false` the panel has
-   * `pointer-events: none` (per styles.css), so these listeners attach but
-   * never fire.
+   * Hover-intent hooks for the wrapper; controlled mode omits them. Safe unconditionally: a
+   * non-interactive panel has `pointer-events: none`, so they never fire.
    */
   onPanelMouseEnter?: () => void;
   onPanelMouseLeave?: () => void;
   /**
-   * Called when the PLATFORM closed the panel's popover out from under us —
-   * another tooltip took the single hint slot, an `auto` popover opened, the
-   * user clicked outside or pressed Escape. See `promoteToTopLayer` for the
-   * full list and `onPlatformDismiss` on `KvTooltipPanelProps` for what a
-   * caller should do with it.
+   * The PLATFORM closed the panel's popover (another hint, an `auto` popover, outside click,
+   * Escape). See `KvTooltipPanelProps.onPlatformDismiss`.
    */
   onPlatformDismiss?: () => void;
 }
@@ -136,22 +107,16 @@ function toCssSize(v: number | string | undefined): string | undefined {
 }
 
 /**
- * The popover TYPE the panel is promoted with — the single line this whole
- * component's top-layer behaviour turns on. `hint` is the platform's tooltip
- * type: it paints above like `manual` did, and additionally gives us
- * one-at-a-time, yield-to-`auto`-popovers, and platform dismissal. See the
- * measured behaviour list on `promoteToTopLayer`.
+ * `hint`, the platform tooltip type: top-layer paint like `manual`, plus one-at-a-time,
+ * yielding to `auto` popovers, and platform dismissal. See `promoteToTopLayer`.
  */
 const PANEL_POPOVER_TYPE = 'hint';
 
-/** Matches a popover that is actually in the top layer right now. */
 const POPOVER_OPEN_SELECTOR = ':popover-open';
 
 /**
- * The `toggle` event a popover dispatches. Declared locally rather than using
- * `lib.dom`'s `ToggleEvent`, which only exists in newer TypeScript DOM libs —
- * this package is consumed from source (the `solid` export condition), so it
- * must typecheck against the CONSUMER's lib version, which is not ours to pick.
+ * Local, not `lib.dom`'s `ToggleEvent`: consumed from source, this must typecheck against
+ * the consumer's possibly older DOM lib.
  */
 interface PopoverToggleEvent extends Event {
   readonly newState?: string;
@@ -159,32 +124,14 @@ interface PopoverToggleEvent extends Event {
 }
 
 /**
- * `left` used while measuring. A `position: fixed` element's containing block
- * is the viewport, so its shrink-to-fit width is capped at `viewport - left`;
- * flushing it to the origin is what makes the measurement independent of
- * wherever the panel currently sits.
+ * A fixed element's shrink-to-fit width is capped at `viewport - left`; measuring at the
+ * origin removes that dependency.
  */
 const MEASURE_ORIGIN_LEFT = '0px';
 
 /**
- * Measure the panel at its NATURAL size — the size it would take with the
- * whole viewport available — rather than at whatever size its current `left`
- * happens to allow.
- *
- * Why this is not paranoia: measuring in place is a feedback loop. The panel
- * is `position: fixed`, so at `left: L` its available width is `viewport - L`;
- * a shrink-to-fit panel near the right edge therefore measures NARROWER than
- * it is, and (because the content rewraps) TALLER. That wrong width feeds the
- * clamp, which picks a new `left`, which changes the available width again.
- * Observed 2026-07-23 in the playground: a panel whose natural box is 260x84
- * measured 228x102 in place and settled flush against the viewport edge with
- * zero `edgePadPx` clearance. The corrupted HEIGHT is the worse half — it is
- * the entire basis of the above/below flip decision in anchored mode.
- *
- * Reading `offsetWidth` forces a synchronous layout but no paint, and Solid
- * effects run before the browser paints, so the temporary `left` is never
- * visible. The write is restored immediately; Solid's style binding re-applies
- * the real value on the update that `setSize` triggers anyway.
+ * Measure at NATURAL size: in place, a panel near the right edge wraps narrower and taller,
+ * corrupting clamp and flip. Effects run pre-paint, so the borrowed `left` never shows.
  */
 function measureNaturalSize(el: HTMLElement): { w: number; h: number } {
   const previousLeft = el.style.left;
@@ -198,17 +145,31 @@ function measureNaturalSize(el: HTMLElement): { w: number; h: number } {
 function TooltipContent(props: TooltipContentProps): JSX.Element {
   let ref: HTMLDivElement | undefined;
   const [measured, setMeasured] = createSignal(false);
-  const [size, setSize] = createSignal({ w: 0, h: 0 });
+  const [size, setSize] = createSignal(
+    { w: 0, h: 0 },
+    { equals: (a, b) => a.w === b.w && a.h === b.h },
+  );
 
   // Measure after mount to avoid first-frame position jump
   createEffect(() => {
     const _len = props.entries.length; // track for re-measure
     void _len;
     void props.extraContent; // re-measure when extra content changes
+    void viewportSize(); // the natural size is capped by the viewport
     if (ref) {
       setSize(measureNaturalSize(ref));
       setMeasured(true);
     }
+  });
+
+  // `extraContent` can reflow with no prop change (an image loads, a row arrives).
+  // Only the trigger is taken from the entry; the size still comes from `measureNaturalSize`.
+  onMount(() => {
+    const el = ref;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setSize(measureNaturalSize(el)));
+    observer.observe(el);
+    onCleanup(() => observer.disconnect());
   });
 
   const pos = createClampedPosition({
@@ -234,74 +195,13 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
   });
 
   /**
-   * TOP LAYER — why the panel is a popover, and why `hint` rather than `manual`.
-   *
-   * A `position: fixed` element in a Portal is ordinary stacking content, and
-   * the browser's top layer sits above the ENTIRE normal stacking context. So a
-   * surface shown with `showPopover()` — every `@cujuju/solidjs-anchored-popover`
-   * menu, a `<dialog>`, anything native — paints over ordinary content at any
-   * z-index. `z-index: 2147483647` loses to it exactly as `z-index: 1` does.
-   *
-   * That made this component a REGRESSION against the native `title` it
-   * replaces: a native tooltip is drawn by the OS above everything, so a
-   * consumer migrating off `title` lost tooltips inside their own menus
-   * (reported 2026-07-30 on a chart toolbar whose controls open popovers).
-   * 0.6.0 fixed the paint by promoting this panel with `showPopover()` too —
-   * top-layer paint order is LIFO by `showPopover()` call, and a tooltip is
-   * always shown AFTER the surface it describes is already open, so it lands
-   * on top by construction.
-   *
-   * WHY `hint` AND NOT `manual` (0.7.0). `manual` takes the paint win and
-   * hands us nothing else: no one-at-a-time, no yielding to menus, no platform
-   * dismissal. So 0.6.0 hand-rolled all three, badly — two tooltips could
-   * coexist, a panel leaked by a missed `mouseleave` sat above the whole UI
-   * with nothing to dismiss it, and Escape worked only through our own
-   * listener. `hint` is the platform's tooltip popover type: it keeps the same
-   * LIFO paint and supplies exactly those three behaviours. `auto` remains
-   * wrong for the reason it always was — an auto popover light-dismisses its
-   * peers, so showing the tooltip would close the very menu the user is
-   * reading.
-   *
-   * The behaviours below are MEASURED, not read off the spec — probed
-   * 2026-08-04 in Chromium 148 (Windows) and 151 (WSL), which bracket
-   * Electron 43's Chromium 150:
-   *   - a hint shown while an `auto` popover is open does NOT close it, and
-   *     paints and hit-tests above it — the 0.6.0 paint win is preserved, so
-   *     this migration costs nothing it gained;
-   *   - showing a SECOND hint closes the first: one-at-a-time is enforced by
-   *     the platform instead of by us;
-   *   - opening an `auto` popover AFTER the hint closes the hint — the tooltip
-   *     yields to a real surface with no code of ours involved;
-   *   - a `manual` popover shown after the hint still paints ABOVE it (LIFO is
-   *     unchanged), so nothing regresses for app menus, which are `manual`;
-   *   - a click OUTSIDE light-dismisses the hint; a click inside does not;
-   *   - Escape closes the hint and leaves an open `auto` popover alone;
-   *   - an unknown popover value behaves as `manual` (the spec's invalid-value
-   *     default), so an engine that does not know `hint` degrades to exactly
-   *     0.6.0 rather than losing the top layer. Verified in Chromium only —
-   *     Firefox/Safari behaviour is assumed from the spec, not measured.
-   *
-   * KNOWN INTERACTION — documented, deliberately not fixed:
-   * `@cujuju/solidjs-anchored-popover` re-promotes a parent menu
-   * (`hidePopover(); showPopover()`) when a submenu opens. Probed 2026-08-04
-   * with that exact choreography: the hint SURVIVES it (stays open), but the
-   * re-promoted menu then paints above the hint, because the re-promote is a
-   * fresh `showPopover()` and LIFO puts it last. Accepted: by the time a
-   * submenu opens, the pointer has left the tooltip's trigger in every layout
-   * we have.
-   *
-   * Degrades cleanly: where `showPopover` is absent the element is a plain
-   * `div` with the same fixed position and z-index — i.e. exactly the 0.5.x
-   * behaviour, back under the top layer but never invisible.
+   * Top layer paints above any z-index; LIFO puts a tooltip shown after its menu on top.
+   * `hint`, not `auto` (which light-dismisses the menu). No Popover API: plain fixed div.
    */
   const promoteToTopLayer = (el: HTMLElement): void => {
     if (typeof el.showPopover !== 'function') return;
-    // The attribute is added HERE, not in the JSX, and only kept if the promotion
-    // actually succeeds. `[popover]:not(:popover-open)` is `display: none` in the
-    // UA sheet, so an element carrying the attribute without a successful
-    // `showPopover()` is an INVISIBLE tooltip — strictly worse than one painted
-    // under a menu. Adding it only around a successful call means the failure
-    // mode is "back to 0.5.x stacking", never "no tooltip at all".
+    // Attribute set only around a successful `showPopover()`: `[popover]:not(:popover-open)` is
+    // `display: none`, so a failed promotion would leave an invisible tooltip.
     el.setAttribute('popover', PANEL_POPOVER_TYPE);
     try {
       el.showPopover();
@@ -311,29 +211,9 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
   };
 
   /**
-   * The platform closed our popover. Everything `hint` gives us arrives through
-   * this one event: another tooltip taking the single hint slot, an `auto`
-   * popover opening, a click outside, Escape.
-   *
-   * The response is to DEMOTE, never to hide: drop the `popover` attribute so
-   * the element falls back to the 0.5.x fixed/z-index box — visible, merely no
-   * longer in the top layer — and then tell the owner. The alternative (leave
-   * the attribute on a closed popover) is `display: none` per the UA sheet,
-   * i.e. a mounted panel the caller believes is on screen and the user cannot
-   * see. A tooltip painted under a menu is a degradation; an invisible one is a
-   * lie about state, so the degradation is the only acceptable landing.
-   *
-   * Deliberately NOT re-promoted: two mounted panels each re-promoting on the
-   * other's close would fight the platform's one-at-a-time rule forever.
-   *
-   * Why the state is re-checked instead of trusted: `toggle` is QUEUED, not
-   * synchronous (`beforetoggle` is the synchronous one), so a close and a
-   * re-open inside one task coalesce. Probed 2026-08-04 in Chromium 151, that
-   * pair dispatches a SINGLE `toggle` with `oldState:'open', newState:'open'` —
-   * which this handler ignores anyway — but the coalescing is an
-   * implementation detail of one engine, and acting on a stale `newState`
-   * would strip the attribute off a popover that is currently open. Reading
-   * the element at dispatch time cannot be stale.
+   * Platform closed our popover: DEMOTE (drop `popover`, stay visible), never hide, then notify.
+   * No re-promote: panels would fight one-at-a-time. State is re-read because `toggle` is
+   * queued and may coalesce.
    */
   const onPopoverToggle = (el: HTMLElement, e: Event): void => {
     if ((e as PopoverToggleEvent).newState !== 'closed') return;
@@ -341,17 +221,13 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
     try {
       stillOpen = el.matches(POPOVER_OPEN_SELECTOR);
     } catch {
-      // An engine that cannot parse `:popover-open` cannot have put anything in
-      // the top layer either. Treating it as closed is the safe branch: it
-      // leads to removing the attribute, which can only make the panel MORE
-      // visible.
+      // An engine that can't parse `:popover-open` has nothing in the top layer; treating it as
+      // closed only makes the panel more visible.
       stillOpen = false;
     }
     if (stillOpen) return;
-    // A panel removed from the DOM needs nothing done to it — and Chromium
-    // dispatches no `toggle` at all for that case (probed 2026-08-04: removing
-    // an open hint fires neither `beforetoggle` nor `toggle`), so this guard is
-    // for engines that do.
+    // Removed panels need nothing. Chromium fires no `toggle` on removal (probed 2026-08-04);
+    // this guards engines that do.
     if (!el.isConnected) return;
     el.removeAttribute('popover');
     props.onPlatformDismiss?.();
@@ -362,17 +238,8 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
       <div
         ref={(el) => {
           ref = el;
-          // The listener and its `onCleanup` are registered SYNCHRONOUSLY, here
-          // in the ref, because this is the only place still running under the
-          // Solid owner: `onCleanup` called from inside the `queueMicrotask`
-          // below has no owner and would silently never run, leaking a listener
-          // per panel mount.
-          //
-          // It attaches unconditionally rather than only on a successful
-          // promotion. An element that never becomes a popover never fires
-          // `toggle`, so the unconditional listener is inert on the degraded
-          // path — and keeping it promotion-independent means the handler's
-          // contract can be tested without a Popover API implementation.
+          // Registered synchronously in the ref: `onCleanup` inside the microtask has no owner and
+          // would leak. Unconditional: inert without promotion, and testable without a Popover API.
           const onToggle = (e: Event): void => onPopoverToggle(el, e);
           el.addEventListener('toggle', onToggle);
           onCleanup(() => el.removeEventListener('toggle', onToggle));
@@ -384,12 +251,8 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
           });
         }}
         class={`ckv-panel ${props.panelClass ?? ''}`.trim()}
-        // Private identity marker — NOT a styling hook, and deliberately not the
-        // public `.ckv-panel` class (a consumer may put that class on something
-        // else, or restyle around it; identity must not be forgeable by CSS
-        // convention). `_internal/topLayer.ts` excludes elements carrying this
-        // attribute from its "is a top-layer surface open?" query, so a promoted
-        // tooltip panel cannot count as the surface a tooltip should defer to.
+        // Private identity marker, not a styling hook: `.ckv-panel` is forgeable.
+        // `_internal/topLayer.ts` excludes it so a tooltip never defers to another tooltip.
         data-ckv-tooltip-panel=""
         role={props.role}
         aria-label={props.ariaLabel}
@@ -434,135 +297,39 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
   maxWidth?: number | string;
 
   /**
-   * Hide-debounce delay (ms) used in interactive mode. After the cursor
-   * leaves the trigger (or the panel), the panel persists this long so the
-   * user can cross the gap between trigger and panel without losing it.
-   * Cancelled by re-entering either the trigger or the panel.
-   *
-   * Default 100ms — derived from typical pointer-travel time across the
-   * `mouseOffsetX/Y` gap (12-16px at 60-120 px/s mouse speeds = 100-250ms).
-   * Both wrapper and panel cancel on enter, so 100ms catches a slow user
-   * who paused mid-traversal. Below 50ms feels too fast; above 200ms feels
-   * sluggish.
-   *
-   * Only consulted when `interactive=true`. Non-interactive callers hide
-   * immediately on mouseleave (preserved behavior).
+   * Interactive-mode hide debounce (ms), so the pointer can cross the trigger–panel gap;
+   * re-entering either cancels. Default 100 (derived in `_internal/hoverIntent.ts`).
    */
   hideDelayMs?: number;
 
   /**
-   * Rest delay (ms) on the way IN: the panel appears only after the pointer
-   * has stayed on the trigger this long, so a pointer passing THROUGH a dense
-   * row of triggers never flashes a tooltip behind it. Cancelled by leaving
-   * the trigger.
-   *
-   * Default 0 / undefined = show immediately (0.1.x behaviour). There is
-   * deliberately no derived default — the right value depends on the
-   * consumer's trigger density and size, not on this package's geometry. See
-   * the derivation in `_internal/hoverIntent.ts`.
-   *
-   * Applies in both interactive and non-interactive mode.
+   * Rest delay (ms) before showing, so a pointer sweeping through dense triggers flashes nothing.
+   * Default 0; no derived default, since it depends on trigger density.
    */
   showDelayMs?: number;
 
   /**
-   * Snapshot the panel's content AND its reference position at show time, and
-   * hold both until the panel hides.
-   *
-   * Why: `entries` is read reactively, so a live-ticking source (a streaming
-   * quote) re-runs the entries memo on every tick, which re-runs the panel's
-   * measure effect, which re-derives the clamped position — the panel visibly
-   * re-measures and twitches under a stationary cursor. Consumers were
-   * working around this downstream by snapshotting the object before passing
-   * it in; that workaround belongs here, where the measure effect actually
-   * lives.
-   *
-   * What is frozen: the filtered entry list, the cursor point, and the
-   * resolved anchor rect. What is NOT frozen: `extraContent` (the consumer
-   * owns its own reactivity) and the viewport clamp itself — a frozen panel
-   * still re-clamps on resize/scroll, it just re-clamps from held inputs, so
-   * it cannot drift off-screen while held.
-   *
-   * Default `false` = 0.1.0 live-follow behaviour.
+   * Hold entries, cursor point and anchor rect from show until hide, so live sources don't
+   * twitch the panel. `extraContent` stays live; resize/scroll still re-clamp. Default `false`.
    */
   freezeOnShow?: boolean;
 
   /**
-   * Pressing the pointer on the trigger hides the panel and suppresses every
-   * re-show until the pointer leaves the trigger and comes back.
-   *
-   * For a trigger that is also a control — a field that opens a select menu,
-   * a button that opens a popover — the tooltip has said what it had to say by
-   * the time the user commits to clicking, and keeping it up means it competes
-   * with whatever the click opened.
-   *
-   * The suppression (rather than a bare hide) is the load-bearing half: a
-   * click that lands before a pending `showDelayMs` elapses would otherwise
-   * still let the deferred show fire, painting the tooltip over the surface
-   * that just opened.
-   *
-   * Default `false` = pointerdown is not observed at all (0.1.x behaviour).
-   *
-   * RELATION TO PLATFORM LIGHT-DISMISS (0.7.0). A `hint` popover is
-   * light-dismissed by a click outside it — confirmed by probe 2026-08-04, and
-   * accepted rather than worked around: a click dismissing a hover tooltip is
-   * standard behaviour and can only shorten a tooltip's life. That path is
-   * distinct from this prop in two ways that matter:
-   *   - it does NOT set the until-you-leave-and-return suppression. That
-   *     remains this prop's contract, and it is the half that stops a deferred
-   *     `showDelayMs` show from firing on top of whatever the click opened;
-   *   - it cannot fire before the panel is up. A click during a pending
-   *     `showDelayMs` has no open popover to dismiss, so the deferred show
-   *     still fires — unchanged from 0.6.0. Only this prop suppresses it.
+   * Pointerdown on the trigger hides and suppresses re-show until the pointer leaves and
+   * returns, so a pending `showDelayMs` can't paint over what the click opened. Default `false`.
    */
   hideOnPointerDown?: boolean;
 
   /**
-   * Refuse to show while any native popover other than a tooltip panel is open
-   * in the browser's top layer.
-   *
-   * `hideOnPointerDown` covers the click that opens a menu; this covers the
-   * opens it cannot see — keyboard activation, programmatic opens, a surface
-   * opened from elsewhere on the page.
-   *
-   * WHAT IT IS FOR NOW (0.7.0). It is no longer "the panel would be
-   * invisible": the panel is promoted into the top layer itself and paints
-   * above an open popover. Two things keep this prop meaningful:
-   *   - the DEGRADED path. Where `showPopover` is unavailable, or promotion
-   *     throws, the panel really is ordinary stacking content again and really
-   *     does end up under the open surface. This is the only control that
-   *     prevents that;
-   *   - DEFERENCE as a choice. A consumer may simply not want a hover tooltip
-   *     competing for attention with a menu or dialog the user deliberately
-   *     opened, even though it would paint fine.
-   *
-   * Tooltip panels are excluded from the check (`_internal/topLayer.ts`), so
-   * one visible tooltip never suppresses another — that was a real 0.6.0 bug,
-   * fixed in the commit before this one.
-   *
-   * Default `false`, and deliberately so despite being a bug fix: the check is
-   * document-global, so defaulting it on would silently break a KvTooltip
-   * rendered INSIDE an open popover or dialog — a legitimate existing usage
-   * that would simply stop showing tooltips. Opt in from the surface that
-   * actually has the collision.
+   * Don't show while a non-tooltip popover is open. Covers the degraded no-top-layer path and
+   * deliberate deference. Default `false`: the check is document-global and would break
+   * tooltips inside popovers.
    */
   suppressWhileTopLayerOpen?: boolean;
 
   /**
-   * Hide the panel when anything on the page scrolls.
-   *
-   * The panel is `position: fixed` at a point captured on hover, so scrolling
-   * a list underneath it strands it mid-air describing a row that has moved
-   * on. Scrolling produces no mouseleave, so nothing else dismisses it.
-   *
-   * This is the *hide* half of the scroll contract. The *recompute* half is
-   * unconditional and needs no prop: any position — anchored or cursor —
-   * re-derives on scroll, so an `anchor` passed as an accessor tracks its
-   * element down the page on its own. Reach for `hideOnScroll` when the
-   * content itself goes stale (a row tooltip whose row scrolled away), not
-   * merely to keep the geometry honest.
-   *
-   * Default `false` = 0.1.x behaviour (the panel stays put).
+   * Hide on any scroll: a fixed panel otherwise strands beside a row that moved. Position
+   * re-derives on scroll regardless; use this when the content goes stale. Default `false`.
    */
   hideOnScroll?: boolean;
 
@@ -570,83 +337,25 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
   role?: 'tooltip' | 'status';
 
   /**
-   * The tooltip's text for assistive technology — what a screen-reader user
-   * gets instead of the panel.
-   *
-   * WHY THIS EXISTS. The panel is `<Portal>`-rendered, mounted only while
-   * hovered, and nothing references it, so `role="tooltip"` on it announces
-   * NOTHING: a tooltip role is only spoken through a `aria-describedby`
-   * relationship from the described element. That made this component a
-   * strictly-worse replacement for a native `title` for anyone not using a
-   * mouse — and a consumer cannot keep BOTH (a native `title` and this
-   * component fire two competing popups on the same hover). So the accessible
-   * text has to come from here.
-   *
-   * Absent → derived from `entries` ("key: value" per pair). An
-   * `extraContent`-only tooltip has no derivable text (the content is
-   * arbitrary JSX this component will not stringify) and MUST pass this
-   * explicitly, or it stays mouse-only.
+   * Screen-reader text, via `aria-describedby` (the portalled panel is unreachable). Defaults
+   * to "key: value" pairs; `extraContent`-only tooltips MUST pass it or stay mouse-only.
    */
   description?: string;
   /**
-   * Opt out of the accessible-description machinery entirely (hidden node,
-   * `aria-describedby`, focus/Escape handling): `false` restores the 0.2.x
-   * mouse-only behaviour.
-   *
-   * Default `true`. It is on by default deliberately — an a11y contract that
-   * every consumer must remember to opt into is the contract that gets
-   * forgotten, which is exactly how this component shipped without one.
+   * `false` opts out of the accessible-description machinery (0.2.x mouse-only). On by
+   * default: an opt-in a11y contract gets forgotten.
    */
   describeTrigger?: boolean;
   /**
-   * Whether the wrapper takes `tabindex="0"` so a keyboard user can reach the
-   * tooltip.
-   *
-   * Default: AUTO — the wrapper becomes focusable only when it contains no
-   * focusable element of its own. A trigger that is already a button/link/
-   * input must not gain a second tab stop wrapping it, and a plain text or
-   * icon trigger is unreachable without one. Pass `true`/`false` to force it.
+   * Wrapper `tabindex="0"`. Default AUTO: focusable only when it contains no focusable
+   * element, so a wrapped control keeps one tab stop.
    */
   focusable?: boolean;
 
   /**
-   * How the wrapper element itself lays out.
-   *
-   * `'text'` (default) is the 0.1.x–0.3.x behaviour: an inline box with
-   * `overflow: hidden` + `text-overflow: ellipsis`, which is right for wrapping
-   * a run of TEXT and wrong for anything else — wrapping a flex-child button in
-   * it makes the wrapper the flex item, re-sizes it as inline content, and
-   * clips the child's focus ring.
-   *
-   * `'control'` is the layout-neutral mode for wrapping an existing element
-   * (button, icon, badge): `display: inline-flex`, no overflow rule, so the
-   * child keeps its own box and the wrapper adds no clipping. Use it whenever
-   * the trigger is a control rather than prose.
-   *
-   * `'block'` fills the parent's content box (`display: block; width: 100%`).
-   * It exists for the one container that CANNOT be wrapped from outside: a
-   * table cell. `<span><td>…</td></span>` is not parseable — the HTML parser
-   * hoists any non-cell element out of the row — so the tooltip has to live
-   * inside the cell. A plain inline wrapper then covers only the text, leaving
-   * the cell's padding dead to hover, which is a real loss on a data table. In
-   * `'block'` mode the caller moves the cell's own padding onto this wrapper
-   * (cell padding to 0, same padding class passed via `class`) and the hover
-   * surface becomes the whole cell again.
-   *
-   * `'contents'` removes the wrapper from layout entirely (`display: contents`)
-   * — the child becomes the parent's own flex/grid item, which nothing else can
-   * reproduce. The trade-off is that a boxless wrapper cannot host a focus ring
-   * or a tab stop, so `focusable` is ignored in this mode and the CHILD must be
-   * focusable for the keyboard path to work.
-   *
-   * Two facts about `'contents'`, verified in Chromium 2026-07-29 rather than
-   * assumed, because the mode is useless if either is false:
-   *   - hover still works: `mouseenter`/`mouseleave` ARE dispatched to a
-   *     boxless ancestor when the pointer enters its child, so the wrapper's
-   *     listeners fire exactly as in the other modes;
-   *   - the wrapper's own `getBoundingClientRect()` is all zeros. Never derive
-   *     an `anchor` from the wrapper element in this mode — anchor to the CHILD,
-   *     or stay in cursor placement.
+   * Wrapper layout: `text` (inline, ellipsis), `control` (inline-flex, no clipping), `block`
+   * (fills a table cell; move cell padding here), `contents` (boxless; child must be
+   * focusable, never anchor to the wrapper).
    */
   wrapperLayout?: 'text' | 'control' | 'contents' | 'block';
 
@@ -655,11 +364,7 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
   portalTarget?: HTMLElement;
 }
 
-/**
- * Visually hidden, still read by assistive tech. Inline (not a CSS class) on
- * purpose: the description must not become visible text in a consumer that
- * forgot to import the package stylesheet.
- */
+/** Visually hidden. Inline, not a class, so it stays hidden without the package stylesheet. */
 const SR_ONLY_STYLE: JSX.CSSProperties = {
   position: 'absolute',
   width: '1px',
@@ -676,13 +381,12 @@ const SR_ONLY_STYLE: JSX.CSSProperties = {
 const FOCUSABLE_SELECTOR =
   'a[href], button, input, select, textarea, [contenteditable=""], [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 
+/** The attributes `FOCUSABLE_SELECTOR` reads — a change to any of them can flip the AUTO probe. */
+const FOCUSABLE_ATTRIBUTES = ['href', 'contenteditable', 'tabindex'];
+
 /**
- * Wrapper box per `wrapperLayout`. `'text'` keeps the historical inline+ellipsis
- * rule; the other two exist so wrapping a control does not reflow or clip it.
- * `position: relative` is deliberately absent from the non-text modes: the panel
- * is `position: fixed` in a Portal, so the wrapper is not its containing block
- * and relative positioning only risks creating a stacking context the consumer
- * did not ask for.
+ * No `position: relative` outside `text`: the portalled fixed panel doesn't need a
+ * containing block, and it could create an unwanted stacking context.
  */
 function wrapperStyle(layout: 'text' | 'control' | 'contents' | 'block'): JSX.CSSProperties {
   if (layout === 'contents') return { display: 'contents' };
@@ -717,31 +421,36 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     filterEntries(props.entries, props.showEmpty ?? false),
   );
 
-  const shouldShow = (): boolean => !(props.disabled ?? false) && (filtered().length > 0 || props.extraContent !== undefined);
+  // Gated on the list the panel RENDERS, so a `freezeOnShow` hold covers visibility as well as content.
+  const shouldShow = (): boolean => !(props.disabled ?? false) && (panelEntries().length > 0 || props.extraContent !== undefined);
   const interactive = (): boolean => props.interactive ?? false;
   const hideDelayMs = (): number => props.hideDelayMs ?? 100;
   const showDelayMs = (): number => props.showDelayMs ?? 0;
 
   /**
-   * The panel's POSITION is pinned for the lifetime of a show when either the
-   * caller asked (`freezeOnShow`) or the panel is INTERACTIVE.
-   *
-   * Interactive forces it because a cursor-anchored panel is otherwise
-   * unreachable: the panel sits at cursor + `mouseOffsetX/Y`, and Solid
-   * propagates DELEGATED events (mousemove among them) out of a `<Portal>` to
-   * the logical JSX parent — this wrapper. So moving onto the panel fires the
-   * wrapper's `onMouseMove`, which moves the panel to the new cursor position,
-   * which moves it out from under the pointer, forever. A panel you are meant
-   * to click cannot also be a moving target.
+   * Position pinned per show when `freezeOnShow` or interactive: Solid propagates delegated
+   * mousemove out of the Portal, so an interactive panel would chase the pointer forever.
    */
   const positionFrozen = (): boolean => (props.freezeOnShow ?? false) || interactive();
   /** CONTENT freezing stays opt-in — an interactive panel may still want live
    *  values, it just may not move. */
   const contentFrozen = (): boolean => props.freezeOnShow ?? false;
 
+  /**
+   * Focus target when shown by focus with no pointer on the trigger; the cursor point is stale
+   * then, so the panel anchors here.
+   */
+  const [focusTarget, setFocusTarget] = createSignal<Element | null>(null);
+  let pointerOnTrigger = false;
+  const effectiveAnchor = (): KvTooltipAnchor | undefined => {
+    if (props.anchor !== undefined) return props.anchor;
+    const el = focusTarget();
+    return el ? () => el.getBoundingClientRect() : undefined;
+  };
+
+  const [frozen, setFrozen] = createSignal<FrozenSnapshot | null>(null);
   // `on(visible, …)` runs its callback untracked, so taking the snapshot does
   // NOT subscribe this effect to the very sources it is snapshotting.
-  const [frozen, setFrozen] = createSignal<FrozenSnapshot | null>(null);
   createEffect(
     on(visible, (v) => {
       if (!v || !positionFrozen()) {
@@ -749,7 +458,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
         return;
       }
       const m = mouse();
-      setFrozen({ entries: filtered(), x: m.x, y: m.y, anchor: resolveAnchor(props.anchor) });
+      setFrozen({ entries: filtered(), x: m.x, y: m.y, anchor: resolveAnchor(effectiveAnchor()) });
     }),
   );
 
@@ -766,13 +475,13 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     const f = frozen();
     // A frozen null anchor means "was never anchored" — stay in cursor mode
     // rather than falling back to the live prop, which would unfreeze it.
-    return f ? (f.anchor ?? undefined) : props.anchor;
+    return f ? (f.anchor ?? undefined) : effectiveAnchor();
   };
 
-  // Hover-intent state machine — extracted to _internal/hoverIntent.ts so the
-  // logic is unit-testable without mounting JSX. Non-interactive callers see
-  // instant hide (preserved behavior); interactive mode debounces by
-  // hideDelayMs and cancels on either trigger or panel re-entry.
+  /** The single "a panel is on screen" predicate: the `<Show>` gate and the Escape listener must agree. */
+  const panelOnScreen = createMemo(() => visible() && shouldShow());
+
+  // Hover-intent lives in _internal/hoverIntent.ts so it's unit-testable without JSX.
   const hoverIntent = createHoverIntent({
     setVisible,
     shouldShow,
@@ -786,9 +495,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   onCleanup(hoverIntent.cleanup);
 
   // ── hideOnScroll ──────────────────────────────────────────────────────────
-  // Installed here rather than in the panel because the panel only exists
-  // while visible, and the listener is shared process-wide anyway. `defer`
-  // skips the run at creation time — only a real scroll should dismiss.
+  // Installed here, not in the transient panel; `defer` skips the creation run.
   ensureViewportListeners();
   createEffect(
     on(
@@ -801,11 +508,8 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   );
 
   // ── Accessible description ────────────────────────────────────────────────
-  // The hidden node is the ONLY thing a screen reader can reach (the panel is
-  // portalled, transient, and unreferenced). It is always mounted so
-  // `aria-describedby` never dangles, and it is what makes this component a
-  // legitimate replacement for a native `title` rather than a mouse-only
-  // decoration.
+  // The hidden node is all a screen reader can reach; always mounted so
+  // `aria-describedby` never dangles.
   const describeTrigger = (): boolean => props.describeTrigger ?? true;
   const descriptionId = createUniqueId();
   const description = (): string => {
@@ -814,22 +518,43 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     if (explicit) return explicit;
     return describeEntries(filtered());
   };
-  const hasDescription = (): boolean => description().length > 0;
+  const hasDescription = createMemo(() => description().length > 0);
 
   let wrapperEl: HTMLSpanElement | undefined;
 
+  // Bumped on any DOM change under the wrapper that the trigger probes below
+  // depend on, so they follow the live trigger rather than only prop changes.
+  const [triggerDomTick, setTriggerDomTick] = createSignal(0);
+  onMount(() => {
+    if (!wrapperEl) return;
+    const observer = new MutationObserver(() => setTriggerDomTick((n) => n + 1));
+    observer.observe(wrapperEl, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: FOCUSABLE_ATTRIBUTES,
+    });
+    onCleanup(() => observer.disconnect());
+    // The wrapper only has children once rendered; seed the memo below.
+    setTriggerDomTick((n) => n + 1);
+  });
+
   /**
-   * `aria-describedby` is NOT inherited: a screen reader announces the element
-   * the user is on, so the attribute has to sit on the trigger the user
-   * actually reaches. That is the wrapper when the trigger is inert text/an
-   * icon, but the CHILD when the caller wrapped a real control — announcing a
-   * button reads the button's own describedby, never its parent's. So both get
-   * it, and the child's existing ids are preserved rather than overwritten.
+   * The live trigger element. Memo equality absorbs the wrapper churn the observer
+   * reports — Solid's Portal marker enters and leaves on every show.
+   */
+  const triggerChild = createMemo<HTMLElement | null>(() => {
+    triggerDomTick();
+    return (wrapperEl?.firstElementChild as HTMLElement | null) ?? null;
+  });
+
+  /**
+   * `aria-describedby` isn't inherited, so it goes on the wrapper AND the child control users
+   * actually reach, preserving the child's existing ids.
    */
   createEffect(() => {
-    const el = wrapperEl;
-    if (!el || !hasDescription()) return;
-    const child = el.firstElementChild as HTMLElement | null;
+    const child = triggerChild();
+    if (!hasDescription()) return;
     if (!child || child.id === descriptionId) return;
     const existing = (child.getAttribute('aria-describedby') ?? '')
       .split(/\s+/)
@@ -846,15 +571,15 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   });
 
   /**
-   * AUTO focusability: only wrap-level `tabindex` when the caller's own trigger
-   * has none, so a wrapped button keeps exactly one tab stop. Measured from the
-   * live DOM (a `<Show>`-gated control can appear later), not from the props.
+   * AUTO focusability, probed from the live DOM (a `<Show>`-gated control can appear later),
+   * so a wrapped button keeps one tab stop.
    */
   const [childFocusable, setChildFocusable] = createSignal(false);
   createEffect(() => {
     // Track the description so the probe re-runs on the same edges the wiring
     // above does; the DOM read itself is untracked by nature.
     hasDescription();
+    triggerDomTick();
     const el = wrapperEl;
     if (!el) return;
     setChildFocusable(el.querySelector(FOCUSABLE_SELECTOR) !== null);
@@ -862,9 +587,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   const wrapperLayout = (): 'text' | 'control' | 'contents' | 'block' => props.wrapperLayout ?? 'text';
   const wrapperTabIndex = (): number | undefined => {
     if (!describeTrigger() || !hasDescription()) return undefined;
-    // A `display: contents` wrapper generates no box, so a tab stop on it would
-    // be a focus target with nowhere to draw a focus ring — the child owns the
-    // keyboard path in that mode (see `wrapperLayout`).
+    // `display: contents` has no box to draw a focus ring; the child owns the keyboard path.
     if (wrapperLayout() === 'contents') return undefined;
     const forced = props.focusable;
     if (forced !== undefined) return forced ? 0 : undefined;
@@ -872,28 +595,11 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   };
 
   /**
-   * Escape dismisses a visible panel (WAI-ARIA tooltip pattern). Unconditional
-   * and un-propped: a panel the user cannot dismiss without moving the pointer
-   * is a keyboard trap over whatever it covers. Listener exists only while the
-   * panel does, so reaching the handler at all means there IS a visible panel
-   * and `hideNow()` genuinely consumes the key.
-   *
-   * LAYERING CONTRACT — why the consumed key is `preventDefault`ed. A tooltip
-   * is very often open on top of a menu, and both want Escape. The rule this
-   * establishes is innermost-first: the first Escape closes the tooltip, the
-   * second closes the menu. That works because this listener is CAPTURE-phase
-   * while `@cujuju/solidjs-anchored-popover`'s is bubble-phase and skips an
-   * event whose `defaultPrevented` is set — so marking the key consumed here
-   * is what keeps the menu open. Without it, one keypress would close both and
-   * the user would lose the surface they were reading in order to dismiss a
-   * tooltip about it.
-   *
-   * The platform would also close the `hint` on Escape by itself; that path
-   * stays as a backstop for controlled-mode panels, which have no wrapper and
-   * so never reach this handler.
+   * Escape dismisses a visible panel (WAI-ARIA). Capture phase + `preventDefault` makes it
+   * innermost-first: AnchoredPopover's bubble handler skips prevented events, so the menu survives.
    */
   createEffect(() => {
-    if (!visible()) return;
+    if (!panelOnScreen()) return;
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       hoverIntent.hideNow();
@@ -913,45 +619,45 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
       // Keyboard parity with hover: focus shows the panel, blur hides it.
       // `focusin`/`focusout` (not focus/blur) so focus landing on a CHILD
       // control counts — those bubble, focus/blur do not.
-      onFocusIn={() => {
-        if (describeTrigger()) hoverIntent.showNow();
+      onFocusIn={(e) => {
+        if (describeTrigger()) {
+          // A pointer on the trigger means the cursor point is fresh (e.g. a click focused it).
+          setFocusTarget(pointerOnTrigger ? null : (e.target as Element));
+          hoverIntent.showNow();
+        }
       }}
       onFocusOut={() => {
         if (describeTrigger()) hoverIntent.hideNow();
       }}
       onMouseEnter={(e) => {
-        // Seed the cursor point from the ENTER event, not the last mousemove.
-        // Without this the panel's first frame uses a stale point (or 0,0 on
-        // the very first hover) until a mousemove corrects it — invisible in
-        // live-follow mode, but `freezeOnShow` would capture that stale point
-        // and hold it for the whole show.
+        // Seed from the ENTER event: otherwise `freezeOnShow` captures a stale point (0,0 on first hover).
         setMouse({ x: e.clientX, y: e.clientY });
+        pointerOnTrigger = true;
+        setFocusTarget(null);
         hoverIntent.onTriggerEnter();
       }}
       onMouseMove={(e) => {
-        // Ignore moves that originated INSIDE the panel. Solid propagates
-        // delegated events out of the `<Portal>` to this logical parent, so
-        // without this guard the panel re-positions itself to a cursor that is
-        // already on top of it — and walks away from the pointer. The
-        // `positionFrozen` rule above is the primary fix; this keeps the
-        // tracking honest for any future unfrozen-but-hoverable configuration.
+        // Ignore moves from inside the panel: delegated events bubble out of the Portal, and the
+        // panel would walk away from the pointer. Backstop to `positionFrozen`.
         const target = e.target as Element | null;
         if (target?.closest?.('.ckv-panel')) return;
         setMouse({ x: e.clientX, y: e.clientY });
       }}
-      onMouseLeave={hoverIntent.onTriggerLeave}
+      onMouseLeave={() => {
+        pointerOnTrigger = false;
+        hoverIntent.onTriggerLeave();
+      }}
       onPointerDown={hoverIntent.onTriggerPointerDown}
     >
       {props.children}
-      {/* Always mounted (not gated on `visible`): a description that exists
-          only while hovered is a description a screen reader can never reach,
-          and `aria-describedby` must not point at a missing node. */}
+      {/* Always mounted: a hover-only description is unreachable by screen readers,
+                and `aria-describedby` must not dangle. */}
       <Show when={hasDescription()}>
         <span id={descriptionId} style={SR_ONLY_STYLE}>
           {description()}
         </span>
       </Show>
-      <Show when={visible() && shouldShow()}>
+      <Show when={panelOnScreen()}>
         <TooltipContent
           entries={panelEntries()}
           x={panelX()}
@@ -971,12 +677,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
           portalTarget={props.portalTarget}
           onPanelMouseEnter={hoverIntent.onPanelEnter}
           onPanelMouseLeave={hoverIntent.onPanelLeave}
-          // Platform dismissal resyncs the state machine: without this the
-          // wrapper would still believe it is showing a panel the browser has
-          // already taken away, and the next hover would be a no-op because
-          // `visible()` never went false. Unmounting also means the demoted,
-          // normal-stacking frame the toggle handler leaves behind lasts at
-          // most one paint.
+          // Resync on platform dismissal, or `visible()` stays true and the next hover is a no-op.
           onPlatformDismiss={hoverIntent.hideNow}
           anchor={panelAnchor()}
           placement={props.placement}
@@ -991,9 +692,8 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
 export interface KvTooltipPanelProps extends KvTooltipAnchoringProps {
   entries: Record<string, string>;
   /**
-   * Cursor / reference coordinates in viewport space. Ignored while `anchor`
-   * resolves to a rect; still required so a caller can drop `anchor` at
-   * runtime (unmounted anchor element) and fall back to point placement.
+   * Viewport coordinates. Ignored while `anchor` resolves; still required for the point
+   * fallback when the anchor unmounts.
    */
   x: number;
   y: number;
@@ -1014,25 +714,8 @@ export interface KvTooltipPanelProps extends KvTooltipAnchoringProps {
   role?: 'tooltip' | 'status';
 
   /**
-   * The browser closed the panel's popover out from under you. Set your own
-   * visibility state to false here.
-   *
-   * The panel is promoted into the top layer as a `hint` popover, and the
-   * platform owns that layer: it closes this panel when a second tooltip
-   * appears (one hint at a time), when an `auto` popover opens, on Escape, and
-   * on a click outside. None of those go through the caller, so without this
-   * callback the caller's `visible` flag drifts out of sync with what the user
-   * can actually see.
-   *
-   * DEFAULT WITHOUT THIS PROP (safe, not silent): the panel demotes to normal
-   * stacking and stays VISIBLE — the pre-0.6.0 `position: fixed; z-index`
-   * behaviour, painted under any open top-layer surface. It is never left
-   * mounted-but-invisible. So omitting this is a degradation, not a bug; pass
-   * it when you would rather the panel go away than sit under a menu.
-   *
-   * The panel is NOT re-promoted afterwards: two panels each re-promoting on
-   * the other's close would fight the platform's one-at-a-time rule forever.
-   * Unmount and re-mount to get the top layer back.
+   * The browser closed the popover (another hint, `auto` popover, Escape, outside click); set
+   * your visibility false. Without it the panel demotes and stays visible under top-layer surfaces.
    */
   onPlatformDismiss?: () => void;
 

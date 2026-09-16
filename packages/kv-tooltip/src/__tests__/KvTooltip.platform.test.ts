@@ -1,28 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
-import { createComponent, type JSX } from 'solid-js';
+import { createComponent, createSignal, type JSX } from 'solid-js';
 import { KvTooltip, KvTooltipPanel } from '../KvTooltip';
 import { isTopLayerSurfaceOpen } from '../_internal/topLayer';
 
 /**
- * PLATFORM CONTRACT (0.7.0 — `popover="hint"`).
- *
- * The panel is promoted into the browser's top layer, and the platform can
- * close it out from under us: another tooltip takes the single hint slot, an
- * `auto` popover opens, the user clicks outside or presses Escape. jsdom has no
- * Popover API at all, so what is testable HERE is deliberately not the
- * platform's behaviour (that is `playground/e2e/topLayer.spec.ts`) but OUR side
- * of the contract:
- *
- *   - the DEGRADED path — no `showPopover` at all — must render a working,
- *     visible tooltip and must never leave a `popover` attribute behind;
- *   - the `toggle` handler must demote + notify on a real close, ignore an
- *     open, and re-read the element rather than trusting a queued event;
- *   - Escape must be marked consumed only when it actually hid something.
- *
- * The handler is reachable here at all because the listener is attached
- * unconditionally in the ref (see KvTooltip.tsx) rather than only on a
- * successful promotion — that is what makes this file possible.
+ * Platform contract (`popover="hint"`). jsdom has no Popover API, so this tests OUR side: the
+ * degraded path, the `toggle` demote handler, and Escape consumption. Platform behaviour is e2e.
  */
 
 /** The private identity marker every panel carries; see `_internal/topLayer.ts`. */
@@ -76,12 +60,7 @@ function fire(el: EventTarget, type: 'mouseenter' | 'mouseleave'): void {
   el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: 100, clientY: 100 }));
 }
 
-/**
- * A `toggle` event carrying a `newState`. `ToggleEvent` does not exist in
- * jsdom, and `newState` is a readonly accessor on the real interface, so the
- * property is defined on a plain `Event` — which is exactly what the handler
- * reads.
- */
+/** jsdom lacks `ToggleEvent` and `newState` is readonly on the real one, so it's defined on a plain `Event`. */
 function toggleEvent(newState: string): Event {
   const e = new Event('toggle');
   Object.defineProperty(e, 'newState', { value: newState });
@@ -100,10 +79,8 @@ afterEach(() => {
 
 describe('degraded path (no Popover API — the jsdom case, and every old engine)', () => {
   it('renders the entries and leaves NO popover attribute behind', async () => {
-    // `[popover]:not(:popover-open)` is `display: none` in the UA sheet, so an
-    // attribute left on an element that never opened is an INVISIBLE tooltip —
-    // strictly worse than one painted under a menu. The attribute is therefore
-    // written only around a `showPopover()` that actually succeeded.
+    // `[popover]:not(:popover-open)` is `display: none`, so the attribute is written only around a
+    // successful `showPopover()`.
     expect(typeof (document.createElement('div') as HTMLElement).showPopover).not.toBe('function');
 
     const dispose = mount(() =>
@@ -133,13 +110,7 @@ describe('degraded path (no Popover API — the jsdom case, and every old engine
 });
 
 describe('the toggle handler (platform dismissal)', () => {
-  /**
-   * Mount a controlled panel with a spy for `onPlatformDismiss`, then put it in
-   * the state a SUCCESSFUL promotion would have left it in. jsdom cannot
-   * promote anything, so the attribute is set by hand — the handler's contract
-   * is about the attribute and the callback, not about how the attribute got
-   * there.
-   */
+  /** Mount a controlled panel and set the attribute a successful promotion would leave; jsdom can't promote. */
   function mountPromotedPanel(): {
     panel: HTMLElement;
     onPlatformDismiss: ReturnType<typeof vi.fn>;
@@ -186,11 +157,8 @@ describe('the toggle handler (platform dismissal)', () => {
   });
 
   it('re-reads the element instead of trusting the event: a still-open popover is NOT demoted', () => {
-    // `toggle` is QUEUED, so a close and a re-open inside one task can arrive as
-    // one event. Acting on the event alone would strip the attribute off a
-    // popover that is currently open — i.e. hide a visible tooltip. jsdom
-    // cannot express `:popover-open`, so the ONLY way to exercise the
-    // still-open branch is to answer the selector the way a real engine would.
+    // `toggle` is queued, so close+reopen can arrive as one event. jsdom can't express
+    // `:popover-open`, so the selector answer is stubbed.
     const { panel, onPlatformDismiss, dispose } = mountPromotedPanel();
     const matches = vi
       .spyOn(panel, 'matches')
@@ -206,9 +174,7 @@ describe('the toggle handler (platform dismissal)', () => {
   });
 
   it('an engine that cannot parse :popover-open is treated as "not open"', () => {
-    // jsdom throws SyntaxError on the pseudo-class. That engine cannot have put
-    // anything in the top layer either, so the safe branch is to demote — which
-    // can only make the panel MORE visible.
+    // jsdom throws on the pseudo-class; such an engine has nothing in the top layer, so demoting is safe.
     const { panel, onPlatformDismiss, dispose } = mountPromotedPanel();
     expect(() => panel.matches(':popover-open')).toThrow();
 
@@ -221,13 +187,8 @@ describe('the toggle handler (platform dismissal)', () => {
   });
 
   it('a repeated close notifies again — de-duplication is the OWNER\'s job', () => {
-    // Pinning implemented behaviour, not endorsing a design: the handler has no
-    // "already dismissed" memory, so a second `toggle('closed')` on a panel the
-    // caller left mounted calls back a second time. Both consumers are
-    // idempotent — the wrapper passes `hideNow` (which just re-asserts
-    // `visible = false`), and a controlled caller sets its own flag false. If
-    // that ever stops being true, this test is where the assumption is written
-    // down.
+    // Pins current behaviour: no "already dismissed" memory, so a second close calls back again.
+    // Both consumers are idempotent.
     const { panel, onPlatformDismiss, dispose } = mountPromotedPanel();
 
     panel.dispatchEvent(toggleEvent('closed'));
@@ -240,10 +201,7 @@ describe('the toggle handler (platform dismissal)', () => {
   });
 
   it('the wrapper resyncs: a platform close UNMOUNTS the panel', () => {
-    // The wrapper passes `hideNow`, so the demoted frame the handler leaves
-    // behind lasts at most one paint. Without this the wrapper would still
-    // believe it is showing a panel the browser took away, and the next hover
-    // would be a no-op because `visible()` never went false.
+    // Wrapper passes `hideNow`; otherwise `visible()` stays true and the next hover is a no-op.
     const { trigger, dispose } = mountWrapper();
 
     fire(trigger, 'mouseenter');
@@ -265,10 +223,8 @@ describe('Escape (the layering contract)', () => {
   }
 
   it('marks the key CONSUMED when it actually hid a visible panel', () => {
-    // A tooltip is very often open on top of a menu and both want Escape.
-    // `preventDefault` is what makes the rule innermost-first: AnchoredPopover's
-    // bubble-phase handler skips a defaultPrevented event, so the first Escape
-    // kills the tooltip and the second kills the menu.
+    // `preventDefault` makes Escape innermost-first: AnchoredPopover's bubble handler skips
+    // prevented events, so the menu survives.
     const { trigger, dispose } = mountWrapper();
 
     fire(trigger, 'mouseenter');
@@ -289,21 +245,40 @@ describe('Escape (the layering contract)', () => {
 
     dispose();
   });
+
+  it('leaves the key alone when the panel was withdrawn mid-show (disabled flipped)', () => {
+    // The panel unmounts without a hover-intent hide, so `visible` alone is
+    // not proof that anything is on screen.
+    const [disabled, setDisabled] = createSignal(false);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const dispose = render(
+      () =>
+        createComponent(KvTooltip, {
+          entries: { Bid: '1.00' },
+          get disabled() { return disabled(); },
+          children: 'trigger',
+        }),
+      container,
+    );
+    const trigger = container.querySelector('span')!;
+
+    fire(trigger, 'mouseenter');
+    expect(getPanel()).not.toBeNull();
+
+    setDisabled(true);
+    expect(getPanel()).toBeNull();
+    expect(pressEscape()).toBe(false);
+
+    dispose();
+    container.remove();
+  });
 });
 
 describe('the top-layer probe excludes our own panels', () => {
   it('queries with a :not([data-ckv-tooltip-panel]) exclusion', () => {
-    // The 0.6.0 self-poisoning bug: promoting our own panel made it match the
-    // bare `[popover]:popover-open`, so any visible tooltip reported "a
-    // top-layer surface is open" and `suppressWhileTopLayerOpen` degenerated
-    // into "only one tooltip on the page, ever".
-    //
-    // jsdom cannot parse `:popover-open`, so the BEHAVIOUR is e2e's job (T8 /
-    // T8b in `playground/e2e/topLayer.spec.ts`). What is lockable here is the
-    // query the helper actually issues — read from the seam the helper uses
-    // rather than from the module's private constant, so a refactor that stops
-    // going through `document.querySelector` fails loudly instead of passing on
-    // a string nobody reads any more.
+    // 0.6.0 bug: our promoted panel matched `[popover]:popover-open`, so tooltips suppressed each
+    // other. jsdom can't parse it; lock the issued query (behaviour is e2e).
     const spy = vi.spyOn(document, 'querySelector').mockReturnValue(null);
 
     isTopLayerSurfaceOpen();

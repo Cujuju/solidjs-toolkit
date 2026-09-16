@@ -8,17 +8,8 @@ import {
 } from '../clamp';
 
 /**
- * Contract tests for anchored placement.
- *
- * These test `placeAgainstRect` — the pure kernel — rather than the reactive
- * `createClampedPosition` wrapper, because the contract IS the geometry: given
- * a rect, a panel size, and a viewport, where does the panel land? The wrapper
- * only decides which mode to route to and what to subscribe to.
- *
- * The invariant every case below asserts is the one anchored mode exists for:
- * **the panel never overlaps its own anchor.** The pre-0.2.0 clamp violated it
- * at the top edge — it hard-clamped `y` to `edgePadPx` with no flip, sliding
- * the panel down onto the element it describes.
+ * Contract tests for `placeAgainstRect`. Invariant: the panel never overlaps its anchor (the
+ * pre-0.2.0 clamp slid it onto the anchor at the top edge).
  */
 
 const PANEL_W = 200;
@@ -51,9 +42,8 @@ function place(
 }
 
 /**
- * The load-bearing assertion. Vertical separation is what keeps the tooltip
- * clear of a popover opening from the same trigger, so it is checked as a
- * strict band test, not a generic rect-intersection test.
+ * Load-bearing: strict vertical band test, since vertical separation keeps the tooltip clear
+ * of a popover from the same trigger.
  */
 function expectNoAnchorOverlap(
   pos: { x: number; y: number },
@@ -302,5 +292,72 @@ describe('createClampedPosition — anchored mode', () => {
     const pos = anchored(() => null);
     // Cursor mode at (0,0) with the default offsets.
     expect(pos()).toEqual({ x: 12, y: 16 });
+  });
+});
+
+describe('createClampedPosition — viewport measurement', () => {
+  it('clamps against the scrollbar-free viewport a fixed panel is placed into', () => {
+    // `innerWidth/innerHeight` include classic scrollbars; the fixed-position
+    // containing block (`documentElement.clientWidth/Height`) does not.
+    const SCROLLBAR_PX = 17;
+    const OFFSET_X = 12;
+    const OFFSET_Y = 16;
+    const root = document.documentElement;
+    const mx = 790;
+    const my = 640;
+    const pos = createClampedPosition({
+      getX: () => mx,
+      getY: () => my,
+      getW: () => PANEL_W,
+      getH: () => PANEL_H,
+      hysteresisPx: 0,
+      edgePadPx: EDGE_PAD,
+      mouseOffsetX: OFFSET_X,
+      mouseOffsetY: OFFSET_Y,
+    });
+    // Sanity: measured with the scrollbars included, neither axis overflows.
+    expect(mx + OFFSET_X + PANEL_W).toBeLessThanOrEqual(window.innerWidth - EDGE_PAD);
+    expect(my + OFFSET_Y + PANEL_H).toBeLessThanOrEqual(window.innerHeight - EDGE_PAD);
+
+    Object.defineProperty(root, 'clientWidth', { configurable: true, value: window.innerWidth - SCROLLBAR_PX });
+    Object.defineProperty(root, 'clientHeight', { configurable: true, value: window.innerHeight - SCROLLBAR_PX });
+    window.dispatchEvent(new Event('resize'));
+    try {
+      expect(pos()).toEqual({ x: mx - PANEL_W - OFFSET_X, y: my - PANEL_H - OFFSET_Y / 2 });
+    } finally {
+      delete (root as { clientWidth?: number }).clientWidth;
+      delete (root as { clientHeight?: number }).clientHeight;
+      window.dispatchEvent(new Event('resize'));
+    }
+  });
+
+  it('re-reads the viewport per show, with no resize event', () => {
+    // A classic scrollbar appears when content grows past the fold; that fires
+    // no resize, so a viewport read once at import stays stale for the app's life.
+    const SCROLLBAR_PX = 17;
+    const OFFSET_X = 12;
+    const OFFSET_Y = 16;
+    const root = document.documentElement;
+    const mx = 790;
+    const my = 640;
+    Object.defineProperty(root, 'clientWidth', { configurable: true, value: window.innerWidth - SCROLLBAR_PX });
+    Object.defineProperty(root, 'clientHeight', { configurable: true, value: window.innerHeight - SCROLLBAR_PX });
+    try {
+      const pos = createClampedPosition({
+        getX: () => mx,
+        getY: () => my,
+        getW: () => PANEL_W,
+        getH: () => PANEL_H,
+        hysteresisPx: 0,
+        edgePadPx: EDGE_PAD,
+        mouseOffsetX: OFFSET_X,
+        mouseOffsetY: OFFSET_Y,
+      });
+      expect(pos()).toEqual({ x: mx - PANEL_W - OFFSET_X, y: my - PANEL_H - OFFSET_Y / 2 });
+    } finally {
+      delete (root as { clientWidth?: number }).clientWidth;
+      delete (root as { clientHeight?: number }).clientHeight;
+      window.dispatchEvent(new Event('resize'));
+    }
   });
 });

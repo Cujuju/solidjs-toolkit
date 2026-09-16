@@ -2,15 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { isTopLayerSurfaceOpen } from '../_internal/topLayer';
 
 /**
- * jsdom (v24) does not implement the Popover API and rejects the
- * `:popover-open` pseudo-class with a SyntaxError. That is precisely the
- * unsupported-engine path this helper has to survive: a thrown selector must
- * degrade to "nothing is open", never propagate out of a hover handler and
- * break the whole tooltip.
- *
- * These tests therefore assert the SAFE-FALLBACK contract, not the positive
- * detection — a positive case is not expressible in this environment. The
- * positive path is verified in the playground against a real browser.
+ * jsdom rejects `:popover-open` with SyntaxError — the unsupported-engine path. Asserts the safe
+ * fallback ("nothing open"); positive detection is verified in a real browser.
  */
 describe('isTopLayerSurfaceOpen', () => {
   it('never throws, even where :popover-open is not a supported selector', () => {

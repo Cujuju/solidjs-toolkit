@@ -23,19 +23,10 @@
 
 .ckv-panel {
   position: fixed;
-  /* Load-bearing on TWO paths, not just the fallback (see promoteToTopLayer):
-     where `showPopover` is unavailable the panel never enters the top layer at
-     all, and where the PLATFORM dismisses the panel it is demoted back out of
-     it — the toggle handler drops the `popover` attribute so the element stays
-     visible here rather than becoming `display: none`. While the panel is in
-     the top layer this value is not consulted, since that layer sits above
-     every stacking context rather than inside one. */
+  /* Used on the degraded and platform-demoted paths; ignored while in the top layer. */
   z-index: 9999;
-  /* Neutralise the UA's `[popover]` box. The popover attribute is on this
-     element for ONE reason — the top layer, as a `hint`-type popover — and its
-     default styling would otherwise centre the panel with `inset: 0; margin:
-     auto` and repaint the border, discarding the measured position the clamp
-     just computed. */
+  /* Neutralise the UA `[popover]` box (`inset: 0; margin: auto`, border), which would discard
+       the clamped position. */
   margin: 0;
   inset: auto;
   overflow: visible;
@@ -49,14 +40,8 @@
   pointer-events: none;
 }
 
-/* The data-interactive attribute is set by KvTooltip.tsx based on the
-   `interactive` prop. This rule + the JS hover-intent state machine in
-   _internal/hoverIntent.ts together implement the interactive-tooltip
-   contract — both layers must agree.
-
-   Regression lock: KvTooltip.integration.test.ts asserts the data-attribute
-   is set iff interactive=true. If a future refactor renames the attribute,
-   that test fails and surfaces the CSS / JS contract drift before merge. */
+/* Set from the `interactive` prop; must agree with hoverIntent.ts. Locked by
+   KvTooltip.integration.test.ts. */
 .ckv-panel[data-interactive="true"] {
   pointer-events: auto;
 }
@@ -91,9 +76,7 @@
   border-top: 1px solid var(--kv-separator-color);
 }
 
-/* No entry rows above it (entries empty / extraContent-only panel) → there is
-   nothing to divide from; an unconditional separator renders as an orphan rule
-   at the top of the panel. Suppress it when .ckv-extra is the first child. */
+/* Extra-only panel: no rows above, so the separator would be an orphan rule. */
 .ckv-extra:first-child {
   margin-top: 0;
   padding-top: 0;
