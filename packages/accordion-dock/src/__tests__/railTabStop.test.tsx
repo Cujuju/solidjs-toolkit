@@ -202,9 +202,8 @@ describe('the tab stop under rail overflow', () => {
       expect(m.buttons().some((el) => el.getAttribute(RAIL_ITEM_ATTR) === 'a')).toBe(false);
       expect(m.stops()).toEqual(['b']);
     });
-    // The button that had focus unmounted; the ⋯ trigger now stands in for its panel.
-    // Passing also proves the ownership sample survives the removal: read afterwards,
-    // `document.activeElement` is `<body>` and the latch is the only witness left.
+    // The focused button unmounted; the ⋯ trigger now stands in for its panel. Passing also
+        // proves the ownership sample survives removal — `document.activeElement` is `<body>` afterwards.
     expect(document.activeElement).toBe(m.trigger());
     m.dispose();
   });

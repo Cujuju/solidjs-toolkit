@@ -1,20 +1,12 @@
 /*
- * Breadcrumb chrome for the accordion-dock mock.
- *
- * Separate file only because `styles.css` is owned elsewhere while this lands;
- * it is meant to be folded in on promotion. Every colour, radius and metric
- * comes from an existing --acc-* token so the bar cannot drift from the dock it
- * describes — the two new tokens below are declared on the bar itself, not on
- * :root, so they stay overridable per instance without widening the group's
- * global token surface.
+ * Breadcrumb chrome. A separate file only because `styles.css` is owned elsewhere; meant to
+ * be folded in on promotion. Every value comes from an existing --acc-* token.
  */
 
 .acc-breadcrumb {
-  /* Cap on ONE crumb's label. The elision handles "too many crumbs"; this
-     handles "one crumb with an absurd label", which elision cannot: a single
-     600px filename would blow out the bar no matter how few crumbs there are.
-     Sized just under the default column width (--acc-col-width: 230px) so a
-     crumb never claims more room than the column it stands for. */
+  /* Cap on ONE crumb's label — the elision handles "too many crumbs", this handles one
+       absurd label. Sized just under --acc-col-width, so a crumb never claims more room than
+       its column. */
   --acc-crumb-max-width: 180px;
   /* Gap around a separator. Half the header padding: the separator is a joint
      between two labels, not a boundary between two regions, so it reads wrong
@@ -105,9 +97,8 @@ button.acc-breadcrumb-crumb:focus-visible {
   font-weight: var(--acc-title-weight);
 }
 
-/* The leaf is a different KIND of thing from the folders before it — a detail
-   pane, not another column of choices. It reuses the panel accent so the crumb
-   and the pane it names are visibly the same object. */
+/* The leaf is a different KIND of thing from the folders before it — a detail pane, not
+   another column of choices. It reuses the panel accent. */
 .acc-breadcrumb-crumb[data-leaf='true'] {
   color: var(--acc-accent);
 }

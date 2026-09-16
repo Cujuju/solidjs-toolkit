@@ -7,23 +7,8 @@ import {
 } from '../tearOff';
 
 /**
- * Tear-off, smoke-tested against a stubbed `window.open`.
- *
- * WHAT THIS DOES AND DOES NOT PROVE
- *
- * It proves the WIRING: that a tear-off opens a window and flips the signal, that
- * a blocked popup leaves the panel docked, that every route home funnels through
- * one close path, that geometry round-trips through storage, and that an opener
- * unloading takes its popups with it. Those are the parts that can be wrong in a
- * way no typechecker sees, and until now the whole module had never been executed
- * at all — not by a test and not by a user, because no demo card set
- * `tearOffable`, so the button that calls it did not render anywhere.
- *
- * It does NOT prove the cross-document rendering works. Whether a Portal's nodes
- * survive being re-parented into a real popup document, whether cloned stylesheets
- * paint there, and whether delegated events fire in a foreign document are all
- * properties of a real browser engine. jsdom has no rendering, so a green run here
- * is necessary and not sufficient — the browser check is still owed.
+ * Tear-off, smoke-tested against a stubbed `window.open`. Proves the WIRING only; jsdom has no
+ * rendering. See DESIGN_NOTES.md § src/__tests__/tearOff.test.ts:9.
  */
 
 /** Minimum window extent the geometry sampler will accept. Anything smaller is
@@ -48,10 +33,8 @@ interface FakeWindow {
 }
 
 function fakeWindow(): FakeWindow {
-  // A REAL document, not a mock: `prepareDocument` appends a <base>, sets the
-  // title, styles the body, clones stylesheets and installs a script element. A
-  // stub with fake head/body would pass while telling us nothing about whether
-  // those steps work on a document.
+  // A REAL document, not a mock: `prepareDocument` appends a `<base>`, clones stylesheets
+    // and installs a script. A stub with fake head/body would pass while telling us nothing.
   const doc = document.implementation.createHTMLDocument('');
   const listeners = new Map<string, Set<() => void>>();
   return {
@@ -147,13 +130,9 @@ describe('createTearOff — opening', () => {
   });
 
   it('leaves the popup body carrying the panel FRAME', () => {
-    // Regression: `syncStyles` mirrors the opener's root attributes onto the
-    // popup, and its reconciliation loop removed any attribute the opener lacked
-    // — including `style`. Since a normal page's <body> has no inline style, the
-    // frame set moments earlier in `prepareDocument` was wiped, leaving a panel
-    // that did not fill its window inside a document that scrolled.
-    //
-    // `0px` not `0`: the CSSOM normalises the shorthand on read.
+    // Regression: `syncStyles` removed any attribute the opener lacked — including `style`,
+        // wiping the frame set in `prepareDocument`. `0px` not `0`: the CSSOM normalises the
+        // shorthand on read.
     const { api, dispose } = mountController();
     api.tearOff('files');
     const style = opened[0].document.body.style;
@@ -341,10 +320,8 @@ describe('createTearOff — geometry', () => {
   it('round-trips geometry through storage so a re-tear reopens where it was', () => {
     const { api, dispose } = mountController();
     api.tearOff('files');
-    // Moved and resized by the user, then docked immediately — inside the 400ms
-    // poll interval, so only the final sample taken by `finish` can catch it.
-    // Without that sample the panel reopened at its PREVIOUS position and the
-    // user's last adjustment was the one change that did not stick.
+    // Moved and resized, then docked inside the 400ms poll interval, so only `finish`'s
+        // final sample catches it. Without it the panel reopened at its previous position.
     opened[0].outerWidth = 700;
     opened[0].outerHeight = 500;
     opened[0].screenX = 321;

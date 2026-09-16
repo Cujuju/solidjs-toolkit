@@ -25,9 +25,8 @@ import { columnFlex } from './resize';
 import { Splitter } from './Splitter';
 
 export interface AccordionPanelProps {
-  /** Stable identity within the group — the key for open/pinned/order/size state and
-   *  persistence. Must be unique among siblings; it is NOT auto-generated because a
-   *  generated id changes on every mount and would break persistence silently. */
+  /** Stable identity within the group — the key for open/pinned/order/size state. Must be
+   *  unique among siblings; NOT auto-generated, which would break persistence on remount. */
   id: string;
   title: string | JSX.Element;
   children: JSX.Element;
@@ -49,9 +48,8 @@ export interface AccordionPanelProps {
   defaultOpen?: boolean;
   /** Set false for a panel that must always obey the accordion. Default true. */
   pinnable?: boolean;
-  /** Show a close (×) on the panel's title bar. Default: true in `horizontal`
-   *  (a column with no header chevron needs SOME way to dismiss it), false in
-   *  `vertical` (the header itself toggles). */
+  /** Show a close (×) on the panel's title bar. Default: true in `horizontal`, false in
+   *  `vertical`, where the header itself toggles. */
   closable?: boolean;
 
   /** Per-panel accent colour — recolours the rail marker, pin and focus ring for
@@ -60,52 +58,23 @@ export interface AccordionPanelProps {
   /** Floor for interactive resize, px. */
   minSize?: number;
   /**
-   * This panel absorbs the group's leftover extent in `fill` mode.
-   *
-   * `fill` divides the group's whole extent, but every explicitly-sized member is
-   * fixed, so something has to take what is left or the group paints a dead strip.
-   * With no declaration anywhere that job falls to the TRAILING member, which is
-   * safe (it has no splitter handle of its own, so growing it overrides nothing the
-   * user dragged) but is not necessarily right — only you know which of your
-   * panels can actually use the room.
-   *
-   * Declare it on the panel whose content is unbounded. Declare it on SEVERAL and
-   * they share the surplus equally, each starting from its own size and scrolling
-   * past its share — the right shape when two sections both hold content of
-   * unpredictable length. The declared size (`defaultSize`, a drag, a persisted
-   * layout) becomes the flex BASIS rather than being discarded.
+   * This panel absorbs the group's leftover extent in `fill` mode. With no declaration the job
+   * falls to the TRAILING member. See DESIGN_NOTES.md § src/AccordionPanel.tsx:62.
    */
   grow?: boolean;
   /**
-   * This panel is never taller (or wider) than its own content.
-   *
-   * Its size becomes a CEILING rather than an extent: shorter content means a
-   * shorter panel, and content past the ceiling scrolls inside it. Whatever the
-   * group has left over stays empty — which is the point, for a nav sidebar whose
-   * sections should look like the lists they hold rather than being stretched to
-   * fill a column.
-   *
-   * Pair it with NO `defaultSize`. A ceiling measured from the content is one the
-   * content is already touching, so a `'content'` seed would freeze the panel at
-   * whatever it held when it first opened; leave it unsized and let a splitter drag
-   * set the ceiling deliberately. Note that dragging one of these LARGER than its
-   * content shows nothing until the content grows into the new ceiling — see
-   * `columnFlex`.
-   *
-   * Overrides `grow`, which asks for the opposite thing.
+   * This panel is never larger than its own content: its size becomes a CEILING. Overrides
+   * `grow`. See DESIGN_NOTES.md § src/AccordionPanel.tsx:79.
    */
   shrinkToContent?: boolean;
-  /** Initial size along the growth axis, px — or `'content'` to measure what the
-   *  panel actually holds the first time it opens and freeze that (see
-   *  `contentSize.ts` for why it freezes rather than tracking). Either way, after
-   *  the user drags a splitter their size wins and this is ignored. */
+  /** Initial size along the growth axis, px — or `'content'` to measure and freeze what the
+   *  panel first holds. A user's drag always wins over it. */
   defaultSize?: AccordionDefaultSize;
 
   /** Skip rendering children until first opened — for expensive content. */
   lazyMount?: boolean;
-  /** Offer the pop-out-to-a-window affordance on this panel's title bar. Default
-   *  false: a panel whose content assumes it shares a document with the dock (a
-   *  chart syncing to a sibling, say) should not advertise it. */
+  /** Offer the pop-out-to-a-window affordance. Default false: a panel whose content assumes it
+   *  shares a document with the dock should not advertise it. */
   tearOffable?: boolean;
 
   class?: string;
@@ -130,22 +99,17 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
 
 
   /**
-   * See `slotRef`: filling a slot and emptying it are one decision, so they are one
-   * call, and the clear is identity-guarded.
-   *
-   * The id is captured rather than read through `props` at cleanup time — a cleanup
-   * that reads reactive state is a throw waiting for the right unmount order, and
-   * one throwing cleanup abandons the whole teardown.
+   * See `slotRef`: filling a slot and emptying it are one decision. The id is captured, not
+   * read at cleanup time — a cleanup that reads reactive state can throw.
    */
   const panelId = props.id;
   const registerHeaderEl = slotRef(group.activators, panelId);
   const registerPanelEl = slotRef(group.panelElements, panelId);
-  /** This panel's own column element. The group already collects these in
-   *  `panelElements`, but that map is a plain (non-reactive) store the group
-   *  measures from — a size seeded on the element's arrival needs to KNOW when it
-   *  arrives, which only a signal can say. */
+  /** This panel's own column element. The group's `panelElements` map is non-reactive, and a
+   *  size seeded on arrival needs to KNOW when it arrives. */
   const [panelEl, setPanelEl] = createSignal<HTMLElement | undefined>();
-  /** The column title bar's activator. A signal, not a `slotRef` ref: whether it claims the slot is reactive (`showsRailButton`), and a ref runs once. */
+  /** The column title bar's activator. A signal, not a `slotRef`: whether it claims the slot is
+   *  reactive, and a ref runs once. */
   const [colBarEl, setColBarEl] = createSignal<HTMLElement | undefined>();
 
   /** Holds the activator slot only while no rail button exists. Released through the identity-guarded `clear`, so it never deletes the rail button's entry. */
@@ -167,16 +131,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     onMenu: (el) => menu.openAtElement(el),
   });
   /**
-   * The drag ITEM is the whole panel; the header (or column title bar) is only the
-   * HANDLE.
-   *
-   * These were the same element at first — the primitive's `itemProps` bundles the
-   * ref and the pointerdown together, so spreading it on the header registered the
-   * HEADER as the thing being dragged. The reorder engine then measured header
-   * rects and translated a lone 26px bar over a layout that never moved, which in
-   * `fill` mode (where a panel's height is flex-derived, not content-derived) looked
-   * like nothing was happening at all. Splitting them means the engine measures and
-   * moves the panels — the things the user is actually rearranging.
+   * The drag ITEM is the whole panel; the header is only the HANDLE. See DESIGN_NOTES.md
+   * § src/AccordionPanel.tsx:169.
    */
   const dragItem = (): Record<string, unknown> =>
     horizontal() ? group.reorderColumnProps(props.id) : group.reorderItemProps(props.id);
@@ -199,22 +155,15 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   /** Flyout host wins when the panel is an overlay; otherwise the content lives in
    *  its column. Undefined only until the inline host's ref has fired. */
   /**
-   * Mount precedence: a popup WINDOW outranks a flyout overlay outranks the panel's
-   * own column.
-   *
-   * The order is not arbitrary. Torn-off is the most explicit state the user can
-   * put a panel in — they moved it to another window — so nothing in this document
-   * may claim the content back while that holds. A flyout is transient by
-   * definition and yields to it.
+   * Mount precedence: a popup WINDOW outranks a flyout outranks the column. Torn-off is the
+   * most explicit state the user can choose, so nothing here may claim the content back.
    */
   const contentMount = (): HTMLElement | undefined =>
     group.tearOffMountFor(props.id) ?? group.flyoutMountFor(props.id) ?? inlineHost();
 
   /**
-   * Portal calls this with every container it creates, including the replacement it
-   * builds when `mount` changes — so it is where the container's box learns where
-   * it landed. In a popup the container IS the window's content area; in this
-   * document it must not exist as far as layout is concerned.
+   * Portal calls this with every container it creates, so it is where the container's box
+   * learns where it landed: the window's content area, or nothing at all.
    */
   const decorateContainer = (container: HTMLElement): void => {
     if (group.isTornOff(props.id)) {
@@ -257,9 +206,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     seedDefaultSize({
       defaultSize: () => props.defaultSize,
       open,
-      // The host, not the inline element: a panel whose first open is a FLYOUT
-      // has its children living in the flyout, and measuring the empty inline
-      // host would freeze the column at its chrome width.
+      // The host, not the inline element: a panel whose first open is a FLYOUT has its children
+      // there, so the empty inline host would measure as chrome width.
       host: contentMount,
       panel: panelEl,
       sizeOf: () => group.sizeOf(props.id),
@@ -302,25 +250,13 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       class={`acc-panel ${props.class ?? ''}`.trim()}
       data-open={open() ? 'true' : 'false'}
       data-pinned={pinned() ? 'true' : 'false'}
-      /* The docked shell of a flying-out panel. It stays MOUNTED — it owns the
-         refs the group measures and the identity the reorder list tracks — but
-         `autoHide.css` takes it out of the column layout, because a flyout is an
-         overlay and the columns must not reflow to make room for it.
-
-         Writing this was missed when auto-hide was wired, and the CSS silently
-         never fired: the column kept its slot, kept painting its title bar, and
-         the flyout floated over it — so the bar covered the flyout's first row
-         and pinning appeared to change nothing about the layout. */
+      /* The docked shell of a flying-out panel: still MOUNTED, owning the refs the group
+               measures, but `autoHide.css` takes it out of the column layout. */
       data-flyout={flyoutDataAttr(group.isFlyout(props.id))}
-      /* The column sitting hard against the rail. Flex `order` decides that
-         visually, and CSS has no "first by order" selector — so the component,
-         which already knows the open index, says so out loud. Used to drop the
-         separator that would otherwise double up against the rail's own edge. */
-      /* Hard against a boundary — the group's outer edge or the rail — so it drops
-         the separator that edge already draws. Under the divider TWO columns
-         qualify (the leading pinned one and the first one after the rail); with
-         the divider off it reduces to the single column next to the rail, which
-         is what this attribute has always meant. */
+      /* The column against the rail. Flex `order` decides that visually, and CSS has no
+               "first by order" selector — so the component says so out loud. */
+      /* Hard against a boundary — the group's edge or the rail — so it drops the separator
+               that edge already draws. Under the divider TWO columns qualify. */
       data-col-first={horizontal() && group.isEdgeColumn(props.id) ? 'true' : 'false'}
       /* The last pinned column: its trailing edge IS the rail. */
       data-rail-boundary={
@@ -330,8 +266,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         ...(props.accent !== undefined ? { '--acc-accent': props.accent } : {}),
         ...(horizontal()
           ? { order: group.columnOrder(props.id) }
-          : /* Vertical panels keep their DOM position but follow the user's dragged
-               order via flex `order`, so reordering never remounts content. */
+          : /* Vertical panels keep their DOM position but follow the dragged
+                         order via flex `order`, so reordering never remounts content. */
             { order: group.order().indexOf(props.id) + 1 }),
         ...sizeStyle(),
         ...(props.style ?? {}),
@@ -339,9 +275,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
     >
       {/* VERTICAL: the activator is a full-width header bar above the content. */}
       <Show when={!horizontal()}>
-        {/* The vertical activator. Under auto-hide it is also the flyout's
-            ANCHOR and its hover target — the exact role the rail button plays in
-            horizontal — so it carries the same hover-intent listeners. */}
+        {/* The vertical activator. Under auto-hide it is also the flyout's ANCHOR and
+                    hover target — the role the rail button plays in horizontal. */}
         <div
           class="acc-header-row"
           {...group.activatorHoverProps(props.id)}
@@ -384,43 +319,19 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         </div>
       </Show>
 
-      {/* HORIZONTAL: the activator moved to the rail, so the column keeps only a
-          title bar — the place the pin and the close affordance have to live, since
-          a rail button is too narrow to carry either. */}
+      {/* HORIZONTAL: the activator moved to the rail, so the column keeps only a title
+                bar — where the pin and close must live, a rail button being too narrow. */}
       <Show when={horizontal() && open()}>
         <div class="acc-col-bar" {...menu.triggerProps}>
           {/*
-            THE TITLE BAR IS AN ACTIVATOR, not a label.
-            Clicking it COLLAPSES the column back to a rail button while the panel
-            stays pinned — "put this away, it still docks" — which is the third
-            control on a pinned column and the one that makes `pinned` mean "opens
-            as a column" rather than "is open". The × beside it is the other half:
-            same close, but it drops the pin too. Two paths, two names
-            (`collapseKeepPin` / `closeAndUnpin`), deliberately NOT folded into one
-            handler — the difference between them is the whole state model.
-
-            A real <button> with `aria-expanded` / `aria-controls` and the SAME
-            `createActivatorKeyDown` the vertical header and the rail button use.
-            The third activator in this control, and now the third to share that
-            helper rather than hand-rolling keyboard support.
-
-            The DRAG HANDLE moves onto this button too, exactly as the vertical
-            header does it: the panel is the drag ITEM and its activator is the
-            HANDLE. `createReorderList` fires its own pointerdown gesture and the
-            click only lands if the pointer never crossed the drag threshold, so a
-            reorder cannot end in an accidental collapse.
-          */}
+                                THE TITLE BAR IS AN ACTIVATOR, not a label: clicking it collapses the column
+                                while the panel stays pinned. See DESIGN_NOTES.md § src/AccordionPanel.tsx:392.
+                              */}
           <button
             {...dragHandle()}
-            /* Claims the activator slot ONLY when no rail button exists for this
-               panel. The slot is what a flyout anchors to, and the docked shell of
-               a flying-out panel is `display:none` — so a column bar that
-               registered unconditionally would hand the flyout a zero-rect anchor
-               and place it in the corner. Under the divider the two are mutually
-               exclusive by construction (a button appears exactly when the column
-               does not), and this keeps that true rather than assuming it.
-
-               The claim is made by the `colBarEl` effect; this ref only reports the element. */
+            /* Claims the activator slot ONLY when no rail button exists. A column bar that
+                           registered unconditionally would hand a flyout a zero-rect anchor, the
+                           docked shell being `display:none`. */
             ref={(el) => {
               setColBarEl(el);
               // Released on unmount, as `slotRef` did, so the effect never holds a detached bar.
@@ -464,11 +375,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
                 {group.isTornOff(props.id) ? '⤓' : '⤢'}
               </button>
             </Show>
-            {/* CLOSE-AND-FORGET. The sibling activator collapses and remembers;
-                this one also drops the pin, so the panel's rail button reopens it
-                as a flyout like any other unpinned panel. Nothing can be left
-                pinned-but-invisible, which is the state that would otherwise have
-                no control anywhere to undo it. */}
+            {/* CLOSE-AND-FORGET. The sibling activator collapses and remembers; this one
+                            drops the pin too, so nothing is left pinned-but-invisible. */}
             <Show when={closable()}>
               <CloseButton onClick={() => group.closeAndUnpin(props.id)} />
             </Show>
@@ -476,50 +384,26 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         </div>
       </Show>
 
-      {/* Content stays MOUNTED while collapsed (hidden), so a scroll position, a
-          text selection or an in-flight edit inside a panel survives the user
-          looking at a sibling. `hidden` keeps it out of the a11y tree and out of
-          tab order without unmounting. */}
+      {/* Content stays MOUNTED while collapsed, so a scroll position or in-flight edit
+                survives looking at a sibling. `hidden` keeps it out of the a11y tree. */}
       {/*
-        ONE Portal whose mount toggles — never a <Show> swapping an inline branch
-        for a portalled one.
-
-        Portal caches its children memo and reads `mount` inside an effect, so
-        changing the mount MOVES the existing nodes and keeps the reactive graph
-        intact. Swapping branches would re-evaluate the children and destroy
-        exactly the scroll position and in-flight edits that this panel's
-        stay-mounted-while-collapsed rule exists to protect — the same mechanism
-        the tear-off module documents for popup windows.
-
-        That is why the docked case portals too, into an empty host div right here
-        rather than rendering directly: it makes docked and flying-out the SAME
-        code path with a different mount, so promoting a flyout to a column cannot
-        remount anything. A plain `mount={undefined}` would not do — Portal
-        defaults to document.body.
-      */}
+                    ONE Portal whose mount toggles — never a <Show> swapping branches, which would
+                    destroy the state the stay-mounted rule protects.
+                    See DESIGN_NOTES.md § src/AccordionPanel.tsx:483.
+                  */}
       <div
         ref={setInlineHost}
         id={contentId}
         /*
-         * The role follows the ACTIVATOR, because the two orientations are two
-         * different ARIA patterns wearing the same component.
-         *
-         * Horizontal puts every activator in one `role="tablist"` rail, so the
-         * content each one reveals is a `tabpanel` — and the rail button now names
-         * it with `aria-controls`. Vertical is a disclosure: a header button with
-         * `aria-expanded` revealing a `region`. Calling both a `region` left the
-         * rail's tabs controlling nothing at all.
-         */
+                 * The role follows the ACTIVATOR: horizontal's rail is a `tablist`, so content is a
+                 * `tabpanel`; vertical is a disclosure revealing a `region`.
+                 */
         role={horizontal() ? 'tabpanel' : 'region'}
         /*
-         * Referenced only when the labelling element EXISTS.
-         *
-         * In horizontal, `headerId` sits on the column title bar, which renders
-         * only while the panel is open — so a closed panel pointed
-         * `aria-labelledby` at an id that was not in the document. A dangling
-         * reference is not a harmless one: it leaves the region with no accessible
-         * name at all, which is worse than the fallback.
-         */
+                 * Referenced only when the labelling element EXISTS. In horizontal `headerId` sits on
+                 * the column bar, which renders only while open — a dangling reference leaves the
+                 * region with no name.
+                 */
         aria-labelledby={!horizontal() || open() ? headerId : undefined}
         class={`acc-content ${props.contentClass ?? ''}`.trim()}
         hidden={!open() || group.isFlyout(props.id) || group.isTornOff(props.id)}
@@ -561,9 +445,8 @@ function PanelPinButton(props: {
         }
         onClick={() => props.group.togglePin(props.id)}
       >
-        {/* The glyph shows the STATE, not the action: `aria-pressed` already
-            names the action, and a control whose icon flips to the verb makes
-            "is it pinned?" unanswerable at rest. */}
+        {/* The glyph shows the STATE, not the action: `aria-pressed` already names the
+                    action, and an icon that flips to the verb makes "is it pinned?" unanswerable. */}
         <Show when={props.pinned} fallback={<PinOff />}>
           <Pin />
         </Show>

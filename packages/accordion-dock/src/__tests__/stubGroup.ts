@@ -8,34 +8,8 @@ import {
 } from '../visualOrder';
 
 /**
- * A hand-built `AccordionGroupApi` for tests.
- *
- * WHY A STUB RATHER THAN A REAL `<AccordionGroup>`
- *
- * The modules under test — the breadcrumb path, the menu's enable/disable matrix,
- * the leaf chain — are pure functions of group STATE. Rendering a real group to
- * produce that state would mean driving it through the UI (click this, drag that)
- * to reach the case being tested, so a test for "Close Others is disabled when
- * every other open panel is pinned" would spend most of its length arranging
- * pins through a renderer and would fail for reasons that have nothing to do with
- * the assertion. Stating the state directly makes each test's precondition
- * readable in one line.
- *
- * WHAT STOPS IT DRIFTING
- *
- * Two different mechanisms, for two different kinds of drift:
- *
- *   - SHAPE. `group` below is annotated `AccordionGroupApi`, so a member added,
- *     removed, renamed or re-signatured on that interface fails the build here
- *     exactly as it does in `AccordionGroup`. No discipline required.
- *   - BEHAVIOUR. This is the kind a type checker cannot see, and the answer is
- *     not to test for it but to remove it: the rules that used to be copied here
- *     (the painted order, the bulk-close exemption) now live in `visualOrder.ts`
- *     and are CALLED, so there is no second implementation to go stale.
- *
- * What remains is deliberately inert — state held in local variables, and call
- * recording. Those cannot disagree with the real group because they make no claim
- * about it.
+ * A hand-built `AccordionGroupApi`: the modules under test are pure functions of group STATE.
+ * Annotated, so shape drift fails the build. See DESIGN_NOTES.md § src/__tests__/stubGroup.ts:10.
  */
 
 export interface StubPanelSpec {
@@ -137,14 +111,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
   const isPinnedId = (id: string): boolean => pinned.has(id);
 
   /**
-   * The REAL rule, called — not a copy of it.
-   *
-   * This used to reimplement `AccordionGroup.visualOpenIds`, with a comment
-   * admitting it was the one place the stub could silently drift. It could, and
-   * it did: the rule gained a flying-out-panel exclusion, and nothing about a
-   * stub-side copy would have failed to notice. Sharing the function removes the
-   * drift as a possibility rather than as a thing to remember, which is the only
-   * version of that guarantee worth having.
+   * The REAL rule, called — not a copy. This used to reimplement `visualOpenIds` and did
+   * drift: the rule gained a flying-out exclusion and nothing here would have noticed.
    */
   const userOrderOpenIds = (): readonly string[] =>
     orderVisualOpen({ order: order(), open: openIds, isLeaf: isLeafId });
@@ -187,9 +155,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
     openOrder: () => openIds,
     order,
     visualOpenIds,
-    /* Same derivation the real group uses — over the OPEN members, so a closed
-       grower cannot retire the trailing default. Calling through `byId` rather
-       than re-reading `spec.panels` keeps the two in step. */
+    /* Same derivation the real group uses — over the OPEN members, so a closed grower
+           cannot retire the trailing default. */
     hasDeclaredGrower: () => visualOpenIds().some((id) => byId.get(id)?.grow() === true),
     panels: () => metas.filter((m) => !m.isLeaf),
     leaves: () => metas.filter((m) => m.isLeaf),
@@ -249,9 +216,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
     expandAll: notImplemented('expandAll'),
     collapseAll: () => {
       calls.collapseAll += 1;
-      // Same shared predicate the group's own `collapseAll` uses, so a test can
-      // assert the resulting STATE (not just the call count) without that
-      // assertion being a claim about a copy of the rule.
+      // Same shared predicate the group's `collapseAll` uses, so a test can assert the
+            // resulting STATE without that assertion being a claim about a copy.
       openIds = openIds.filter((id) =>
         survivesBulkClose(id, { isPinned: isPinnedId, isLeaf: isLeafId }),
       );
@@ -289,9 +255,8 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
 
     register: () => {},
     unregister: () => {},
-    // Inert slots: no test here renders, so nothing fills them. They exist to
-    // satisfy the interface, which is what makes this stub fail the build when the
-    // real api changes shape.
+    // Inert slots: no test here renders. They exist to satisfy the interface, which is
+        // what makes this stub fail the build when the real api changes shape.
     activators: { set: () => {}, clear: () => {} },
     railOverflowSlot: { set: () => {}, clear: () => {} },
     panelElements: { set: () => {}, clear: () => {} },

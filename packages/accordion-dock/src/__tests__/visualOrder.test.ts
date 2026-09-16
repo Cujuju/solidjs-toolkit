@@ -2,18 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { orderVisualOpen, survivesBulkClose, bulkClosableIds } from '../visualOrder';
 
 /**
- * The two rules, tested directly.
- *
- * These are CONTRACT tests, not callsite tests, and that distinction is the whole
- * point of the extraction. Before it, the painted order and the bulk-close
- * exemption existed as inline expressions in `AccordionGroup`, copied into
- * `panelMenu` and into the test stub — so the only way to assert either rule was
- * through one of its consumers, which asserts that the consumer wired the copy up
- * correctly and says nothing about whether the copies agree.
- *
- * Here there is one implementation and these are its tests. The group, the menu
- * and the stub inherit the behaviour by calling it, so their own tests can stop
- * re-checking it.
+ * CONTRACT tests, not callsite tests: before the extraction each rule was copied into three
+ * places. See DESIGN_NOTES.md § src/__tests__/visualOrder.test.ts:4.
  */
 
 /** Membership predicate from a list. Reads at the callsite like the state it
@@ -27,9 +17,8 @@ const NONE = (): boolean => false;
 
 describe('orderVisualOpen — sequence', () => {
   it('paints non-leaf panels in USER order, not in the order they were opened', () => {
-    // The single-order contract: one sequence read twice, by the rail and by the
-    // columns. Open order deciding column order would make the rail and the
-    // columns disagree the moment someone opened panels out of sequence.
+    // The single-order contract: one sequence read twice, by the rail and by the columns.
+        // Open order deciding column order would make them disagree.
     const out = orderVisualOpen({
       order: ['a', 'b', 'c'],
       open: ['c', 'a'],
@@ -44,9 +33,8 @@ describe('orderVisualOpen — sequence', () => {
   });
 
   it('ignores an open id that is not in the order', () => {
-    // A panel can unregister while its id stays in the open list — `unregister`
-    // keeps the order entry so the panel returns where the user put it. Until it
-    // remounts it is not in `order`, and it must not be painted.
+    // A panel can unregister while its id stays in the open list. Until it remounts it is
+        // not in `order`, and must not paint.
     const out = orderVisualOpen({ order: ['a'], open: ['a', 'ghost'], isLeaf: NONE });
     expect(out).toEqual(['a']);
   });
@@ -113,9 +101,8 @@ describe('orderVisualOpen — flyout exclusion', () => {
   });
 
   it('makes the panel AFTER a flyout the splitter neighbour of the one before it', () => {
-    // The concrete defect: `neighborOpenId` walks this sequence, so leaving the
-    // flyout in handed a splitter a neighbour with `display: none` — the drag
-    // seeded a start size of 0 and jumped by the min-size clamp.
+    // The concrete defect: `neighborOpenId` walks this sequence, so leaving the flyout in
+        // handed a splitter a `display: none` neighbour — start size 0, jumping by the min-size clamp.
     const out = orderVisualOpen({
       order: ['a', 'b', 'c'],
       open: ['a', 'b', 'c'],
@@ -179,9 +166,8 @@ describe('bulkClosableIds', () => {
     const p = { isPinned: oneOf('b'), isLeaf: oneOf('d') };
     const open = ['a', 'b', 'c', 'd'];
     expect(bulkClosableIds(open, p)).toEqual(['a', 'c']);
-    // The property that matters: this is what `collapseAll` will take, and the
-    // survivors are what it will keep. Together they must be the whole list, with
-    // nothing counted twice — that is the invariant a hand-written inverse broke.
+    // The property that matters: the taken and the survivors must together be the whole
+        // list, with nothing counted twice — the invariant a hand-written inverse broke.
     const survivors = open.filter((id) => survivesBulkClose(id, p));
     expect([...bulkClosableIds(open, p), ...survivors].sort()).toEqual(open);
   });

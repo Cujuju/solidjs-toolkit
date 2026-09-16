@@ -5,17 +5,8 @@ import { AccordionPanel } from '../AccordionPanel';
 import type { AccordionGroupApi } from '../context';
 
 /**
- * `grow` AT THE GROUP LEVEL — the part `columnFlex`'s unit tests cannot reach.
- *
- * `columnFlex` is a pure function and is pinned directly in `columnFlex.test.ts`.
- * What it cannot answer is where its two group-scoped inputs come from, and that
- * plumbing is where this feature can silently do nothing:
- *
- *   • `groupHasDeclaredGrower` must be derived over the OPEN members, so a CLOSED
- *     grower falls back to the trailing default instead of promising the surplus
- *     to a panel nobody can see.
- *   • The flex must actually reach the panel ELEMENT, since a declaration that
- *     never becomes a style is a no-op that reads as implemented.
+ * `grow` AT THE GROUP LEVEL — the plumbing `columnFlex`'s unit tests cannot reach: that the
+ * flag is derived over the OPEN members, and that the flex reaches the panel ELEMENT.
  */
 
 /** Explicit sizes, so every open panel is fixed and the surplus is real — the
@@ -102,10 +93,9 @@ describe('grow — a CLOSED grower does not hold the surplus hostage', () => {
 
     api.setOpen('a', false);
 
-    /* With the only grower closed there is no declaration among the OPEN members,
-       so the default applies again and `b` — now trailing and the only thing on
-       screen — takes the room. Deriving over the whole registry instead would
-       leave `b` fixed and reinstate the dead strip. */
+    /* With the only grower closed, no declaration remains among the OPEN members, so the
+           trailing default applies again. Deriving over the whole registry would reinstate the
+           dead strip. */
     expect(flexOf('b')).toBe(`1 1 ${SIZE_PX}px`);
 
     dispose();

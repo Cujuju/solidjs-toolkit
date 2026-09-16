@@ -1,58 +1,17 @@
-/* accordion-dock (MOCK) — Visual Studio style collapsible panel dock.
-
-   Two orientations share one state machine:
-     vertical   — headers stack down, panels grow downward (classic accordion)
-     horizontal — collapsed panels are buttons in a left RAIL, open panels grow
-                  out to the right as columns, in the order they were opened
-
-   CASCADE LAYERS — read this before adding a rule, and before "matching" it
-   elsewhere.
-
-   ONLY THE TOKEN BLOCK IS LAYERED. `:root` and the density overrides sit in
-   `@layer cujuju-defaults`, so a consumer restating `--acc-accent` unlayered wins
-   without specificity games. Every COMPONENT rule in this file — `.acc-panel`,
-   `.acc-header`, the lot — is deliberately UNLAYERED.
-
-   `--_`-prefixed names are PRIVATE — derived, group-scoped, never a host input —
-   so they are declared where they are derived, outside the layered `:root` block.
-
-   That asymmetry is load-bearing, and the comment that used to sit here did not
-   say so: it claimed defaults lived in a layer, full stop. A reader took it at its
-   word and wrapped `autoHide.css` in the same layer to match — at which point
-   every rule in that file silently lost, because an unlayered declaration beats a
-   layered one OUTRIGHT, ahead of specificity. The visible result was a flying-out
-   panel whose docked column was never removed from the layout: it kept its slot
-   and painted its title bar over the flyout in front of it.
-
-   So the rule for the sibling stylesheets (`autoHide.css`, `rail.css`,
-   `breadcrumb.css`) is: tokens layered, component rules unlayered, exactly as
-   here. That keeps them competing with this file on specificity and source order,
-   which is what "imported after styles.css so the opt-in modes can override it"
-   in `index.ts` actually depends on. */
+/* ONLY the token block is layered; component rules here and in the sibling stylesheets stay
+   UNLAYERED. See DESIGN_NOTES.md § src/styles.css:1. */
 
 @layer cujuju-defaults {
   :root {
     --acc-bg: #1a1f2e;
-    /* The panel's CONTENT box, separately from the panel itself. `transparent`
-       so the panel's own `--acc-bg` shows through and this token costs an
-       existing consumer nothing — it exists for the host that wants its section
-       bodies to read as a WELL the content sits in rather than as the same
-       surface the chrome is drawn on. Elevation is directional: a body toned
-       BELOW its contents is what makes those contents read as cards, and toning
-       it ABOVE inverts that, so a host reaching for this almost always wants a
-       darker value than `--acc-bg`, not a lighter one. */
+    /* The panel's CONTENT box. `transparent` so `--acc-bg` shows through and this costs
+     nothing; set it darker for bodies that should read as a well under their contents. */
     --acc-content-bg: transparent;
     --acc-header-bg: #252d3f;
     --acc-header-bg-hover: #2c3548;
     --acc-header-bg-open: #2f3a52;
-    /* A CLOSED panel's header, which under `appearance: cards` is the WHOLE
-       card — there is no body behind it to carry a tone. Defaults to
-       `--acc-header-bg` (the value a closed header had before this token
-       existed) so the three-state header ramp is unchanged for anyone who does
-       not set it. Split out because "chrome over a body" and "chrome that IS
-       the card" are two different jobs for one colour, and a host toning
-       `--acc-content-bg` generally wants its collapsed cards to match that
-       body rather than to stay at the open header's tone. */
+    /* A CLOSED panel's header, which under `appearance: cards` IS the whole card.
+     Defaults to `--acc-header-bg`, so the header ramp is unchanged for anyone not setting it. */
     --acc-header-bg-closed: var(--acc-header-bg);
     --acc-border: #2a2e37;
     --acc-text: #e6e9ef;
@@ -63,18 +22,14 @@
     --acc-header-height: 26px;
     --acc-header-pad-x: 8px;
     --acc-content-pad: 8px;
-    /* Space between cards under `appearance: cards`. Matched to the content
-       padding on purpose: the gap OUTSIDE a card and the padding INSIDE it are
-       the same rhythm, so a card's contents sit the same distance from its
-       neighbour as from its own edge. */
+    /* Space between cards. Matched to the content padding: the gap outside a card and the
+     padding inside it are the same rhythm. */
     --acc-card-gap: 8px;
     --acc-title-size: 12px;
     --acc-title-weight: 600;
 
-    /* Horizontal orientation. The rail is wide enough that a scrollbar inside it
-       does not sit on top of the rotated labels — at 30px it did exactly that with
-       a full-width UA scrollbar. Paired with `scrollbar-width: thin` below, which
-       is the actual fix; the extra width is the belt to that suspenders. */
+    /* Wide enough that the rail's scrollbar does not sit on the rotated labels — at 30px it
+     did. Paired with `scrollbar-width: thin` below, which is the actual fix. */
     --acc-rail-width: 40px;
     /* Width of the rail's own scrollbar, for engines that only honour the WebKit
        pseudo-elements. */
@@ -102,11 +57,8 @@
     --acc-indent: 14px;
 
     /* ── Chrome metrics ───────────────────────────────────────────────────
-       Every glyph size, gap and hit box below is a token for ONE reason:
-       `data-density` re-scales the dock by overriding tokens, and a hard-coded
-       px anywhere in the rules would force density to ship a duplicate rule to
-       reach it. The defaults are exactly the values these rules already used,
-       so tokenising them changes nothing on screen. */
+     Every size, gap and hit box is a token because `data-density` rescales the dock by
+     overriding tokens; a hard-coded px would force a duplicate rule to reach it. */
 
     /* Inline gap inside an activator, between glyph, label and badge. */
     --acc-gap: 5px;
@@ -114,17 +66,15 @@
        consumer action slots — one step tighter than --acc-gap because those
        parts are already separated by their own padding. */
     --acc-gap-sm: 4px;
-    /* Gap between adjacent icon BUTTONS in the header tail. Tighter again: each
-       button carries a 20px hit box around a 12–13px glyph, so the visual gap is
-       already ~7px wider than the declared value. */
+    /* Gap between adjacent icon BUTTONS. Tighter again: each carries a 20px hit box around a
+     12-13px glyph, so the visual gap is already wider than declared. */
     --acc-gap-xs: 2px;
 
     /* Chevron and close glyph. One token: they are the same visual weight and
        must stay the same size or the header reads lopsided. */
     --acc-icon-size: 12px;
-    /* Pin glyph. Deliberately 1px larger than --acc-icon-size: the pin is a
-       stroke icon whose ink sits inside a taller, narrower silhouette than the
-       chevron's, so matching numbers would read as a smaller pin. */
+    /* Pin glyph, 1px larger than `--acc-icon-size`: its ink sits inside a taller, narrower
+     silhouette than the chevron's, so matching numbers would read as a smaller pin. */
     --acc-pin-size: 13px;
     /* Pin marker on a rail button. Smaller than --acc-pin-size because there it
        is a status dot, not a control — it is not clickable on the rail. */
@@ -139,9 +89,8 @@
     /* State-dot diameter. Smaller than the count pill's line box: it must read as
        a status light beside the label, not compete with it for the eye. */
     --acc-badge-dot-size: 7px;
-    /* Severity colours. Deliberately NOT --acc-accent for all four — a dot that is
-       always the accent colour cannot distinguish "done" from "broken". `info`
-       aliases the accent (see the rule below) so a themed dock stays coherent. */
+    /* Severity colours, deliberately NOT all `--acc-accent` — a dot that is always the accent
+     cannot distinguish "done" from "broken". `info` aliases it so a themed dock stays coherent. */
     --acc-badge-success: #10b981;
     --acc-badge-warning: #f59e0b;
     --acc-badge-danger: #ef4444;
@@ -167,65 +116,26 @@
        padding around the glyph. */
     --acc-col-bar-pad-end: 4px;
 
-    /* Chrome transitions — header and rail-button backgrounds, the chevron's
-       rotation, badge opacity. ZERO BY DEFAULT: these fire on every hover and
-       every open, so any duration at all is a tax paid continuously on the
-       control's most common interactions, and a dock reads as SNAPPY or it does
-       not. The transitions themselves are left declared throughout rather than
-       deleted — a 0ms transition is inert, so this is a value a consumer raises
-       to opt INTO motion rather than a feature that has to be rebuilt.
-
-       Was 140ms, on the reasoning that a colour fade at that length reads as
-       "instant but soft". It does; it is also 140ms of softness in front of a
-       click the user has already committed to. Motion here decorates a state
-       change that is already unambiguous.
-
-       This is deliberately NOT the same decision as `--acc-open-duration`
-       below, which stays non-zero because it is gated behind the `animated`
-       prop — an explicit opt-in, and zeroing it would make that prop a no-op. */
+    /* Chrome transitions. ZERO by default: they fire on every hover and open. 0ms is inert, so
+         the declarations stay. See DESIGN_NOTES.md § src/styles.css:170. */
     --acc-duration: 0ms;
 
-    /* Focus ring, as tokens because five controls draw the same one and were each
-       spelling out `1px solid var(--acc-accent)` with a `-2px` offset. Five copies
-       of a visual decision is five places to update and four to miss. */
+    /* Focus ring as tokens because five controls draw the same one, and five copies of a
+     visual decision is five places to update and four to miss. */
     --acc-focus-ring-width: 1px;
-    /* NEGATIVE by default: every control that draws this ring — rail button,
-       header, pin, close, crumb — sits flush inside tight chrome, where an
-       outset ring would be clipped by the neighbour it abuts. Controls with room
-       around them override the offset locally rather than inverting the default. */
+    /* NEGATIVE by default: every control drawing this ring sits flush inside tight chrome,
+     where an outset ring would be clipped. Controls with room override locally. */
     --acc-focus-ring-offset: -2px;
-    /* Open/close GEOMETRY, kept separate from --acc-duration on purpose: a
-       colour or opacity fade at 140ms reads as instant-but-soft, while a box
-       travelling a whole column width in 140ms reads as a jump. 180ms also
-       matches @cujuju/solidjs-collapsible's --cl-animation-duration, so the two
-       controls' expand animations stay in step when a page uses both. */
+    /* Open/close GEOMETRY, separate from `--acc-duration`: a box travelling a column width in
+     140ms reads as a jump. Matches collapsible's `--cl-animation-duration`. */
     --acc-open-duration: 180ms;
   }
 
   /* ── Density ────────────────────────────────────────────────────────────
-     `comfortable` IS the :root block above — there is no rule for it, because a
-     second block restating the same values is the duplication this token layer
-     exists to avoid.
-
-     `compact` is a pure TOKEN OVERRIDE: not one rule below is density-aware, so
-     the whole variant is this block. Roughly a 0.78 scale on the chrome, with
-     two deliberate exceptions called out inline.
-
-     Declared on the GROUP, so it beats the inherited :root value regardless of
-     layers (a declaration on the element always wins over inheritance) — while
-     a consumer targeting `.acc-group` unlayered still beats this, which is the
-     same contract the :root defaults carry.
-
-     KNOWN LIMIT: density INHERITS into nested groups. A nested group that
-     declares `comfortable` inside a `compact` parent stays compact, because
-     undoing it would mean also declaring the comfortable scale on the group —
-     which would break the `:root`-override contract for every consumer. Density
-     is a whole-dock choice here, not a per-level one. */
-  /* `.acc-flyout-host` is included because a flyout is Portal'd to <body> and so
-     escapes the group's token scope entirely. `autoHide.tsx` already restates the
-     group's density on that element; without this selector that attribute set
-     nothing, and a compact dock rendered comfortable flyouts — the one place the
-     user is looking hardest at the panel. */
+     `comfortable` IS the :root block above; `compact` is a pure token override (~0.78 scale).
+     See DESIGN_NOTES.md § src/styles.css:205. */
+  /* `.acc-flyout-host` is included because a flyout is Portal'd to <body> and escapes the
+   group's token scope, so a compact dock would otherwise render comfortable flyouts. */
   :is(.acc-group, .acc-flyout-host)[data-density='compact'] {
     --acc-header-height: 20px;
     --acc-header-pad-x: 6px;
@@ -240,9 +150,8 @@
     --acc-rail-btn-pad-block: 6px;
     --acc-indent: 10px;
 
-    /* EXCEPTION — the splitter is a POINTER TARGET, not chrome. Scaling it with
-       everything else would make a dense dock harder to drive, which is the
-       opposite of what density is for; it gives up 1px and no more. */
+    /* EXCEPTION — the splitter is a POINTER TARGET, not chrome. Scaling it with everything
+     else would make a dense dock harder to drive; it gives up 1px and no more. */
     --acc-splitter-hit: 6px;
 
     --acc-gap: 4px;
@@ -261,10 +170,8 @@
 
     --acc-col-bar-pad-end: 3px;
 
-    /* NOT overridden: --acc-col-width / --acc-col-min-width. A column's width is
-       sized to the CONSUMER'S content, not to the chrome, so shrinking it with
-       density would silently reflow their panels. Same for the colour, radius
-       and duration tokens — density is a scale, not a theme. */
+    /* NOT overridden: the column widths. A column is sized to the CONSUMER'S content, not to
+     the chrome. Same for colour and duration — density is a scale, not a theme. */
   }
 }
 
@@ -289,30 +196,15 @@
   flex-direction: row;
 }
 
-/* Rail docked right: mirror the main axis and the whole thing follows. `order`
-   values are unchanged, so the same open-order sequence now reads right-to-left and
-   a column still emerges from its own button. The state machine knows nothing about
-   which edge the rail is on — this is one declaration, not a second layout. */
+/* Rail docked right: mirror the main axis and the rest follows. `order` values are
+   unchanged, so a column still emerges from its own button. One declaration, not a
+   second layout. */
 .acc-group[data-orientation='horizontal'][data-rail-side='right'] {
   flex-direction: row-reverse;
 }
 
-/* RTL — `railSide` is PHYSICAL and must not flip.
-   "Dock it on the right of my screen" is a statement about the screen, not about
-   reading order: the consumer picked that edge because of what else is on the
-   page. `flex-direction: row` is NOT physical though — it follows `direction`,
-   so under RTL a plain `row` would put the rail on the RIGHT and `row-reverse`
-   on the left, silently mirroring the dock.
-   Inverting the two keywords under :dir(rtl) pins the rail back to the physical
-   edge the consumer asked for. Everything downstream (flex `order`, the resize
-   sign in resize.ts, the physical borders below) then sees the same geometry it
-   sees in LTR, so no other rule needs an RTL branch.
-
-   `:dir()` rather than `[dir='rtl']`: it reads the element's resolved
-   directionality, so it also covers `dir="auto"` and a `dir` set on any
-   ancestor. It cannot see a `direction: rtl` applied from CSS alone with no
-   `dir` attribute — that is the documented way to do RTL wrong (HTML requires
-   the attribute), and no selector in CSS can match it. */
+/* RTL — `railSide` is PHYSICAL: it names a screen edge. `flex-direction` is not, so the two
+   keywords invert under `:dir(rtl)`. See DESIGN_NOTES.md § src/styles.css:300. */
 .acc-group[data-orientation='horizontal'][data-rail-side='left']:dir(rtl) {
   flex-direction: row-reverse;
 }
@@ -329,9 +221,8 @@
   background: transparent;
 }
 
-/* LOGICAL, not physical: a tree indents away from the edge the reader starts at,
-   so in RTL the sub-tree steps in from the right. This is the one place in the
-   control where "start" means reading order rather than a docking edge. */
+/* LOGICAL, not physical: a tree indents away from the edge the reader starts at, so in
+   RTL the sub-tree steps in from the right. */
 .acc-group[data-orientation='vertical'] .acc-group[data-orientation='vertical'] {
   padding-inline-start: var(--acc-indent);
 }
@@ -346,30 +237,18 @@
 
 /* ── Filler ─────────────────────────────────────────────────────────────── */
 
-/* Fill mode: the filler soaks up leftover space ONLY when nothing is open, so a
-   collapsed dock stacks its headers at the start. `:has` is what lets this be a
-   real rule instead of a magic flex weight fudged to out-grow the panels. */
-/* ARBITRARY CONSUMER CHILDREN (a toolbar, a status strip — anything that is not a
-   panel, the rail or the filler).
-
-   Panels carry an explicit flex `order` of 1..N so the user can drag them into a
-   new sequence. That silently promoted every other child to the FRONT of the
-   group, because an element with no `order` sits at 0 and 0 sorts before 1 — so a
-   toolbar declared last in the markup jumped above the first panel.
-
-   The rule is: unordered content keeps its authored position relative to the
-   panels, which means "after them". Just below the filler, so the filler still
-   soaks up the slack at the very end. */
+/* Fill mode: the filler soaks up leftover space only when nothing is open, so a
+   collapsed dock stacks its headers at the start. */
+/* Panels carry explicit `order` 1..N, and an element with none sits at 0 — which promoted
+   every non-panel child to the FRONT. See DESIGN_NOTES.md § src/styles.css:352. */
 .acc-group > *:not(.acc-panel):not(.acc-rail):not(.acc-filler) {
   order: var(--acc-extra-order);
 }
 
 .acc-filler {
   flex: 0 0 0;
-  /* Open columns carry `order: openIndex + 1`, so a filler left at the default 0
-     would land BETWEEN the rail and the first column and — in horizontal+natural,
-     where it grows — shove every column to the far edge. It must sort after any
-     column, hence a value above any plausible panel count. */
+  /* Open columns carry `order: openIndex + 1`, so a filler left at 0 would land between the
+   rail and the first column. It must sort after any column. */
   order: var(--acc-filler-order);
 }
 
@@ -396,21 +275,16 @@
   flex-direction: column;
   align-items: stretch;
   flex: 0 0 auto;
-  /* Before the columns regardless of DOM position — the columns carry positive
-     `order` values so they can sit in open-order.
-     UNDER THE RAIL DIVIDER this is overridden inline by the group, which computes
-     the slot after the static (pinned) columns. The declaration stays as the
-     non-divider default rather than moving wholesale into JS: a dock that never
-     turns the divider on should not need a script to place its rail. */
+  /* Before the columns regardless of DOM position. Under the rail divider the group
+   overrides this inline with the slot after the static columns; this stays the
+   non-divider default. */
   order: -1;
   width: var(--acc-rail-width);
   background: var(--acc-header-bg);
   overflow-y: auto;
   overflow-x: hidden;
-  /* A 40px strip cannot afford a full-width scrollbar — it lands on top of the
-     rotated labels. `scrollbar-width` INHERITS, so a host page that set a fat
-     scrollbar on :root (the playground does) reaches in here unless this overrides
-     it explicitly. */
+  /* A 40px strip cannot afford a full-width scrollbar — it lands on the rotated labels.
+   `scrollbar-width` INHERITS, so a host page's fat scrollbar reaches in unless overridden. */
   scrollbar-width: thin;
 }
 
@@ -427,11 +301,8 @@
 
 /* The rail's edge faces the columns, so which physical side it lives on flips with
    the dock side. */
-/* STAYS PHYSICAL. `border-inline-start/end` would flip this edge under RTL, but
-   the rail does not move under RTL (see the :dir(rtl) flex-direction rules), so
-   the edge facing the columns is the same physical edge in both directions. The
-   logical property would be the wrong meaning here, not the modern spelling of
-   the right one. */
+/* STAYS PHYSICAL. The rail does not move under RTL, so the edge facing the columns
+   is the same physical edge either way. */
 .acc-group[data-rail-side='left'] > .acc-rail {
   border-right: 1px solid var(--acc-border);
 }
@@ -450,16 +321,8 @@
   padding-block: var(--acc-rail-btn-pad-block);
   padding-inline: 0;
   border: 0;
-  /* THE RAIL BUTTON IS SQUARE, ALWAYS — stated, never inherited. The buttons are a
-     flush stacked strip, and the open-panel marker below is an INSET BOX-SHADOW,
-     which follows the border radius: any radius here turns the accent spine into a
-     lozenge with curved ends, and abutting buttons then show a notch where two
-     curves meet. A host page that rounds bare `button` elements (a very common
-     reset — the StockApp shell has exactly that) would otherwise reach in and
-     reshape a state indicator this control owns. Declaring 0 is the geometry the
-     marker is drawn for. A host that out-specifies this still wins the cascade, so
-     the consumer-side escape hatch is to exclude `.acc-rail-btn` from its own
-     blanket rule — this declaration is what makes that a fix rather than a fudge. */
+  /* THE RAIL BUTTON IS SQUARE, ALWAYS — stated, never inherited. The open marker is an inset
+     box-shadow, which follows the radius. See DESIGN_NOTES.md § src/styles.css:453. */
   border-radius: 0;
   background: transparent;
   color: var(--acc-text-muted);
@@ -478,15 +341,10 @@
   color: var(--acc-text);
 }
 
-/* Active marker as an INSET SHADOW, not a border: it costs no layout box, so it
-   cannot shift the label when a button activates, and flipping it to the other edge
-   is a sign change rather than a second set of border/padding rules. It sits on the
-   rail's OUTER edge — away from the columns — so it never reads as part of the
-   column's own frame. */
-/* STAYS PHYSICAL, and cannot be otherwise: the offsets of `box-shadow` are always
-   physical x/y — there is no logical spelling to convert to. The sign is chosen
-   from `data-rail-side`, which does not flip under RTL, so the marker keeps
-   hugging the same physical outer edge in both directions. */
+/* Active marker as an INSET SHADOW, not a border: no layout box, so it cannot shift
+   the label, and flipping edges is a sign change. */
+/* STAYS PHYSICAL, and cannot be otherwise: `box-shadow` offsets have no logical spelling.
+   The sign comes from `data-rail-side`, which RTL does not flip. */
 .acc-group[data-rail-side='left'] .acc-rail-btn[data-open='true'] {
   box-shadow: inset var(--acc-rail-marker-width) 0 0 var(--acc-accent);
 }
@@ -505,23 +363,16 @@
 }
 
 .acc-rail-label {
-  /* Rotated label, reading top-to-bottom — Visual Studio's auto-hide tab strip.
-     Icon-only (VS Code's activity bar) was rejected for a general-purpose control:
-     it needs an icon per panel, which the consumer may not have. */
+  /* Rotated label, reading top-to-bottom — Visual Studio's auto-hide strip. Icon-only was
+   rejected: it needs an icon per panel, which the consumer may not have. */
   writing-mode: vertical-rl;
   font-size: var(--acc-title-size);
   font-weight: var(--acc-title-weight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* The cap is on the LABEL'S OWN inline axis, which `writing-mode` above has
-     already turned vertical — so `max-inline-size` resolves to a height here and
-     says what it means ("this much label, then ellipsis"), where `max-height`
-     only said where it landed. Logical properties resolve against the ELEMENT'S
-     writing mode, so this survives the element being re-rotated.
-     Under RTL the inline axis of `vertical-rl` runs bottom-to-top, which is the
-     correct reading direction for an RTL script rotated into the rail; that is a
-     property of the writing mode, so it needs no rule of its own. */
+  /* The cap is on the LABEL'S OWN inline axis, already turned vertical by `writing-mode`,
+   so it says what it means and survives re-rotation. RTL reading order follows the mode. */
   max-inline-size: var(--acc-rail-label-max);
 }
 
@@ -571,22 +422,18 @@
   z-index: 2;
   background: transparent;
   transition: background var(--acc-duration) ease;
-  /* The browser must not claim the gesture for scrolling. Without this a touch
-     drag on the handle pans the page and the splitter never sees a pointermove —
-     the engine's `pointercancel` teardown fires instead, so resize is silently
-     pointer-and-mouse-only on a touch device. */
+  /* The browser must not claim the gesture for scrolling: without this a touch drag pans
+   the page, `pointercancel` fires, and resize is silently mouse-only. */
   touch-action: none;
 }
 
-/* Focusable now (see Splitter.tsx), so it needs a visible focus ring — a control
-   you can tab to and cannot see is worse than one you cannot tab to. Keyboard-only
-   by `:focus-visible`, so a pointer grab does not leave a ring behind. */
+/* Focusable now (see Splitter.tsx), so it needs a visible ring. `:focus-visible`, so a
+   pointer grab does not leave one behind. */
 .acc-splitter:focus-visible {
   background: var(--acc-accent);
   outline: var(--acc-focus-ring-width) solid var(--acc-accent);
-  /* Outset, unlike the shared default: the handle is only `--acc-splitter-hit`
-     wide, so an inset ring would be drawn inside a few pixels and be invisible at
-     the exact moment it matters. */
+  /* Outset, unlike the shared default: the handle is only `--acc-splitter-hit` wide, so an
+   inset ring would be invisible at the moment it matters. */
   outline-offset: 0;
 }
 
@@ -595,10 +442,8 @@
   background: var(--acc-accent);
 }
 
-/* Horizontal: a vertical hairline on the column's trailing edge — which is the
-   RIGHT edge with the rail on the left, and the LEFT edge when mirrored. The handle
-   is `--acc-splitter-hit` wide but centred on the boundary, so the grab target is
-   forgiving without the visible line being thick. */
+/* Horizontal: a vertical hairline on the column's trailing edge. The handle is wider but
+   centred on the boundary, so the grab target is forgiving without a thick line. */
 .acc-group[data-orientation='horizontal'] .acc-splitter {
   top: 0;
   bottom: 0;
@@ -606,11 +451,8 @@
   cursor: col-resize;
 }
 
-/* STAYS PHYSICAL. The handle belongs on the edge that faces the NEXT column, and
-   which edge that is comes from `data-rail-side` — a physical dock choice that
-   RTL does not flip. `inset-inline-end` would move the handle to the left edge in
-   RTL while the column it resizes stayed put, so the user would be dragging the
-   boundary they can see with the handle for the boundary they cannot. */
+/* STAYS PHYSICAL. The handle belongs on the edge facing the NEXT column, which comes from
+   `data-rail-side` — a physical choice RTL does not flip. */
 .acc-group[data-orientation='horizontal'][data-rail-side='left'] .acc-splitter {
   right: calc(-1 * var(--_acc-splitter-overhang));
 }
@@ -619,9 +461,8 @@
   left: calc(-1 * var(--_acc-splitter-overhang));
 }
 
-/* Vertical: a horizontal hairline on the panel's bottom edge. Logical here only
-   because it is SYMMETRIC — both inline edges get 0, so the two spellings mean
-   the same thing and the logical one states the intent ("span the panel"). */
+/* Vertical: a horizontal hairline on the bottom edge. Logical only because it is
+   SYMMETRIC — both inline edges get 0, so the spellings agree and this states intent. */
 .acc-group[data-orientation='vertical'] .acc-splitter {
   inset-inline: 0;
   height: var(--acc-splitter-hit);
@@ -645,9 +486,8 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
-/* Separator on the JOIN, not on each panel's bottom edge — `:last-of-type` cannot
-   be used to strip the trailing rule here because the group's own filler element
-   is also a div, so the last PANEL is never the last element of its type. */
+/* Separator on the JOIN, not each panel's bottom edge. `:last-of-type` cannot strip the
+   trailing rule: the group's filler is also a div, so the last panel never is. */
 .acc-group[data-orientation='vertical'] > .acc-panel + .acc-panel {
   border-top: 1px solid var(--acc-border);
 }
@@ -668,14 +508,11 @@
   display: none;
 }
 
-/* Column separators sit on each column's RAIL-FACING side, and the column hard
-   against the rail drops its own — otherwise it doubles up with the rail's edge.
-   `:first-of-type` cannot express "first column": the rail is also a div and comes
-   first in the DOM, and visual order comes from flex `order` anyway, which no
-   selector can read. Hence `data-col-first`, set by the panel. */
-/* STAYS PHYSICAL, for the same reason as the rail's own border: "rail-facing" is
-   decided by `data-rail-side`, which RTL does not flip. The `data-col-first`
-   reset below clears BOTH physical sides, so it needs no direction branch. */
+/* Column separators sit on each column's RAIL-FACING side, and the column against the
+   rail drops its own. `:first-of-type` cannot express "first column" — hence
+   `data-col-first`. */
+/* STAYS PHYSICAL, like the rail's own border: "rail-facing" is decided by
+   `data-rail-side`. The `data-col-first` reset clears both sides, so no direction branch. */
 .acc-group[data-orientation='horizontal'][data-rail-side='left'] > .acc-panel {
   border-left: 1px solid var(--acc-border);
 }
@@ -727,20 +564,15 @@
   background: var(--acc-header-bg-hover);
 }
 
-/* A closed header. The base rule above already paints `--acc-header-bg`, so
-   this exists only to let the closed state be toned SEPARATELY from the open
-   one; with the token at its default the two rules resolve to the same colour
-   and this is a no-op. */
+/* A closed header. The base rule already paints `--acc-header-bg`; this exists only so the
+   closed state can be toned separately, and is a no-op at the token's default. */
 .acc-panel[data-open='false'] > .acc-header-row {
   background: var(--acc-header-bg-closed);
 }
 
-/* ...and the hover this rule would otherwise EAT. `.acc-header-row:hover` is
-   (0,2,0); the closed rule above is (0,3,0) and outranks it, which would leave
-   the dock's primary click target — a collapsed header — with no hover feedback
-   at all. Restated at (0,4,0) rather than by loosening the closed selector,
-   because the specificity is load-bearing: it is what makes the closed tone
-   beat the base one. */
+/* ...and the hover this would otherwise EAT: the closed rule outranks `:hover`, leaving a
+   collapsed header with no feedback. Restated higher, because that specificity is
+   load-bearing. */
 .acc-panel[data-open='false'] > .acc-header-row:hover {
   background: var(--acc-header-bg-hover);
 }
@@ -762,10 +594,8 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  /* LOGICAL. A UA stylesheet centres button text; this is the reset that makes a
-     header read as a label. "Where the label starts" is reading order, so it must
-     follow the document direction — an RTL title left-aligned inside its own
-     header is the classic RTL tell. */
+  /* LOGICAL. A UA stylesheet centres button text; this makes a header read as a label.
+   "Where the label starts" is reading order, so it follows the document direction. */
   text-align: start;
   cursor: pointer;
 }
@@ -792,14 +622,8 @@
   color: var(--acc-text);
 }
 
-/* RTL: a COLLAPSED disclosure chevron points at the edge the content will unfold
-   from, which is the reading start — right in RTL, so the glyph must mirror. No
-   logical property can express this (SVG geometry has no direction awareness) and
-   a second glyph would be two things to keep in sync, so it is a mirror of the one
-   glyph — the same "one glyph, rotated" reasoning the icon itself is built on.
-   Deliberately lower specificity than the open rule above, which replaces the
-   transform outright: a chevron rotated to point DOWN is symmetric about the
-   vertical axis, so mirroring it would be a no-op anyway. */
+/* RTL: a collapsed chevron points at the edge the content unfolds from — right in RTL.
+   See DESIGN_NOTES.md § src/styles.css:795. */
 .acc-chevron:dir(rtl) {
   transform: scaleX(-1);
 }
@@ -832,10 +656,8 @@
 
 /* ── Badge ──────────────────────────────────────────────────────────────── */
 
-/* A state DOT, not a count. It carries no number on purpose: it answers "does this
-   need me?", which is a different question from "how many?", and a panel routinely
-   has an urgent state with a count of zero. Sized off the count badge's own token
-   so the two stay visually related when density rescales them. */
+/* A state DOT, not a count: it answers "does this need me?", and a panel routinely has
+   an urgent state with a count of zero. */
 .acc-badge {
   flex: 0 0 auto;
   width: var(--acc-badge-dot-size);
@@ -844,9 +666,8 @@
   background: var(--acc-badge-color);
 }
 
-/* Severity is a closed set of named tokens rather than a free colour prop: a dock
-   whose panels each invented their own amber stops communicating urgency at all.
-   Consumers wanting brand colour have the per-panel `accent`. */
+/* Severity is a closed set of named tokens, not a free colour prop: a dock whose panels
+   each invented their own amber stops communicating urgency. Brand colour goes in `accent`. */
 .acc-badge[data-badge='info'] {
   --acc-badge-color: var(--acc-accent);
 }
@@ -881,12 +702,8 @@
 
 /* ── Column title bar (horizontal) ──────────────────────────────────────── */
 
-/* EVERYTHING PINNED: the rail is serving no panels, so it takes no space. A
-   40px strip between the last static column and the leaf, with nothing in it and
-   nothing that can be put in it, is a dead strip — and the divider's whole claim
-   is that the rail marks a boundary that MEANS something. Width, padding and
-   border all go; `overflow: hidden` keeps the collapse from being undone by a
-   stray child's intrinsic width. */
+/* EVERYTHING PINNED: the rail serves no panels, so it takes no space rather than
+   leaving a dead 40px strip. */
 .acc-rail[data-rail-empty='true'] {
   width: 0;
   padding: 0;
@@ -900,23 +717,16 @@
   gap: var(--acc-gap);
   flex: 0 0 auto;
   min-height: var(--acc-header-height);
-  /* LOGICAL, and asymmetric: the wide pad is on the side the TITLE starts from
-     and the tight one on the side the icon buttons sit. Both of those are reading
-     order — the bar's own contents flow with the text, not with the dock edge —
-     so under RTL the pair swaps and the title keeps its breathing room. */
+  /* LOGICAL, and asymmetric: the wide pad is where the TITLE starts, the tight one where the
+   icons sit. Both are reading order, so under RTL the pair swaps. */
   padding-block: 0;
   padding-inline: var(--acc-header-pad-x) var(--acc-col-bar-pad-end);
   background: var(--acc-header-bg-open);
   border-bottom: 1px solid var(--acc-border);
 }
 
-/* The column title bar's activator — the control that collapses a docked column
-   back to a rail button while it stays pinned.
-
-   Transparent and unpadded so the bar looks exactly as it did when it was a label:
-   the affordance is the pointer and the focus ring, not a second button face
-   inside a bar that is already chrome. It takes the free space so the whole span
-   left of the pin is the hit area, which is what makes it findable at all. */
+/* The column title bar's activator — collapses a docked column back to a rail button
+   while it stays pinned. Transparent and unpadded so the bar still reads as a label. */
 .acc-col-activator {
   display: flex;
   align-items: center;
@@ -965,9 +775,8 @@
 }
 
 .acc-pin {
-  /* Hidden until the row is hovered or the pin is engaged/focused. A pin on every
-     header at all times turns the dock into a wall of icons; the pinned ones are
-     the only ones carrying information at rest. */
+  /* Hidden until the row is hovered or the pin is engaged. A pin on every header at all
+   times turns the dock into a wall of icons. */
   opacity: 0;
 }
 
@@ -993,9 +802,8 @@
 .acc-close:focus-visible,
 .acc-tearoff:focus-visible {
   outline: var(--acc-focus-ring-width) solid var(--acc-accent);
-  /* A tighter inset than the shared default. These three are small square icon
-     buttons packed into a title bar, so the standard `-2px` eats most of the glyph;
-     `-1px` keeps the ring on the button's own edge. */
+  /* A tighter inset than the shared default: these are small square icon buttons packed into
+   a title bar, so `-2px` eats most of the glyph. */
   outline-offset: -1px;
 }
 
@@ -1004,9 +812,8 @@
   height: var(--acc-pin-size);
 }
 
-/* NO ROTATION. The two states are two Lucide glyphs now (`pin` / `pin-off`), so
-   the 45° tilt that used to stand in for "unpinned" would rotate an already-
-   correct icon into a crooked one. See the note in `icons.tsx`. */
+/* NO ROTATION. The two states are two Lucide glyphs (`pin` / `pin-off`), so the 45° tilt
+   that stood in for "unpinned" would rotate a correct icon into a crooked one. */
 
 /* Torn-off state is persistent and consequential — the panel is in another
    window — so unlike the pin it stays lit without needing hover to be legible. */
@@ -1021,41 +828,21 @@
 
 /* ── Content ────────────────────────────────────────────────────────────── */
 
-/* `.acc-flyout-host` is listed here because it IS a panel's content box — just one
-   that lives in a Portal'd overlay instead of in a column. When auto-hide moves a
-   panel's subtree into a flyout, the `.acc-content` div stays behind in the docked
-   shell, so a rule scoped to that class alone leaves the flyout with no padding and
-   no scroll: text flush against the border, and any content taller than the dock
-   clipped by `.acc-flyout`'s `overflow: hidden` with no way to reach it.
-
-   Widened here rather than restated in `autoHide.css` on purpose. Two copies of
-   "what a content box looks like" is exactly the duplication that lets the docked
-   and flying-out renderings drift apart, and they must be indistinguishable — the
-   whole promise of pinning a flyout is that the content does not change, only where
-   it lives. */
+/* `.acc-flyout-host` IS a panel's content box in a Portal'd overlay. Widened here so the two
+   renderings cannot drift. See DESIGN_NOTES.md § src/styles.css:1024. */
 .acc-content,
 .acc-flyout-host {
   min-height: 0;
   min-width: 0;
   padding: var(--acc-content-pad);
-  /* Listed here rather than only on `.acc-content` for the reason the whole
-     pairing exists: a panel that flies out must be INDISTINGUISHABLE from the
-     same panel docked, and a body tone applied to one but not the other would
-     make pinning change the look — the one thing auto-hide promises it will
-     not do. */
+  /* Listed here rather than only on `.acc-content` for the reason the pairing exists: a
+   flown-out panel must be indistinguishable from the docked one. */
   background: var(--acc-content-bg);
   overflow: auto;
 }
 
-/* Fill mode: the content box must be a flex parent so a nested group (or any
-   flex:1 child) can claim the panel's remaining space.
-
-   The `:not([hidden])` is LOAD-BEARING, not decoration. A collapsed panel carries
-   the `hidden` attribute, whose UA `display: none` is the weakest rule in the
-   cascade — any author `display` beats it. This selector is (0,3,0) and a bare
-   `.acc-content[hidden]` is (0,2,0), so without the guard a fill-mode panel went on
-   painting its content after being collapsed. Every rule below that sets `display`
-   on `.acc-content` must carry the same guard. */
+/* Fill mode needs the content box to be a flex parent. `:not([hidden])` is LOAD-BEARING at
+   (0,3,0): it beats the UA `display: none`, so every `display` rule here must carry it. */
 .acc-group[data-mode='fill'] .acc-content:not([hidden]) {
   display: flex;
   flex-direction: column;
@@ -1067,10 +854,8 @@
   flex: 1 1 auto;
 }
 
-/* Belt and suspenders: the guards above are the root fix, but this makes a
-   collapsed panel's content unpaintable even if some future rule sets `display`
-   without one. `!important` is deliberate — "collapsed means invisible" is the
-   control's contract, not a style preference to be negotiated by specificity. */
+/* Belt and suspenders: the guards above are the root fix; this makes a collapsed panel
+   unpaintable even if a future rule sets `display` without one. */
 .acc-content[hidden] {
   display: none !important;
 }
@@ -1083,56 +868,26 @@
 
 /* ── Open/close motion (opt-in) ─────────────────────────────────────────── */
 
-/* Everything below is gated on `data-animated="true"`, which defaults to false —
-   an un-opted-in group is byte-for-byte the layout it was before this section
-   existed. Nothing here changes a resting geometry; each rule only supplies the
-   OTHER end of a transition the control was already snapping between.
-
-   The two orientations need two different mechanisms, and neither is a choice of
-   taste — it follows from what the collapsed state IS in each:
-
-     horizontal  a collapsed panel is `display: none` (its activator is the rail
-                 button), so the open state can be given an interpolable
-                 zero-width start via @starting-style and grown from the rail.
-     vertical    a collapsed panel is still a visible header bar, so nothing may
-                 start from zero; the CONTENT has to be wiped open instead, which
-                 is the `grid-template-rows: 0fr -> 1fr` trick that
-                 @cujuju/solidjs-collapsible already uses (see
-                 packages/collapsible/src/styles.css — `max-height` cannot
-                 interpolate to a content height, an `fr` track can). */
+/* Everything below is gated on `data-animated="true"` (default false), so an un-opted-in
+   group is unchanged. See DESIGN_NOTES.md § src/styles.css:1086. */
 
 /* ── horizontal: a column grows out of the rail ──
-   `flex-basis` carries it in `natural` (the column has a declared width) and
-   `flex-grow` + `min-width` carry it in `fill` (the column has a share, not a
-   width) — all three are numbers/lengths, so all three interpolate. One rule
-   covers both modes because the property that is inert in a mode is identical at
-   both ends there and so never animates. */
+   `flex-basis` carries it in `natural`, `flex-grow` + `min-width` in `fill`; all are
+   lengths, so all interpolate. */
 .acc-group[data-animated='true'][data-orientation='horizontal'] > .acc-panel[data-open='true'] {
   transition:
     flex-basis var(--acc-open-duration) ease,
     flex-grow var(--acc-open-duration) ease,
     min-width var(--acc-open-duration) ease;
-  /* Stops the content REFLOWING while the column is narrower than its content
-     (the min-width floors below hold the inner layout still, which means the
-     inner boxes are wider than the panel for the length of the animation and
-     would otherwise spill over the neighbouring column).
-     `clip` rather than `hidden` because `hidden` would make the panel a scroll
-     container, and `overflow-clip-margin` is what keeps this from breaking the
-     splitter: that handle is deliberately positioned half OUTSIDE the panel
-     (`right: calc(-1 * var(--_acc-splitter-overhang))`), so the clip region is
-     expanded by exactly that overhang. Without it, animating a column would silently halve its resize
-     hit area. */
+  /* Stops the content reflowing while the column is narrower than its content. `clip`, not
+     `hidden`. See DESIGN_NOTES.md § src/styles.css:1115. */
   overflow: clip;
   overflow-clip-margin: var(--_acc-splitter-overhang);
 }
 
-/* The other end of the transition. A collapsed column is `display: none`, so it
-   has no before-change style to animate FROM — @starting-style is what supplies
-   one for an element entering the box tree. It also fires on first paint, so a
-   `defaultOpen` column animates in on mount, which is the same event from the
-   user's point of view.
-   Engines without @starting-style drop this at-rule and land on the final values
-   immediately: no animation, no breakage. */
+/* The other end of the transition. A collapsed column is `display: none`, so
+   @starting-style supplies the before-change style. Engines without it land on the final
+   values: no animation, no breakage. */
 @starting-style {
   .acc-group[data-animated='true'][data-orientation='horizontal'] > .acc-panel[data-open='true'] {
     flex-basis: 0;
@@ -1141,53 +896,26 @@
   }
 }
 
-/* The "do not reflow while growing" floor, applied to the panel's in-flow
-   children rather than to the panel (the panel must be free to be narrow — that
-   IS the animation). Held still, the inner boxes keep one line-break layout for
-   the whole travel and the clip above reveals it; unheld, they rewrap at every
-   frame between zero and full width.
-
-   `fill` ONLY. The floor has to be a value the column can never REST below, or a
-   transient clip becomes a permanent one, and `fill` is the only mode that
-   guarantees one: its panels carry `min-width: var(--acc-col-min-width)` in CSS,
-   which a user-dragged inline `flex` cannot get under.
-   `natural` has no such floor — its columns are draggable down to
-   DEFAULT_MIN_SIZE_PX (60px in resize.ts), well below --acc-col-width — so a
-   fixed inner min-width there would silently clip ~170px off every column the
-   user narrowed, for as long as animation stayed enabled. It gets the clip and
-   nothing else, which is the other mitigation and the cheap one to be right
-   about. */
+/* The "do not reflow while growing" floor, applied to the panel's children. `fill` ONLY.
+   See DESIGN_NOTES.md § src/styles.css:1144. */
 .acc-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
   > .acc-panel
   > .acc-col-bar,
 .acc-group[data-animated='true'][data-orientation='horizontal'][data-mode='fill']
   > .acc-panel
   > .acc-content {
-  /* The floor is the column's OUTER width, so it has to be measured the same way
-     — asserted locally rather than assumed from a page reset, because getting it
-     wrong here does not misalign anything, it silently clips the content by twice
-     --acc-content-pad for as long as animation is enabled. */
+  /* The floor is the column's OUTER width, so it must be measured the same way — asserted
+   locally, because getting it wrong silently clips the content while animation is on. */
   box-sizing: border-box;
   min-width: var(--acc-col-min-width);
 }
 
-/* CLOSING a column is deliberately NOT animated, and this is a correctness
-   decision rather than an omission. A closed panel's `openIndex` is -1, so the
-   inline style clamps its flex `order` to 1 — the head of the column strip. Keep
-   a closing column in the box tree and it TELEPORTS to sit against the rail and
-   then shrinks, which reads as a different panel closing. Letting it disappear
-   under the existing `display: none` is the honest behaviour until the group can
-   hold a last-known order (see the note at the end of this section). */
+/* CLOSING a column is NOT animated: a closed panel's `openIndex` is -1, so its flex `order`
+   clamps to 1 and a closing column would teleport to the rail before shrinking. */
 
 /* ── vertical + natural: wipe the content open ──
-   The panel becomes the grid container itself: row 1 is the header bar, row 2 is
-   the content, and row 2 is what travels 0fr -> 1fr. The sibling package puts
-   this on a dedicated wrapper element; there is no wrapper in this markup, and
-   the panel is the only box that (a) survives the collapse and (b) has exactly
-   these two children, the splitter being absolutely positioned and therefore not
-   a grid item.
-   @supports because the trick needs a 0fr track to be legal — the same gate, and
-   the same rationale, as the collapsible package's block. */
+   The panel is the grid container and the content row travels 0fr → 1fr.
+   See DESIGN_NOTES.md § src/styles.css:1182. */
 @supports (grid-template-rows: 0fr) {
   .acc-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
     > .acc-panel {
@@ -1201,23 +929,8 @@
     grid-template-rows: auto 1fr;
   }
 
-  /* The collapsed content has to stay in the BOX TREE for the row to have
-     anything to interpolate: an empty 1fr track in a content-sized panel
-     resolves to zero, so without this the close would snap and only the open
-     would animate.
-     This is NOT a hole in the "collapsed means invisible" contract that the
-     `.acc-content[hidden]` rule above states — `visibility: hidden` keeps the
-     content out of the accessibility tree and out of tab order exactly as
-     `display: none` did. What it does NOT do is remove the box, and unlike
-     `display` it INTERPOLATES: a visibility transition holds `visible` for the
-     whole duration and flips at the end, so a closing panel's content stays on
-     screen while its row shrinks instead of vanishing a frame early.
-     `block` matches what the visible state resolves to in a `natural` group. The
-     one case it does not is a `natural` group nested INSIDE a `fill` one, because
-     the fill content rule matches by descendant rather than by child and hands it
-     `flex` — such a panel re-lays-out its content once as the close starts.
-     Left alone deliberately: tightening that selector to a child combinator is a
-     layout change to non-animated groups, which is not this phase's to make. */
+  /* The collapsed content stays in the BOX TREE so the row can interpolate. `visibility:
+     hidden` INTERPOLATES where `display: none` did not. See DESIGN_NOTES.md § src/styles.css:1204. */
   .acc-group[data-animated='true'][data-orientation='vertical'][data-mode='natural']
     > .acc-panel
     > .acc-content[hidden] {
@@ -1229,50 +942,18 @@
     > .acc-panel
     > .acc-content {
     transition: visibility var(--acc-open-duration);
-    /* Overrides the `auto` this control gives content everywhere else, and only
-       safely HERE: in `natural` mode the content box is sized to its own content,
-       so it has nothing to scroll in a resting state — the only moment it is ever
-       smaller than its content is mid-wipe, which is precisely the moment a
-       scrollbar must not flash in and out. */
+    /* Overrides the `auto` given everywhere else, and only safely HERE: a `natural` content
+     box has nothing to scroll at rest, so the only moment it is smaller is mid-wipe. */
     overflow: hidden;
   }
 }
 
-/* ── vertical + fill: not animated, and this is the reason ──
-   A `fill` panel's height is its flex share: `flex: 0 0 auto` collapsed,
-   `flex: 1 1 0` open. `auto` is a keyword, so `flex-basis` steps rather than
-   interpolates and a transition would POP at the halfway point — worse than the
-   snap it replaced. Rejected alternatives:
-     - Pin the collapsed basis to `var(--acc-header-height)` so both ends are
-       lengths. Rejected: the header row is min-height, not height, so a consumer
-       whose `actions` are taller than the token would get a clipped header the
-       moment they turned animation on.
-     - `min-height: min-content` on the panel instead of the token. Rejected: the
-       min-content contribution of the content item is its own min-content height
-       (`min-height: 0` removes the automatic minimum, it does not remove the
-       contribution), so a collapsed panel would refuse to collapse.
-     - Wipe the content row as `natural` does, leaving the panel's box to snap.
-       Rejected: the box reaches full height on frame 1 while the row is still
-       partway, so the panel paints a growing empty gap under its own content.
-   The honest fix is a measured collapsed height, which needs script — see the
-   note below. `interpolate-size: allow-keywords` will make the flex-basis
-   version legal once it is not Chromium-only. */
+/* ── vertical + fill: not animated ──
+   `flex-basis` steps rather than interpolates, so a transition would pop. See
+   DESIGN_NOTES.md § src/styles.css:1241. */
 
-/* ── What this section could NOT do from CSS alone ──
-   Both gaps above want the same one-line change in
-   /mnt/e/Development/Projects/solidjs-toolkit/playground/src/mock/accordion-dock/AccordionPanel.tsx,
-   and neither is made here because that file is owned elsewhere:
-     1. Wrap `.acc-content` in a `<div class="acc-content-wrapper">` (exactly the
-        element @cujuju/solidjs-collapsible has) and move `hidden` onto the
-        wrapper. That gives the vertical wipe a dedicated clipping box, which
-        removes the `display: block !important` override here AND lets `fill`
-        mode animate its own height.
-     2. Keep the panel's `order` at its LAST open index while it is closing
-        (`data-closing`, or clamping `openIndex` to its previous value) so a
-        horizontal column can be animated shut without teleporting to the rail.
-   The column title bar also unmounts on close (`<Show when={horizontal() &&
-   open()}>`), so even with (2) a closing column would shrink empty unless that
-   Show is widened. */
+/* NOT doable from CSS alone: both gaps need AccordionPanel.tsx, which is owned elsewhere.
+   See DESIGN_NOTES.md § src/styles.css:1261. */
 
 @media (prefers-reduced-motion: reduce) {
   .acc-chevron,
@@ -1283,11 +964,8 @@
     transition: none !important;
   }
 
-  /* The open/close motion above is geometry — a whole column travelling its own
-     width, a panel's content wiping open. That is the exact class of movement
-     this query exists to suppress, so the opt-in is overruled here and the
-     control lands on its resting layout immediately. The @starting-style block
-     becomes inert on its own once there is no transition to start. */
+  /* The motion above is geometry — a column travelling its own width — which is exactly what
+   this query suppresses, so the opt-in is overruled and the dock lands at rest. */
   .acc-group[data-animated='true'] > .acc-panel,
   .acc-group[data-animated='true'] > .acc-panel > .acc-content {
     transition: none !important;
@@ -1295,37 +973,23 @@
 }
 
 /* ── Appearance: cards ────────────────────────────────────────────────────────
-   PURELY CHROME. Nothing below changes what the dock DOES — open, pin, reorder,
-   size and flyout all behave identically; only what is drawn changes. Every rule
-   is keyed on `[data-appearance='cards']`, so the default `flush` rendering is
-   untouched by construction rather than by care.
-
-   The flush look is ONE frame with panels divided by hairlines inside it. Cards
-   inverts that: the frame moves onto each panel and the group stops drawing one,
-   with a gap doing the dividing that separators did. Both orientations get it —
-   vertical stacks the cards, horizontal sets them side by side — because the gap
-   is applied along the group's main axis and needs no per-axis rule. */
+   PURELY CHROME: nothing here changes behaviour, and every rule is keyed on
+   `[data-appearance='cards']`. See DESIGN_NOTES.md § src/styles.css:1297. */
 
 .acc-group[data-appearance='cards'] {
-  /* A frame around a row of framed cards is the doubled chrome this control has
-     already had to remove once. The group keeps its layout job and gives up its
-     decoration entirely — the host's own background is what shows between the
-     cards and is what makes them read as separate surfaces. */
+  /* A frame around a row of framed cards is doubled chrome. The group keeps its layout job
+   and gives up decoration; the host's background is what separates the cards. */
   /* The handle sits mid-gap: half a gap further out. */
   --_acc-splitter-overhang: calc(var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2);
   border: 0;
   background: transparent;
-  /* The divider. Applied on the group so it follows the main axis in either
-     orientation, and so flex `order` cannot move a panel away from its gap the
-     way an adjacency selector (`+`) could. */
+  /* The divider. Applied on the group so it follows the main axis in either orientation, and
+   so flex `order` cannot move a panel away from its gap. */
   gap: var(--acc-card-gap);
 }
 
-/* The card itself. `overflow: hidden` would be the one-line way to clip the
-   header's background to these corners — and it is WRONG here: the splitter is
-   positioned OUTSIDE the panel's box so it can straddle the gap, and clipping the
-   panel would delete the resize handle. The header chrome rounds its own corners
-   just below instead. */
+/* The card itself. `overflow: hidden` would clip the header to these corners and is WRONG:
+   the splitter sits outside the panel's box, so clipping deletes the resize handle. */
 .acc-group[data-appearance='cards'] > .acc-panel {
   border: 1px solid var(--acc-border);
   border-radius: var(--acc-radius);
@@ -1333,11 +997,8 @@
 }
 
 /* ── Separator suppression ───────────────────────────────────────────────────
-   The flush rules below divide panels INSIDE a shared frame; in cards the gap
-   already does that, and these would either double a card's own border or, in
-   the `data-col-first` case, strip the borders off the card hard against the
-   rail. Restated at matching-or-higher specificity rather than by reordering,
-   so this does not silently depend on where in the file it sits. */
+   In cards the gap already divides; these would double a card's border or strip the
+   borders off the card against the rail. Restated at matching specificity, not reordered. */
 .acc-group[data-appearance='cards'][data-orientation='vertical'] > .acc-panel + .acc-panel {
   border: 1px solid var(--acc-border);
 }
@@ -1349,10 +1010,8 @@
 }
 
 /* ── Header corners ──────────────────────────────────────────────────────────
-   The header bar (vertical) and the column title bar (horizontal) both paint a
-   background at the card's leading edge, so a square corner there fills the
-   card's radius and the card reads as notched. Rounded here rather than by
-   clipping the card — see the note on the card rule. */
+   Both bars paint a background at the card's leading edge, so a square corner fills
+   the radius and the card reads as notched. */
 .acc-group[data-appearance='cards'] > .acc-panel > .acc-header-row,
 .acc-group[data-appearance='cards'] > .acc-panel > .acc-col-bar {
   border-top-left-radius: var(--acc-radius);
@@ -1365,20 +1024,8 @@
   border-radius: var(--acc-radius);
 }
 
-/* ── The rail stays FLUSH, and is not a card ─────────────────────────────────
-   Deliberate, and the one part of this with no obvious answer.
-
-   A card frame says "I am a peer of the other cards". The rail is not: it never
-   opens or closes, holds no content, cannot be pinned or reordered, and under the
-   divider model it is the BOUNDARY between the static and dynamic regions — a
-   boundary drawn as one of the things it separates is a category error. It is
-   also ~32px wide, so a frame around it would be very nearly all border.
-
-   So it keeps its flush strip against the group's edge. It still gets the gap
-   (the group's `gap` applies to every child), which reads correctly: an edge
-   fixture with the cards floating beside it at the same rhythm they float from
-   each other. Its inner border goes, because that border's whole job was to
-   divide it from columns it now has a gap from. */
+/* The rail stays FLUSH and is not a card: it never opens and holds no content. See
+   DESIGN_NOTES.md § src/styles.css:1368. */
 .acc-group[data-appearance='cards'][data-rail-side='left'] > .acc-rail,
 .acc-group[data-appearance='cards'][data-rail-side='right'] > .acc-rail {
   border-inline: 0;
@@ -1386,11 +1033,8 @@
 }
 
 /* ── Splitters land in the GAP ───────────────────────────────────────────────
-   Flush centres the handle on the panel's trailing EDGE, which is where the
-   divide visibly is when panels touch. With cards the divide the user sees is the
-   middle of the gap, half a gap further out — so the handle moves with it. Miss
-   this and the grab target sits on the card's border while the user aims at the
-   space between the cards. */
+   With cards the divide the user sees is the middle of the gap, so the handle moves
+   with it. */
 .acc-group[data-appearance='cards'][data-orientation='horizontal'][data-rail-side='left']
   .acc-splitter {
   right: calc(-1 * var(--_acc-splitter-overhang));
@@ -1405,8 +1049,5 @@
   bottom: calc(-1 * var(--_acc-splitter-overhang));
 }
 
-/* FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout` already draws a
-   bordered, shadowed surface, and under cards its ELEVATION is what says it is
-   floating above the docked cards rather than being one of them. Matching a
-   flyout's border to the cards' would take the only cue that distinguishes
-   transient from docked and hand it to the thing it distinguishes them from. */
+/* FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout`'s elevation is what says it
+   floats above the docked cards. Matching its border to theirs would spend that cue. */

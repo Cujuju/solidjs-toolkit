@@ -2,33 +2,8 @@ import { Show, type JSX } from 'solid-js';
 import { useAccordionGroup } from './context';
 
 /**
- * The drag handle on a panel's TRAILING edge — the boundary between it and the next
- * open panel.
- *
- * It is rendered by the panel rather than as a standalone sibling because flex
- * `order` decides visual sequence here: a free-standing splitter element would have
- * to be given an order value interleaved with the columns', and every reorder or
- * open/close would have to re-thread them. Anchoring the handle to the panel it
- * resizes makes that bookkeeping disappear.
- *
- * Renders only when there IS a next open panel — a handle on the last column would
- * resize the group itself, which the group does not own.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * IT IS A CONTROL, NOT DECORATION.
- *
- * This was a `role="separator"` with no `tabindex`, no key handler and no
- * `aria-value*`: resize was reachable by pointer only. `keys.ts` already states the
- * principle for the other gesture in this control — "drag-to-reorder that has no
- * keyboard equivalent is an accessibility hole, not a missing nicety: a
- * pointer-only affordance makes the feature unreachable rather than awkward" — and
- * reorder duly got Alt+Arrow while resize got nothing.
- *
- * So it is now a focusable window splitter per the ARIA pattern: arrows move the
- * boundary, Shift takes a coarse step, Home/End go to the panel's floor and
- * ceiling. The keys map to the AXIS the panels grow along, which is the axis the
- * handle visibly slides on — Left/Right between columns, Up/Down between stacked
- * panels — so the binding is the one the geometry suggests rather than one to learn.
+ * The drag handle on a panel's TRAILING edge. A focusable window splitter, operable by arrows,
+ * not decoration. See DESIGN_NOTES.md § src/Splitter.tsx:4.
  */
 
 /** One arrow press. The engine owns the DISTANCE (see `KEYBOARD_STEP_PX` there), so
@@ -36,12 +11,8 @@ import { useAccordionGroup } from './context';
 const ONE_STEP = 1;
 
 /**
- * Home/End travel: far enough to reach the clamp from anywhere.
- *
- * The engine bounds every movement to the pair's floors, so this only has to exceed
- * any dock's width rather than be measured — asking for 1000 coarse steps and
- * landing exactly on the minimum is the same code path as asking for one and
- * landing 8px away.
+ * Home/End travel: far enough to reach the clamp from anywhere. The engine bounds every
+ * movement to the pair's floors, so this only has to exceed any dock's width.
  */
 const TO_THE_END = 1000;
 
@@ -49,17 +20,8 @@ export function Splitter(props: { id: string }): JSX.Element {
   const group = useAccordionGroup();
 
   /**
-   * SUPPRESSED ON THE RAIL BOUNDARY.
-   *
-   * The last pinned column's trailing edge is the rail, not another column. A
-   * handle there would be a resizer whose "next panel" is on the far side of a
-   * divider the user deliberately put between them — it would either drag the
-   * rail around or resize a panel the user is not touching. The rail is a
-   * boundary, so the boundary does not resize.
-   *
-   * `neighborOpenId` still answers with the next panel in painted order (the rail
-   * is not a panel and never enters that sequence), which is exactly why this
-   * needs its own check rather than falling out of the existing one.
+   * SUPPRESSED ON THE RAIL BOUNDARY: the last pinned column's trailing edge is the rail, and a
+   * boundary does not resize. See DESIGN_NOTES.md § src/Splitter.tsx:51.
    */
   const shown = (): boolean =>
     group.resizable() &&
@@ -102,10 +64,8 @@ export function Splitter(props: { id: string }): JSX.Element {
         tabindex={0}
         aria-orientation={horizontal() ? 'vertical' : 'horizontal'}
         aria-label="Resize panel"
-        /* Reported only once the engine can measure the pair. Before the panels
-           have laid out there is no honest number, and a separator announcing
-           `aria-valuenow="0"` is worse than one announcing nothing: a screen reader
-           would read out a position that is not the position. */
+        /* Reported only once the engine can measure the pair: a separator announcing
+                   `aria-valuenow="0"` reads out a position that is not the position. */
         aria-valuenow={bounds()?.value}
         aria-valuemin={bounds()?.min}
         aria-valuemax={bounds()?.max}

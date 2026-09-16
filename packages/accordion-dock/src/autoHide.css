@@ -1,115 +1,54 @@
 /*
- * AUTO-HIDE / FLYOUT styling.
- *
- * Separate file from `styles.css` on purpose: auto-hide is an opt-in mode
- * (`autoHide` prop), and its rules are worthless to a consumer who never turns
- * it on. Import next to `./styles.css` in `index.ts`.
- *
- * UNLAYERED, like `rail.css` and `breadcrumb.css`.
- *
- * This file used to wrap every rule in `@layer cujuju-defaults`, on the stated
- * premise that it was matching `styles.css`. That premise was FALSE: `styles.css`
- * layers only its token block (`:root` + the density overrides) and leaves every
- * component rule — including `.acc-panel { display: flex }` — unlayered.
- *
- * Unlayered declarations beat layered ones outright, ahead of specificity. So
- * every rule in here that competed with a component rule silently lost, no matter
- * how specific it was. `.acc-panel[data-flyout='true'] { display: none }` is the
- * one that mattered: a flying-out panel's docked column was never removed from the
- * layout, so it kept its slot and painted its title bar over the flyout floating
- * in front of it. Caught by a browser test; invisible to jsdom, which has no
- * cascade, and invisible to specificity arithmetic, which was not the deciding
- * factor.
- *
- * Token declarations stay layered below, which is the property the original
- * comment was reaching for and the one worth keeping: a consumer restating
- * `--acc-flyout-shadow` unlayered wins without having to out-specify us.
- *
- * Every value here is either an existing `--acc-*` token or a variable the
- * flyout's own JS sets on the popover shell (`--acc-flyout-width`,
- * `--acc-flyout-max-height` — see `autoHide.tsx`). No literals.
+ * AUTO-HIDE / FLYOUT styling, in its own file because auto-hide is opt-in. UNLAYERED: an
+ * unlayered rule beats a layered one. See DESIGN_NOTES.md § src/autoHide.css:1.
  */
 
 /*
- * The panel's docked shell, while its content is living in a flyout.
- *
- * The panel element stays MOUNTED (it owns the refs the group measures and
- * the identity the reorder list tracks) but must not take part in the column
- * layout — a flyout is an overlay, and the whole point is that the columns do
- * not reflow to make room for it.
- *
- * It competes with `.acc-panel { display: flex }` in styles.css and wins on
- * specificity — (0,2,0) against (0,1,0) — but ONLY because both rules now sit in
- * the same cascade layer. While this file was wrapped in `@layer
- * cujuju-defaults` and that rule was not, specificity never got a vote and the
- * column stayed in the layout. See the file header.
- *
- * HORIZONTAL ONLY, and this is the one structural difference between the two
- * orientations. In horizontal the panel's activator is a rail button the GROUP
- * renders, so removing the whole column takes nothing with it. In vertical the
- * activator is the panel's OWN header bar: hiding the panel would hide the
- * header, which is both the flyout's anchor and the only way to dismiss it —
- * the flyout would be left pointing at an element that no longer has a box.
- * A vertical flying-out panel therefore stays in flow showing just its header,
- * which is exactly what a collapsed panel looks like; its content is already
- * out of the layout because `AccordionPanel` marks the inline host `hidden`
- * while the subtree is portalled away.
+ * Docked shell while the content lives in a flyout: still MOUNTED, but out of the column
+ * layout. HORIZONTAL ONLY. See DESIGN_NOTES.md § src/autoHide.css:33.
  */
 .acc-group[data-orientation='horizontal'] > .acc-panel[data-flyout='true'] {
   display: none;
 }
 
 /*
- * Vertical: the flying-out panel must not GROW, or `fill` mode would hand an
- * empty shell an equal share of the dock and leave a gap where the content used
- * to be. Collapsed-panel sizing, which is the state it is visually in.
+ * Vertical: the flying-out panel must not GROW, or `fill` would hand an empty shell an equal
+ * share. Collapsed-panel sizing, which is what it visually is.
  */
 .acc-group[data-orientation='vertical'] > .acc-panel[data-flyout='true'] {
   flex: 0 0 auto;
 }
 
 /*
- * A flyout has no neighbour to resize against — it floats over the columns
- * rather than sharing an edge with one — so its splitter would be a drag
- * handle that moves nothing.
- *
- * Belt to the suspenders above: with `<Splitter>` left OUTSIDE `PanelOutlet`
- * (the recommended wiring) it stays in the `display: none` docked shell and
- * this rule never fires. It exists so that moving the splitter inside the
- * outlet later cannot silently ship a dead control into the overlay.
+ * A flyout has no neighbour to resize against, so its splitter would move nothing. Belt to
+ * the suspenders: with `<Splitter>` outside `PanelOutlet` it stays in the hidden docked shell.
  */
 .acc-flyout .acc-splitter {
   display: none;
 }
 
 /*
- * The flyout surface itself.
- *
- * Sized from the panel's own width so promotion (pin) does not resize it: the
- * layout makes room for something that was already this wide, rather than the
- * panel jumping to a new size at the moment it becomes permanent.
+ * The flyout surface. Sized from the panel's own width so pinning does not resize it — the
+ * layout makes room for something already this wide.
  */
 .acc-flyout {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /* Set by `flyoutCrossAxis` — an exact px in horizontal, `max-content` in
-     vertical. The floor keeps a flyout from ever opening NARROWER than the
-     section it came out of, which would read as the panel shrinking. */
+  /* Set by `flyoutCrossAxis` — an exact px in horizontal, `max-content` in vertical. The
+       floor keeps a flyout from opening NARROWER than the section it came from. */
   width: var(--acc-flyout-width);
   min-width: var(--acc-flyout-min-width, 0);
-  /* Vertical only in practice: the horizontal path writes `none` inline, because
-     its width is one the user dragged and capping it would resize the flyout
-     relative to the column it promotes into. */
+  /* Vertical only in practice: the horizontal path writes `none` inline, because its width
+       is one the user dragged and capping it would resize the flyout on promotion. */
   max-width: var(--acc-flyout-max-width);
   max-height: var(--acc-flyout-max-height);
   background: var(--acc-bg);
   color: var(--acc-text);
   border: 1px solid var(--acc-border);
   border-radius: var(--acc-radius);
-  /* Reads as floating above the dock rather than as another column. This is
-     the ONLY visual cue distinguishing transient from docked, so it is
-     deliberately not subtle. */
+  /* Reads as floating above the dock rather than as another column — the ONLY visual cue
+       distinguishing transient from docked, so deliberately not subtle. */
   box-shadow: var(--acc-flyout-shadow);
   overflow: hidden;
 }
@@ -123,29 +62,15 @@
   :root {
     --acc-flyout-shadow: 0 8px 24px rgb(0 0 0 / 45%);
     /*
-     * Ceiling for a CONTENT-SIZED flyout (the vertical case).
-     *
-     * A fraction of the viewport rather than a px, for two reasons: it scales
-     * with the window instead of being right at one size, and being viewport-
-     * relative it can never put the flyout past the screen edge no matter how
-     * pathological a row is. Content wider than this scrolls horizontally INSIDE
-     * the flyout — the honest last resort, chosen over clipping, which would hide
-     * data silently. At 60% a flyout can be much wider than a narrow sidebar
-     * without ever becoming the window.
+     * Ceiling for a CONTENT-SIZED flyout (vertical). A viewport fraction, so it scales and
+     * never passes the screen edge. Wider content scrolls inside, rather than clipping.
      */
     --acc-flyout-max-width: 60vw;
   }
 }
 
-/* The element the panel's subtree portals into. It is the flyout's whole
-   content area, which is why `styles.css` lists it alongside `.acc-content`
-   for padding and scrolling — the flyout must look like the column it will
-   become when pinned.
-
-   It also carries `data-density`, restating what the group element sets, since
-   the flyout is Portal'd to <body> and escapes the group's token scope. The
-   density block in `styles.css` matches `:is(.acc-group, .acc-flyout-host)`
-   for that attribute to mean anything here. */
+/* The element the panel's subtree portals into — the flyout's whole content area. Carries
+   `data-density`, because the Portal escapes the group's token scope. */
 .acc-flyout-host {
   display: flex;
   flex-direction: column;
@@ -154,21 +79,16 @@
 }
 
 /*
- * The rail button of a flying-out panel.
- *
- * It must NOT look identical to a docked-open button: `aria-selected` is true
- * for both, and if they paint the same then the pin — the entire subject of
- * this mode — has no visible effect. A dashed marker against the solid one
- * used for a docked column says "showing, but not staying".
+ * A flying-out panel's rail button must NOT look identical to a docked-open one:
+ * `aria-selected` is true for both, so the pin would have no visible effect.
  */
 .acc-rail-btn[data-flyout='true'] {
   font-style: italic;
 }
 
 .acc-group[data-rail-side] .acc-rail-btn[data-open='true'][data-flyout='true'] {
-  /* Overrides the solid accent stripe that `styles.css` paints for an open
-     button. Same geometry, broken up — the marker's PRESENCE still means
-     open, its CONTINUITY now means permanent. */
+  /* Overrides the solid accent stripe `styles.css` paints for an open button. Same geometry,
+       broken up — PRESENCE still means open, CONTINUITY now means permanent. */
   background-image: repeating-linear-gradient(
     to bottom,
     var(--acc-accent) 0,
@@ -196,23 +116,16 @@
 }
 
 /*
- * `PanelOutlet`'s two wrappers, while the panel is docked.
- *
- * `display: contents` removes their boxes so the column layout is byte-for-
- * byte what it was before the outlet existed. They still appear in the
- * SELECTOR chain, which is why the nested-group rules in styles.css need
- * widening — the handoff lists them. The inline style set by the component
- * covers this too; the rule is here so the docked case is correct even if a
- * future refactor stops setting it inline.
+ * `PanelOutlet`'s two wrappers while docked. `display: contents` removes their boxes, so the
+ * column layout is unchanged — but they still sit in the SELECTOR chain.
  */
 [data-acc-outlet-host],
 [data-acc-outlet] {
   display: contents;
 }
 
-/* …except inside an alternate surface, where the container IS the box. The
-   component sets `display: flex` inline, which beats this rule; stated here
-   so the intent survives a reader who only has the CSS. */
+/* …except inside an alternate surface, where the container IS the box. The component sets
+   `display: flex` inline, which beats this; stated so the intent survives in the CSS. */
 .acc-flyout-host > [data-acc-outlet] {
   display: flex;
   flex-direction: column;
@@ -232,17 +145,8 @@
 
   @layer cujuju-defaults {
     :root {
-      /* ZERO BY DEFAULT, matching `--acc-duration`: a flyout is an overlay the
-         user asked for and is already reaching toward, so time spent revealing
-         it is time it cannot be clicked. The keyframes and the `animation`
-         declaration stay — a 0ms animation is inert — so raising this token is
-         all it takes to get the reveal back.
-
-         Was 110ms, for "long enough that the direction of travel registers,
-         which is what tells them where the panel came from". That reasoning
-         holds for a RAIL, where the flyout emerges from a 40px strip and its
-         origin is genuinely ambiguous. It is much weaker for a vertical dock,
-         where the flyout drops directly under the header that was clicked. */
+      /* ZERO BY DEFAULT, matching `--acc-duration`: a flyout is already being reached toward. A
+               0ms animation is inert. See DESIGN_NOTES.md § src/autoHide.css:235. */
       --acc-flyout-in-duration: 0ms;
     }
   }
@@ -250,9 +154,8 @@
   @keyframes acc-flyout-in {
     from {
       opacity: 0;
-      /* Slides out of the rail. Direction is not mirrored for a right-hand
-         rail because the transform is applied before clamping and the
-         distance is small enough that the wrong-side case reads as a fade. */
+      /* Slides out of the rail. Not mirrored for a right-hand rail: the transform is applied
+         before clamping, and the distance is small enough to read as a fade. */
       transform: translateX(calc(var(--acc-flyout-in-travel) * -1));
     }
     to {

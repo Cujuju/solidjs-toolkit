@@ -8,19 +8,8 @@ import {
 } from '../railOverflow';
 
 /**
- * The rail's fit algorithm.
- *
- * jsdom has no layout engine, so every box here is stated explicitly by the test
- * (see `mount`). That is not a limitation being worked around — it is the only
- * way to assert a fit BOUNDARY, which is exactly where this algorithm is subtle
- * and where a real browser would give numbers nobody wrote down.
- *
- * What is NOT tested here: the flicker loop the module exists to prevent. That
- * loop is a property of the measure→decide→re-measure cycle over real layout, and
- * a stubbed environment cannot reproduce it. What IS tested is the structural
- * reason it cannot happen — the decision is a pure function of three inputs
- * (button extents, rail extent, trigger extent) that hiding a button cannot
- * change.
+ * The rail's fit algorithm. Every box is stated by the test — the only way to assert a fit
+ * BOUNDARY. See DESIGN_NOTES.md § src/__tests__/railOverflow.test.ts:10.
  */
 
 /** Two macrotask turns: one for Solid to flush its effects, one for the
@@ -33,9 +22,8 @@ async function flush(): Promise<void> {
 interface Rail {
   overflow: RailOverflow;
   setIds: (ids: string[]) => void;
-  /** Re-render the rail's buttons from the CURRENT visible set, as the component
-   *  would. The measure pass renders everything, so this must be called after a
-   *  flush for the DOM to reflect a decision. */
+  /** Re-render the rail's buttons from the CURRENT visible set. The measure pass renders
+   *  everything, so call this after a flush for the DOM to reflect a decision. */
   render: () => void;
   dispose: () => void;
 }
@@ -63,9 +51,8 @@ function mount(spec: RailSpec): Rail {
 
   const render = (): void => {
     railEl.replaceChildren();
-    // During a measure pass every id renders — that is what makes the
-    // measurement independent of its own result. `visibleIds` reports exactly
-    // that set while measuring, so rendering from it is faithful either way.
+    // During a measure pass every id renders — that is what makes the measurement
+        // independent of its own result. `visibleIds` reports that set while measuring.
     for (const id of overflow.visibleIds()) {
       const btn = document.createElement('button');
       btn.setAttribute(RAIL_ITEM_ATTR, id);
@@ -139,9 +126,8 @@ describe('createRailOverflow — fitting', () => {
   });
 
   it('rounds extents UP, so accumulated sub-pixel error never decides a fit', async () => {
-    // 3 × 27.5 = 82.5 would "fit" 90 as floats; ceil'd to 28 each it is 84 —
-    // still a fit. Push the rail to 83 and the rounded total (84) must overflow
-    // even though the float total (82.5) would not.
+    // 3 × 27.5 = 82.5 would "fit" 90 as floats; ceil'd to 28 each it is 84. At rail 83 the
+        // rounded total must overflow though the float total would not.
     const rail = mount({ boxes: { a: 27.5, b: 27.5, c: 27.5 }, railExtent: 83 });
     await flush();
     expect(rail.overflow.hasOverflow()).toBe(true);
@@ -151,9 +137,9 @@ describe('createRailOverflow — fitting', () => {
 
 describe('createRailOverflow — the trigger reserve', () => {
   it('decides WHETHER to overflow without reference to the trigger', async () => {
-    // Deliberate asymmetry: if the reserve could flip this branch, refining it
-    // from an estimate to a measurement would remove the trigger, which would
-    // remove the reserve, which would bring the trigger back.
+    // Deliberate asymmetry: if the reserve could flip this branch, refining it to a
+        // measurement would remove the trigger, which would remove the reserve, which would
+        // bring it back.
     const rail = mount({ boxes: { a: 40, b: 40 }, railExtent: 80 });
     await flush();
     rail.overflow.setTriggerExtent(40);

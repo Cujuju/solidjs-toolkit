@@ -2,18 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { columnFlex } from '../resize';
 
 /**
- * WHO ABSORBS THE GROUP'S LEFTOVER EXTENT.
- *
- * `fill` mode divides the group's whole extent, but an explicitly-sized member is
- * fixed — so unless something is allowed to grow, the group paints a dead strip and
- * the mode has stopped meaning what it says. These pin the three answers:
- *
- *   1. Nobody declared → the TRAILING member grows. This is the historical default
- *      and every existing consumer's layout depends on it being byte-identical.
- *   2. Someone declared → that member grows and trailing does NOT. The recipient is
- *      a content question only the consumer can answer, so it is declared, never
- *      inferred from a member's role.
- *   3. Several declared → they SHARE, each from its own basis.
+ * WHO ABSORBS THE GROUP'S LEFTOVER EXTENT. Three answers pinned: trailing by default, declared
+ * wins, several SHARE. See DESIGN_NOTES.md § src/__tests__/columnFlex.test.ts:4.
  */
 
 /** Sizes are arbitrary but distinct, so a wrong branch shows up as a wrong number
@@ -111,10 +101,8 @@ describe('columnFlex — a declaration beats the trailing default', () => {
   });
 
   it('pins an UNSIZED non-grower to its content size when a grower exists', () => {
-    /* Subtle and load-bearing: `fill`'s stylesheet rule is `flex: 1 1 0`, i.e.
-       "grow". An unsized non-grower left to the stylesheet would therefore compete
-       with the declared grower for the surplus — so it has to be pinned inline.
-       This looks like a removable special case to anyone tidying up; it is not. */
+    /* Subtle and load-bearing: `fill`'s rule is `flex: 1 1 0`, i.e. "grow". An unsized
+           non-grower left to the stylesheet would compete for the surplus, so it is pinned inline. */
     expect(
       columnFlex({
         sizePx: undefined,
@@ -145,9 +133,8 @@ describe('columnFlex — a declaration beats the trailing default', () => {
 
 describe('columnFlex — several declared growers share', () => {
   it('gives each an equal grow factor and its OWN basis', () => {
-    /* Sharing, not splitting the group in half: equal `flex-grow` divides the
-       SURPLUS evenly while each member still starts from the size it measured, so
-       two sections of different content heights stay different heights. */
+    /* Sharing, not splitting in half: equal `flex-grow` divides the SURPLUS evenly while
+           each member starts from the size it measured, so different content heights stay different. */
     const first = columnFlex({
       sizePx: SIZE_A,
       fill: true,
@@ -174,10 +161,8 @@ describe('columnFlex — several declared growers share', () => {
 
 describe('columnFlex — shrinkToContent: the size is a CEILING, not an extent', () => {
   it('is content-sized with no ceiling when nothing has been saved', () => {
-    /* The unsized case is the one the sidebar actually ships in: no `defaultSize`,
-       so the section is simply as tall as its rows until a drag sets a ceiling.
-       `0 1 auto` — never grow past the content, but still able to shrink when the
-       group cannot hold every member. */
+    /* The unsized case the sidebar ships in: no `defaultSize`, so the section is as tall as
+           its rows until a drag sets a ceiling. Hence `0 1 auto`. */
     expect(
       columnFlex({
         sizePx: undefined,
@@ -222,9 +207,8 @@ describe('columnFlex — shrinkToContent: the size is a CEILING, not an extent',
   });
 
   it('never grows, even as the trailing member with no declared grower', () => {
-    // The trailing default is what would otherwise stretch a two-card section
-    // down a tall sidebar. shrinkToContent has to beat it, or the declaration
-    // does nothing in exactly the layout it exists for.
+    // The trailing default would otherwise stretch a two-card section down a tall sidebar.
+        // shrinkToContent has to beat it, or the declaration does nothing in the layout it exists for.
     expect(
       columnFlex({
         sizePx: SIZE_A,

@@ -5,19 +5,8 @@ import { AccordionPanel } from '../AccordionPanel';
 import type { AccordionGroupApi, AccordionOrientation } from '../context';
 
 /**
- * AUTO-HIDE IN `vertical` — the parity contract.
- *
- * Auto-hide was horizontal-only, on the stated reasoning that a flyout anchored
- * to a full-width header "would cover its own siblings". Covering siblings is
- * what an overlay is; the claim that would have justified the exclusion is that
- * it covers its own ACTIVATOR, and a bottom-anchored flyout does not.
- *
- * These assert the behaviour that makes the two orientations the same feature,
- * plus the ONE structural difference between them (whether the docked shell is
- * removed from the layout). They are DOM-level rather than pixel-level: jsdom has
- * no layout, so "overlays rather than reflows" is asserted as "the panel does not
- * take a docked slot and its content is not in flow" — the mechanism that
- * produces the overlay — rather than by measuring boxes that jsdom would invent.
+ * AUTO-HIDE IN `vertical` — the parity contract. jsdom has no layout, so the overlay is
+ * asserted structurally. See DESIGN_NOTES.md § src/__tests__/verticalAutoHide.test.tsx:7.
  */
 function mountGroup(options: {
   orientation: AccordionOrientation;
@@ -125,10 +114,9 @@ describe('vertical auto-hide — a flyout is possible at all', () => {
 
 describe('vertical auto-hide — the activator survives', () => {
   it('the header bar stays in the DOM while its panel is flying out', () => {
-    // THE invariant the whole feature rests on: the flyout is anchored to this
-    // element and dismissed through it. Horizontal removes the docked shell
-    // wholesale (`display: none`), which in vertical would take the header with
-    // it and leave the flyout anchored to a box that no longer exists.
+    // THE invariant: the flyout is anchored to this element and dismissed through it.
+        // Horizontal removes the docked shell wholesale, which in vertical would take the
+        // header with it.
     const g = mountGroup({ orientation: 'vertical', panels: TWO });
     g.api().setOpen('a', true);
 
@@ -147,9 +135,8 @@ describe('vertical auto-hide — the activator survives', () => {
   });
 
   it("the panel's inline content host is hidden, so the content is not in flow twice", () => {
-    // The subtree is portalled into the flyout; the inline host must not also
-    // render it, or the panel would reflow exactly as a docked one does — which
-    // is the thing an overlay exists not to do.
+    // The subtree is portalled into the flyout; the inline host must not also render it,
+        // or the panel would reflow exactly as a docked one does.
     const g = mountGroup({ orientation: 'vertical', panels: TWO });
     g.api().setOpen('a', true);
 
@@ -189,9 +176,8 @@ describe('the orientation-neutral parts did not fork', () => {
   });
 
   it('showsRailButton collapses to "always" in vertical, with no special case', () => {
-    // A vertical panel's activator is its own header, which is always rendered —
-    // so the rail-button question has one answer and it is not orientation-specific
-    // logic, it is the rule returning the same value for every input.
+    // A vertical panel's activator is its own header, always rendered — so the rail-button
+        // question has one answer, and that is the rule returning the same value for every input.
     const g = mountGroup({ orientation: 'vertical', panels: TWO });
     expect(g.api().showsRailButton('a')).toBe(true);
     g.api().setOpen('a', true);
@@ -201,9 +187,8 @@ describe('the orientation-neutral parts did not fork', () => {
   });
 
   it('partitionAtRail is INERT in vertical — the rail is a horizontal concept', () => {
-    // Confirmed rather than assumed, per the parity brief: `railDivider` gates on
-    // orientation, so a pinned vertical panel is not dragged into a "static
-    // region" that has no meaning on this axis.
+    // Confirmed rather than assumed: `railDivider` gates on orientation, so a pinned vertical
+        // panel is not dragged into a "static region" that has no meaning on this axis.
     const g = mountGroup({ orientation: 'vertical', panels: TWO });
     g.api().setOpen('a', true);
     g.api().togglePin('a');

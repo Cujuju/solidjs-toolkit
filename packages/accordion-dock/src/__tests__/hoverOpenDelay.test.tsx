@@ -6,21 +6,8 @@ import { FLYOUT_HOVER_ENTER_DELAY_MS } from '../autoHide';
 import type { AccordionGroupApi } from '../context';
 
 /**
- * THE HOVER-OPEN DELAY IS A HOST DECISION, and these assert the boundary between
- * the part that is and the part that is not.
- *
- * The 350ms default is sized for the horizontal RAIL, where reaching one button
- * means hovering every button above it in passing; the delay is the only thing
- * stopping that traverse from leaving a wake of overlays. A dock whose
- * activators are not on a traverse path — a two-section vertical sidebar — is
- * paying for a hazard it does not have, so the number is a prop.
- *
- * What is asserted is that the prop REPLACES the default rather than being
- * clamped, added to, or ignored, and that a nonsense value falls back to the
- * default instead of silently becoming zero. `setTimeout` treats a negative
- * delay as "next tick", so an unguarded override would turn a typo into "no
- * hover intent at all" — the exact failure the default exists to prevent, and
- * invisible when it happens.
+ * THE HOVER-OPEN DELAY IS A HOST DECISION. The 350ms default suits the horizontal RAIL's
+ * traverse; the prop REPLACES it. See DESIGN_NOTES.md § src/__tests__/hoverOpenDelay.test.tsx:8.
  */
 
 const OVERRIDE_MS = 50;
@@ -56,11 +43,9 @@ function mountHoverGroup(hoverOpenDelayMs?: number) {
 
   return {
     api: () => api,
-    /* `pointerenter` does not bubble, so this must be dispatched on the header
-       itself — which is also where the handler is attached, making the test
-       exercise the real wiring rather than a synthesised path. A plain Event
-       carries no `pointerType`, which reads as not-touch and is the case under
-       test; the touch branch has its own coverage elsewhere. */
+    /* `pointerenter` does not bubble, so this dispatches on the header itself — where the
+           handler is, exercising the real wiring. A plain Event has no `pointerType`, which
+           reads as not-touch. */
     hoverFirstHeader: () =>
       headers()[0]?.dispatchEvent(new Event('pointerenter', { bubbles: false })),
     unmount: () => {

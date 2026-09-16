@@ -8,13 +8,8 @@ import {
 import { createStubGroup, type StubGroupSpec } from './stubGroup';
 
 /**
- * The menu's real behaviour is its ENABLE/DISABLE MATRIX — which rows exist, and
- * which are dead in a given state. That is data, so it is asserted as data.
- *
- * The hide-vs-disable rule under test throughout: a row is HIDDEN only when the
- * capability does not exist for this panel at all, DISABLED when the capability
- * exists but the current state makes it a no-op. A menu that changes SHAPE
- * between openings hides the capability itself.
+ * The menu's behaviour is its ENABLE/DISABLE MATRIX, asserted as data. HIDDEN when the
+ * capability does not exist; DISABLED when state makes it a no-op.
  */
 
 interface Row {

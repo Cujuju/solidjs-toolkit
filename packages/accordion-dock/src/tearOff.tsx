@@ -2,105 +2,18 @@ import { createSignal, onCleanup, type Accessor, type JSX } from 'solid-js';
 import { DelegatedEvents, Portal, delegateEvents } from 'solid-js/web';
 
 /**
- * TEAR-OFF — pop a docked panel into a real second browser window.
- *
- * Fully wired: `index.ts` exports it,
- * `AccordionGroup` builds the controller, and `AccordionPanel` renders the ⤢
- * affordance behind its `tearOffable` prop. (This paragraph claimed the opposite
- * until 2026-07-25 — it was written before the wiring landed and nothing made it
- * false out loud. A stale "not implemented yet" is worse than no comment: it tells
- * a reader to go and build what is already there.)
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * WHAT ACTUALLY WORKS IN A BROWSER TAB — verified against solid-js 1.9.12 in
- * this repo's node_modules, not assumed:
- *
- * 1. `<Portal mount={otherDocument.body}>` DOES render into a foreign document.
- *    `Portal` builds its container with the OPENER's `document.createElement`
- *    and then does `mount.appendChild(container)`; per the DOM spec `appendChild`
- *    runs the adopting steps, so the subtree's `ownerDocument` becomes the
- *    popup's. Nothing in Portal compares documents, so there is no throw.
- *    (solid-js/web/dist/web.js — `function Portal`, and `createElement`, which is
- *    hard-bound to the module-scope `document`.)
- *
- * 2. `mount` is READ INSIDE Portal's `createEffect`, and the children memo is
- *    created once and cached (`content || (content = ...)`). So changing `mount`
- *    from the docked host to the popup body MOVES the existing nodes and REUSES
- *    the existing reactive graph — no remount, no lost component state. That is
- *    why this module always renders through one Portal whose `mount` toggles,
- *    rather than swapping between an inline branch and a Portal branch: the
- *    latter re-evaluates the children and destroys everything the panel's
- *    "content stays mounted while collapsed" rule exists to protect.
- *
- * 3. Solid's event DELEGATION does not cross documents on its own. Compiled JSX
- *    emits `delegateEvents(["click", ...])`, which does
- *    `document.addEventListener` on the OPENER document only; a click in the
- *    popup bubbles to the POPUP's document, where nothing is listening, so every
- *    `onClick` inside a torn-off panel would be dead. The fix is first-class and
- *    not a hack: `delegateEvents(eventNames, d?: Document)` takes the target
- *    document (see `solid-js/web/types/client.d.ts:29`), so we register the same
- *    handler on the popup document. Solid's `eventHandler` then walks up from
- *    `e.target`, and when it reaches Portal's container it follows the
- *    container's `_$host` getter back into the OPENER's tree — so a handler on an
- *    ancestor *in the dock* still fires for a click *in the popup*. That
- *    cross-document walk is the whole reason delegation and Portal compose.
- *
- * WHAT DOES NOT WORK, and why (read this before extending):
- *
- * a. Anything that captured the OPENER's `window`/`document` at module scope
- *    keeps talking to the opener. In THIS control that is `resize.ts` (splitter
- *    drags add `pointermove`/`pointerup` to the opener `window`),
- *    `@cujuju/solid-reorder-list` (same, on the opener `document`) and
- *    `gesture.ts` (menu dismissal on the opener `document`/`window`). A
- *    pointer gesture that starts inside the popup dispatches into the POPUP's
- *    document, so those listeners never fire and a drag would start and never
- *    end. Consequence, deliberate: only the panel's CONTENT is portalled. Do not
- *    portal the panel's chrome (splitter, rail button, context-menu trigger)
- *    into the popup without first making those helpers take a document.
- *
- * b. `createPanelMenu` → `ContextMenu` portals itself to `document.body` — the
- *    OPENER's body. A right-click inside the popup would open its menu in the
- *    other window. Same root cause as (a): a hard-bound `document`.
- *
- * c. Focus cannot be moved across windows. `moveFocus` calling `el.focus()` on an
- *    element in the popup focuses it *within that document* but does not raise
- *    the window; `window.focus()` is a request browsers routinely ignore. So
- *    roving keyboard focus cannot walk from a docked panel into a torn-off one.
- *    This is a browser limitation, not a fixable bug — an Electron host would
- *    provide it via `BrowserWindow.focus()`.
- *
- * d. Window PLACEMENT is a hint. `left`/`top`/`width`/`height` are honoured only
- *    for a genuine popup, and only on the primary screen unless the page holds
- *    the Window Management permission; several browsers clamp or ignore them
- *    outright. Geometry persistence below is therefore best-effort by design.
- *
- * e. `window.open` requires TRANSIENT USER ACTIVATION. `tearOff()` must be called
- *    synchronously from the click/keydown handler — after an `await` or a
- *    `setTimeout` the activation is spent and the popup is blocked. That case is
- *    reported, never swallowed.
- *
- * f. Vite HMR replaces the opener's `<style>` tags but cannot reach a module
- *    graph that is rendering into another document. Style edits are re-synced
- *    (see `syncStyles`); a hot-replaced COMPONENT is not, and the popup keeps
- *    rendering the old one until the panel is docked and torn off again.
- * ─────────────────────────────────────────────────────────────────────────────
+ * TEAR-OFF — pop a docked panel into its own browser window. Only CONTENT is portalled;
+ * chrome binds the opener's document. See DESIGN_NOTES.md § src/tearOff.tsx:4.
  */
 
-/** Default popup size, px, when nothing has been persisted for this panel. Sized
- *  to a comfortable reading column rather than the panel's docked width — a torn
- *  off panel is being given room on purpose. */
+/** Default popup size, px, when nothing has been persisted. Sized to a comfortable reading
+ *  column rather than the docked width — a torn-off panel is being given room. */
 export const TEAR_OFF_DEFAULT_WIDTH_PX = 520;
 export const TEAR_OFF_DEFAULT_HEIGHT_PX = 680;
 
 /**
- * How often the opener checks whether a popup has gone away, ms.
- *
- * A popup's `pagehide` is the fast path and fires for the normal close, but it is
- * NOT guaranteed — a crashed renderer, or a close during the opener's own
- * teardown, can skip it entirely. Without this poll a panel could stay marked
- * torn-off with no window to render into, which is unrecoverable from the UI.
- * 400ms is below the threshold where a user reads the re-dock as laggy while
- * still being a rounding error against the event path that normally wins.
+ * How often the opener checks whether a popup has gone away, ms. `pagehide` is the fast path
+ * but is not guaranteed — a crashed renderer can skip it.
  */
 export const TEAR_OFF_CLOSE_POLL_MS = 400;
 
@@ -110,9 +23,8 @@ export const TEAR_OFF_CLOSE_POLL_MS = 400;
  */
 export const TEAR_OFF_ORPHAN_WATCHDOG_MS = 1000;
 
-/** Sanity floor for restored geometry. A persisted 0×0 (which a browser will
- *  report for a window queried after it closed) must never be replayed as an
- *  invisible window the user cannot find. */
+/** Sanity floor for restored geometry: a persisted 0x0, which a browser reports for a window
+ *  queried after it closed, must never replay as an invisible window. */
 export const TEAR_OFF_MIN_WINDOW_PX = 160;
 
 /** Bumped when `TearOffGeometry` changes shape. A stored record with a different
@@ -124,25 +36,8 @@ export const TEAR_OFF_GEOMETRY_VERSION = 1;
 const TEAR_OFF_WINDOW_NAME_PREFIX = 'acc-tearoff-';
 
 /**
- * Distinguishes one controller's windows from another's.
- *
- * The name used to be `prefix + panelId`, with a comment claiming that stopped two
- * groups on a page colliding. It did not: two docks holding a panel with the same
- * id — `explorer`, say, which is exactly the kind of id that repeats — produced the
- * same window name, so the second dock's tear-off ADOPTED the first's window
- * instead of opening its own. `window.open` with an existing name returns that
- * window, and `prepareDocument` then appended a second panel's chrome into a
- * document already holding the first's.
- *
- * The same shape bites a single group across an HMR remount: the old controller's
- * window survives (the opener is still alive, so the orphan watchdog does not fire)
- * and the new controller adopts it, stale content and all.
- *
- * A per-instance counter rather than a random id: it is deterministic, needs no
- * crypto, and answers the question actually being asked — "is this the same
- * controller?" — which is scoped to one document. Across a reload the counter
- * restarts, and that is correct, because the reloading document's `beforeunload`
- * closes its windows on the way out.
+ * Distinguishes one controller's windows from another's. `prefix + panelId` collided, so a
+ * second dock ADOPTED the first's. See DESIGN_NOTES.md § src/tearOff.tsx:126.
  */
 let nextControllerId = 0;
 
@@ -150,30 +45,18 @@ let nextControllerId = 0;
  *  replace exactly those and leave anything else alone. */
 const TEAR_OFF_STYLE_MARKER_ATTR = 'data-acc-tearoff-style';
 
-/** Both wrappers the Portal path introduces around a panel's content. They are
- *  `display: contents` when docked (see `decorateContainer`), so they cost no
- *  layout — but they DO sit in the selector chain, which is why the two
- *  nested-group rules in styles.css need widening. Called out in the handoff. */
+/** Both wrappers the Portal path introduces. `display: contents` when docked, so they cost no
+ *  layout — but they DO sit in the selector chain, which the nested-group rules must allow for. */
 const TEAR_OFF_HOST_ATTR = 'data-acc-tearoff-host';
 const TEAR_OFF_CONTAINER_ATTR = 'data-acc-tearoff';
 
-/** Style nodes worth mirroring into the popup. `<style>` is what Vite's dev
- *  server injects (it ships CSS as JS that appends a style tag); `<link
- *  rel=stylesheet>` is what a production build emits. Both paths exist because
- *  the SAME code runs under both, and handling only one means the popup is
- *  unstyled in exactly one of dev or prod — the half that nobody tests. */
+/** Style nodes worth mirroring: `<style>` in dev, `<link rel=stylesheet>` in prod. Handling
+ *  one leaves the popup unstyled in exactly the half nobody tests. */
 const STYLE_NODE_SELECTOR = 'style, link[rel~="stylesheet"]';
 
 /**
- * Runs INSIDE the popup, in the popup's own realm, so it survives the opener
- * dying in a way the opener's `beforeunload` cannot cover (crash, force-quit,
- * `beforeunload` skipped by the browser). Belt to `beforeunload`'s suspenders:
- * an orphan window rendering from a dead reactive graph is a frozen ghost, and
- * the user has no way to tell it apart from a live one.
- *
- * A page with a strict CSP that forbids inline script will silently drop this;
- * the opener-side `beforeunload` is still the primary mechanism, so the failure
- * mode degrades to "orphan survives an opener CRASH", not "orphan always".
+ * Runs INSIDE the popup, surviving an opener death `beforeunload` cannot cover. An orphan
+ * rendering from a dead graph is a frozen ghost. A strict CSP drops this silently.
  */
 const ORPHAN_WATCHDOG_SOURCE = `(function () {
   setInterval(function () {
@@ -216,29 +99,22 @@ export interface TearOffOptions {
    *  module has no opinion about how a dock reports failure. */
   onError?: (id: string, reason: TearOffFailureReason) => void;
   onTearOff?: (id: string) => void;
-  /** Fired when a panel comes back — whether by `dock()` or by the user closing
-   *  the window. A consumer mirroring state needs both causes, not just its own
-   *  call, for the same reason `onChange` reports auto-collapses. */
+  /** Fired when a panel comes back, by `dock()` or by the user closing the window. A consumer
+   *  mirroring state needs both causes. */
   onDock?: (id: string) => void;
 }
 
 /**
- * The tear-off surface, as it should eventually appear on `AccordionGroupApi`.
- *
- * Exported as its own interface because `context.ts` is owned elsewhere; the
- * handoff note lists the literal lines to paste. A torn-off panel is deliberately
- * NOT modelled as a third open-state enum: it is orthogonal — a panel can be torn
- * off while its rail slot stays in `order`, and forcing it into `open`/`closed`
- * would make every existing predicate lie about it.
+ * The tear-off surface, as it should appear on `AccordionGroupApi`. NOT a third open-state
+ * enum: it is orthogonal, and forcing it in would make every predicate lie.
  */
 export interface AccordionTearOffApi {
   /** Panel ids currently rendering into their own window. */
   tornOff: Accessor<readonly string[]>;
   isTornOff: (id: string) => boolean;
   /**
-   * MUST be called synchronously from the user gesture — see (e). Returns the
-   * outcome rather than throwing: a blocked popup is an ordinary, expected
-   * result of a user's browser settings, not an exception.
+   * MUST be called synchronously from the user gesture. Returns the outcome rather than
+   * throwing: a blocked popup is an ordinary browser setting, not an exception.
    */
   tearOff: (id: string) => TearOffResult;
   /** Bring the panel back into the dock and close its window. No-op if docked. */
@@ -321,12 +197,8 @@ function sampleGeometry(win: Window): TearOffGeometry | null {
 }
 
 /**
- * `window.open`'s feature string.
- *
- * `popup` is what makes this a real chromeless window rather than a tab — and
- * it is also the switch that makes width/height/left/top eligible to be honoured
- * at all. `noopener` is deliberately ABSENT: it would null out the returned
- * handle, and this whole module is built on holding that handle.
+ * `window.open`'s feature string. `popup` makes this a real window and its geometry eligible.
+ * `noopener` is deliberately ABSENT: it would null the handle this module needs.
  */
 function featureString(g: TearOffGeometry): string {
   return [
@@ -352,11 +224,8 @@ function adoptStyleNode(node: Element, target: Document): HTMLElement | null {
     return style;
   }
   if (node instanceof HTMLLinkElement) {
-    // PROD path: a built bundle emits `<link rel=stylesheet href="/assets/…">`.
-    // `node.href` is the PROPERTY, which is already resolved absolute against the
-    // opener's base URL. Copying the ATTRIBUTE instead would carry a relative
-    // path that the popup would re-resolve against `about:blank` and fail to
-    // load — an unstyled window with no error in the opener's console.
+    // PROD path: `node.href` is the PROPERTY, already resolved absolute. Copying the ATTRIBUTE
+    // would carry a relative path the popup re-resolves against `about:blank` and fails to load.
     const link = target.createElement('link');
     link.rel = 'stylesheet';
     link.href = node.href;
@@ -368,21 +237,8 @@ function adoptStyleNode(node: Element, target: Document): HTMLElement | null {
 }
 
 /**
- * Mirror the opener's stylesheets into the popup, and keep mirroring them.
- *
- * `adoptedStyleSheets` was considered and rejected: a constructed `CSSStyleSheet`
- * is bound to the document that constructed it, so handing the opener's sheets to
- * the popup's `adoptedStyleSheets` is a spec-level error, and rebuilding them in
- * the popup realm would mean reading `cssRules` — which throws for any
- * cross-origin sheet. Cloning nodes has neither problem and works for both the
- * dev and prod shapes above.
- *
- * The MutationObserver exists for HMR: Vite mutates the opener's style tags on
- * every CSS save, and without it a torn-off panel keeps the stylesheet it was
- * born with for the rest of the session. Repaints are coalesced into one
- * microtask so a burst of mutations costs one rebuild, and because the rebuild
- * removes and re-adds within a single task there is no paint in between and so
- * no flash.
+ * Mirror the opener's stylesheets, and keep mirroring them. `adoptedStyleSheets` was rejected;
+ * the observer exists for HMR. See DESIGN_NOTES.md § src/tearOff.tsx:370.
  */
 function syncStyles(source: Document, target: Document): () => void {
   /** Rebuild the popup's stylesheets from the opener's. */
@@ -390,11 +246,8 @@ function syncStyles(source: Document, target: Document): () => void {
     for (const stale of Array.from(target.head.querySelectorAll(`[${TEAR_OFF_STYLE_MARKER_ATTR}]`))) {
       stale.remove();
     }
-    // Scanned document-wide rather than head-only because a stray `<style>` in
-    // the body is legal and still applies. The OBSERVER below only watches the
-    // head, which is where every injector this control meets actually writes —
-    // so a style element appended to the body after the tear-off is picked up on
-    // the next resync, not instantly.
+    // Scanned document-wide because a stray `<style>` in the body is legal. The observer watches
+    // only the head, so a body style waits for the next resync.
     for (const node of Array.from(source.querySelectorAll(STYLE_NODE_SELECTOR))) {
       const adopted = adoptStyleNode(node, target);
       if (adopted === null) continue;
@@ -404,11 +257,8 @@ function syncStyles(source: Document, target: Document): () => void {
   };
 
   /**
-   * Theme lives on the root/body as a class or data-attribute in every scheme
-   * this control has to survive (`.dark`, `data-theme="…"`, an inline `--token`
-   * block). Cloning the CSS without the attributes it keys off gives a popup
-   * that is styled but in the WRONG theme, which reads as a bug rather than as a
-   * missing feature.
+   * Theme lives on the root or body as a class or attribute. Cloning the CSS without what it
+   * keys off gives a popup styled in the WRONG theme.
    */
   const paintRootAttributes = (): void => {
     mirrorAttributes(source.documentElement, target.documentElement);
@@ -435,17 +285,14 @@ function syncStyles(source: Document, target: Document): () => void {
   paintStyles();
   paintRootAttributes();
 
-  // TWO observers with deliberately narrow scopes. A single document-wide
-  // `attributes: true, subtree: true` observer would fire on every `data-open` /
-  // `data-resizing` flip this control makes — a splitter drag would rebuild the
-  // popup's entire stylesheet set on every pointermove.
+  // TWO observers with deliberately narrow scopes. One document-wide subtree observer would
+  // fire on every `data-open` flip, rebuilding the popup's stylesheets on every pointermove.
   const styleObserver = new MutationObserver(coalesce(paintStyles));
   styleObserver.observe(source.head, {
     childList: true,
     subtree: true,
-    // Vite's hot update assigns to an existing `style.textContent`, which
-    // surfaces as characterData (or a childList swap of the text node,
-    // engine-dependent) rather than as a new element. Both are watched.
+    // Vite's hot update assigns to an existing `style.textContent`, which surfaces as
+    // characterData or a childList swap rather than a new element. Both are watched.
     characterData: true,
     attributes: true,
     attributeFilter: ['href', 'media', 'rel', 'disabled'],
@@ -466,31 +313,14 @@ function syncStyles(source: Document, target: Document): () => void {
  *  purpose: enumerating "theme-ish" attribute names would silently miss whatever
  *  the host app actually uses. */
 /**
- * Attributes the TARGET owns, which mirroring must never touch.
- *
- * `style` only, and it is load-bearing. `prepareDocument` builds the popup's
- * frame in inline styles on `<body>` — `margin: 0`, `height: 100vh`, `overflow:
- * hidden`, and the column flexbox the Portal container fills. `syncStyles` then
- * calls `mirrorAttributes(source.body, target.body)`, and because the opener's
- * own `<body>` carries no inline style in any normal page, the reconciliation
- * loop below removed the popup's `style` attribute outright — wiping that frame
- * milliseconds after it was set, and again on every coalesced resync.
- *
- * The visible result was a torn-off panel that did not fill its window and a
- * popup document that scrolled, which is precisely the "the window IS the panel"
- * contract `prepareDocument` documents.
- *
- * Excluded by NAME rather than by switching to a class/data-* allowlist, because
- * the mirror legitimately carries more than theme: `dir` drives this control's
- * RTL handling, and an allowlist built around theming would silently drop it.
+ * Attributes the TARGET owns, which mirroring must never touch. `style` is load-bearing.
+ * See DESIGN_NOTES.md § src/tearOff.tsx:468.
  */
 const TARGET_OWNED_ATTRS = new Set(['style']);
 
 /**
- * Make `to`'s attributes match `from`'s — except the ones `to` owns.
- *
- * Used to carry the opener's theme signals (`class`, `data-theme`, `dir`) into
- * the popup, so cloned CSS keys off the same state it does at home.
+ * Make `to`'s attributes match `from`'s, except the ones `to` owns. Carries the opener's theme
+ * signals (`class`, `data-theme`, `dir`) so cloned CSS keys off the same state.
  */
 function mirrorAttributes(from: Element, to: Element): void {
   for (const attr of Array.from(from.attributes)) {
@@ -504,28 +334,23 @@ function mirrorAttributes(from: Element, to: Element): void {
 }
 
 /**
- * Bring a blank popup document up to the point where it can host a panel.
- *
- * Returns the teardown steps, newest-first, so the close path is the exact
- * inverse of this function rather than a second list that can drift from it.
+ * Bring a blank popup document up to hosting a panel. Returns teardown steps newest-first, so
+ * the close path is the exact inverse rather than a second list.
  */
 function prepareDocument(win: Window, title: string): Array<() => void> {
   const doc = win.document;
   const teardown: Array<() => void> = [];
 
-  // `about:blank` inherits the opener's origin, so everything below is
-  // same-origin scriptable. It also inherits the opener's base URL per spec, but
-  // an explicit <base> removes the doubt for any relative `url()` in the cloned
-  // CSS — cheap insurance against a rule that only bites on one engine.
+  // `about:blank` inherits the opener's origin, so this is same-origin scriptable. An explicit
+  // <base> removes any doubt for relative `url()` in the cloned CSS.
   const base = doc.createElement('base');
   base.href = document.baseURI;
   doc.head.appendChild(base);
 
   doc.title = title;
 
-  // The window IS the panel, so the body is the panel's frame: no margin, no
-  // document scroll (the panel's own content owns its scrolling, exactly as it
-  // does in a column), and a column flexbox for the Portal container to fill.
+  // The window IS the panel: no margin, no document scroll (the panel's content owns its own),
+  // and a column flexbox for the Portal container to fill.
   doc.body.style.margin = '0';
   doc.body.style.height = '100vh';
   doc.body.style.overflow = 'hidden';
@@ -534,8 +359,8 @@ function prepareDocument(win: Window, title: string): Array<() => void> {
 
   teardown.push(syncStyles(document, doc));
 
-  // See (3) in the header: without this every delegated handler inside the popup
-  // is dead, because the compiler only ever registered them on the opener.
+  // See (3) in the header: without this every delegated handler inside the popup is dead,
+  // because the compiler only ever registered them on the opener.
   delegateEvents([...DelegatedEvents], doc);
 
   const watchdog = doc.createElement('script');
@@ -546,11 +371,9 @@ function prepareDocument(win: Window, title: string): Array<() => void> {
 }
 
 /**
- * Own a set of torn-off windows for one accordion group.
- *
- * Call in a component body: it takes an `onCleanup` so that a group unmounting
- * (a route change, an HMR boundary) takes its popups with it — the same leak
- * `beforeunload` covers for a whole-page teardown, at component granularity.
+ * Own a set of torn-off windows for one accordion group. Takes an `onCleanup`, so a group
+ * unmounting takes its popups with it — the leak `beforeunload` covers, at component
+ * granularity.
  */
 export function createTearOff(options: TearOffOptions): TearOffController {
   const controllerId = nextControllerId++;
@@ -560,10 +383,8 @@ export function createTearOff(options: TearOffOptions): TearOffController {
   const isTornOff = (id: string): boolean => tornOff().includes(id);
 
   /**
-   * The single close path. Every route to "this panel is docked again" funnels
-   * through here — user closed the window, `dock()` was called, the group
-   * unmounted, the opener is unloading — so the ordering rule below is stated
-   * once instead of at four callsites.
+   * The single close path. Every route to "this panel is docked again" funnels through here,
+   * so the ordering rule below is stated once instead of at four callsites.
    */
   const finish = (id: string, closeWindow: boolean): void => {
     const rec = windows.get(id);
@@ -572,33 +393,22 @@ export function createTearOff(options: TearOffOptions): TearOffController {
     windows.delete(id);
     for (const step of rec.teardown.reverse()) step();
 
-    // One last sample before persisting. The poll only refreshes `rec.geometry`
-    // every TEAR_OFF_CLOSE_POLL_MS, so without this a window moved or resized
-    // inside that window of time — then docked — would be remembered at its
-    // PREVIOUS position, and the user's last adjustment would be the one change
-    // that did not stick.
-    //
-    // Best-effort and guarded: on the user-closed path the window is already
-    // gone, and reading geometry off a closed window yields zeros or throws.
-    // `sampleGeometry` rejects degenerate values on its own, so a refusal here
-    // simply leaves the last good poll sample in place.
+    // One last sample before persisting: the poll refreshes only every tick, so a window moved
+    // then docked would be remembered at its previous position. Guarded — a closed window
+    // reports zeros.
     if (!rec.win.closed) {
       const finalSample = sampleGeometry(rec.win);
       if (finalSample !== null) rec.geometry = finalSample;
     }
     writeGeometry(options.storageKey, id, rec.geometry);
 
-    // ORDER MATTERS. Flipping the signal first re-runs Portal's effect, which
-    // removes its container from the popup body and re-appends it to the docked
-    // host — moving the live nodes home while the popup document is still
-    // healthy. Closing first would leave the effect re-parenting out of a
+    // ORDER MATTERS. Flipping the signal first re-runs Portal's effect, moving the live nodes
+    // home while the popup document is still healthy. Closing first would re-parent out of a
     // torn-down document.
     setTornOff((prev) => prev.filter((v) => v !== id));
     if (closeWindow && !rec.win.closed) {
-      // The effect above runs synchronously at the end of this update, so the
-      // nodes are already home by the time the microtask closes the window; the
-      // deferral only guards against a future batching/transition change making
-      // that untrue.
+      // The effect above runs synchronously at the end of this update, so the nodes are already
+      // home; the deferral only guards a future batching change making that untrue.
       queueMicrotask(() => rec.win.close());
     }
     options.onDock?.(id);
@@ -611,9 +421,8 @@ export function createTearOff(options: TearOffOptions): TearOffController {
     }
 
     const stored = readGeometry(options.storageKey, id);
-    // Centre on the opener when there is nothing remembered — a window that
-    // appears at the OS default position reads as unrelated to the click that
-    // produced it.
+    // Centre on the opener when nothing is remembered — a window at the OS default position
+    // reads as unrelated to the click that produced it.
     const geometry: TearOffGeometry = stored ?? {
       width: TEAR_OFF_DEFAULT_WIDTH_PX,
       height: TEAR_OFF_DEFAULT_HEIGHT_PX,
@@ -628,9 +437,8 @@ export function createTearOff(options: TearOffOptions): TearOffController {
       featureString(geometry),
     );
 
-    // A blocked popup returns null. The panel STAYS DOCKED and the caller is
-    // told — the one thing that must never happen is a click that appears to do
-    // nothing while the dock quietly believes the panel left.
+    // A blocked popup returns null. The panel STAYS DOCKED and the caller is told: the one thing
+    // that must not happen is a click that appears to do nothing.
     if (win === null) {
       options.onError?.(id, 'popup-blocked');
       return { ok: false, reason: 'popup-blocked' };
@@ -644,11 +452,8 @@ export function createTearOff(options: TearOffOptions): TearOffController {
       closed: false,
     };
 
-    // Fast path for the ordinary close/reload. `pagehide` rather than `unload`
-    // because `unload` is unreliable under bfcache and is actively being
-    // deprecated; a RELOAD of the popup also lands here, and re-docking is the
-    // right answer for it — the reloaded document is blank and can never get its
-    // nodes back, so the alternative is a permanently empty ghost window.
+    // Fast path for the ordinary close. `pagehide`, not `unload`, which is unreliable under
+    // bfcache. A RELOAD lands here too, and re-docking is right: the reloaded document is blank.
     const onPageHide = (): void => finish(id, false);
     win.addEventListener('pagehide', onPageHide);
     rec.teardown.push(() => win.removeEventListener('pagehide', onPageHide));
@@ -682,20 +487,8 @@ export function createTearOff(options: TearOffOptions): TearOffController {
   };
 
   /**
-   * An opener that unloads must take its popups with it. A popup outliving its
-   * opener still PAINTS — the DOM is real — but its reactive graph is gone, so
-   * it is a frozen screenshot that looks live and accepts clicks that do
-   * nothing. `beforeunload` fires for navigation, reload and close, which is the
-   * full set of ways the opener's graph can die while the browser is healthy;
-   * `pagehide` covers the bfcache path that `beforeunload` can skip. The popup's
-   * own watchdog covers the rest — see ORPHAN_WATCHDOG_SOURCE.
-   *
-   * This deliberately does NOT reuse `finish`: that path defers `win.close()` to
-   * a microtask so the panel's nodes can move home first, and the microtask
-   * queue is not guaranteed to be drained once the document is unloading — the
-   * close would simply never happen, which is the exact leak this handler
-   * exists to prevent. Moving nodes home is pointless here anyway; the opener is
-   * dying with them.
+   * An opener that unloads must take its popups with it — one outliving its opener still
+   * PAINTS from a dead graph. See DESIGN_NOTES.md § src/tearOff.tsx:684.
    */
   const onOpenerGone = (): void => {
     for (const [id, rec] of windows) {
@@ -705,9 +498,8 @@ export function createTearOff(options: TearOffOptions): TearOffController {
       if (!rec.win.closed) rec.win.close();
     }
     windows.clear();
-    // Matters only for the bfcache path, where `pagehide` fires and the page can
-    // later be RESTORED: leaving ids in `tornOff` would come back as panels
-    // marked torn-off with no window behind them.
+    // Matters only for the bfcache path, where the page can later be RESTORED: leaving ids in
+    // `tornOff` would come back as panels marked torn-off with no window behind them.
     setTornOff([]);
   };
   window.addEventListener('beforeunload', onOpenerGone);
@@ -731,42 +523,26 @@ export function createTearOff(options: TearOffOptions): TearOffController {
 }
 
 /**
- * Wrap a panel's content so it can be rendered into the dock OR into that
- * panel's window, without ever being rebuilt.
- *
- * There is exactly ONE `<Portal>` and its `mount` toggles — see (2). The two
- * wrappers this introduces are `display: contents` while docked, so they add no
- * box and no layout; they DO however appear in the selector chain, which is why
- * the two `.acc-content > .acc-group` rules in styles.css need widening. That
- * cost is accepted deliberately: the alternative (an inline branch swapped for a
- * Portal branch) re-evaluates the children on every tear-off and dock, throwing
- * away scroll position, text selection and in-flight edits — precisely what the
- * panel's keep-mounted-while-collapsed rule exists to preserve.
+ * Wrap a panel's content so it renders into the dock OR its window, without being rebuilt.
+ * ONE `<Portal>` whose `mount` toggles. See DESIGN_NOTES.md § src/tearOff.tsx:733.
  */
 /**
- * ⚠ EXPORTED BUT UNUSED — zero callers, and superseded by the mount-precedence
- * Portal in `AccordionPanel` (a popup outranks a flyout outranks the column, all
- * through one Portal). This one knows only about the popup, so a panel using it
- * could not also fly out.
- *
- * Kept as the narrow reference implementation for a consumer that wants tear-off
- * without auto-hide. Not on any path this control takes.
+ * ⚠ EXPORTED BUT UNUSED — superseded by the mount-precedence Portal in `AccordionPanel`. This
+ * knows only about the popup, so a panel using it could not also fly out.
  */
 export function TearOffOutlet(props: {
   id: string;
   api: TearOffController;
   children: JSX.Element;
 }): JSX.Element {
-  // Not reactive and does not need to be: the element is created with this
-  // component and lives exactly as long. Portal reads `mount` inside an effect,
-  // which runs after the ref has been filled.
+  // Not reactive and need not be: created with this component, lives exactly as long. Portal
+  // reads `mount` in an effect, which runs after the ref is filled.
   let host!: HTMLDivElement;
 
   const mount = (): HTMLElement => props.api.mountFor(props.id) ?? host;
 
   /**
-   * Portal calls this with each container it creates — including the new one it
-   * builds when `mount` changes — so it is the natural place to make the
+   * Portal calls this with each container it creates, so it is the natural place to make the
    * container's box depend on where it landed.
    */
   const decorateContainer = (container: HTMLDivElement): void => {
@@ -787,8 +563,8 @@ export function TearOffOutlet(props: {
     <div
       ref={(el) => {
         host = el;
-        // Set through the ref rather than as a JSX attribute so the attribute
-        // name stays the single named constant the CSS note refers to.
+        // Set through the ref rather than as a JSX attribute, so the attribute name stays the single
+        // named constant the CSS note refers to.
         el.setAttribute(TEAR_OFF_HOST_ATTR, '');
       }}
       style={{ display: 'contents' }}

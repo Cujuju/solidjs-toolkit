@@ -2,34 +2,13 @@ import { createEffect, createMemo, createSignal, onCleanup, type Accessor } from
 import { createAfterPaint, createResizeObserver } from '@cujuju/solidjs-hooks';
 
 /**
- * Deciding which rail buttons FIT, so the ones that do not can collapse into a
- * `⋯` menu instead of summoning a scrollbar into a 40px strip.
- *
- * WHY THIS IS NOT JUST `scrollHeight > clientHeight`
- *
- * The naive version of this feature measures the rail, hides the tail, and then
- * re-measures — at which point the rail no longer overflows, so the tail comes
- * back, so it overflows again. That flicker loop is the entire difficulty of an
- * overflow menu, and it is structural: the measurement's input depends on the
- * decision the measurement produces.
- *
- * The fix here is to break that dependency rather than damp it. Measurement only
- * ever happens during a MEASURE PASS, in which every button is rendered (see
- * `measuring`); the fit decision is then a pure function of inputs that no longer
- * move — each button's own extent, the rail's extent, and the trigger's extent.
- * Hiding buttons cannot change any of those three, so the decision cannot feed
- * back into its own inputs. Convergence is not a tuning problem; there is nothing
- * to tune.
+ * Deciding which rail buttons FIT, so the rest collapse into a `⋯` menu. Measuring happens
+ * only during a MEASURE PASS. See DESIGN_NOTES.md § src/railOverflow.ts:4.
  */
 
 /**
- * Attribute the rail's buttons must carry, so measurements bind to a panel by
- * IDENTITY rather than by position.
- *
- * Index-based mapping (nth child ↔ nth id) would be one reorder away from
- * silently attributing one panel's height to another, and the symptom — the wrong
- * button collapsing into the menu — looks like a measurement bug rather than a
- * mapping bug. See the wiring note in this phase's handoff.
+ * Attribute the rail's buttons carry, so measurements bind to a panel by IDENTITY rather than
+ * position — index mapping is one reorder away from the wrong button collapsing.
  */
 export const RAIL_ITEM_ATTR = 'data-panel-id';
 
@@ -37,27 +16,14 @@ export const RAIL_ITEM_ATTR = 'data-panel-id';
 export const RAIL_OVERFLOW_ATTR = 'data-rail-overflow';
 
 /**
- * Everything in the rail that is a CONTROL rather than background, as a selector.
- *
- * Built from the two constants above rather than written out, because it is
- * consumed by a different module (`railPan`, to tell a press on a button from a
- * press on bare rail) and that module used to spell the attributes as literals.
- * Nothing would have failed if the two spellings drifted: `closest()` would simply
- * return null for every press, every bare left-drag on a rail button would be read
- * as a pan, and the capture-phase `stopPropagation` that makes panning work would
- * have silently killed drag-reorder. Exported as a finished selector so there is
- * one place the answer to "is this a rail control" is written down.
+ * Everything in the rail that is a CONTROL rather than background. Exported as a finished
+ * selector because `railPan` consumes it too. See DESIGN_NOTES.md § src/railOverflow.ts:39.
  */
 export const RAIL_CONTROL_SELECTOR = `[${RAIL_ITEM_ATTR}], [${RAIL_OVERFLOW_ATTR}]`;
 
 /**
- * The rail always keeps at least this many buttons.
- *
- * One. A rail rendered as nothing but a `⋯` reads as broken chrome rather than as
- * a dense rail — the user loses the "this is a strip of panels" affordance
- * entirely, and the menu becomes primary navigation by accident. If even a single
- * button genuinely cannot fit, showing it clipped is more honest than showing
- * none: the clipping is visible and self-explaining.
+ * The rail always keeps at least this many buttons. One: a rail rendered as nothing but a `⋯`
+ * reads as broken chrome.
  */
 export const MIN_VISIBLE_RAIL_ITEMS = 1;
 
@@ -66,8 +32,8 @@ export interface RailOverflowOptions {
   railEl: Accessor<HTMLElement | undefined>;
   /** Panel ids in RAIL ORDER — the same sequence the rail renders. */
   ids: Accessor<readonly string[]>;
-  /** Turn the whole mechanism off (e.g. under the `pan` strategy, where the rail
-   *  is meant to keep scrolling). Defaults to on. */
+  /** Turn the whole mechanism off (e.g. under `pan`, where the rail keeps scrolling). Defaults
+   *  to on. */
   enabled?: Accessor<boolean>;
 }
 
@@ -84,21 +50,15 @@ export interface RailOverflow {
 }
 
 /**
- * Extents are rounded UP.
- *
- * Sub-pixel layout means a button can measure 27.5px and two of them 55.0px; a
- * floor or a raw float lets accumulated error decide a fit by a fraction of a
- * pixel, which is exactly the boundary case that produces a one-frame flicker.
- * Rounding up is the conservative direction: the fit is under-estimated, so the
- * failure mode is "one fewer button than strictly possible", never "one button
- * clipped".
+ * Extents are rounded UP: sub-pixel accumulation would otherwise decide a fit by a fraction
+ * of a pixel, which is the boundary case that flickers.
  */
 function extentOf(el: Element): number {
   return Math.ceil(el.getBoundingClientRect().height);
 }
 
-/** Value equality for the size cache, so a measure pass that finds nothing
- *  changed does not emit a new signal value and re-trigger downstream work. */
+/** Value equality for the size cache, so a measure pass that finds nothing changed emits no
+ *  new signal value. */
 function sameSizes(a: ReadonlyMap<string, number>, b: ReadonlyMap<string, number>): boolean {
   if (a.size !== b.size) return false;
   for (const [k, v] of a) if (b.get(k) !== v) return false;
@@ -123,15 +83,8 @@ export function createRailOverflow(options: RailOverflowOptions): RailOverflow {
   };
 
   /**
-   * Fallback reserve for the `⋯` trigger, used only on the very first frame in
-   * which overflow appears and the trigger has therefore not rendered yet.
-   *
-   * The tallest measured button is a deliberate OVER-estimate: the trigger is
-   * plainer chrome than a labelled button, so reserving a button's worth of space
-   * can only under-fill the rail, never clip. It is a measurement rather than a
-   * constant so that a density change or a font swap moves it automatically —
-   * a hardcoded px here would be a second, silently-drifting copy of a value the
-   * stylesheet already owns.
+   * Fallback reserve for the `⋯` trigger, used only on the first frame in which overflow
+   * appears. A measurement rather than a constant, so density and font changes move it.
    */
   const fallbackReserve = (s: ReadonlyMap<string, number>): number => {
     let max = 0;
@@ -152,11 +105,8 @@ export function createRailOverflow(options: RailOverflowOptions): RailOverflow {
     let total = 0;
     for (const id of all) total += s.get(id) ?? 0;
 
-    // WHETHER there is a trigger is decided here, WITHOUT reference to the
-    // trigger's own size. That asymmetry is deliberate: if the reserve could flip
-    // this branch, refining the reserve from an estimate to a measurement could
-    // remove the trigger, which would remove the reserve, which would bring the
-    // trigger back. Reserve influences only HOW MANY buttons fit alongside it.
+    // WHETHER there is a trigger is decided WITHOUT reference to its size: otherwise refining
+    // the reserve would remove the trigger, then bring it back.
     if (total <= extent) return { visible: all, overflow: [] };
 
     const budget = Math.max(0, extent - (triggerExtent() ?? fallbackReserve(s)));
@@ -166,9 +116,8 @@ export function createRailOverflow(options: RailOverflowOptions): RailOverflow {
     for (const id of all) {
       const h = s.get(id) ?? 0;
       const fits = used + h <= budget;
-      // Once anything has overflowed, everything after it does too — the rail is
-      // a sequence, and letting a short button "jump the queue" past a tall one
-      // would reorder the rail as a side effect of measurement.
+      // Once anything has overflowed, everything after it does too: letting a short button jump
+      // the queue would reorder the rail as a side effect of measurement.
       if (overflow.length === 0 && (fits || visible.length < MIN_VISIBLE_RAIL_ITEMS)) {
         visible.push(id);
         used += h;
@@ -201,8 +150,8 @@ export function createRailOverflow(options: RailOverflowOptions): RailOverflow {
     afterPaint(measureNow);
   });
 
-  // A change to the id SET is the one invalidation no size observer can see: a
-  // newly-registered panel has no cached extent at all.
+  // A change to the id SET is the one invalidation no size observer sees: a newly-registered
+  // panel has no cached extent at all.
   createEffect(() => {
     options.ids();
     scheduleMeasure();
@@ -215,16 +164,8 @@ export function createRailOverflow(options: RailOverflowOptions): RailOverflow {
   });
 
   /**
-   * Per-button observation, which is what makes this robust to a density change
-   * or a late font load: both alter a button's box, and neither fires any other
-   * signal this module could listen to.
-   *
-   * The guard is the important part. `ResizeObserver.observe()` delivers an
-   * immediate callback for every element it starts watching, so re-observing
-   * after each render would re-enter the measure pass forever. Comparing against
-   * the cached extent turns that burst into a no-op and leaves only genuine size
-   * changes to trigger work — the same reason a measure pass that finds nothing
-   * changed emits no new `sizes` value.
+   * Per-button observation, robust to a density change or a late font load. The guard matters:
+   * `observe()` fires immediately, so re-observing would re-enter the measure pass.
    */
   createEffect(() => {
     const rail = options.railEl();

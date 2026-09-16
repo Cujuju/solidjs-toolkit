@@ -8,19 +8,8 @@ import {
 import { createStubGroup } from './stubGroup';
 
 /**
- * THE RAIL AS THE STATIC/DYNAMIC DIVIDER — contract tests.
- *
- * The rule under test is a STATE MODEL, not a layout detail: `pinned` means "opens
- * as a docked column rather than a flyout", open/closed is an independent axis,
- * and everything else — where a column paints, whether it has a rail button,
- * whether its splitter exists — is derived from that pair. So these tests assert
- * the derivation directly, over all four combinations of open × pinned, rather
- * than through a rendered group where each precondition would take a gesture to
- * arrange and could fail for reasons unrelated to the rule.
- *
- * The panel and the leaf inherit this behaviour by CALLING these functions (and
- * the test stub calls them too), which is what makes a contract test here worth
- * more than the same assertion repeated at three callsites.
+ * THE RAIL AS THE STATIC/DYNAMIC DIVIDER. `pinned` means "opens as a docked column"; open and
+ * closed is independent. See DESIGN_NOTES.md § src/__tests__/railDivider.test.ts:10.
  */
 
 const NEVER = (): boolean => false;
@@ -73,9 +62,8 @@ describe('partitionAtRail — where the columns paint', () => {
   });
 
   it('never counts a leaf as static, even if something pinned it', () => {
-    // A leaf has no rail button and no pin affordance; a stray pin must not drag
-    // it in front of the rail, where its whole "terminal detail pane" meaning
-    // would invert.
+    // A leaf has no rail button and no pin affordance; a stray pin must not drag it in
+        // front of the rail, inverting its meaning.
     const visualOpen = painted(['a'], ['a', 'leaf1']);
     const p = partitionAtRail({ visualOpen, pinOrder: ['leaf1', 'a'], isLeaf, enabled: true });
 
@@ -94,9 +82,8 @@ describe('partitionAtRail — where the columns paint', () => {
   });
 
   it('leaves flex slot 0 free for the consumer\'s own children', () => {
-    // An element with no `order` sits at 0; the group deliberately hosts arbitrary
-    // consumer children, and they must keep their authored position rather than
-    // being promoted ahead of the first column.
+    // An element with no `order` sits at 0; consumer children must keep their authored
+        // position rather than being promoted ahead of the first column.
     const visualOpen = painted(['a'], ['a']);
     const p = partitionAtRail({ visualOpen, pinOrder: ['a'], isLeaf, enabled: true });
     expect(Math.min(p.orderOf('a'), p.railOrder)).toBeGreaterThan(0);
@@ -117,9 +104,8 @@ describe('the separator-dropping edge columns', () => {
   });
 
   it('with nothing pinned, the first column still qualifies', () => {
-    // The regression this guards: keying the attribute off "flex slot 1" alone
-    // left NO column marked when the static run was empty, so the first column
-    // drew a border a pixel from the rail's own.
+    // The regression: keying the attribute off "flex slot 1" alone left NO column marked
+        // when the static run was empty, so the first column drew a doubled border.
     const visualOpen = painted(['a', 'b'], ['a', 'b']);
     const p = partitionAtRail({ visualOpen, pinOrder: [], isLeaf, enabled: true });
 
@@ -156,9 +142,8 @@ describe('showsRailButton — all four combinations of open × pinned', () => {
   }
 
   it('NOTHING can be stranded: every state without a button has a visible column', () => {
-    // The safety property the model rests on, stated as itself rather than as four
-    // separate assertions: the only buttonless state is the one where the panel is
-    // on screen as a column.
+    // The safety property the model rests on, stated as itself rather than four separate
+        // assertions: the only buttonless state is the one where the panel is on screen.
     for (const open of [true, false]) {
       for (const pinned of [true, false]) {
         const hasButton = showsRailButton('p', {
@@ -292,13 +277,8 @@ describe('the rail empties when everything is pinned', () => {
 
 describe('a drag actually moves a pinned column (regression)', () => {
   /**
-   * THE BUG: the drag committed into the panel order, `orderVisualOpen` honoured
-   * it, and `partitionAtRail` then re-sorted the static region by PIN order and
-   * threw it away. Every column in an auto-hide dock is pinned, so drag-to-reorder
-   * looked dead — no error, no clue, the columns simply did not move.
-   *
-   * These assert the COMPOSED path (reorder → repin → partition), because each
-   * function was individually correct and the defect lived in how they combined.
+   * THE BUG: `partitionAtRail` re-sorted the static region by PIN order, discarding the drag.
+   * Every auto-hide column is pinned, so reorder looked dead. These assert the COMPOSED path.
    */
   it('reorders the painted static sequence, not just the panel order', () => {
     const pinOrder = ['a', 'b', 'c'];

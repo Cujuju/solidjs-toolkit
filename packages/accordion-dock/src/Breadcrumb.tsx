@@ -22,62 +22,36 @@ import {
 } from './breadcrumbPath';
 
 /**
- * The path across the open columns, for the Miller-column use of the dock:
- * `src › components › AppShell.tsx`. Clicking a crumb truncates the chain.
- *
- * It owns NO open state. Everything it draws comes from `buildCrumbPath`, which
- * is a pure read of `visualOpenIds()` + `meta()`; everything it does goes back
- * through `setOpen` / the consumer's `onTruncate`. A breadcrumb that cached what
- * was open would be a second source of truth about the dock, and the first thing
- * it would do is disagree with the columns next to it.
- *
- * The only local state is presentational: which crumb holds the roving tab stop,
- * and whether the user has expanded an elided middle.
+ * The path across the open columns: `src › components › AppShell.tsx`. It owns NO open state
+ * — everything drawn is a pure read. See DESIGN_NOTES.md § src/Breadcrumb.tsx:24.
  */
 
-/** Default separator glyph. `›` rather than `/` or `>` because the dock's chrome
- *  is already dense and the light chevron reads as structure rather than as
- *  punctuation inside a filename. */
+/** Default separator. `›` rather than `/` or `>`: the chrome is already dense, and the light
+ *  chevron reads as structure rather than punctuation. */
 const DEFAULT_SEPARATOR = '›';
 
 /**
- * Ref-map key for the elision button, so it can take part in arrow-key movement
- * alongside real crumbs (which are keyed by panel id).
- *
- * Residual failure mode, stated rather than hidden: a panel whose id is literally
- * this string would share the slot. The consequence is confined to which element
- * an arrow key focuses — no open, close or truncate is routed through this map —
- * and the `#` prefix is not something an author writes in an `id` prop.
+ * Ref-map key for the elision button, so it joins arrow-key movement. Residual: a panel with
+ * this literal id would share the slot, affecting only which element a key focuses.
  */
 const ELLIPSIS_KEY = '#acc-breadcrumb-ellipsis';
 
 export interface BreadcrumbProps {
   /**
-   * The group to describe. Optional: a breadcrumb rendered INSIDE the group picks
-   * it up from context, but the Miller layout wants the bar ABOVE the columns —
-   * and in `horizontal` orientation anything inside the group is itself a column.
-   * So the out-of-tree case (via `apiRef`) is the primary one, and it is a prop.
+   * The group to describe. Optional: a breadcrumb inside the group reads context, but the
+   * Miller layout wants the bar ABOVE the columns, so the out-of-tree case is the primary one.
    */
   group?: AccordionGroupApi;
 
   /**
-   * Render the CONTENT of a crumb. `index` is the position among VISIBLE entries
-   * (post-elision); `crumb.index` is the position in the full path.
-   *
-   * Deliberately the content, not the whole element: the wrapper carries the tab
-   * stop, `aria-current`, the click-to-truncate and the arrow-key handler, and
-   * handing those to every custom renderer is how a control loses its keyboard
-   * story one consumer at a time. A consumer who genuinely needs to own the
-   * element should skip this component and render from `buildCrumbPath` +
-   * `elideCrumbs`, which are exported for exactly that.
+   * Render the CONTENT of a crumb, not the element: the wrapper carries the tab stop, click
+   * and keyboard handling. `index` is the position among VISIBLE entries.
    */
   renderCrumb?: (crumb: CrumbData, index: number) => JSX.Element;
 
   /**
-   * Separator between crumbs. Pass an INLINE expression (`separator={<Sep />}`),
-   * not a stored node: Solid wraps a prop expression in a getter, so an inline
-   * one yields a fresh node per separator, while a variable holding a single node
-   * would be moved to the last slot and appear exactly once.
+   * Separator between crumbs. Pass an INLINE expression: Solid wraps a prop in a getter, so a
+   * stored node would be moved to the last slot and appear once.
    */
   separator?: JSX.Element;
 
@@ -91,9 +65,8 @@ export interface BreadcrumbProps {
 }
 
 export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
-  // Context is resolved once — a Solid context value is fixed for a subtree, so
-  // there is nothing reactive to preserve here. The `group` PROP is read through
-  // an accessor so a consumer that swaps groups is followed.
+  // Context is resolved once — a context value is fixed for a subtree. The `group` PROP is read
+  // through an accessor, so a consumer that swaps groups is followed.
   const contextGroup = useContext(AccordionGroupContext);
   const group = (): AccordionGroupApi => {
     const g = props.group ?? contextGroup;
@@ -110,25 +83,13 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
     buildCrumbPath(group(), { onTruncate: props.onTruncate }),
   );
 
-  /** Identity of the current path, used only to decide when an expansion the user
-   *  asked for has been answered by the path itself changing.
-   *
-   *  NUL is the delimiter because no panel id can contain one, so two different
-   *  paths can never join into the same key.
-   *
-   *  It MUST be written as the escape sequence and never as a raw byte. A literal
-   *  NUL sat in this line until 2026-07-24, and one such byte makes `file(1)`
-   *  report the whole module as `data` — at which point grep skips it as binary,
-   *  silently and with no error. Every code search, audit sweep and `grep -r` in
-   *  this repo was blind to this file for as long as that byte was there, which
-   *  is exactly how a dead-code sweep reported its classes unused. */
+  /** Identity of the current path. NUL delimits, and it MUST be the escape sequence: a literal
+   *  NUL reads as binary. See DESIGN_NOTES.md § src/Breadcrumb.tsx:113. */
   const pathKey = createMemo<string>(() => path().map((c) => c.id).join('\0'));
 
   const [expanded, setExpanded] = createSignal(false);
-  // Re-collapse whenever the path changes. Expanding is a request to see THIS
-  // path in full, not a mode — leaving it latched would silently retire the
-  // overflow guarantee for the rest of the session. `defer` so the initial
-  // computation does not immediately fight a freshly-set flag.
+  // Re-collapse whenever the path changes: expanding is a request to see THIS path in full,
+  // not a mode. `defer` so the initial computation does not fight a fresh flag.
   createEffect(on(pathKey, () => setExpanded(false), { defer: true }));
 
   const entries = createMemo<BreadcrumbEntry[]>(() =>
@@ -148,23 +109,13 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
   );
 
   /**
-   * Focusable elements by key, for arrow-key movement.
-   *
-   * Through the shared slot rather than a bare `els.set`: a ref that only ever adds
-   * keeps a detached node alive for every crumb the path has ever held, and
-   * `focusAt` would then move focus into something no longer in the document.
-   *
-   * This file had its own correct implementation of that — identity-guarded clear
-   * and all — while the GROUP had an unguarded one, and the group's is where the
-   * orientation-swap bug lived. Two implementations of one contract, one of them
-   * right, is the same hazard as none: whichever a new callsite copies decides
-   * whether it is correct. Now there is one.
+   * Focusable elements by key, through the shared slot rather than a bare `els.set`, which
+   * would keep detached nodes. See DESIGN_NOTES.md § src/Breadcrumb.tsx:150.
    */
   const els = new Map<string, HTMLElement>();
   const elSlot = createMapSlot(els);
-  /** `null` = untouched, so the tab stop sits on the LAST focusable crumb — the
-   *  one nearest where the user actually is. Clamped on read rather than kept in
-   *  range on write, because the path can shrink under a stale index. */
+  /** `null` = untouched, so the tab stop sits on the LAST focusable crumb. Clamped on read,
+   *  because the path can shrink under a stale index. */
   const [focusIndex, setFocusIndex] = createSignal<number | null>(null);
 
   const activeFocusIndex = (): number => {
@@ -201,9 +152,8 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
     e.target instanceof Element && window.getComputedStyle(e.target).direction === 'rtl' ? -1 : 1;
 
   /**
-   * Arrow movement along the bar. Deliberately does NOT wrap: a path has real
-   * ends, and jumping from the deepest column back to the root would misreport
-   * the structure the bar exists to show. Home/End reach the ends directly.
+   * Arrow movement along the bar. Deliberately does NOT wrap: a path has real ends, and
+   * jumping from the deepest column to the root would misreport the structure.
    */
   const onKeyDown = (e: KeyboardEvent, key: string): void => {
     const from = focusKeys().indexOf(key);
@@ -227,9 +177,8 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
     e.preventDefault();
   };
 
-  /** Plain-text summary of what the ellipsis is standing in for. Crumbs labelled
-   *  with JSX contribute nothing to a `title` attribute, so they are skipped
-   *  rather than rendered as `[object Object]`. */
+  /** Plain-text summary of what the ellipsis stands for. Crumbs labelled with JSX contribute
+   *  nothing to a `title`, so they are skipped rather than rendered as `[object Object]`. */
   const hiddenSummary = (hidden: readonly CrumbData[]): string => {
     const names = hidden.map((c) => c.text).filter((t): t is string => t !== undefined);
     return names.length === 0
@@ -249,10 +198,8 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
           <For each={entries()}>
             {(entry, i) => (
               <li class="acc-breadcrumb-item">
-                {/* Separator BEFORE every entry but the first, so it never
-                    trails the current location. `aria-hidden` because the list
-                    structure already conveys the sequence to assistive tech;
-                    reading "chevron" between every crumb is noise. */}
+                {/* Separator BEFORE every entry but the first, so it never trails the current
+                                location. `aria-hidden` because the list structure already conveys order. */}
                 <Show when={i() > 0}>
                   <span class="acc-breadcrumb-sep" aria-hidden="true">
                     {separator()}
@@ -264,9 +211,8 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
                     ref={slotRef(elSlot, ELLIPSIS_KEY)}
                     type="button"
                     class="acc-breadcrumb-crumb acc-breadcrumb-ellipsis"
-                    // Expands rather than merely marking the gap: an elision the
-                    // user cannot open is information deleted, and the hidden
-                    // crumbs are the only route to those columns from here.
+                    // Expands rather than merely marking the gap: an elision the user cannot open
+                    // is information deleted.
                     title={hiddenSummary(entry.hidden)}
                     aria-label={hiddenSummary(entry.hidden)}
                     tabIndex={isTabStop(ELLIPSIS_KEY) ? 0 : -1}
@@ -279,10 +225,8 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
                     …
                   </button>
                 ) : entry.crumb.isCurrent ? (
-                  /* The current location is text, not a control — the standard
-                     breadcrumb treatment, and the honest one: there is nothing
-                     after it to truncate, so a button here would be a click that
-                     does nothing. */
+                  /* The current location is text, not a control — there is nothing after it to
+                                       truncate, so a button would be a click that does nothing. */
                   <span
                     class="acc-breadcrumb-crumb acc-breadcrumb-current"
                     aria-current="page"

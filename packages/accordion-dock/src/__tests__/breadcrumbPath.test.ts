@@ -39,9 +39,8 @@ describe('buildCrumbPath — derivation', () => {
   });
 
   it('skips an id that is open but no longer registered', () => {
-    // `unregister` deliberately keeps the order entry so the panel returns where
-    // the user put it. Until it remounts there is no label and no click target,
-    // so it must contribute NO crumb rather than a blank one.
+    // `unregister` keeps the order entry so the panel returns where the user put it. Until
+        // it remounts it has no label, contributing NO crumb rather than a blank one.
     const { group } = createStubGroup({
       panels: [{ id: 'a', title: 'A' }, { id: 'c', title: 'C' }],
       open: ['a', 'ghost', 'c'],
@@ -148,19 +147,9 @@ describe('buildCrumbPath — select() truncation', () => {
 
   it('closes a LEAF through the group like anything else, and still reports it', () => {
     /*
-     * REPLACES a test that asserted `setOpen` was never called on a leaf.
-     *
-     * That was the right assertion when a leaf's controlled-ness was enforced by
-     * the CALLER: closing one through the group would have dropped it from the open
-     * list while its own `<Show when={props.open}>` kept painting it — a visible
-     * pane the group believed closed, with a broken flex order and an orphaned
-     * splitter. So this file skipped leaves, and a comment explained why.
-     *
-     * `setOpen` on a leaf is now a REQUEST that routes to the leaf's own
-     * `requestClose` (see `PanelMeta.requestClose`), so the desync is no longer
-     * something a caller can cause and the skip is gone. What this test protects is
-     * that removing it did not lose the `onTruncate` report the consumer needs.
-     */
+         * REPLACES a test that asserted `setOpen` was never called on a leaf. This protects the
+         * `onTruncate` report. See DESIGN_NOTES.md § src/__tests__/breadcrumbPath.test.ts:150.
+         */
     const { group, calls } = createStubGroup({
       panels: [{ id: 'files' }, { id: 'detail', isLeaf: true }],
       open: ['files', 'detail'],

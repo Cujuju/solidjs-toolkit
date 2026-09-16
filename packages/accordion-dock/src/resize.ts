@@ -2,53 +2,19 @@ import { createSignal, onCleanup, type Accessor } from 'solid-js';
 import { createCancelListeners } from './gesture';
 
 /**
- * Splitter drag engine.
- *
- * The model is deliberately CONSERVATIVE: a drag moves the boundary between exactly
- * two adjacent open panels, adding to one and taking the same amount from the other.
- * The group's total extent never changes, so a resize cannot make the dock overflow
- * its container or leave a gap — the two failure modes of the naive "just set this
- * panel's width" approach.
- *
- * Sizes are seeded from the DOM at gesture start rather than tracked continuously:
- * before the first drag every panel is sized by the mode (`fill` splits evenly,
- * `natural` uses a token width), and those computed sizes are exactly what the user
- * sees and expects to start dragging FROM.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * PREVIEW vs COMMIT — a gesture is ONE decision, not sixty.
- *
- * A pointermove is not a decision the user made; releasing the pointer is. The
- * engine therefore writes intermediate sizes through `previewSizes` (signal only)
- * and the settled one through `commitSizes` (persisted, and reported to the
- * consumer). Everything the user sees during a drag comes from the preview, so the
- * feel is identical.
- *
- * It used to call one setter for both, which meant a `JSON.stringify` plus a
- * synchronous `localStorage.setItem` on EVERY pointermove — a write per frame for
- * the whole gesture, of which exactly one was worth keeping — and one
- * `onSizeChange` per frame for a consumer that almost certainly wanted the result.
- * The intermediate values are not merely wasteful to store, they are wrong to
- * store: a drag interrupted by a crash would persist whatever pixel the pointer
- * happened to be over, and a consumer mirroring the callback would record sixty
- * layout revisions for one adjustment.
+ * Splitter drag engine. A drag moves the boundary between two adjacent open panels, so the
+ * group's total never changes. See DESIGN_NOTES.md § src/resize.ts:4.
  */
 
 /**
- * Fallback floor when a panel declares no `minSize`. Small enough to allow a very
- * narrow column, large enough that a panel can never be dragged to zero and become
- * impossible to grab again.
+ * Fallback floor when a panel declares no `minSize`. Small enough for a narrow column, large
+ * enough that a panel can never be dragged to zero and become impossible to grab.
  */
 export const DEFAULT_MIN_SIZE_PX = 60;
 
 /**
- * How far PAST a panel's minimum the pointer must travel before the drag is read as
- * "collapse this" rather than "make it as small as allowed".
- *
- * It has to be a deliberate overshoot, not a hair past the floor: a panel already
- * clamped at its minimum sits under a pointer that is still moving, so a 1px trigger
- * would collapse panels every time someone dragged firmly to the edge. Wide enough
- * to require intent, short enough to discover by accident once.
+ * How far PAST the minimum the pointer must travel before a drag reads as "collapse this".
+ * A 1px trigger would collapse a clamped panel on any firm drag.
  */
 const COLLAPSE_OVERDRAG_PX = 40;
 
@@ -57,97 +23,18 @@ const COLLAPSE_OVERDRAG_PX = 40;
 const PRIMARY_BUTTON = 0;
 
 /**
- * How much one arrow keypress moves the boundary, px.
- *
- * The keyboard equivalent of a drag has to answer a question the pointer never
- * asks: how far is "a bit"? 8px is deliberately fine rather than convenient — a
- * splitter is a precision control, and a user who wants to travel a long way holds
- * the key (autorepeat makes that fast) or uses the coarse step below. Erring coarse
- * would make fine adjustment impossible; erring fine only makes the long adjustment
- * slower, which is the cheaper mistake.
+ * How far one arrow keypress moves the boundary, px. 8px is deliberately fine: a splitter is
+ * a precision control, and holding the key (autorepeat) covers distance.
  */
 const KEYBOARD_STEP_PX = 8;
 
-/** The coarse step, on Shift+arrow. Ten notches of the fine one — enough that
- *  crossing a wide dock is a few presses, and a round multiple so the two steps
- *  compose predictably. */
+/** The coarse step, on Shift+arrow. Ten notches of the fine one, and a round multiple so the
+ *  two compose predictably. */
 const KEYBOARD_COARSE_STEP_PX = KEYBOARD_STEP_PX * 10;
 
 /**
- * The flex declaration for ONE open member, given its explicit size (if any).
- *
- * ONE definition for both `<AccordionPanel>` and `<AccordionLeaf>`: the leaf is a
- * first-class member for sizing, so two copies of this rule would be two places to
- * forget the surplus case below — which is exactly how the dead gap got shipped.
- *
- * ── The surplus has to go somewhere ─────────────────────────────────────────
- * `fill` mode means "the dock has this extent and divides ALL of it". An explicit
- * size (from a splitter drag, a `defaultSize`, or a persisted layout) turns a
- * member into `flex: 0 0 Npx`, and once EVERY open member is explicitly sized
- * nothing is left to absorb the remainder — the group paints a dead strip at its
- * trailing edge and the mode has quietly stopped meaning what it says.
- *
- * ── Who absorbs it: DECLARED first, trailing by default ─────────────────────
- * Which member *should* take the surplus is a question about the CONTENT, and only
- * the CONSUMER can answer it. Resist the temptation to infer it from a member's
- * role — "the list grows, the detail pane is bounded" is the obvious-sounding rule
- * and it is wrong. A detail pane is not reliably short: a symbol's strategies run
- * one card per expiration and every card carries its legs, so the pane is often
- * the TALLER of the two. Neither kind of member is dependably bounded, which is
- * exactly why this is a declaration (`grow`) and not a heuristic.
- *
- * The DEFAULT, when nobody declares, stays the trailing member. That was once
- * justified as the rule rather than a fallback, on the grounds that the trailing
- * member is the one whose size the user cannot drag directly — splitters sit on a
- * member's edge FACING THE NEXT one, so the last has no handle of its own and any
- * size it carries is a leftover of resizing its neighbours, never a size the user
- * asked for. That reasoning is still true, and it is still why trailing is a SAFE
- * default. It is not a reason to think trailing is the RIGHT recipient: it was
- * chosen for a horizontal dock where the trailing column was the surface — the
- * thing that wanted all the room — and the same rule rotated into a vertical
- * sidebar hands the surplus to the detail pane, which is precisely the member that
- * cannot use it.
- *
- * TWO OR MORE DECLARED GROWERS SHARE the remainder. Each keeps its own size as its
- * basis and they take equal `flex-grow`, so the SURPLUS is split evenly between
- * them while their starting sizes stay different — not a 50/50 split of the group.
- * This is a first-class configuration, not a tolerated mistake: when two sections
- * both hold content of unpredictable length, "share what is left and let each
- * scroll past its share" is the honest answer, and picking a winner would starve
- * whichever one the consumer did not name.
- *
- * The stored px stays as the flex BASIS rather than being discarded, so a growing
- * member still starts from its remembered size when the group is too small to
- * grant the remainder, and shrinks from there like any other.
- *
- * ── `shrinkToContent`: the stored size as a CEILING, not an extent ───────────
- * The two behaviours above both answer "how do we spend space the members do not
- * individually want". A member can instead declare that it never wants more room
- * than its content occupies — a list that is exactly as tall as its rows, and no
- * taller, with the sidebar's leftover space simply left empty.
- *
- * That reading needs no new sizing machinery, because CSS already has it: a
- * content basis (`flex: 0 1 auto`) with the stored size applied as a `max-*`. The
- * member is then its content when short, its stored size when long, and scrolls
- * internally past that — which is the whole rule in one declaration rather than a
- * mode with branches. `flex-shrink` stays 1 so several such members still divide a
- * group too small for all of them instead of overflowing it.
- *
- * The stored size becoming a CEILING has a consequence worth stating: dragging the
- * splitter to make such a member BIGGER than its content does nothing visible,
- * because the content is still where the box ends. The drag is not lost — it has
- * raised the ceiling, and the extra room appears the moment the content reaches
- * it. Dragging SMALLER is immediate, since that is the ceiling biting.
- *
- * It follows that seeding one of these from `defaultSize: 'content'` is
- * self-defeating: a ceiling measured from the content is a ceiling the content is
- * already touching, so the member could never grow again and would be frozen at
- * whatever it happened to hold when it first opened. Leave such a member unsized
- * and let the ceiling come from a deliberate drag.
- *
- * `shrinkToContent` and `grow` are contradictory — one never exceeds its content,
- * the other exists to exceed it — so `shrinkToContent` wins and the declaration is
- * ignored rather than producing a member that both does and does not absorb.
+ * The flex declaration for ONE open member — panels and leaves alike. In `fill`, a declared
+ * `grow` absorbs the remainder. See DESIGN_NOTES.md § src/resize.ts:76.
  */
 export function columnFlex(opts: {
   /** The panel's explicit size, or `undefined` while it follows the mode. */
@@ -158,19 +45,18 @@ export function columnFlex(opts: {
   trailing: boolean;
   /** This member declares itself the absorber of the group's leftover space. */
   declaresGrow: boolean;
-  /** Any OPEN member of the group declares it — which retires the trailing
-   *  default, including for members that declare nothing. */
+  /** Any OPEN member declares it — which retires the trailing default, including for members
+   *  that declare nothing. */
   groupHasDeclaredGrower: boolean;
-  /** This member is its CONTENT's size, with `sizePx` as a ceiling it scrolls
-   *  past — never taller than what it holds. */
+  /** This member is its CONTENT's size, with `sizePx` as a ceiling it scrolls past. */
   shrinkToContent: boolean;
   /** The group's growth axis, so a ceiling is applied to the dimension the dock
    *  actually sizes along. */
   axis: 'width' | 'height';
 }): { flex: string; maxWidth?: string; maxHeight?: string } | Record<string, never> {
   if (opts.shrinkToContent) {
-    // `0 1 auto`: never grow past the content, shrink if the group cannot hold
-    // every member, and take the content as the basis.
+    // `0 1 auto`: never grow past the content, shrink if the group cannot hold every member,
+    // and take the content as the basis.
     const flex = { flex: '0 1 auto' };
     if (opts.sizePx === undefined) return flex;
     return opts.axis === 'width'
@@ -182,12 +68,8 @@ export function columnFlex(opts: {
     opts.fill && (opts.declaresGrow || (!opts.groupHasDeclaredGrower && opts.trailing));
 
   if (opts.sizePx === undefined) {
-    /* No explicit size. Normally the stylesheet's mode rules size this member and
-       an inline `flex` here would out-specify them for no gain — but `fill`'s
-       stylesheet rule is `flex: 1 1 0`, i.e. "grow", which would let an unsized
-       NON-grower compete with the declared one for the surplus. So a group with a
-       declared grower pins its other members to their content size; without one,
-       nothing is emitted and behaviour is exactly what it always was. */
+    /* No explicit size. `fill`'s stylesheet rule is `flex: 1 1 0`, so an unsized NON-grower
+           would compete for the surplus — a group with a declared grower pins its others. */
     if (opts.fill && opts.groupHasDeclaredGrower && !opts.declaresGrow) {
       return { flex: '0 0 auto' };
     }
@@ -199,8 +81,8 @@ export function columnFlex(opts: {
 export interface ResizeHost {
   /** Growth axis: 'x' for horizontal columns, 'y' for vertical fill panels. */
   axis: Accessor<'x' | 'y'>;
-  /** +1 when pointer-forward grows the dragged panel, -1 when the axis is mirrored
-   *  (rail docked right, so columns grow leftward). */
+  /** +1 when pointer-forward grows the dragged panel, -1 when the axis is mirrored (rail docked
+   *  right, so columns grow leftward). */
   direction: Accessor<1 | -1>;
   /** Every open panel in visual sequence — the set a drag is allowed to redistribute
    *  between. */
@@ -213,9 +95,8 @@ export interface ResizeHost {
   previewSizes: (next: Record<string, number>) => void;
   /** The sizes a gesture SETTLED on. Persisted and reported. */
   commitSizes: (next: Record<string, number>) => void;
-  /** Close a panel that was dragged past its minimum. Returns false when the panel
-   *  refuses (a leaf, or a consumer-controlled pane), in which case the drag just
-   *  clamps as usual. */
+  /** Close a panel dragged past its minimum. Returns false when it refuses, in which case the
+   *  drag just clamps. */
   collapse: (id: string) => boolean;
   /** Whether `id` may be collapsed by overdrag at all. */
   canCollapse: (id: string) => boolean;
@@ -235,27 +116,16 @@ interface ResizePair {
 export interface ResizeApi {
   begin: (id: string, e: PointerEvent) => void;
   /**
-   * Move the boundary on `id`'s trailing edge by `steps` — the KEYBOARD path.
-   *
-   * Not an accessibility afterthought bolted beside the drag: it redistributes
-   * through the same clamped arithmetic, so the floors, the mirrored axis and the
-   * "the pair always sums to the same total" invariant hold identically. A second
-   * implementation of that arithmetic is how the two paths come to disagree about
-   * what a minimum means.
-   *
-   * `steps` is signed the way a pointer would move. Collapse is deliberately NOT
-   * reachable this way: overdrag is a gesture with a distance, and a keypress has
-   * none, so a key can clamp at the minimum but never close a panel out from under
-   * the user.
+   * Move the boundary on `id`'s trailing edge — the KEYBOARD path, through the same clamped
+   * arithmetic. See DESIGN_NOTES.md § src/resize.ts:237.
    */
   nudge: (id: string, steps: number, coarse: boolean) => void;
-  /** Current extent and travel limits for the panel on `id`'s leading side, for the
-   *  separator's `aria-value*`. Undefined when there is no pair to resize. */
+  /** Current extent and travel limits for the panel on `id`'s leading side, for the separator's
+   *  `aria-value*`. Undefined when there is no pair. */
   boundsOf: (id: string) => { value: number; min: number; max: number } | undefined;
   resizing: Accessor<boolean>;
-  /** The panel that will collapse if the pointer is released now, or null. Drives the
-   *  pre-commit affordance — collapsing on release with no warning would feel like
-   *  the control lost the panel. */
+  /** The panel that will collapse if the pointer is released now. Drives the pre-commit
+   *  affordance — collapsing with no warning feels like a lost panel. */
   collapseCandidate: Accessor<string | null>;
 }
 
@@ -264,24 +134,15 @@ export function createResize(host: ResizeHost): ResizeApi {
   const [collapseCandidate, setCollapseCandidate] = createSignal<string | null>(null);
 
   /**
-   * Teardown for the drag currently in flight, or null.
-   *
-   * Held at this level so the owning component's disposal can run it. Without that,
-   * a group unmounted mid-drag (a route change while the pointer is down, an HMR
-   * boundary) leaves `pointermove` and `pointerup` bound to `window` forever, each
-   * closing over a dead reactive graph — and every subsequent move writes sizes
-   * into a disposed signal.
+   * Teardown for the drag in flight, held here so the owner's disposal can run it. Otherwise a
+   * group unmounted mid-drag leaves `pointermove` bound to a dead graph.
    */
   let endActiveDrag: (() => void) | null = null;
   onCleanup(() => endActiveDrag?.());
 
   /**
-   * Every open panel's current extent, measured.
-   *
-   * EVERY panel, not just the two a gesture touches: panels left on automatic
-   * sizing would otherwise re-flow to absorb the delta, and the boundary the user
-   * grabbed would appear not to move. Shared by both entry points, so the pointer
-   * and the keyboard start from the same numbers.
+   * Every open panel's current extent, measured. EVERY panel, because ones left on automatic
+   * sizing would re-flow to absorb the delta and the grabbed boundary would not appear to move.
    */
   const seedSizes = (ids: readonly string[]): Record<string, number> => {
     const seeded: Record<string, number> = { ...host.sizes() };
@@ -316,11 +177,8 @@ export function createResize(host: ResizeHost): ResizeApi {
   };
 
   /**
-   * Clamp a requested movement against BOTH floors before applying it.
-   *
-   * Clamping after the fact is what produces the classic "the other panel keeps
-   * shrinking past its minimum" bug: the pair must always sum to the same total, so
-   * the delta is bounded by what each side can give.
+   * Clamp a requested movement against BOTH floors before applying it. Clamping after the fact
+   * is what produces "the other panel keeps shrinking past its minimum".
    */
   const clampDelta = (raw: number, p: ResizePair): number =>
     Math.max(p.minA - p.startA, Math.min(raw, p.startB - p.minB));
@@ -346,29 +204,15 @@ export function createResize(host: ResizeHost): ResizeApi {
       if (ev.pointerId !== pointerId) return;
       const now = host.axis() === 'x' ? ev.clientX : ev.clientY;
       /*
-       * Applied from the first pixel — there is deliberately no activation
-       * threshold.
-       *
-       * There used to be a constant for one, set to 0, guarded by
-       * `Math.abs(raw) < 0` (never true) and commented as matching the reorder
-       * primitive's activation distance. It matched nothing and did nothing. A
-       * dead constant claiming to encode a decision is worse than no constant:
-       * the next reader either trusts a threshold that is not there, or "fixes"
-       * the value and silently changes behaviour nothing tested.
-       *
-       * The threshold is genuinely not wanted here. It exists in a reorder drag
-       * to tell a click from a drag on an element that does BOTH. A splitter is a
-       * dedicated handle with no click action, so a press that moves 2px means
-       * "move the boundary 2px" and nothing else.
-       */
+                   * Applied from the first pixel — deliberately no activation threshold.
+                   * See DESIGN_NOTES.md § src/resize.ts:348.
+                   */
       const raw = (now - startPointer) * host.direction();
       const delta = clampDelta(raw, p);
       host.previewSizes({ ...host.sizes(), [id]: p.startA + delta, [p.nextId]: p.startB - delta });
 
-      // Overdrag → collapse. Measured against the UNCLAMPED movement, because once a
-      // panel is pinned at its minimum the clamped size stops changing and could
-      // never express "keep going". Committed on release, not here: collapsing
-      // mid-drag would yank the boundary out from under the pointer.
+      // Overdrag → collapse, measured against the UNCLAMPED movement: once a panel is pinned at
+      // its minimum the clamped size stops changing. Committed on release, not here.
       const wantA = p.startA + raw;
       const wantB = p.startB - raw;
       if (wantA < p.minA - COLLAPSE_OVERDRAG_PX && host.canCollapse(id)) {
@@ -400,9 +244,8 @@ export function createResize(host: ResizeHost): ResizeApi {
       const settled = { ...host.sizes() };
       if (victim !== null) {
         host.collapse(victim);
-        // Drop the collapsed panel's explicit size: it will be reopened later at the
-        // mode's automatic size, which is what the user expects from a panel they
-        // deliberately squashed away — not the 1px sliver they squashed it to.
+        // Drop the collapsed panel's explicit size: it reopens at the mode's automatic size, not
+        // the 1px sliver it was squashed to.
         delete settled[victim];
       }
       host.commitSizes(settled);
@@ -435,17 +278,16 @@ export function createResize(host: ResizeHost): ResizeApi {
     const step = coarse ? KEYBOARD_COARSE_STEP_PX : KEYBOARD_STEP_PX;
     const delta = clampDelta(steps * step * host.direction(), p);
     if (delta === 0) return;
-    // Straight to commit: a keypress is already a discrete decision, so there is no
-    // intermediate state worth previewing.
+    // Straight to commit: a keypress is already a discrete decision, so there is no intermediate
+    // state worth previewing.
     host.commitSizes({ ...p.seeded, [id]: p.startA + delta, [p.nextId]: p.startB - delta });
   };
 
   const boundsOf = (id: string): { value: number; min: number; max: number } | undefined => {
     const p = pairFor(id);
     if (p === null) return undefined;
-    // The pair's total is fixed, so this panel's ceiling is whatever its neighbour
-    // can give up — the same bound `clampDelta` enforces, read out rather than
-    // recomputed.
+    // The pair's total is fixed, so this panel's ceiling is whatever its neighbour can give up —
+    // the same bound `clampDelta` enforces.
     return {
       value: Math.round(p.startA),
       min: Math.round(p.minA),

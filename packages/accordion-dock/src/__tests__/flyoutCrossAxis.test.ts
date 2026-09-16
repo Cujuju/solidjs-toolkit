@@ -2,19 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { flyoutCrossAxis, FLYOUT_DEFAULT_WIDTH_PX } from '../autoHide';
 
 /**
- * A FLYOUT MUST NEVER BE THE REASON ITS OWN CONTENT CLIPS.
- *
- * A docked section is as wide as the user's layout allows and may scroll; a
- * flyout is an overlay with the whole window to spend. The bug these pin: a
- * vertical flyout took the GROUP's width, so a 10-row symbol list opening out of
- * a narrow sidebar was rendered at the sidebar's width and every P/L value in it
- * was cut off behind a horizontal scrollbar.
- *
- * WHAT IS NOT COVERED HERE: the ceiling itself. It lives in `autoHide.css` as
- * `--acc-flyout-max-width`, and jsdom applies no stylesheet, so asserting it here
- * would test nothing. What IS covered is the half that decides whether the token
- * gets a chance to apply at all — vertical must NOT write an inline max-width,
- * horizontal must write `none`.
+ * A FLYOUT MUST NEVER BE THE REASON ITS OWN CONTENT CLIPS. A vertical flyout took the GROUP's
+ * width. See DESIGN_NOTES.md § src/__tests__/flyoutCrossAxis.test.ts:4.
  */
 
 /** A deliberately narrow group — the sidebar case that produced the bug. */
@@ -87,9 +76,8 @@ describe('flyoutCrossAxis — horizontal preserves the user’s width', () => {
   });
 
   it('opts OUT of the ceiling, which would cap a width the user chose', () => {
-    /* A horizontal flyout's width already fits in the dock, so it cannot overflow
-       the viewport and needs no cap — while a cap below the column's width would
-       make pinning visibly resize it. */
+    /* A horizontal flyout already fits the dock, so it cannot overflow the viewport and
+           needs no cap — while a cap below the column's width would make pinning resize it. */
     const { maxWidth } = flyoutCrossAxis({
       orientation: 'horizontal',
       panelSizePx: DRAGGED_COLUMN_PX,

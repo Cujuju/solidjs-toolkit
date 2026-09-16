@@ -1,19 +1,16 @@
 import { createContext, onCleanup, useContext, type Accessor, type JSX } from 'solid-js';
 
 /**
- * Everything here is deliberately token-driven (--acc-*), which is what let the
- * promotion out of playground/src/mock/ into this package (2026-07-26) be a file
- * move rather than a rewrite: nothing in the control hard-codes a colour or a
- * metric a consumer might need to restate.
+ * Everything here is token-driven (--acc-*), which let the promotion out of
+ * playground/src/mock/ be a file move rather than a rewrite.
  */
 
 /** Which axis the panels open along. */
 export type AccordionOrientation =
   /** Headers stack top-to-bottom; opening a panel grows it DOWNWARD. Classic accordion. */
   | 'vertical'
-  /** Collapsed panels live as buttons in a RAIL; opening one grows a column out from
-   *  the rail. Columns sit in the order they were opened, not declaration order —
-   *  VS Code's activity bar crossed with Visual Studio's auto-hide tab strip. */
+  /** Collapsed panels live as buttons in a RAIL; opening one grows a column out from it.
+   *  Columns sit in open order, not declaration order. */
   | 'horizontal';
 
 /**
@@ -29,13 +26,8 @@ export type AccordionAppearance =
   | 'cards';
 
 /**
- * Which edge the rail is docked against (`horizontal` orientation only).
- *
- * The rail is the ANCHOR: columns always grow AWAY from it, in open order. Rail on
- * the left → the first-opened column sits against the rail and later ones extend
- * rightward. Rail on the right → the same thing mirrored, so columns read
- * right-to-left. A panel visually emerges from its own button either way, which is
- * the whole point of docking the rail to an edge rather than floating it.
+ * Which edge the rail is docked against (`horizontal` only). The rail is the ANCHOR:
+ * columns always grow AWAY from it, so a panel emerges from its own button either way.
  */
 export type AccordionRailSide = 'left' | 'right';
 
@@ -48,21 +40,15 @@ export type AccordionMode =
   | 'natural';
 
 /**
- * Where a newly-opened panel lands in the column sequence.
- *
- * There is exactly ONE order in this control — `AccordionGroupApi.order` — and both
- * the rail and the columns render from it. That is what makes reordering the rail
- * reorder the columns and vice versa: they are not two sequences kept in sync, they
- * are one sequence read twice. This prop only decides whether OPENING a panel also
- * moves it within that sequence.
+ * Where a newly-opened panel lands. There is exactly ONE order, read twice — by the rail and
+ * by the columns.
  */
 export type AccordionOpenPlacement =
   /** The panel appears in its rail slot. Opening never reorders anything, so the rail
    *  is stable and a column's position is always predictable from its button's. */
   | 'in-order'
-  /** The panel moves to the END of the order, so the most recently opened column is
-   *  always the outermost one. The cost is real and unavoidable given a single
-   *  sequence: the rail button moves too. */
+  /** The panel moves to the END of the order, so the newest column is outermost. The rail
+   *  button moves too — unavoidable, given a single sequence. */
   | 'append';
 
 /** What opening one panel does to its siblings. */
@@ -74,19 +60,14 @@ export type AccordionPolicy =
   | 'multi';
 
 /**
- * Severity of a panel's state dot. Named rather than a free colour so a dock stays
- * visually coherent and a consumer cannot invent a seventh shade of amber; a
- * per-panel `accent` already exists for genuine branding.
+ * Severity of a panel's state dot. Named rather than a free colour, so a consumer cannot
+ * invent a seventh amber; `accent` exists for genuine branding.
  */
 export type PanelBadge = 'info' | 'success' | 'warning' | 'danger';
 
 /**
- * A panel's chrome, registered with the group as ACCESSORS rather than values.
- *
- * This matters: in `horizontal` orientation the GROUP renders the rail button for
- * each panel, so it needs the panel's title/count/icon — and a snapshot taken at
- * registration time would freeze them, so a count that ticks would never update on
- * the rail. Thunks keep every read reactive at the group's use site.
+ * A panel's chrome, registered as ACCESSORS rather than values: the GROUP renders the rail
+ * button, and a snapshot would freeze a count that ticks.
  */
 export interface PanelMeta {
   id: string;
@@ -95,12 +76,8 @@ export interface PanelMeta {
   railLabel: Accessor<string | JSX.Element | undefined>;
   count: Accessor<number | undefined>;
   /**
-   * A state DOT, distinct from `count`.
-   *
-   * The two answer different questions and must not share a slot: a count says
-   * "how many", a badge says "something here needs you" — unsaved edits, a failed
-   * connection — which has no number and often coexists with a count of zero.
-   * Collapsing them would force a consumer to fake a number to get attention.
+   * A state DOT, distinct from `count`. A count says "how many", a badge says "something
+   * needs you" — which has no number and often coexists with a count of zero.
    */
   badge: Accessor<PanelBadge | undefined>;
   icon: Accessor<JSX.Element | undefined>;
@@ -120,47 +97,25 @@ export interface PanelMeta {
   /** Extra class for this panel's rail button. */
   railClass: Accessor<string | undefined>;
   /**
-   * The id of this panel's CONTENT element.
-   *
-   * Published because the element that must reference it — the rail button — is
-   * rendered by the GROUP, not by the panel, and `aria-controls` has to name a real
-   * id. Without it the rail was a `role="tablist"` of `role="tab"` buttons that
-   * controlled nothing, which is a shape assistive technology cannot navigate: the
-   * relationship between a tab and its panel IS the pattern.
+   * The id of this panel's CONTENT element. Published because the rail button that must
+   * reference it is rendered by the GROUP, and `aria-controls` has to name a real id.
    */
   contentId: string;
   /**
-   * A LEAF is a terminal detail pane with no activator of its own: no rail button,
-   * no header to click, not reorderable, and exempt from `single`-policy
-   * auto-collapse. It is what turns the dock into a Miller-column browser — folder,
-   * folder, folder, then the file's detail view pinned to the end.
+   * A LEAF is a terminal detail pane with no activator: no rail button, not reorderable, and
+   * exempt from `single`-policy auto-collapse. It is what makes the dock a Miller browser.
    */
   isLeaf: boolean;
   /**
-   * How the group ASKS a leaf to close. Present on leaves, absent on panels.
-   *
-   * A leaf is CONTROLLED: its visibility is `props.open` on `<AccordionLeaf>`,
-   * mirrored into the group by an effect that only re-runs when that prop changes.
-   * So the group cannot close one by editing its own open list — the leaf would go
-   * on painting while the group believed it closed, leaving a pane on screen with a
-   * broken flex `order` and a splitter that no longer finds its neighbour.
-   *
-   * That hazard used to be prevented by COMMENTS at the two callsites that knew
-   * about it (the breadcrumb's truncation skipped leaves explicitly), which is the
-   * shape of bug this codebase keeps finding: a rule enforced by remembering.
-   * `setOpen(leafId, false)` now routes here instead, so the desync is not
-   * something a caller can cause.
+   * How the group ASKS a leaf to close. A leaf is CONTROLLED, so editing the open list would
+   * leave it painting. See DESIGN_NOTES.md § src/context.ts:139.
    */
   requestClose?: () => void;
 }
 
 /**
- * The complete user-owned arrangement of a group, as a plain serialisable object.
- *
- * This is the SAME shape the group persists to localStorage, deliberately: a saved
- * workspace and an auto-persisted session are the same data, so there is one
- * migration story rather than two. `version` exists so a consumer that stored a
- * layout server-side can be told, later, that the shape moved on.
+ * The complete user-owned arrangement of a group, plain and serialisable. The SAME shape the
+ * group persists, so a saved workspace and a session have one migration story.
  */
 export interface AccordionLayout {
   version: number;
@@ -172,19 +127,13 @@ export interface AccordionLayout {
   sizes: Record<string, number>;
 }
 
-/** Bumped when `AccordionLayout`'s shape changes incompatibly. A stored layout with
- *  a different version is IGNORED rather than half-applied — a partly-restored dock
- *  is harder to diagnose than one that obviously fell back to defaults. */
+/** Bumped when `AccordionLayout`'s shape changes incompatibly. A stored layout with a
+ *  different version is IGNORED rather than half-applied. */
 export const ACCORDION_LAYOUT_VERSION = 1;
 
 /**
- * The two listeners hover-to-open attaches to a panel's activator.
- *
- * Spelled out rather than typed as `JSX.HTMLAttributes<HTMLElement>`: the two
- * activators are different ELEMENTS (a `<button>` in horizontal, a `<div>` header
- * row in vertical), and the generic attribute bag carries a `ref` whose element
- * type then has to match at every spread site. The listeners are all this
- * actually is, so saying so makes it spreadable onto either without a cast.
+ * The two listeners hover-to-open attaches to an activator. Spelled out rather than typed as
+ * an attribute bag, whose `ref` would have to match at every spread site.
  */
 export interface ActivatorHoverProps {
   onPointerEnter?: (e: PointerEvent) => void;
@@ -201,24 +150,17 @@ export interface AccordionGroupApi {
   /** Nesting depth of this group. 0 = outermost. Drives header indent. */
   depth: number;
 
-  /** Which panels are open. Membership only — for the on-screen SEQUENCE use
-   *  `order` (or `visualOpenIds`), which is the single source of truth for both the
-   *  rail and the columns. */
+  /** Which panels are open. Membership only — for the on-screen SEQUENCE use `order`, the
+   *  single source of truth for both the rail and the columns. */
   openOrder: Accessor<readonly string[]>;
-  /** THE order: every registered panel id, rail order and column order at once. The
-   *  user changes it by dragging either representation. Leaves are excluded — they
-   *  are terminal by definition. */
+  /** THE order: every registered panel id, rail order and column order at once. Leaves are
+   *  excluded, being terminal by definition. */
   order: Accessor<readonly string[]>;
   /** Open panels in painted sequence — `order` filtered to open, leaves appended. */
   visualOpenIds: Accessor<readonly string[]>;
   /**
-   * Does any OPEN member declare `grow`?
-   *
-   * Read by every member's sizing, not just the growers: a declaration retires the
-   * trailing-member default for the whole group, so a member that declares nothing
-   * still has to know whether one exists. Scoped to OPEN members because a closed
-   * grower absorbs nothing — the surplus must fall back to the default rather than
-   * being promised to a panel that is not on screen.
+   * Does any OPEN member declare `grow`? Read by every member, because a declaration retires
+   * the trailing-member default for the whole group. Scoped to OPEN members.
    */
   hasDeclaredGrower: Accessor<boolean>;
   /** Registered panels (leaves excluded), already sorted into `order`. */
@@ -246,8 +188,8 @@ export interface AccordionGroupApi {
   isEdgeColumn: (id: string) => boolean;
   /** Is this an open pinned column, i.e. in the static region? */
   isStaticColumn: (id: string) => boolean;
-  /** Is this the LAST static column — the one whose trailing edge is the rail?
-   *  Its splitter is suppressed: the rail is a boundary, not a resizer. */
+  /** Is this the LAST static column — the one whose trailing edge is the rail? Its splitter
+   *  is suppressed: the rail is a boundary, not a resizer. */
   isRailBoundary: (id: string) => boolean;
   /** Shown whenever the panel is closed; hidden only when open AND pinned. */
   showsRailButton: (id: string) => boolean;
@@ -255,26 +197,19 @@ export interface AccordionGroupApi {
   collapseKeepPin: (id: string) => void;
   /** Close and DROP the pin (the column ×). */
   closeAndUnpin: (id: string) => void;
-  /** The next OPEN panel after `id` in visual sequence, or undefined if `id` is last.
-   *  This is the panel a splitter dragged on `id`'s trailing edge resizes against. */
+  /** The next OPEN panel after `id` in visual sequence. This is what a splitter dragged on
+   *  `id`'s trailing edge resizes against. */
   neighborOpenId: (id: string) => string | undefined;
 
   toggle: (id: string) => void;
   /**
-   * Open or close a panel.
-   *
-   * For a LEAF this is a REQUEST, not a command: closing one calls its
-   * `requestClose` so the consumer that owns its `open` prop can react, and the
-   * group's own state follows from that. See `PanelMeta.requestClose`.
+   * Open or close a panel. For a LEAF this is a REQUEST: it calls `requestClose`, so the
+   * consumer that owns the `open` prop reacts and the group's state follows.
    */
   setOpen: (id: string, open: boolean) => void;
   /**
-   * The leaf's own mirror of its effective open state — `<AccordionLeaf>` ONLY.
-   *
-   * Separate from `setOpen` because the two directions are genuinely different:
-   * everyone else ASKS a leaf to close, while the leaf itself REPORTS what it has
-   * decided. Routing the report through `setOpen` would send it straight back to
-   * `requestClose` and the leaf would never actually leave the open list.
+   * The leaf's own mirror of its open state — `<AccordionLeaf>` ONLY. Routing this through
+   * `setOpen` would send it back to `requestClose` and the leaf would never leave the list.
    */
   setLeafOpen: (id: string, open: boolean) => void;
   togglePin: (id: string) => void;
@@ -300,9 +235,8 @@ export interface AccordionGroupApi {
   resetSizes: () => void;
   /** Begin a splitter drag on `id`'s trailing edge. */
   beginResize: (id: string, e: PointerEvent) => void;
-  /** Move that same boundary by keyboard. `steps` is signed like pointer movement;
-   *  `coarse` is the Shift-held step. Shares the drag's clamping arithmetic, so the
-   *  two paths cannot disagree about a panel's minimum. */
+  /** Move that boundary by keyboard. Shares the drag's clamping arithmetic, so the two paths
+   *  cannot disagree about a panel's minimum. */
   nudgeResize: (id: string, steps: number, coarse: boolean) => void;
   /** The resizable panel's current extent and travel limits, for the separator's
    *  `aria-value*`. Undefined when `id` has no neighbour to resize against. */
@@ -324,31 +258,20 @@ export interface AccordionGroupApi {
   register: (meta: PanelMeta, defaultOpen: boolean) => void;
   unregister: (id: string) => void;
   /**
-   * The focusable element for a panel: the vertical header in `vertical`, the rail
-   * button in `horizontal`. Whichever one renders claims the slot, keyed by panel
-   * id.
-   *
-   * ALWAYS fill it through `slotRef`, never with a bare `ref={(el) => …}` — see
-   * `slotRef` for the two defects that shortcut produced.
+   * The focusable element for a panel: the vertical header, or the rail button. ALWAYS fill
+   * it through `slotRef` — see there for the two defects a bare `ref` produced.
    */
   activators: ElementSlot;
   /**
-   * The `⋯` overflow trigger, which STANDS IN for every rail button that did not
-   * fit. Filled by `RailOverflowMenu`.
-   *
-   * The group needs it as an element rather than a boolean because it is the anchor
-   * and the focus target for panels whose own button is not rendered — see
-   * `activatorElOf`. Keyed like the others so it can share `slotRef`; there is only
-   * ever one, under `RAIL_OVERFLOW_SLOT_KEY`.
+   * The `⋯` overflow trigger, which STANDS IN for every rail button that did not fit. Needed
+   * as an element: it is the anchor and focus target for those panels.
    */
   railOverflowSlot: ElementSlot;
   /** Panels currently rendering into their own window. */
   tornOff: Accessor<readonly string[]>;
   isTornOff: (id: string) => boolean;
-  /** Pop a panel into its own window. MUST be called synchronously from the user
-   *  gesture — window.open needs transient user activation, which an await or a
-   *  timeout spends. Returns the outcome rather than throwing: a blocked popup is
-   *  an ordinary result of the user's browser settings, not an exception. */
+  /** Pop a panel into its own window. MUST be called synchronously from the user gesture, which
+   *  `window.open` needs. Returns the outcome rather than throwing. */
   tearOff: (id: string) => { ok: boolean; reason?: string };
   /** Bring a panel home and close its window. */
   dock: (id: string) => void;
@@ -362,44 +285,21 @@ export interface AccordionGroupApi {
    *  inline in its own column. */
   flyoutMountFor: (id: string) => HTMLElement | undefined;
   /**
-   * Hover-intent listeners for a panel's ACTIVATOR. Empty when hover-to-open is
-   * off, so nothing is attached rather than attached and inert.
-   *
-   * Reached through the group because WHO renders the activator differs by
-   * orientation: horizontal's rail button belongs to the group, vertical's header
-   * bar belongs to the panel. The listeners are the same object either way.
+   * Hover-intent listeners for a panel's ACTIVATOR. Reached through the group because WHO
+   * renders the activator differs by orientation; the listeners are the same either way.
    */
   activatorHoverProps: (id: string) => ActivatorHoverProps;
   /**
-   * The element that currently REPRESENTS this panel in the chrome, reactively.
-   *
-   * Normally the panel's own activator: the vertical header, or the rail button.
-   * When the rail overflowed and this panel's button was collapsed into the `⋯`
-   * menu, it is that TRIGGER instead — because the trigger is where the panel now
-   * lives as far as the user is concerned, and it is the only element on screen a
-   * flyout can sensibly emerge from or focus can sensibly return to.
-   *
-   * Every consumer wants that fallback, which is why it is resolved here rather
-   * than at each callsite: an anchored flyout, `moveFocus`, and the focus-restore
-   * on dismiss would each otherwise have to know about rail overflow.
-   *
-   * Reactive because a flyout resolves it during render, before the ref has fired,
-   * and because overflow re-partitions the rail as the dock is resized.
-   *
-   * Returns `undefined` only when the panel has no on-screen representation at all
-   * (unregistered, or a leaf — leaves have no activator by definition).
+   * The element that currently REPRESENTS this panel, reactively: its activator, or the `⋯`
+   * trigger once the rail collapsed its button. See DESIGN_NOTES.md § src/context.ts:373.
    */
   activatorElOf: (id: string) => HTMLElement | undefined;
   /** The group's density, exposed so a PORTALLED surface (a flyout leaves
    *  `.acc-group` and stops inheriting its token overrides) can restate it. */
   density: Accessor<'comfortable' | 'compact'>;
   /**
-   * The panel's outer element — measured when seeding a resize.
-   *
-   * A slot for the same reason the others are: these were registered with a bare
-   * `ref` and NEVER cleared, so every panel that unmounted left a detached node
-   * behind. `resize` measures through this map, and a detached node's rect is all
-   * zeros — so a stale entry does not fail, it silently seeds a panel's extent as 0.
+   * The panel's outer element, measured when seeding a resize. A slot because these were
+   * registered with a bare `ref` and never cleared, and a detached node's rect is all zeros.
    */
   panelElements: ElementSlot;
   /** Move DOM focus to another header/rail button in THIS group. `delta` is ±1, or an edge. */
@@ -414,11 +314,8 @@ export interface AccordionGroupApi {
 }
 
 /**
- * A place the dock keeps element references, keyed.
- *
- * Two methods rather than one `set(key, el | null)`, and the second one takes the
- * ELEMENT — which is the whole point. See `slotRef` for what a clear that cannot
- * identify what it is clearing does.
+ * A place the dock keeps element references, keyed. Two methods rather than one setter, and
+ * `clear` takes the ELEMENT — see `slotRef` for why that identity guard matters.
  */
 export interface ElementSlot<T extends HTMLElement = HTMLElement> {
   set: (key: string, el: T) => void;
@@ -427,33 +324,8 @@ export interface ElementSlot<T extends HTMLElement = HTMLElement> {
 }
 
 /**
- * A `ref` callback that fills a slot and empties it on unmount.
- *
- * TWO DEFECTS THIS EXISTS TO REMOVE, both invisible to tsc and to any test that
- * does not look at the DOM afterwards.
- *
- * 1. NOTHING EVER CLEARED. Solid invokes `ref={(el) => …}` exactly once, when the
- *    element is created; there is no second call on unmount. So the obvious
- *    spelling registers an element and then keeps it FOREVER, including after it
- *    has left the document. A detached node reports a zero-size rect at the origin
- *    and swallows `.focus()` — so a flyout anchored to one opened in the corner of
- *    the viewport, `moveFocus` moved focus nowhere, and `resize` seeded a panel's
- *    extent as 0.
- *
- * 2. A CLEAR THAT COULD NOT IDENTIFY ITSELF. Fixing (1) with `clear(key)` produced
- *    a second, quieter bug: when one element replaces another for the same key, the
- *    OUTGOING element's cleanup can run after the incoming one has registered, and
- *    an unconditional clear then deletes the live element.
- *
- *    That is not hypothetical — it is what a vertical→horizontal orientation swap
- *    did. The rail button mounts and registers, the vertical header unmounts and
- *    clears, and the panel is left with no activator at all: `activatorElOf`
- *    returned undefined, so the flyout had no anchor and the keyboard had no
- *    target. (The opposite direction happened to interleave the other way and
- *    worked, which is how it stayed hidden.)
- *
- * Passing the element to `clear` makes the guard something the slot performs rather
- * than something each caller remembers.
+ * A `ref` callback that fills a slot and empties it on unmount. An unguarded clear deletes the
+ * LIVE replacement. See DESIGN_NOTES.md § src/context.ts:429.
  */
 export function slotRef<T extends HTMLElement>(
   slot: ElementSlot<T>,
@@ -463,21 +335,9 @@ export function slotRef<T extends HTMLElement>(
     slot.set(key, el);
     onCleanup(() => {
       /*
-       * A throwing cleanup is not a local failure. Solid unwinds an owner tree by
-       * walking its cleanups, and an exception in ONE of them abandons the walk —
-       * every cleanup that had not run yet is skipped, silently.
-       *
-       * That is not hypothetical either: an earlier version of this helper read an
-       * id off a `<Show>`-provided prop during teardown, threw a TypeError, and the
-       * abandoned cleanups included the tear-off controller's. The visible result
-       * was that navigating away from the dock left its popped-out OS WINDOWS open,
-       * orphaned, with no opener to close them — a leak two layers from the line
-       * that threw, reported as nothing at all.
-       *
-       * The root fix is that a slot's `clear` must not read reactive state (it is
-       * handed everything it needs). This is the guard that keeps a future
-       * violation local instead of taking down every other cleanup in the tree.
-       */
+                   * A throwing cleanup is not local: one exception abandons the whole walk. That once
+                   * orphaned popped-out windows. See DESIGN_NOTES.md § src/context.ts:465.
+                   */
       try {
         slot.clear(key, el);
       } catch (err) {
@@ -508,8 +368,8 @@ export function createMapSlot<T extends HTMLElement>(map: Map<string, T>): Eleme
   };
 }
 
-/** The single key `railOverflowSlot` is stored under — it holds one element, but
- *  wears the keyed shape so it can use `slotRef` like everything else. */
+/** The single key `railOverflowSlot` is stored under — it holds one element, but wears the
+ *  keyed shape so it can use `slotRef`. */
 export const RAIL_OVERFLOW_SLOT_KEY = 'rail-overflow';
 
 export const AccordionGroupContext = createContext<AccordionGroupApi>();

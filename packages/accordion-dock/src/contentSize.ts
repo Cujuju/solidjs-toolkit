@@ -1,62 +1,29 @@
 /**
- * `defaultSize="content"` — size a column to what it actually holds, ONCE.
- *
- * ── Why measure-and-freeze rather than a live `max-content` column ───────────
- * A CSS `width: max-content` column tracks its content forever, which sounds
- * like the same feature and is not: in a dock whose columns hold live numbers, a
- * P/L crossing a digit boundary (`$9.99` → `$10.01`) re-resolves the track and
- * the whole column — and every column after it — twitches sideways. The column
- * is also no longer draggable in any meaningful sense, because the next render
- * throws the user's width away.
- *
- * So this measures the natural width at the moment a panel first opens with no
- * size of its own, commits it through `setSize`, and then gets out of the way.
- * From that point the column is an ordinary explicit size: draggable, persisted,
- * and never measured again.
- *
- * ── Why the frozen width carries digit slack ────────────────────────────────
- * Freezing has one failure mode, and it is the same digit boundary: a column
- * frozen around `$9.99` compresses (or clips) the moment the number becomes
- * `$10.01`. The slack is therefore not padding-for-looks — it is the cost of
- * freezing, and it is derived from the content's OWN font so it scales with the
- * type scale instead of being a px fudge that is right at exactly one size.
+ * `defaultSize="content"` — measure a column at first open, commit the size, and get out of
+ * the way. See DESIGN_NOTES.md § src/contentSize.ts:1.
  */
 
 import { createEffect } from 'solid-js';
 
-/** A panel's opening size: an explicit px number, or a measurement of its own
- *  content taken once (see this file's header). */
+/** A panel's opening size: an explicit px number, or a measurement of its own content taken
+ *  once (see this file's header). */
 export type AccordionDefaultSize = number | 'content';
 
 /**
- * How many extra digit-widths a frozen column carries.
- *
- * ONE. It covers the single rollover that a frozen column is actually exposed to
- * within a session (a price gaining a digit, a P/L crossing a power of ten). Two
- * would buy a second rollover that essentially never happens while making every
- * column visibly too wide — and the column is draggable, so an under-estimate
- * costs the user one drag while an over-estimate costs every user the space.
+ * How many extra digit-widths a frozen column carries. ONE — it covers the single rollover a
+ * session is exposed to, and the column is draggable if that is wrong.
  */
 export const CONTENT_SLACK_DIGITS = 1;
 
 /**
- * Ceiling on a measured column, as a fraction of the group's own extent.
- *
- * Content-sizing trusts the content, and content can be pathological: one
- * user-renamed strategy ("Jan 2027 diagonal — roll candidate, do not close") is
- * a single unbreakable string that would otherwise freeze a 600px column and
- * leave the plot a sliver. At 40% the widest legitimate column still fits with
- * the dock's own two-columns-plus-surface layout intact, and anything past it is
- * an outlier the user can drag wider deliberately.
+ * Ceiling on a measured column, as a fraction of the group's extent. Content can be
+ * pathological — one unbreakable string would otherwise freeze a 600px column.
  */
 export const CONTENT_MAX_GROUP_FRACTION = 0.4;
 
 /**
- * Digit advance as a fraction of font-size, used ONLY where no canvas exists to
- * measure with (jsdom, and any host that has blocked canvas). 0.6 is the ratio
- * for the tabular/monospace faces this slack exists to protect; a proportional
- * face's digits sit near it too, because digits are near-universally tabular
- * even in proportional fonts.
+ * Digit advance as a fraction of font-size, used ONLY where no canvas exists to measure with
+ * (jsdom, or a host that blocked canvas). Digits are near-universally tabular.
  */
 const DIGIT_ADVANCE_FALLBACK_RATIO = 0.6;
 
@@ -67,13 +34,8 @@ const GROUP_SELECTOR = '.acc-group';
 let measureCanvas: HTMLCanvasElement | undefined;
 
 /**
- * The advance width of `'0'` in an element's own resolved font.
- *
- * Built from the font LONGHANDS rather than `computed.font`: the shorthand
- * serializes to an empty string whenever the longhands cannot be losslessly
- * combined into one (which includes every element whose `line-height` came from
- * a separate declaration), and an empty font string silently measures in the
- * canvas default face instead of the content's.
+ * The advance width of `'0'` in the element's own font. Built from the LONGHANDS: the
+ * shorthand serializes empty, which silently measures the canvas default face.
  */
 export function digitAdvancePx(computed: CSSStyleDeclaration): number {
   const fontSize = parseFloat(computed.fontSize) || 0;
@@ -89,21 +51,8 @@ export function digitAdvancePx(computed: CSSStyleDeclaration): number {
 }
 
 /**
- * The element's natural extent along one axis, in px.
- *
- * `scrollWidth` IS NOT THIS, and the difference is the whole reason this
- * function exists: `scrollWidth` reports the scrollable overflow, so it equals
- * `clientWidth` whenever the box is already at least as wide as its content —
- * i.e. it answers "how much does this overflow" when the question is "how wide
- * does this want to be". Measuring a column that is currently too WIDE with
- * `scrollWidth` returns the too-wide width and freezes the mistake.
- *
- * The element is therefore forced to its intrinsic size and read back. Both the
- * write and the restore happen inside one synchronous task, so the browser has
- * no opportunity to paint the intermediate state — the read forces a synchronous
- * reflow, not a visible frame. `flex` is neutralised alongside the size because
- * the host is a flex item, and a flex item's base size loses to the flex
- * algorithm before it ever reaches layout.
+ * The element's natural extent along one axis. `scrollWidth` is NOT this — it reports
+ * scrollable overflow. See DESIGN_NOTES.md § src/contentSize.ts:91.
  */
 function naturalExtentPx(el: HTMLElement, axis: 'width' | 'height'): number {
   const style = el.style;
@@ -136,22 +85,15 @@ export interface ContentSizeInput {
 }
 
 /**
- * The size to freeze a content-sized panel at, or `undefined` when there is
- * nothing to measure.
- *
- * Returns `undefined` rather than a number whenever layout cannot answer (a
- * zero-extent host: display:none, an unattached tree, or jsdom, which has no
- * layout at all). A caller that treats "no layout" as "0px, clamped up to the
- * minimum" would freeze every column at the minimum width in exactly the
- * environments where the measurement is meaningless.
+ * The size to freeze a content-sized panel at, or `undefined` when layout cannot answer —
+ * treating that as zero would freeze every column at the minimum.
  */
 export function measureContentSize(input: ContentSizeInput): number | undefined {
   const { host, panel, group, axis } = input;
   if (typeof getComputedStyle !== 'function') return undefined;
 
-  // Chrome first, while the boxes are still untouched: whatever the column
-  // spends on borders/padding around the host has to be added back, or the
-  // frozen width is short by exactly that much and the content clips.
+  // Chrome first, while the boxes are untouched: whatever the column spends on borders and
+  // padding around the host must be added back, or the frozen width clips.
   const hostBefore = host.getBoundingClientRect()[axis];
   const panelBefore = panel.getBoundingClientRect()[axis];
   const chrome = Math.max(0, panelBefore - hostBefore);
@@ -159,10 +101,8 @@ export function measureContentSize(input: ContentSizeInput): number | undefined 
   const natural = naturalExtentPx(host, axis);
   if (natural <= 0) return undefined;
 
-  /* Slack is an INLINE-axis affordance: it exists because a number gains a
-     DIGIT, which makes text wider, never taller. A vertical group sizing by
-     height gets the honest measurement with no slack rather than a nonsensical
-     one-digit-tall margin. */
+  /* Slack is an INLINE-axis affordance: a number gains a DIGIT, which makes text wider,
+       never taller. A vertical group gets the honest measurement with no slack. */
   const slack =
     axis === 'width' ? digitAdvancePx(getComputedStyle(host)) * CONTENT_SLACK_DIGITS : 0;
 
@@ -178,28 +118,8 @@ export function measureContentSize(input: ContentSizeInput): number | undefined 
 }
 
 /**
- * Seed a panel's opening size — the ONE implementation of the `defaultSize`
- * rule, consumed by both `AccordionPanel` and `AccordionLeaf`.
- *
- * Shared rather than written twice on purpose: this is the second rule in this
- * package to be seeded identically by those two components (the first, the
- * plain-number branch, WAS duplicated), and a rule with two implementations is
- * one edit away from a leaf and a panel disagreeing about when a size is
- * allowed to be overwritten.
- *
- * TIMING is the substance here, and the two branches genuinely differ:
- *
- *  - A NUMBER needs no layout, so it is seeded on mount — before first paint,
- *    which is what stops a column opening at the mode's automatic width and
- *    visibly snapping to its default.
- *  - `'content'` cannot be measured until the content has a box, which means
- *    the panel must be OPEN and laid out. It therefore waits for the first open
- *    and measures after paint. A closed panel's host is `hidden`, and hidden
- *    boxes measure zero.
- *
- * Both branches are one-shot in the same sense: they only ever act while the
- * panel has no size at all, so a persisted layout, a splitter drag, or an
- * earlier measurement all pre-empt them permanently.
+ * Seed a panel's opening size — ONE implementation for panels and leaves. The two branches
+ * differ in TIMING. See DESIGN_NOTES.md § src/contentSize.ts:180.
  */
 export function seedDefaultSize(input: {
   defaultSize: () => AccordionDefaultSize | undefined;
@@ -211,8 +131,8 @@ export function seedDefaultSize(input: {
   sizeOf: () => number | undefined;
   setSize: (px: number) => void;
   orientation: () => 'horizontal' | 'vertical';
-  /** Runs its callback after the next paint — the group's own scheduler, passed
-   *  in so this file needs no scheduling opinion of its own. */
+  /** Runs its callback after the next paint — the group's own scheduler, passed in so this file
+   *  needs no scheduling opinion. */
   afterPaint: (fn: () => void) => void;
 }): void {
   const size = input.defaultSize();

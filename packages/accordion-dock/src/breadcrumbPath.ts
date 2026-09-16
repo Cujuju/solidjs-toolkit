@@ -2,23 +2,13 @@ import type { JSX } from 'solid-js';
 import type { AccordionGroupApi, PanelMeta } from './context';
 
 /**
- * The DATA half of the breadcrumb: turning the group's open sequence into a path,
- * and eliding that path when it gets long. Split out of `Breadcrumb.tsx` on
- * purpose — everything interesting about a breadcrumb is the derivation and the
- * truncation semantics, and both are testable against a hand-built
- * `AccordionGroupApi` stub with no renderer and no DOM.
- *
- * There is no state in this file. The path is a pure function of
- * `visualOpenIds()` + `meta()`, which is the whole point: a Miller browser must
- * not be able to have a breadcrumb that disagrees with its own columns.
+ * The DATA half of the breadcrumb: the open sequence as a path, and its elision. No state —
+ * a pure function of `visualOpenIds()` and `meta()`.
  */
 
 /**
- * One position in the path.
- *
- * `label` is renderable and may be JSX; `text` is the plain-string form when one
- * exists, kept separately because `title=` attributes, `aria-label`s and the
- * elision tooltip all need a string and cannot render a node.
+ * One position in the path. `label` is renderable and may be JSX; `text` is the plain-string
+ * form, kept separately because attributes cannot render a node.
  */
 export interface CrumbData {
   id: string;
@@ -28,13 +18,11 @@ export interface CrumbData {
    *  the panel labelled itself with JSX, which no attribute can carry. */
   text: string | undefined;
   meta: PanelMeta;
-  /** Position in the FULL path — which is NOT the index a `renderCrumb` callback
-   *  receives once the middle has been elided. Kept here so a custom renderer can
-   *  still tell "third column" from "third visible crumb". */
+  /** Position in the FULL path — NOT the index a `renderCrumb` callback sees once the middle
+   *  is elided. */
   index: number;
-  /** The last crumb: where the user currently is. Nothing follows it, so its
-   *  `select()` is a no-op and the default renderer draws it as text, not a
-   *  button — the standard breadcrumb treatment for the current location. */
+  /** The last crumb: where the user is. Its `select()` is a no-op and the default renderer
+   *  draws it as text, not a button. */
   isCurrent: boolean;
   isLeaf: boolean;
   isPinned: boolean;
@@ -46,40 +34,28 @@ export interface CrumbData {
 }
 
 /**
- * A rendered position in the bar. The elision is not a crumb with a funny label:
- * it stands for N crumbs, and a renderer needs to know which ones (for a tooltip,
- * a menu, or to expand in place).
+ * A rendered position in the bar. The elision is not a crumb with a funny label: it stands
+ * for N crumbs, and a renderer needs to know which.
  */
 export type BreadcrumbEntry =
   | { kind: 'crumb'; crumb: CrumbData }
   | { kind: 'ellipsis'; hidden: readonly CrumbData[] };
 
 /**
- * How many leading crumbs survive elision.
- *
- * One. The root is the only crumb whose identity is absolute — every crumb after
- * it means something only relative to what precedes it, so `… › components ›
- * AppShell.tsx` is readable while a path with no root is not. Keeping a second
- * head crumb buys context the tail already provides.
+ * How many leading crumbs survive elision. One: the root is the only crumb whose identity is
+ * absolute, and a second buys context the tail already provides.
  */
 export const CRUMB_HEAD_COUNT = 1;
 
 /**
- * How many trailing crumbs survive elision.
- *
- * Two: where you are, and what you came from. One alone strands the current
- * column with no context ("AppShell.tsx" — of what?); three starts eliding at
- * path lengths short enough that nothing needed eliding in the first place.
+ * How many trailing crumbs survive. Two: where you are, and what you came from. One strands
+ * the current column with no context.
  */
 export const CRUMB_TAIL_COUNT = 2;
 
 /**
- * The fewest crumbs worth replacing with an ellipsis.
- *
- * Two, because the ellipsis occupies a slot of its own. Collapsing a SINGLE crumb
- * trades a real label for a placeholder of roughly the same width: no space
- * saved, one label's worth of information destroyed. Two is the first count where
- * elision actually pays for itself.
+ * The fewest crumbs worth replacing with an ellipsis. Two, because the ellipsis takes a slot
+ * of its own — collapsing one saves no space and destroys a label.
  */
 export const MIN_ELIDED_CRUMBS = 2;
 
@@ -92,30 +68,15 @@ export const CRUMB_ELISION_THRESHOLD =
 
 export interface CrumbPathOptions {
   /**
-   * Fired BEFORE the truncation is applied, with every id that is about to be
-   * closed and the crumb that was clicked.
-   *
-   * This is not a notification — for a Miller browser it is REQUIRED wiring. A
-   * `<AccordionLeaf>` is controlled: its `open` prop is the consumer's signal,
-   * mirrored into the group by an effect. So the breadcrumb cannot close a leaf
-   * by calling `setOpen` (see `applyTruncation`); the consumer has to clear the
-   * selection that opened it, exactly as it already does for the leaf's own ×
-   * button. Panels driven by a consumer effect (`setOpen('files', folder() !==
-   * null)`) want the same treatment for the same reason — the group would close
-   * them, but the consumer's selection state would still claim otherwise.
+   * Fired BEFORE the truncation, with every id about to close. REQUIRED wiring: a controlled
+   * leaf's `open` is the consumer's. See DESIGN_NOTES.md § src/breadcrumbPath.ts:94.
    */
   onTruncate?: (closedIds: readonly string[], crumb: CrumbData) => void;
 }
 
 /**
- * Renderable label for a crumb, most specific first.
- *
- * `title` over `railLabel`: `railLabel` exists because the rail is ~40px wide and
- * the label is rotated into it, a constraint the breadcrumb does not share. It is
- * used only when a panel supplied no title at all.
- *
- * The id is the last resort. It is ugly, but a blank crumb is worse: it reads as
- * a rendering bug and gives the user nothing to aim at.
+ * Renderable label, most specific first. `title` over `railLabel`, which exists only for the
+ * rotated rail. The id is the last resort: a blank crumb reads as a bug.
  */
 function resolveCrumbLabel(meta: PanelMeta): string | JSX.Element {
   const title = meta.title();
@@ -130,8 +91,8 @@ function resolveCrumbLabel(meta: PanelMeta): string | JSX.Element {
   return meta.id;
 }
 
-/** Plain-text form of the label, for attributes. Falls back to the panel's own
- *  tooltip, which is already a string by contract. */
+/** Plain-text form of the label, for attributes. Falls back to the panel's tooltip, which is
+ *  a string by contract. */
 function resolveCrumbText(meta: PanelMeta): string | undefined {
   const title = meta.title();
   if (typeof title === 'string' && title !== '') return title;
@@ -141,31 +102,8 @@ function resolveCrumbText(meta: PanelMeta): string | undefined {
 }
 
 /**
- * Close everything after `index`.
- *
- * PINNED PANELS ARE CLOSED TOO. That is a deliberate choice against the other
- * plausible reading, so the rule it follows is worth stating in full:
- *
- *   The pin exempts a panel from AUTOMATIC collapse, not from an EXPLICIT close.
- *
- * `single`-policy auto-collapse and `collapseAll()` are both things that happen
- * to a panel as a side effect of an action aimed somewhere else — "I opened
- * another panel", "I pressed Collapse All". The pin is protection from collateral
- * damage, and it is why those two spare it.
- *
- * A crumb click is not collateral. The user pointed at a position in the path and
- * said "it ends here"; every column after it is precisely the subject of the
- * action, not a bystander. Sparing a pinned one would leave the bar reading `src
- * › components › Search` immediately after the user clicked `components` — a
- * breadcrumb that contradicts the click that produced it is worse than a pin that
- * did not hold.
- *
- * This also matches what the control already does: `AccordionPanel`'s own × calls
- * `setOpen(id, false)` with no pin check, so an explicit close has never
- * respected the pin. The breadcrumb is a contiguous run of exactly that close.
- *
- * The pin STATE survives — `togglePin` is never called here — so reopening the
- * panel brings its pin back and it resumes surviving auto-collapse.
+ * Close everything after `index`, PINNED PANELS INCLUDED. The pin exempts a panel from
+ * AUTOMATIC collapse, not an EXPLICIT close. See DESIGN_NOTES.md § src/breadcrumbPath.ts:143.
  */
 function applyTruncation(
   group: AccordionGroupApi,
@@ -177,31 +115,23 @@ function applyTruncation(
   if (after.length === 0) return;
 
   const crumb = path[index];
-  // Consumer first: a controlled leaf's `open` (and any selection state that
-  // drives a panel through an effect) flips before the group's own open-list
-  // edits, so both land in one synchronous pass rather than two paints.
+  // Consumer first: a controlled leaf's `open` flips before the group's own edits, so both
+  // land in one synchronous pass rather than two paints.
   options?.onTruncate?.(
     after.map((c) => c.id),
     crumb,
   );
 
   for (const c of after) {
-    // No leaf special case any more. `setOpen` on a leaf is a REQUEST that routes
-    // to the leaf's own `requestClose` (see `PanelMeta.requestClose`), so the
-    // consumer flips the prop and the group's state follows — which is what this
-    // loop used to have to arrange by skipping leaves and relying on `onTruncate`
-    // above having done the same job. The skip was correct and load-bearing, and
-    // it was also a rule that lived in a comment at one of several callsites.
+    // No leaf special case: `setOpen` on a leaf is a REQUEST routing to `requestClose`, so the
+    // consumer flips the prop and the group follows.
     group.setOpen(c.id, false);
   }
 }
 
 /**
- * The path, derived from the group's painted sequence.
- *
- * `visualOpenIds()` is used rather than `openOrder()` because the breadcrumb must
- * read in the same direction the columns do — including the leaf being last,
- * which is what makes the path end at the file rather than at a folder.
+ * The path, derived from the group's painted sequence. `visualOpenIds()` rather than
+ * `openOrder()`, so the bar reads in the direction the columns do — leaf last.
  */
 export function buildCrumbPath(
   group: AccordionGroupApi,
@@ -212,10 +142,8 @@ export function buildCrumbPath(
 
   ids.forEach((id) => {
     const meta = group.meta(id);
-    // A panel can unregister (route change, `<Show>`) while its id stays in the
-    // open list — `unregister` deliberately keeps the order entry so the panel
-    // returns where the user put it. Until it remounts there is no label and no
-    // meaningful click target, so it contributes no crumb rather than a blank one.
+    // A panel can unregister while its id stays in the open list, so until it remounts it
+    // contributes no crumb rather than a blank one.
     if (meta === undefined) return;
     path.push({
       id,
@@ -228,8 +156,8 @@ export function buildCrumbPath(
       isLeaf: meta.isLeaf,
       isPinned: group.isPinned(id),
       select: () => {
-        // Resolved against `path` at CLICK time, not build time, so a crumb whose
-        // position shifted since render still truncates from where it now sits.
+        // Resolved against `path` at CLICK time, not build time, so a crumb whose position
+        // shifted still truncates from where it now sits.
         const at = path.findIndex((c) => c.id === id);
         if (at >= 0) applyTruncation(group, path, at, options);
       },
@@ -242,12 +170,8 @@ export function buildCrumbPath(
 }
 
 /**
- * Collapse the middle of a long path.
- *
- * Middle-out rather than wrapping or scrolling: a breadcrumb that wraps changes
- * the height of the chrome it sits in (and in a `fill` dock that steals space
- * from the columns), and one that scrolls hides the current location — the single
- * most important crumb — behind a gesture.
+ * Collapse the middle of a long path. Middle-out rather than wrapping, which changes the
+ * chrome's height, or scrolling, which hides the current location behind a gesture.
  */
 export function elideCrumbs(path: readonly CrumbData[]): BreadcrumbEntry[] {
   if (path.length < CRUMB_ELISION_THRESHOLD) {

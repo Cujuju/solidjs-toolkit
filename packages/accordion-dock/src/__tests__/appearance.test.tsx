@@ -5,19 +5,8 @@ import { AccordionPanel } from '../AccordionPanel';
 import type { AccordionGroupApi, AccordionOrientation } from '../context';
 
 /**
- * `appearance` — the CONTRACT, and honestly what of it can be tested here.
- *
- * WHAT THESE COVER: that the group publishes `data-appearance`, that it defaults
- * to `flush`, and — the part that actually matters — that switching to `cards`
- * changes NOTHING about behaviour. Appearance is chrome; if pin/close/collapse or
- * the flyout path differ between the two, the prop has exceeded its remit.
- *
- * WHAT THEY DO NOT COVER, deliberately and worth knowing: the card chrome itself.
- * Every cards rule lives in `styles.css`, and jsdom applies no stylesheet — a
- * `getComputedStyle` assertion here would read the initial value and pass whether
- * or not the rule exists, which is worse than no test because it would read as
- * coverage. The data attribute IS the contract the CSS keys off; that the CSS
- * keyed off it correctly is a visual check, and was done on screen.
+ * `appearance` is chrome: these assert that switching to `cards` changes NOTHING about
+ * behaviour. The card chrome is untested. See DESIGN_NOTES.md § src/__tests__/appearance.test.tsx:7.
  */
 
 function mount(options: {
@@ -148,9 +137,9 @@ describe('appearance — cards must not touch BEHAVIOUR', () => {
   });
 
   it('agrees with flush on every one of those', () => {
-    /* The real assertion of the whole feature: run the same sequence under both
-       appearances and require identical state. A behaviour that drifted under one
-       look would otherwise only show up as a bug report about the new look. */
+    /* The assertion of the whole feature: run the same sequence under both appearances and
+           require identical state. Behaviour that drifted under one look would surface only as a
+           bug report. */
     const sequence = (appearance: 'flush' | 'cards') => {
       const { api, dispose } = mount({ appearance, panels: ['a', 'b'] });
       api.togglePin('a');

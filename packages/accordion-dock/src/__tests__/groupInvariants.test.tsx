@@ -11,21 +11,13 @@ import {
 } from '../context';
 
 /**
- * The group's INVARIANTS, tested at the level they are enforced.
- *
- * Each of these was violated by exactly one writer while three others honoured
- * it, which is the signature of a rule enforced at callsites instead of at the
- * one place the state is written. So these tests drive the API rather than the
- * UI: the question is not "does clicking work" but "can any entry point produce
- * a state the group says is impossible".
+ * The group's INVARIANTS, tested where they are enforced. Each was violated by one writer
+ * while three honoured it — the signature of a rule enforced at callsites.
  */
 
 /**
- * Mounts a group and hands back its api plus the callback spies.
- *
- * Solid's own `render` rather than a testing-library: the only thing these tests
- * need from a renderer is a live component and a `dispose`, and `solid-js/web`
- * already provides both without adding a dependency.
+ * Mounts a group and hands back its api plus the callback spies. Solid's own `render` rather
+ * than a testing-library: these tests need only a live component and `dispose`.
  */
 function mountGroup(options: {
   maxOpen?: number;
@@ -95,9 +87,8 @@ describe('maxOpen is enforced by the writer, not by one caller', () => {
   });
 
   it('holds through setLayout', () => {
-    // Same defect, second entry point: a stored layout can name more open panels
-    // than the cap allows, and restoring it must not install a state the group
-    // would refuse to create.
+    // Same defect, second entry point: a stored layout can name more open panels than the
+        // cap allows, and restoring it must not install a refused state.
     const g = mountGroup({ maxOpen: 2, panels: FOUR_PANELS });
     const applied = g.api().setLayout({
       version: ACCORDION_LAYOUT_VERSION,
@@ -270,15 +261,9 @@ describe('a leaf is controlled — the group asks, it does not command', () => {
 
   it('setOpen(leaf, false) asks the owner instead of editing the open list', () => {
     /*
-     * THE defect. Editing the list directly left the leaf painting — its own
-     * `<Show>` reads `props.open`, which nothing had changed — while the group
-     * believed it closed: a pane on screen with a broken flex `order` and a
-     * splitter that could not find its neighbour.
-     *
-     * It used to be prevented by the CALLER: `breadcrumbPath` skipped leaves and a
-     * comment explained why. Every other caller was one `setOpen` away from the
-     * desync.
-     */
+         * THE defect. Editing the list directly left the leaf painting — its `<Show>` reads
+         * `props.open`, which nothing changed — while the group believed it closed.
+         */
     const g = mountWithLeaf();
     expect(g.api().isOpen('detail')).toBe(true);
 
@@ -308,9 +293,8 @@ describe('a leaf is controlled — the group asks, it does not command', () => {
   });
 
   it('drops a leaf from the open list when it unmounts', () => {
-    // A leaf's open state is a mirror of a prop the consumer owns, so an entry that
-    // outlives the component is not a memory — it is a claim about something that
-    // no longer exists. It used to keep `isOpen` true forever, and get persisted.
+    // A leaf's open state mirrors a prop the consumer owns, so an entry outliving the
+        // component is a claim about something gone — and it used to be persisted.
     const g = mountWithLeaf();
     expect(g.api().openOrder()).toContain('detail');
 
@@ -320,9 +304,8 @@ describe('a leaf is controlled — the group asks, it does not command', () => {
   });
 
   it('keeps a PANEL\'s open state across an unmount', () => {
-    // The deliberate asymmetry, pinned so the purge above cannot be widened into
-    // it: a panel's open state is the group's own, and remembering it across a
-    // remount is the same courtesy as remembering its position in the rail.
+    // The deliberate asymmetry, pinned so the purge above cannot widen into it: a panel's
+        // open state is the group's own, and remembering it across a remount is intended.
     const g = mountWithLeaf();
     expect(g.api().openOrder()).toContain('files');
     g.setLeafMounted(false);
@@ -333,9 +316,8 @@ describe('a leaf is controlled — the group asks, it does not command', () => {
 
 describe('an activator survives its own replacement', () => {
   /**
-   * Mounts a group whose ORIENTATION the test drives, because that is what swaps
-   * one activator for another under the same panel id: the vertical header and the
-   * rail button are different elements, rendered by different owners.
+   * Mounts a group whose ORIENTATION the test drives, because that is what swaps one
+   * activator for another under the same panel id.
    */
   function mountSwappable() {
     const [orientation, setOrientation] = createSignal<AccordionOrientation>('horizontal');
@@ -379,14 +361,10 @@ describe('an activator survives its own replacement', () => {
 
   it('keeps one through a vertical→horizontal swap', () => {
     /*
-     * THE regression test. This direction lost the activator ENTIRELY: the rail
-     * button mounted and registered, then the outgoing vertical header's cleanup
-     * ran an unconditional delete and removed it. `activatorElOf` returned
-     * undefined, so the flyout had no anchor and the keyboard had no target.
-     *
-     * The other direction happened to interleave the other way and worked, which is
-     * exactly why both are asserted — testing one would have passed against the bug.
-     */
+         * THE regression test. The activator was lost entirely: the outgoing header's cleanup ran
+         * an unconditional delete after the rail button registered. Both are asserted; the other
+         * direction interleaved harmlessly.
+         */
     const g = mountSwappable();
     g.setOrientation('vertical');
     expect(liveActivator(g.api())).toBe(true);

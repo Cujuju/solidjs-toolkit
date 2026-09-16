@@ -7,52 +7,13 @@ import { AccordionLeaf } from '../AccordionLeaf';
 import { Breadcrumb } from '../Breadcrumb';
 
 /**
- * The CSS and the components must agree about NAMES.
- *
- * This is the single most expensive defect class in this control's history, and
- * it has the same shape every time: a stylesheet selects something no component
- * emits, so a correct rule is simply never applied. Nothing errors. There is no
- * console message, no failed build, no type error — a missing style has no
- * failure state, it just looks like a layout bug and gets diagnosed as one.
- *
- * Three shipped instances, all found by eye, none catchable by tsc:
- *
- *   - `autoHide.css` styled `.acc-panel[data-flyout='true']` to take a flying-out
- *     panel's column out of the layout, and `AccordionPanel` never set the
- *     attribute. The column kept its slot and painted its title bar over the
- *     flyout floating above it.
- *   - `rail.css` selected `[data-overflow-mode]` and the group emitted
- *     `data-overflow` — one word apart. Every overflow-strategy rule was inert, so
- *     the rail fell back to a scrollbar in a 40px strip, which is precisely what
- *     the overflow work existed to remove.
- *   - `autoHide.css` and `rail.css` were never IMPORTED at all. Both were correct
- *     and neither had ever reached a browser.
- *
- * WHAT THIS ASSERTS, AND WHY ONLY THIS DIRECTION
- *
- * Every `.acc-*` class and every `[data-*]` attribute a stylesheet SELECTS must
- * appear somewhere in the components. The reverse is deliberately not asserted:
- * emitting a name no CSS styles is legitimate and common — `data-no-drag` is a
- * behavioural marker, `data-panel-id` is a measurement hook, `acc-flyout-shell` is
- * documented as a marker with no rule of its own. Flagging those would produce a
- * test that is noisy in the safe direction and therefore gets suppressed.
- *
- * It is a text scan, not a parse. That is a real limitation and it is the reason
- * the check is scoped to name EXISTENCE rather than to selector correctness: it
- * cannot tell whether `[data-open='true']` is ever actually set to `'true'`. What
- * it can tell — and what all three defects above were — is that a name on one side
- * has no counterpart on the other.
+ * The CSS and the components must agree about NAMES: a stylesheet selecting something no
+ * component emits fails silently. See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:9.
  */
 
 /*
- * Sources are read through Vite's own `import.meta.glob`, not through `node:fs`.
- *
- * Two reasons, in order of weight. The playground's tsconfig carries no Node
- * types, so `readFileSync`/`__dirname` typecheck-fail even while the test passes —
- * and a test that only runs green in one of the two checks is a test someone will
- * eventually delete. Second, the glob is resolved by the same bundler that builds
- * the control, so "which files are in this directory" is answered by the tool that
- * actually decides it rather than by a directory walk that can drift from it.
+ * Sources read through Vite's `import.meta.glob`, not `node:fs`: the playground tsconfig
+ * carries no Node types, so `readFileSync` typecheck-fails even while the test passes.
  */
 const CSS_SOURCES = import.meta.glob('../*.css', {
   query: '?raw',
@@ -73,19 +34,8 @@ const INDEX_SOURCE = import.meta.glob('../index.ts', {
 }) as Record<string, string>;
 
 /**
- * One dock exercising every element the derived pairs name.
- *
- * `horizontal` because that is the configuration with a rail and an overflow mode;
- * a badge because `.acc-badge` only exists when a panel declares one; a leaf and a
- * `<Breadcrumb>` because `.acc-breadcrumb-crumb[data-leaf]` is styled and neither
- * appears otherwise.
- *
- * `autoHide` is deliberately OFF. jsdom does not implement the `:popover-open`
- * pseudo-class, so rendering an open flyout throws inside the popover primitive.
- * That costs nothing here: `data-flyout` is emitted unconditionally as
- * `'true'`/`'false'`, so the pair under test is present in the docked state too,
- * and the flyout's own geometry is covered by the browser suite where a real
- * popover exists.
+ * One dock exercising every element the derived pairs name. `autoHide` is OFF: jsdom lacks
+ * `:popover-open`. See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:75.
  */
 function renderFixture(): { querySelectorAll: (s: string) => NodeListOf<Element>; cleanup: () => void } {
   const container = document.createElement('div');
@@ -116,13 +66,8 @@ function renderFixture(): { querySelectorAll: (s: string) => NodeListOf<Element>
   };
 }
 
-/** Comments are stripped from BOTH sides before matching.
- *
- *  Not a detail: this file's own module comment names `data-overflow`, the
- *  misspelling from the second defect above, and `AccordionGroup` documents it at
- *  the site of the fix. A scan that counted comments would find that name "emitted"
- *  and pass a stylesheet still selecting it — the check would be satisfied by the
- *  very prose describing the bug. */
+/** Comments are stripped from BOTH sides: this file's own prose names `data-overflow`, the
+ *  misspelling above, and a scan counting comments would pass a stylesheet still selecting it. */
 function stripComments(source: string, kind: 'css' | 'ts'): string {
   const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, '');
   return kind === 'css' ? withoutBlocks : withoutBlocks.replace(/^\s*\/\/.*$/gm, '');
@@ -142,10 +87,8 @@ const cssClasses = new Set(Array.from(css.matchAll(/\.(acc-[a-z0-9-]+)/g), (m) =
 /** Data attributes a stylesheet selects: `[data-thing]`, `[data-thing='x']`. */
 const cssAttributes = new Set(Array.from(css.matchAll(/\[(data-[a-z0-9-]+)/g), (m) => m[1]));
 
-/** Every `acc-*` / `data-*` token the components mention — in JSX, in a selector
- *  string, or in an exported constant. The scan is deliberately broad on this side:
- *  a name that appears ANYWHERE in the code has a counterpart, and the failure this
- *  guards against is a name that appears nowhere. */
+/** Every `acc-*` / `data-*` token the components mention, anywhere. Deliberately broad on
+ *  this side: the failure guarded against is a name that appears nowhere. */
 const codeClasses = new Set(Array.from(code.matchAll(/(?<![\w-])(acc-[a-z0-9-]+)/g), (m) => m[1]));
 const codeAttributes = new Set(
   Array.from(code.matchAll(/(?<![\w-])(data-[a-z0-9-]+)/g), (m) => m[1]),
@@ -153,9 +96,8 @@ const codeAttributes = new Set(
 
 describe('CSS and components agree about names', () => {
   it('found stylesheets and components to compare', () => {
-    // Guards the guard: a path change that made both scans empty would otherwise
-    // turn every assertion below into a vacuous pass — the same "silently stopped
-    // working" failure the whole file exists to catch.
+    // Guards the guard: a path change making both scans empty would turn every assertion
+        // below into a vacuous pass.
     expect(cssClasses.size).toBeGreaterThan(10);
     expect(codeClasses.size).toBeGreaterThan(10);
     expect(cssAttributes.size).toBeGreaterThan(5);
@@ -174,20 +116,8 @@ describe('CSS and components agree about names', () => {
 });
 
 /**
- * The name scan above is necessary and not sufficient, and the gap is worth
- * stating exactly: it asks whether a name exists ANYWHERE in the components, not
- * whether it is on the element the CSS targets.
- *
- * That is precisely the shape of the `data-flyout` defect. The attribute was
- * emitted — by the rail BUTTON — while `autoHide.css` selected it on the
- * `.acc-panel`, so a text scan finds the name present and passes. Simulated
- * against this file: removing `data-flyout` from `AccordionPanel` leaves all four
- * name-scan assertions green.
- *
- * So this block closes it by rendering a dock and asking the question of the DOM.
- * The pairs are DERIVED from the stylesheets — every compound selector of the form
- * `.acc-thing[data-attr]` — rather than listed by hand, so a rule added tomorrow
- * is checked without anyone remembering to add it here.
+ * Necessary, not sufficient: the name scan asks whether a name exists anywhere, not whether it
+ * sits on the element the CSS targets. See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:176.
  */
 const CSS_COMPOUND_PAIRS: readonly (readonly [string, string])[] = (() => {
   const pairs = new Set<string>();
@@ -200,18 +130,12 @@ const CSS_COMPOUND_PAIRS: readonly (readonly [string, string])[] = (() => {
 })();
 
 /**
- * Pairs whose attribute exists only DURING a live gesture, so a static render
- * cannot show them.
- *
- * Kept explicit and short. Each entry is a claim that the attribute's absence at
- * rest is correct, not an exemption for a rule nobody checked — and each names the
- * gesture that produces it, so a reader can verify the claim without running
- * anything.
+ * Pairs whose attribute exists only DURING a live gesture, so a static render cannot show
+ * them. Each entry names the gesture that produces it, so the claim is verifiable.
  */
 const GESTURE_ONLY_PAIRS: ReadonlySet<string> = new Set([
-  // Set by the rail-pan controller while the space modifier is held / a pan is
-  // moving. Both are written by an effect on the rail element itself, so they DO
-  // appear at rest — listed here only if that ever changes.
+  // Set by the rail-pan controller while space is held or a pan moves. Both are written
+    // by an effect on the rail itself, so they DO appear at rest.
 ]);
 
 describe('the element the CSS targets is the element that carries the attribute', () => {
@@ -255,10 +179,8 @@ describe('the element the CSS targets is the element that carries the attribute'
 
 describe('every stylesheet is actually loaded', () => {
   /*
-   * The third defect: `autoHide.css` and `rail.css` were written, were correct, and
-   * had never reached a browser because nothing imported them. `index.ts` is the
-   * only entry point, so a stylesheet missing from its import list is a stylesheet
-   * that does not exist as far as the running control is concerned.
+   * The third defect: `autoHide.css` and `rail.css` were correct and had never reached a
+   * browser because nothing imported them. `index.ts` is the only entry point.
    */
   it('index.ts imports every .css file in the directory', () => {
     const entry = Object.values(INDEX_SOURCE)[0];
@@ -273,12 +195,9 @@ describe('every stylesheet is actually loaded', () => {
 });
 
 /**
- * The ARIA relationships, asserted against a rendered dock.
- *
- * These are references BETWEEN elements, which is exactly the kind of thing that
- * typechecks, renders, looks right and is still broken: `aria-controls` naming an
- * id that does not exist reads as a correctly-wired tab to everything except a
- * screen reader. Nothing else in the suite would notice.
+ * ARIA relationships, asserted against a rendered dock. References between elements typecheck
+ * and render while broken: `aria-controls` naming a missing id reads correct to everything
+ * except a screen reader.
  */
 describe('the rail is a real tablist', () => {
   it('every tab controls a panel that exists', () => {
@@ -311,10 +230,8 @@ describe('the rail is a real tablist', () => {
   });
 
   it('no element points aria-labelledby at an id that is not in the document', () => {
-    // The dangling-label defect: in horizontal, the labelling element is the column
-    // title bar, which renders only while the panel is OPEN — so a closed panel
-    // referenced an id that was not there, leaving the region with no accessible
-    // name at all.
+    // The dangling-label defect: in horizontal the labelling element is the column title
+        // bar, which renders only while the panel is OPEN, so a closed panel referenced a missing id.
     const dom = renderFixture();
     try {
       const referrers = Array.from(dom.querySelectorAll('[aria-labelledby]'));
@@ -329,20 +246,8 @@ describe('the rail is a real tablist', () => {
 });
 
 /**
- * The cascade-layer split: TOKENS layered, COMPONENT RULES unlayered.
- *
- * This is the one architectural rule in the stylesheets, and breaking it is
- * completely silent — an unlayered declaration beats a layered one OUTRIGHT, ahead
- * of specificity, so a component rule that moves into the layer does not become
- * weaker in some measurable way, it simply stops applying.
- *
- * It has already happened. `autoHide.css` was wrapped in `@layer cujuju-defaults`
- * to "match styles.css", on the strength of a header comment that said defaults
- * live in a layer without mentioning that only the TOKEN block does. Every rule in
- * the file lost, and the one that mattered —
- * `.acc-panel[data-flyout='true'] { display: none }` — meant a flying-out panel's
- * docked column was never removed from the layout, so it kept its slot and painted
- * its title bar over the flyout in front of it. Found by eye, in a screenshot.
+ * The cascade-layer split: TOKENS layered, COMPONENT RULES unlayered. Breaking it is silent.
+ * See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:331.
  */
 describe('cascade layers', () => {
   /** The text inside each `@layer … { … }` block, found by brace matching —
@@ -368,19 +273,9 @@ describe('cascade layers', () => {
 
   it('no component rule is inside a layer', () => {
     /*
-     * A rule counts as a COMPONENT rule by what it DECLARES, not by what it
-     * selects. That distinction is the whole test.
-     *
-     * The naive version — "any `.acc-*` selector inside a layer" — flags
-     * `:is(.acc-group, .acc-flyout-host)[data-density='compact']`, which is a token
-     * override: it selects a class because density is set as an attribute on the
-     * group (and restated on the Portal'd flyout host, which escapes the group's
-     * scope), and it declares nothing but `--acc-*`. That rule BELONGS in the layer
-     * for the same reason `:root` does — a consumer overriding a density token
-     * unlayered should win.
-     *
-     * So: a rule inside a layer may declare custom properties only.
-     */
+         * A rule counts as a COMPONENT rule by what it DECLARES, not what it selects.
+         * See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:370.
+         */
     const offenders: string[] = [];
     for (const [path, raw] of Object.entries(CSS_SOURCES)) {
       const source = stripComments(raw, 'css');

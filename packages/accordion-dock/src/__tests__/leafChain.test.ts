@@ -4,10 +4,8 @@ import { createLeafChain, bindLeafChain, leafChainFor } from '../leafChain';
 import { createStubGroup } from './stubGroup';
 
 /**
- * The leaf chain's whole job is `orderOpen` — turning "who is whose parent" into
- * the left-to-right column sequence. Everything worth testing is a case where the
- * open-list order and the chain order DISAGREE, because in the common case they
- * coincide and any implementation passes.
+ * The leaf chain's whole job is `orderOpen`. Everything worth testing is a case where the
+ * open-list order and the chain order DISAGREE; in the common case any implementation passes.
  */
 
 afterEach(() => {
@@ -33,9 +31,8 @@ describe('createLeafChain — links', () => {
   });
 
   it('link is identity-stable — re-linking to the SAME parent keeps the map', () => {
-    // Matters because the leaf declares its link in an effect that re-runs on any
-    // prop read; emitting a new Map each time would invalidate `visualOpenIds`
-    // (a memo over `links()`) on every unrelated re-render.
+    // The leaf declares its link in an effect that re-runs on any prop read; emitting a new
+        // Map each time would invalidate `visualOpenIds` on every unrelated re-render.
     const chain = createLeafChain();
     chain.link('c', 'a');
     const first = chain.links();
@@ -68,9 +65,8 @@ describe('createLeafChain — depthOf', () => {
 
 describe('createLeafChain — orderOpen', () => {
   it('sorts a chain that the open list holds BACKWARDS', () => {
-    // The case the module comment is about: reopening a parent while its child is
-    // still open leaves the open list reading [child, parent]. Without the chain
-    // the columns paint in that order and the browser reads inside-out.
+    // The case the module comment is about: reopening a parent while its child is still
+        // open leaves the open list reading [child, parent], so the columns paint inside-out.
     const chain = createLeafChain();
     chain.link('symbol', 'file');
     expect(chain.orderOpen(['symbol', 'file'])).toEqual(['file', 'symbol']);
@@ -91,9 +87,8 @@ describe('createLeafChain — orderOpen', () => {
   });
 
   it('treats a leaf whose parent is a PANEL as a root', () => {
-    // A panel parent is legal and useful ("this detail pane belongs to the folder
-    // column"), and it is never in the open LEAF list — so the leaf must still be
-    // entered, not stranded.
+    // A panel parent is useful ("this detail pane belongs to the folder column"), and is
+        // never in the open LEAF list — so the leaf must still be entered.
     const chain = createLeafChain();
     chain.link('detail', 'files-panel');
     expect(chain.orderOpen(['detail'])).toEqual(['detail']);

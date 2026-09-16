@@ -4,30 +4,8 @@ import { RAIL_CONTROL_SELECTOR } from './railOverflow';
 import { blockNextClick, createCancelListeners } from './gesture';
 
 /**
- * Drag-to-pan for the rail, coexisting with drag-to-reorder.
- *
- * THE COLLISION, AND HOW IT IS RESOLVED
- *
- * `createReorderList` already owns the bare left-button drag on a rail button.
- * Reorder is available always; panning only means anything once the rail
- * overflows. The always-available gesture therefore keeps the unmodified drag,
- * and pan takes the modified ones. (Team-lead call, recorded here so the next
- * reader does not relitigate it from the code.)
- *
- * Three entry points, and each is unambiguous for a different reason:
- *
- *   1. MIDDLE-BUTTON drag, anywhere in the rail. Costs nothing to allow, because
- *      `createReorderList` returns early on `e.button !== 0` — it never sees a
- *      middle-button press, so there is no contention to arbitrate.
- *   2. SPACE-held + left drag, anywhere in the rail. This one genuinely collides,
- *      and is resolved in the capture phase — see `onPointerDownCapture`.
- *   3. Bare left drag on rail BACKGROUND (not on a button). No reorder gesture
- *      exists there — `itemProps` are attached per-button — so the unmodified
- *      drag is free.
- *
- * Everything about click and reorder suppression reuses the vendored primitive's
- * own helpers rather than reimplementing them, so the two gestures cannot drift
- * apart in feel.
+ * Drag-to-pan for the rail, coexisting with drag-to-reorder. Reorder keeps the unmodified
+ * drag; pan takes the modified ones. See DESIGN_NOTES.md § src/railPan.ts:6.
  */
 
 /** Secondary/middle pointer button, per the UI Events `button` enumeration. */
@@ -36,13 +14,8 @@ const MIDDLE_BUTTON = 1;
 const PRIMARY_BUTTON = 0;
 
 /**
- * Movement before a press becomes a pan, in px.
- *
- * Mirrors `createReorderList`'s `activateDistance` default (5). It is duplicated
- * rather than imported because the vendored file exposes it only as an inline
- * `?? 5` default — but the VALUE must match, or the two gestures would have
- * different dead zones and a user would feel one as looser than the other on the
- * same strip of chrome. If the vendored default ever changes, this follows it.
+ * Movement before a press becomes a pan, in px. Mirrors `createReorderList`'s `activateDistance`
+ * default (5); duplicated because it is only an inline `?? 5` there, but the value must match.
  */
 const PAN_ACTIVATE_DISTANCE_PX = 5;
 
@@ -83,16 +56,8 @@ export function createRailPan(options: RailPanOptions): RailPan {
   // ── Space modifier ─────────────────────────────────────────────────────────
 
   /**
-   * Space is the modifier AND the activation key for a focused button, which is a
-   * real conflict rather than a theoretical one: a keyboard user on a rail button
-   * presses Space to open the panel.
-   *
-   * It is resolved by narrowing when Space is claimed, not by choosing a winner.
-   * Space arms a pan only when the POINTER is over the rail (so the user is in a
-   * mouse gesture), the rail actually scrolls (so panning means something), and
-   * focus is NOT inside the rail (so no button is waiting for that keypress).
-   * Outside that intersection Space keeps every default it has — page scroll,
-   * button activation — untouched.
+   * Space both arms a pan and activates a focused rail button; it arms a pan only when the
+   * pointer is over a scrollable rail. See DESIGN_NOTES.md § src/railPan.ts:85.
    */
   const focusInsideRail = (): boolean => {
     const rail = options.railEl();
@@ -152,11 +117,8 @@ export function createRailPan(options: RailPanOptions): RailPan {
     const rail = options.railEl();
     if (rail === undefined || !enabled() || cleanupMove !== null) return;
 
-    // The selector is IMPORTED, never retyped. Both attribute names are exported
-    // constants two files away, and this module used to spell them out as string
-    // literals — a drift that would have produced no error at all, just `null` for
-    // every press, every rail-button drag read as a pan, and the capture-phase
-    // stopPropagation below quietly killing drag-reorder.
+    // The selector is IMPORTED, never retyped: spelling these attribute names as literals
+        // would produce no error, just `null` for every press and every rail-button drag read as a pan.
     const onButton = (e.target as HTMLElement | null)?.closest?.(RAIL_CONTROL_SELECTOR);
     const isMiddle = e.button === MIDDLE_BUTTON;
     const isPrimary = e.button === PRIMARY_BUTTON;
@@ -165,16 +127,9 @@ export function createRailPan(options: RailPanOptions): RailPan {
     if (!wantsPan) return;
 
     /**
-     * CAPTURE-PHASE stopPropagation is what keeps a pan from becoming a reorder.
-     *
-     * The reorder primitive listens on the BUTTON, in the bubble phase. Capture
-     * runs root→target, so stopping here means the event never reaches the
-     * button's handler and no reorder is ever armed — as opposed to letting both
-     * start and trying to cancel one afterwards, which is how a gesture ends up
-     * committing a reorder it visibly abandoned. Note this is reached only when
-     * `wantsPan` is true; an unmodified press on a button falls through
-     * untouched, so reorder keeps its gesture exactly as before.
-     */
+         * CAPTURE-PHASE stopPropagation is what keeps a pan from becoming a reorder: the reorder
+         * primitive listens on the button in the bubble phase, so stopping here means it never arms.
+         */
     e.stopPropagation();
     // Suppresses middle-click autoscroll and text selection during the drag.
     e.preventDefault();
@@ -201,10 +156,8 @@ export function createRailPan(options: RailPanOptions): RailPan {
 
     const onUp = (ev: PointerEvent): void => {
       if (ev.pointerId !== pointerId) return;
-      // Only a pan that actually MOVED eats the click. A press that never passed
-      // the dead zone is still a click on the button underneath, which is the
-      // same rule `createReorderList` applies to an unactivated drag — and it is
-      // why space-tapping a rail button still toggles its panel.
+      // Only a pan that actually MOVED eats the click. A press inside the dead zone is still
+            // a click on the button underneath, so space-tapping still toggles its panel.
       if (activated) blockNextClick();
       stop();
     };

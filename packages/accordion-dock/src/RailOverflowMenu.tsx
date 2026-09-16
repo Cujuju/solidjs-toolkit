@@ -4,14 +4,8 @@ import { slotRef, RAIL_OVERFLOW_SLOT_KEY, type AccordionGroupApi } from './conte
 import { RAIL_OVERFLOW_ATTR } from './railOverflow';
 
 /**
- * The `⋯` at the end of the rail: the panels that did not fit, reachable as a
- * menu instead of behind a scrollbar.
- *
- * The menu itself is `@cujuju/solidjs-context-menu` — the same package Phase 4's
- * panel menu uses. Positioning, top-layer promotion, outside-click and Escape
- * dismissal are all solved there, and a second implementation of dismissal
- * semantics inside the accordion would drift from the first one the moment either
- * is touched.
+ * The `⋯` at the end of the rail: the panels that did not fit, reachable as a menu instead of
+ * behind a scrollbar. Uses `@cujuju/solidjs-context-menu`, so dismissal semantics cannot drift.
  */
 
 /** Trigger glyph. A horizontal ellipsis rather than a vertical one: it reads as
@@ -32,17 +26,8 @@ export interface RailOverflowMenuProps {
 }
 
 /**
- * Rows for the overflow menu.
- *
- * Exported and pure for the same reason `buildPanelMenuItems` is: the interesting
- * part is which panels appear and what state they show, and that should be
- * assertable without a renderer.
- *
- * Every row is enabled. Unlike the panel context menu — where "Close" on an
- * already-closed panel is a real no-op worth greying out — a rail button's action
- * is `toggle`, which is meaningful in both directions. The open ones are marked
- * with a checkmark rather than disabled, because the row's job here is to be the
- * rail button it replaced, and a rail button never disables itself.
+ * Rows for the overflow menu, pure so the set is assertable without a renderer. Every row is
+ * enabled: `toggle` is meaningful both ways, so open panels get a checkmark.
  */
 export function buildRailOverflowItems(
   group: AccordionGroupApi,
@@ -50,9 +35,8 @@ export function buildRailOverflowItems(
 ): ContextMenuEntry[] {
   return ids.flatMap((id): ContextMenuEntry[] => {
     const meta = group.meta(id);
-    // A panel can unregister while its id is still in the rail order; until it
-    // remounts there is no label and no meaningful target, so it contributes no
-    // row rather than a blank one.
+    // A panel can unregister while its id is still in the rail order; it then contributes
+        // no row rather than a blank one.
     if (meta === undefined) return [];
     return [
       {
@@ -76,11 +60,8 @@ export function RailOverflowMenu(props: RailOverflowMenuProps): JSX.Element {
   };
 
   /**
-   * Opens from the trigger's own corner rather than the cursor.
-   *
-   * This is a MENU BUTTON, not a context menu: it has one fixed anchor and the
-   * user expects the panel to appear attached to it. Cursor-positioning would
-   * make the same control open in a different place on every click.
+   * Opens from the trigger's own corner rather than the cursor: this is a MENU BUTTON with one
+   * fixed anchor; cursor-positioning would open the same control somewhere new each click.
    */
   const openFromTrigger = (el: HTMLElement): void => {
     const r = el.getBoundingClientRect();
@@ -111,17 +92,14 @@ export function RailOverflowMenu(props: RailOverflowMenuProps): JSX.Element {
           // Reported once mounted; the controller reserves this instead of a
           // constant, so restyling the trigger cannot silently mis-budget the rail.
           props.onMeasure?.(Math.ceil(el.getBoundingClientRect().height));
-          // The trigger STANDS IN for every button that did not fit, so the group
-          // needs it as an anchor and a focus target — see `activatorElOf`. Through
-          // a slot so it is dropped the moment the rail stops overflowing; a stale
-          // trigger would anchor flyouts to a detached node.
+          // The trigger STANDS IN for the buttons that did not fit, so the group anchors to it.
+                    // Through a slot, so a stale trigger cannot anchor flyouts.
           registerEl(el);
         }}
         type="button"
         class="acc-rail-overflow"
-        /* Excluded from drag activation exactly as the pin and close buttons are —
-           without it, pressing the trigger inside the draggable rail would arm a
-           reorder. Also how `railPan` tells a control from bare background. */
+        /* Excluded from drag activation exactly as the pin and close buttons are: without it,
+                   pressing the trigger inside the draggable rail would arm a reorder. */
         data-no-drag
         {...{ [RAIL_OVERFLOW_ATTR]: '' }}
         /* Never the Tab stop: overflow always leaves `MIN_VISIBLE_RAIL_ITEMS` tabs on the rail to hold it. Arrow keys reach it. */

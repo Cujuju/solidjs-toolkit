@@ -3,16 +3,9 @@ import { createRoot, createSignal } from 'solid-js';
 import { createResize, DEFAULT_MIN_SIZE_PX, type ResizeApi, type ResizeHost } from '../resize';
 
 /**
- * The splitter engine, driven through real pointer events.
- *
- * The two properties worth protecting are both CONSERVATION properties, and both
- * are things the naive implementation gets wrong:
- *
- *   1. A drag moves a boundary — the pair's total never changes. The naive "just
- *      set this panel's width" version makes the dock overflow or leaves a gap.
- *   2. Clamping happens BEFORE the delta is applied, against both floors at once.
- *      Clamping after the fact is what produces the classic "the other panel keeps
- *      shrinking past its minimum" bug.
+ * The splitter engine, driven through pointer events. Two CONSERVATION properties: a drag
+ * moves a boundary so the pair's total never changes, and clamping happens BEFORE the delta
+ * is applied.
  */
 
 /** Overdrag distance past a floor that commits a collapse. Mirrors the module's
@@ -47,14 +40,8 @@ function harness(spec: HarnessSpec): Harness {
   const collapsed: string[] = [];
 
   /*
-   * The applied sizes, mirrored out of the signal so the fake rects can read them.
-   *
-   * jsdom has no layout — every real rect is zero — so the engine's DOM seeding
-   * has to be faked. Faking it as a FROZEN number is the tempting version and it
-   * is wrong: in a browser an element's rect reflects the size already applied to
-   * it, so a second gesture starts where the first one finished. A frozen rect
-   * makes every gesture start from the original extent, which silently turns any
-   * test of repeated adjustment into a test of one adjustment done N times.
+   * Sizes mirrored out of the signal so the fake rects can read them. A FROZEN rect would
+   * start every gesture from the original extent, not where the last finished.
    */
   let applied: Readonly<Record<string, number>> = {};
 
@@ -353,9 +340,8 @@ describe('createResize — lifecycle', () => {
 
 describe('a gesture is one decision', () => {
   it('previews every move but commits exactly once', () => {
-    // THE contract. Both writers used to be the same function, so a drag wrote
-    // localStorage and fired the consumer's callback on every pointermove — sixty
-    // persisted layout revisions for one adjustment, of which one was wanted.
+    // THE contract. Both writers used to be the same function, so a drag persisted sixty
+        // layout revisions for one adjustment, of which one was wanted.
     const h = harness({ boxes: { a: 300, b: 300 } });
     down(h.api, 'a', 0);
     for (let x = 10; x <= 60; x += 10) move(x);

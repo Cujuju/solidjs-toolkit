@@ -1,25 +1,17 @@
 /*
- * Rail overflow + pan chrome for the accordion-dock mock.
- *
- * A new file only because `styles.css` is owned elsewhere while this lands; it is
- * meant to be folded in on promotion. Every value comes from an existing --acc-*
- * token, with one new token declared on the rail itself rather than on :root so
- * it stays per-instance overridable without widening the global token surface.
+ * Rail overflow + pan chrome. A separate file only because `styles.css` is owned elsewhere;
+ * meant to be folded in on promotion. Every value comes from an existing --acc-* token.
  */
 
 .acc-rail {
-  /* Fade depth at the rail's ends under the `pan` strategy — the affordance that
-     replaces the scrollbar we are deliberately removing. Sized from the rail's
-     own button padding so it scales with density instead of being a fixed px
-     value that looks right at exactly one setting. */
+  /* Fade depth at the rail's ends under `pan` — the affordance replacing the scrollbar.
+       Sized from the rail's own button padding, so it scales with density. */
   --acc-rail-fade: calc(var(--acc-rail-btn-pad-block) * 3);
 }
 
 /* ── Overflow strategy: menu ──────────────────────────────────────────────────
-   Nothing ever overflows, because whatever does not fit has moved into the `⋯`
-   menu. `hidden` rather than `auto` so a one-pixel measurement disagreement can
-   never flash a scrollbar into a 40px strip — the exact thing this strategy
-   exists to avoid. */
+   Nothing overflows, because whatever did not fit moved into the `⋯` menu. `hidden` rather
+   than `auto`, so a measurement disagreement cannot flash a scrollbar. */
 .acc-rail[data-overflow-mode='menu'] {
   overflow-y: hidden;
 }
@@ -45,9 +37,8 @@
 }
 
 /* ── Pan cursors ──────────────────────────────────────────────────────────────
-   Armed = the modifier is held and a press would pan; panning = it is happening.
-   Split so the modifier is discoverable: holding Space over an overflowing rail
-   visibly offers the gesture instead of requiring the user to guess it. */
+   Armed = the modifier is held and a press would pan; panning = it is happening. Split so
+   the modifier is discoverable. */
 .acc-rail[data-pan-armed='true'] {
   cursor: grab;
 }
@@ -68,9 +59,8 @@
 }
 
 /* ── The ⋯ trigger ────────────────────────────────────────────────────────────
-   Pinned to the end of the rail. `margin-top: auto` rather than a fixed offset so
-   it sits against the bottom edge when the buttons do not fill the strip, and
-   directly after them when they do. */
+   Pinned to the end of the rail. `margin-top: auto` rather than a fixed offset, so it sits
+   against the bottom edge when the buttons do not fill it. */
 .acc-rail-overflow {
   flex: 0 0 auto;
   margin-top: auto;
