@@ -40,7 +40,7 @@ const [tf, setTf] = createSignal('day');
 </SegGroup>
 ```
 
-When `SegGroup.value` is set, `SegButton`s read state from context and call `onChange` with their own `value` prop on click. Falls back to `active`/`onClick` props when context is absent.
+When `SegGroup.value` is set, `SegButton`s read state from context and call `onChange` with their own `value` prop on click. Falls back to `active`/`onClick` props when `SegGroup.value` is undefined or the button has no `value`.
 
 ### Radiogroup semantics (recommended for mutually-exclusive selections)
 
@@ -52,8 +52,8 @@ When `SegGroup.value` is set, `SegButton`s read state from context and call `onC
 ```
 
 - `role="radiogroup"` on the wrapper; each SegButton emits `role="radio"` with `aria-checked`
-- Roving tabindex: only the active button is Tab-focusable
-- ArrowLeft / ArrowRight move focus (and selection) between siblings
+- Roving tabindex: exactly one button is Tab-focusable — the active button if it is enabled, else the first enabled button (none when every option is disabled)
+- ArrowLeft / ArrowRight move focus (and selection) between siblings, skipping disabled ones; mirrored under `dir="rtl"`
 
 The default is `role="group"` with `aria-pressed` on each button — simpler and works fine for non-exclusive toggle patterns.
 
@@ -86,8 +86,29 @@ The default is `role="group"` with `aria-pressed` on each button — simpler and
 | `children` | — | Alternate content (icon + text, etc.). Falls back to `label`. |
 | `disabled` | `false` | Non-interactive, dimmed. |
 | `ariaLabel` | — | Screen-reader label override. |
-| `title` | — | Native tooltip. |
+| `title` | — | Hover hint — rendered through a registered tooltip host, else a native `title`. |
+| `tooltipDelayMs` | (shared default, 600) | Overrides the host's show delay for this button, ms. Host path only. |
 | `class` | — | Additional class. |
+
+### Tooltip host
+
+`title` renders as a native `title` unless a tooltip component is registered. Register one once at app boot to upgrade every SegButton hint (the native `title` is then suppressed, so hints never double up):
+
+```ts
+import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
+import { setSegTooltipHost, setSegTooltipDefaults } from '@cujuju/solidjs-seg-buttons';
+
+setSegTooltipHost(KvTooltip);                             // `null` clears it
+setSegTooltipDefaults({ delayMs: 400, maxWidth: 240 });   // merges over { delayMs: 600, maxWidth: 300 }
+```
+
+| Export | Description |
+|---|---|
+| `setSegTooltipHost(host \| null)` | Register or clear the hint renderer. Already-mounted buttons switch in place. |
+| `setSegTooltipDefaults(partial)` | Shared `delayMs` / `maxWidth` for every hint. |
+| `segTooltipDefaults()` | Current defaults (reactive). |
+| `SegTooltipHost` / `SegTooltipHostProps` | Structural contract a host component must satisfy (`KvTooltip` does). |
+| `SegTooltipDefaults` | `{ delayMs, maxWidth }`. |
 
 ## Theming
 
@@ -105,8 +126,10 @@ Override any of these CSS custom properties at any ancestor level:
   --seg-inactive-text: #94a3b8;
 
   --seg-disabled-opacity: 0.4;
-  --seg-focus-ring: 2px solid #6366f1;
-  --seg-focus-ring-offset: 2px;
+  /* Recommended override point for a brighter ring: */
+  --seg-focus-ring-color: color-mix(in srgb, var(--seg-inactive-border) 45%, #fff);
+  --seg-focus-ring: 1px solid var(--seg-focus-ring-color);
+  --seg-focus-ring-offset: -1px;
   --seg-radius: 4px;
 }
 ```

@@ -13,10 +13,8 @@
     --seg-inactive-border: #334155;
     --seg-inactive-text: #94a3b8;
     --seg-disabled-opacity: 0.4;
-    /* Thin INSET focus ring (negative offset) that hugs the button, coloured
-       as a LIGHTENED version of the control's own inactive border rather than
-       a fixed accent, so it never competes with the active segment's colour.
-       Override `--seg-focus-ring-color` for a brighter ring. */
+    /* Thin inset ring, a lightened version of the inactive border, so it never competes with the
+           active segment. */
     --seg-focus-ring-color: color-mix(in srgb, var(--seg-inactive-border) 45%, #fff);
     --seg-focus-ring: 1px solid var(--seg-focus-ring-color);
     --seg-focus-ring-offset: -1px;
@@ -31,13 +29,8 @@
   display: inline-flex;
 }
 
-/* A button may be a DIRECT child of the group, or sit one level down inside a
-   tooltip host (see tooltipHost.ts — the host is `display: contents`, so it is
-   invisible to LAYOUT but still a node, and a `>` selector does not see past
-   it). Every group rule therefore matches both shapes. Written as an explicit
-   pair rather than a descendant selector: a plain `.csb-group .csb-btn` would
-   also style a nested group's buttons, which is a real shape (a segmented
-   control inside a popover inside another one). */
+/* Buttons may sit inside a `display: contents` tooltip host, which `>` doesn't see past.
+   Explicit pairs, not descendants, so nested groups stay untouched. */
 .csb-group > .csb-btn,
 .csb-group > * > .csb-btn {
   /* Inner buttons: square corners, overlap borders by -1px. CSS logical
@@ -47,9 +40,8 @@
   position: relative;
 }
 
-/* End caps key off the HOST's position among the group's children when a host
-   is present — `:first-child` on the button itself would be true for every
-   wrapped button, since each is an only child of its own host. */
+/* With a host, end caps key off the HOST's position: every wrapped button is its host's only
+   child. */
 .csb-group > .csb-btn:first-child,
 .csb-group > *:first-child > .csb-btn {
   border-start-start-radius: var(--seg-radius);
@@ -76,7 +68,6 @@
   z-index: 1;
 }
 
-/* Button itself */
 .csb-btn {
   cursor: pointer;
   white-space: nowrap;
@@ -116,7 +107,6 @@
   outline-offset: var(--seg-focus-ring-offset);
 }
 
-/* Size presets */
 .csb-btn-xs { padding-inline: 0.375rem; height: 20px;   font-size: 10px; }
 .csb-btn-sm { padding-inline: 0.5rem;   height: 24px;   font-size: 10px; }
 .csb-btn-md { padding-inline: 0.75rem;  height: 28px;   font-size: 12px; }
@@ -136,10 +126,8 @@
   visibility: hidden;
 }
 
-/* Hint text painted inside a registered tooltip host's panel (see
-   tooltipHost.ts). The host owns the panel's chrome — this is only the styling
-   hook for the text, plus an explicit `white-space: normal` so a long hint
-   wraps as prose no matter what the host's panel inherits. */
+/* Hint text inside a registered host's panel; `white-space: normal` so it wraps whatever the
+   panel inherits. */
 .csb-tip {
   display: block;
   white-space: normal;

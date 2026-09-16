@@ -1,20 +1,11 @@
 /**
- * SegGroup + SegButton behaviour.
- *
- * This package shipped with NO test script at all, so `pnpm -r test` silently skipped it and
- * every one of the behaviours below was unverified in CI. The interesting surface is not that a
- * button renders — it is the CONTROLLED/UNCONTROLLED fork (a context that is only provided when
- * `value` is set) and the radiogroup roving-focus keyboard, both of which are easy to break
- * without noticing.
- *
- * Rendered with `render` from `solid-js/web` and disposed by hand — the toolkit's own pattern.
- * NOT `@solidjs/testing-library`: it resolves a second copy of Solid, and two Solid instances
- * means two ownership graphs, so Portals survive teardown and leak into the next test.
+ * SegGroup + SegButton: the controlled/uncontrolled context fork and radiogroup roving focus.
+ * Uses `solid-js/web` render, not testing-library, which loads a second Solid and leaks Portals.
  */
 
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render } from 'solid-js/web';
-import { createSignal, type JSX } from 'solid-js';
+import { describe, it, expect, afterEach, vi, onTestFinished } from 'vitest';
+import { render, Portal } from 'solid-js/web';
+import { createSignal, For, type JSX } from 'solid-js';
 import { SegGroup } from '../SegGroup';
 import { SegButton } from '../SegButton';
 import {
@@ -65,9 +56,8 @@ describe('uncontrolled mode (SegGroup has no `value`)', () => {
   });
 
   it('a `value` on the button is INERT without a value on the group', () => {
-    // The fork is `ctx !== null && props.value !== undefined`. A caller who sets `value` on the
-    // buttons but forgets it on the group gets silent uncontrolled behaviour, not an error —
-    // worth pinning, because it is a very easy mistake and it fails quietly.
+    // Fork is `ctx?.controlled && props.value !== undefined`: `value` on buttons but not the group
+    // silently goes uncontrolled. Pinned because it fails quietly.
     const onChange = vi.fn();
     const onClick = vi.fn();
     const c = mount(() => (
@@ -77,7 +67,7 @@ describe('uncontrolled mode (SegGroup has no `value`)', () => {
     ));
 
     click(buttons(c)[0]);
-    expect(onChange).not.toHaveBeenCalled(); // no context -> group's onChange never runs
+    expect(onChange).not.toHaveBeenCalled(); // not controlled -> group's onChange never runs
     expect(onClick).toHaveBeenCalledTimes(1); // falls back to the button's own handler
   });
 });
@@ -115,9 +105,7 @@ describe('controlled mode (SegGroup has a `value`)', () => {
   });
 
   it('re-clicking the ALREADY-ACTIVE option still emits onChange', () => {
-    // Documenting real behaviour, not endorsing it: there is no equality guard in handleClick, so
-    // a consumer that treats onChange as "the value CHANGED" will act on a no-op re-click. Every
-    // consumer that cares has to dedupe on its own side.
+    // Documents, not endorses: no equality guard, so a re-click fires onChange; consumers must dedupe.
     const onChange = vi.fn();
     const c = mount(() => (
       <SegGroup value="buy" onChange={onChange}>
@@ -205,7 +193,7 @@ describe('a11y roles', () => {
   });
 
   it('radio semantics need the GROUP’s role — an uncontrolled group is never a radiogroup', () => {
-    // isRadio() reads ctx?.role, and ctx is null without a `value`. So role="radiogroup" on an
+    // isRadio() requires ctx.controlled, which is false without a `value`. So role="radiogroup" on an
     // uncontrolled group silently produces plain buttons with no radio semantics at all.
     const c = mount(() => (
       <SegGroup role="radiogroup">
@@ -266,11 +254,9 @@ describe('radiogroup keyboard (roving focus)', () => {
     expect(value()).toBe('a');
   });
 
-  it('walks ONTO a disabled option and then cannot select it — the arrow key dead-ends', () => {
-    // Real defect, pinned. The roving handler calls next.focus() + next.click() with no disabled
-    // check; the browser drops the click on a disabled button, so focus lands on an option the
-    // user cannot choose and ArrowRight appears to do nothing. A correct roving implementation
-    // SKIPS disabled options.
+  it('SKIPS a disabled option in both directions instead of dead-ending on it', () => {
+    // Was a pinned defect: the handler stepped onto the disabled option, the browser dropped the
+    // click, and ArrowRight appeared to do nothing. Disabled options are now filtered out.
     const [value, setValue] = createSignal('a');
     const c = mount(() => (
       <SegGroup value={value()} onChange={setValue} role="radiogroup">
@@ -281,7 +267,80 @@ describe('radiogroup keyboard (roving focus)', () => {
     ));
 
     key(buttons(c)[0], 'ArrowRight');
-    expect(value()).toBe('a'); // selection did NOT advance past the disabled option
+    expect(value()).toBe('c');
+    expect(document.activeElement).toBe(buttons(c)[2]);
+
+    key(buttons(c)[2], 'ArrowLeft');
+    expect(value()).toBe('a');
+    expect(document.activeElement).toBe(buttons(c)[0]);
+  });
+
+  it('mirrors the arrows under dir="rtl", where the next DOM sibling is drawn to the LEFT', () => {
+    // jsdom computes no `direction` (it returns ""), so the stub stands in for the browser's `[dir=rtl]` rule.
+    // Only the GROUP is rtl here: flex items are ordered by the container, so the buttons' own
+    // `direction` must not be what the arrows read.
+    const realGetComputedStyle = window.getComputedStyle.bind(window);
+    const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((el) =>
+      el.classList.contains('csb-group')
+        ? Object.assign(realGetComputedStyle(el), { direction: 'rtl' })
+        : realGetComputedStyle(el),
+    );
+    onTestFinished(() => spy.mockRestore());
+    const [value, setValue] = createSignal('b');
+    const c = mount(() => (
+      <div dir="rtl">
+        <SegGroup value={value()} onChange={setValue} role="radiogroup">
+          <SegButton value="a" label="A" />
+          <SegButton value="b" label="B" />
+          <SegButton value="c" label="C" />
+        </SegGroup>
+      </div>
+    ));
+
+    key(buttons(c)[1], 'ArrowRight');
+    expect(value()).toBe('a');
+
+    key(buttons(c)[0], 'ArrowLeft');
+    expect(value()).toBe('b');
+  });
+
+  it('does not rove into a NESTED group’s buttons', () => {
+    const [value, setValue] = createSignal('a');
+    const c = mount(() => (
+      <SegGroup value={value()} onChange={setValue} role="radiogroup">
+        <SegButton value="a" label="A" />
+        <SegGroup value="x" onChange={() => {}} role="radiogroup">
+          <SegButton value="x" label="X" />
+        </SegGroup>
+        <SegButton value="b" label="B" />
+      </SegGroup>
+    ));
+
+    key(buttons(c)[0], 'ArrowRight');
+    expect(value()).toBe('b');
+    expect(document.activeElement).toBe(buttons(c)[2]);
+  });
+
+  it('still roves when the buttons are PORTALED out of the group element', () => {
+    // Context flows through the owner tree, so these are radios with no `.csb-group` ancestor;
+    // roving falls back to the shared parent element.
+    const [value, setValue] = createSignal('a');
+    mount(() => (
+      <SegGroup value={value()} onChange={setValue} role="radiogroup">
+        <Portal>
+          <SegButton value="a" label="A" />
+          <SegButton value="b" label="B" />
+        </Portal>
+      </SegGroup>
+    ));
+
+    const portaled = buttons(document.body);
+    expect(portaled.length).toBe(2);
+    expect(portaled[0].closest('.csb-group')).toBeNull();
+
+    key(portaled[0], 'ArrowRight');
+    expect(value()).toBe('b');
+    expect(document.activeElement).toBe(portaled[1]);
   });
 
   it('ignores the arrows entirely in plain group mode', () => {
@@ -357,12 +416,8 @@ describe('sizing', () => {
 });
 
 /**
- * The `title` hint has TWO renderers (see ../tooltipHost.ts): the browser's native
- * `title` attribute, and whatever component a consumer registers with
- * `setSegTooltipHost`. The contract under test is that the CALLER never picks —
- * one prop, and the mechanism follows the registration — and that registering a
- * host does not break the two things a wrapper element could break: the group's
- * direct-child CSS and the radiogroup's DOM-walking roving focus.
+ * `title` has two renderers (native or a registered host); callers never pick. A host must not
+ * break direct-child CSS or DOM-walking roving focus.
  */
 describe('tooltip host', () => {
   /** Props the fake host was last called with. Solid props are getters, so the
@@ -474,9 +529,8 @@ describe('tooltip host', () => {
   });
 
   it('keeps roving focus working when every button sits inside a host wrapper', () => {
-    // The regression the host introduced: the handler used to query the button's
-    // PARENT for siblings, and with a wrapper the parent holds exactly one button,
-    // so arrow keys went dead. It scopes to `.csb-group` instead.
+    // Regression: the handler queried the button's PARENT, which under a host wrapper holds one
+    // button, killing arrows. Now scoped to `.csb-group`.
     setSegTooltipHost(FakeHost);
     const [value, setValue] = createSignal('a');
     const c = mount(() => (
@@ -491,5 +545,105 @@ describe('tooltip host', () => {
     key(buttons(c)[0], 'ArrowRight');
     expect(value()).toBe('b');
     expect(document.activeElement).toBe(buttons(c)[1]);
+  });
+});
+
+describe('controlled mode follows `value` after mount', () => {
+  // Solid's Provider reads its `value` once, untracked. Deciding controlled-ness by swapping the
+  // provided object froze it at mount; the flag must live on a stable context object instead.
+  it('a group mounted with `value` undefined becomes controlled once a value arrives', () => {
+    const [tf, setTf] = createSignal<string | undefined>(undefined);
+    const c = mount(() => (
+      <SegGroup value={tf()} onChange={setTf}>
+        <SegButton value="day" label="Day" />
+        <SegButton value="week" label="Week" />
+      </SegGroup>
+    ));
+
+    setTf('day');
+    expect(buttons(c).map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+
+    click(buttons(c)[1]);
+    expect(tf()).toBe('week');
+    expect(buttons(c).map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+  });
+
+  it('a group whose `value` becomes undefined falls back to the buttons’ own handlers', () => {
+    const [v, setV] = createSignal<string | undefined>('buy');
+    const onChange = vi.fn();
+    const onClick = vi.fn();
+    const c = mount(() => (
+      <SegGroup value={v()} onChange={onChange}>
+        <SegButton value="buy" label="Buy" onClick={onClick} />
+      </SegGroup>
+    ));
+
+    setV(undefined);
+    click(buttons(c)[0]);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('radiogroup has exactly one tab stop while any option is enabled', () => {
+  const tabbable = (c: HTMLElement): number[] => buttons(c).map((b) => b.tabIndex);
+
+  it('falls back to the first option when the value matches none', () => {
+    const [v, setV] = createSignal('');
+    const c = mount(() => (
+      <SegGroup value={v()} onChange={setV} role="radiogroup">
+        <SegButton value="a" label="A" />
+        <SegButton value="b" label="B" />
+      </SegGroup>
+    ));
+
+    expect(tabbable(c)).toEqual([0, -1]);
+
+    setV('b');
+    expect(tabbable(c)).toEqual([-1, 0]);
+  });
+
+  it('skips disabled options — a disabled button cannot take focus, so it cannot be the stop', () => {
+    const c = mount(() => (
+      <SegGroup value="b" onChange={() => {}} role="radiogroup">
+        <SegButton value="a" label="A" disabled />
+        <SegButton value="b" label="B" disabled />
+        <SegButton value="c" label="C" />
+      </SegGroup>
+    ));
+
+    expect(tabbable(c)).toEqual([-1, -1, 0]);
+  });
+
+  it('has NO tab stop when every option is disabled — and the arrows are inert', () => {
+    const onChange = vi.fn();
+    const c = mount(() => (
+      <SegGroup value="a" onChange={onChange} role="radiogroup">
+        <SegButton value="a" label="A" disabled />
+        <SegButton value="b" label="B" disabled />
+      </SegGroup>
+    ));
+
+    expect(tabbable(c)).toEqual([-1, -1]);
+
+    // Arrows on a disabled option do nothing: Solid's delegated handler skips disabled nodes
+    // (web.js:491), and the `idx < 0` guard backs that up if the event ever arrives.
+    const before = document.activeElement;
+    key(buttons(c)[0], 'ArrowRight');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(before);
+  });
+
+  it('follows DOM order, not mount order, when an option is inserted before the others', () => {
+    const [opts, setOpts] = createSignal(['b', 'c']);
+    const c = mount(() => (
+      <SegGroup value="" onChange={() => {}} role="radiogroup">
+        <For each={opts()}>{(o) => <SegButton value={o} label={o} />}</For>
+      </SegGroup>
+    ));
+
+    setOpts(['a', 'b', 'c']);
+    expect(buttons(c).map((b) => b.dataset.label)).toEqual(['a', 'b', 'c']);
+    expect(tabbable(c)).toEqual([0, -1, -1]);
   });
 });
