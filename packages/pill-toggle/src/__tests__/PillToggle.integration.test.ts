@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render } from 'solid-js/web';
-import { createComponent } from 'solid-js';
-import { PillToggle } from '../PillToggle';
+import { cleanupToggles, dotOf, dotX, renderToggle } from './_helpers';
 
 /**
  * Integration tests — mount the component in jsdom and verify the JSX
@@ -9,33 +7,12 @@ import { PillToggle } from '../PillToggle';
  * separately in dotPosition.test.ts.
  *
  * Why these tests matter: the indeterminate prop affects three layers
- * (aria-checked attribute, dot transform via the pure helper, CSS
- * styling via the [aria-checked="mixed"] selector). Unit tests on the
+ * (aria-checked attribute, dot slide offset --tp-dot-x via the pure helper,
+ * CSS styling via the [aria-checked="mixed"] selector). Unit tests on the
  * helper alone don't catch wiring drift between any two layers.
  */
 
-function renderToggle(props: Parameters<typeof PillToggle>[0]): {
-  dispose: () => void;
-  container: HTMLDivElement;
-  toggle(): HTMLButtonElement;
-} {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const dispose = render(() => createComponent(PillToggle, props), container);
-  return {
-    dispose: () => { dispose(); container.remove(); },
-    container,
-    toggle() {
-      const el = container.querySelector('button.ctp-root');
-      if (!el) throw new Error('expected PillToggle button');
-      return el as HTMLButtonElement;
-    },
-  };
-}
-
-afterEach(() => {
-  document.querySelectorAll('.ctp-root').forEach((el) => el.remove());
-});
+afterEach(cleanupToggles);
 
 describe('PillToggle aria-checked contract', () => {
   it('aria-checked="false" when enabled=false (and not indeterminate)', () => {
@@ -85,6 +62,85 @@ describe('PillToggle indeterminate behavior', () => {
     const { dispose, toggle } = renderToggle({ enabled: false, indeterminate: true, onToggle });
     toggle().dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
     expect(onToggle).toHaveBeenCalledTimes(1);
+    dispose();
+  });
+});
+
+describe('PillToggle dot geometry', () => {
+  // Custom properties are stored unparsed, so --tp-dot-x reads back verbatim;
+  // jsdom normalizes real properties' calc() (`calc(18px - 10px)` → `calc(8px)`).
+  const dot = dotOf;
+
+  it('numeric props keep pixel geometry (md preset)', () => {
+    const { dispose, toggle } = renderToggle({ enabled: true, onToggle: () => {} });
+    expect(dot(toggle()).style.top).toBe('2px');
+    expect(dotX(toggle())).toBe('16px');
+    dispose();
+  });
+
+  it('the default dot carries no inline size — the stylesheet sizes it', () => {
+    const { dispose, toggle } = renderToggle({ enabled: false, height: '40px', onToggle: () => {} });
+    expect(dot(toggle()).style.width).toBe('');
+    expect(dot(toggle()).style.height).toBe('');
+    dispose();
+  });
+
+  it('percentage height: dot size and both stops stay relative to the pill', () => {
+    // F098: embedding the raw '50%' in the dot's width resolved it against the
+    // pill's parent. The dot now sizes itself, so '100%' means the dot's own width.
+    const off = renderToggle({ enabled: false, height: '50%', onToggle: () => {} });
+    expect(dot(off.toggle()).style.width).toBe('');
+    expect(dot(off.toggle()).style.top).toBe('2px');
+    expect(dotX(off.toggle())).toBe('2px');
+    off.dispose();
+
+    const on = renderToggle({ enabled: true, height: '50%', onToggle: () => {} });
+    expect(dotX(on.toggle())).toBe('calc(32px - 100% - 2px)');
+    on.dispose();
+
+    const mixed = renderToggle({ enabled: false, indeterminate: true, height: '50%', onToggle: () => {} });
+    expect(dotX(mixed.toggle())).toBe('calc((32px - 100%) / 2)');
+    mixed.dispose();
+  });
+
+  it('string width positions the ON dot against the given pill width, not the preset', () => {
+    const { dispose, toggle } = renderToggle({ enabled: true, width: '64px', onToggle: () => {} });
+    expect(dotX(toggle())).toBe('calc(64px - 14px - 2px)');
+    dispose();
+  });
+
+  it('string dotSize is subtracted from the ON position', () => {
+    const { dispose, toggle } = renderToggle({ enabled: true, dotSize: '24px', onToggle: () => {} });
+    expect(dotX(toggle())).toBe('calc(32px - 24px - calc((18px - 24px) / 2))');
+    dispose();
+  });
+
+  it('explicit dotSize is inset equally on both axes (stadium tangent)', () => {
+    // F073: the vertical centering and the horizontal stops share one inset.
+    const { dispose, toggle } = renderToggle({ enabled: false, size: 'md', dotSize: 10, onToggle: () => {} });
+    expect(dot(toggle()).style.top).toBe('4px');
+    expect(dotX(toggle())).toBe('4px');
+    dispose();
+  });
+
+  it('the dot slides via transform, never via left (compositor-only animation)', () => {
+    const { dispose, toggle } = renderToggle({ enabled: true, onToggle: () => {} });
+    expect(dot(toggle()).style.left).toBe('');
+    expect(dot(toggle()).style.transform).toBe('');
+    dispose();
+  });
+});
+
+describe('PillToggle keyboard contract', () => {
+  // jsdom does not synthesize a button's native Enter → click activation, so
+  // the contract is asserted as "keydown default cancelled, onToggle not called".
+  it('Enter does not toggle and cancels the native button activation', () => {
+    const onToggle = vi.fn();
+    const { dispose, toggle } = renderToggle({ enabled: false, onToggle });
+    const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    toggle().dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(onToggle).not.toHaveBeenCalled();
     dispose();
   });
 });

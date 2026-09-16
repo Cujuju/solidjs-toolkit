@@ -32,7 +32,7 @@ const [on, setOn] = createSignal(false);
 | `onToggle` | (required) | Fired on click / Space keypress. |
 | `indeterminate` | `false` | Renders a "mixed" visual state (centered, dimmed dot) and emits `aria-checked="mixed"` for partially-selected group toggles. `enabled` is still the prediction of what the next commit would set; consumer decides target state in `onToggle`. |
 | `size` | `'md'` | `'xs'` (24×12), `'sm'` (28×14), `'md'` (32×18), `'lg'` (40×22). |
-| `width`, `height`, `dotSize` | (preset) | Raw overrides. Numbers → px. |
+| `width`, `height`, `dotSize` | (preset) | Raw overrides. Numbers → px; strings are CSS lengths (`'2rem'`, `'50%'`, `'calc(…)'`). See the percentage note below. |
 | `onColor`, `offColor`, `dotColor` | (CSS vars) | Direct color overrides. |
 | `disabled` | `false` | Non-interactive, dimmed. |
 | `readOnly` | `false` | Non-interactive but Tab-focusable and not dimmed to disabled level. |
@@ -43,6 +43,13 @@ const [on, setOn] = createSignal(false);
 | `pressEffect` | `'none'` | `'scale'` (dot briefly shrinks) or `'ripple'` (radial flash). |
 | `ariaLabel`, `ariaLabelledBy`, `title` | — | a11y / tooltip. |
 | `class`, `style`, `dataAttr` | — | Passthrough. |
+
+**Percentage sizes.** A percentage `height` is fine: the dot sizes itself in CSS
+(`height: calc(100% - var(--tp-dot-inset) * 2)`), so it tracks the pill's rendered
+height whatever unit produced it. A percentage `width` is not: the dot slides via
+`transform: translateX(…)`, where a percentage resolves against the *dot's* own
+width, not the pill's — so use an absolute length for `width` (and for `height`
+when you also pass an explicit `dotSize`, which is centred against it).
 
 ## Animation preset defaults
 
@@ -57,22 +64,40 @@ Explicit `transitionMs` / `easing` override the preset per-property. `prefers-re
 
 ## Theming
 
+Pinned — mirrors `DOT_INSET_PX`, do not override (the stops and vertical offset
+are computed from the same constant, so a CSS-only change misaligns the dot):
+
+```css
+:root { --tp-dot-inset: 2px; }
+```
+
+Declared defaults — copy and change freely:
+
 ```css
 :root {
   --tp-on-bg: #10b981;
   --tp-off-bg: #334155;
   --tp-dot: #ffffff;
-  --tp-dot-mixed: color-mix(in srgb, var(--tp-dot) 55%, transparent); /* indeterminate dot fill */
   --tp-disabled-opacity: 0.5;
   --tp-readonly-opacity: 0.85;
-  --tp-focus-ring: 2px solid #6366f1;
-  --tp-focus-ring-offset: 2px;
+  --tp-focus-ring-offset: -1px; /* negative: the ring is inset, hugging the control */
 }
 ```
 
+Derived tokens — **leave these unset** unless you are overriding them. They have
+no default declaration; each resolves at its use site, which is what lets the
+`dotColor` / `offColor` props flow into them. Declaring one (even to its
+documented value) opts that element out of the derivation permanently:
+
+| Token | Unset resolves to |
+|---|---|
+| `--tp-dot-mixed` | `color-mix(in srgb, var(--tp-dot) 55%, transparent)` — tracks `dotColor`. |
+| `--tp-focus-ring` | `1px solid var(--tp-focus-ring-color, …)`. |
+| `--tp-focus-ring-color` | `color-mix(in srgb, var(--tp-off-bg) 45%, #fff)` — tracks `offColor`. |
+
 ## A11y
 
-Emits `role="switch"` with `aria-checked` (`"true"` / `"false"` / `"mixed"`). Space toggles (Enter does not, matching the `role="switch"` spec). Full `:focus-visible` ring.
+Emits `role="switch"` with `aria-checked` (`"true"` / `"false"` / `"mixed"`). Space toggles; Enter is deliberately inert — the WAI-ARIA APG lists Enter as *optional* for `role="switch"`, and the native button activation is cancelled to keep the behaviour consistent. Full `:focus-visible` ring.
 
 ## License
 

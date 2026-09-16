@@ -1,26 +1,31 @@
 /* cujuju-solidjs-pill-toggle — default theme via CSS custom properties.
    Defaults in @layer so unlayered consumer overrides win regardless of
-   CSS file load order. */
+   CSS file load order — or as var() fallbacks at the use site, which lose
+   to any declaration. */
 
 @layer cujuju-defaults {
   :root {
     --tp-on-bg: #10b981;
     --tp-off-bg: #334155;
     --tp-dot: #ffffff;
+    /* Gap between the dot and the track on every side. Mirrors DOT_INSET_PX in
+       _internal/dotPosition.ts; the stadium track makes it equal on both axes. */
+    --tp-dot-inset: 2px;
     /* Indeterminate ("mixed") dot fill — defaults to ~55% alpha of the
        solid dot color so the centered position reads as "uncommitted"
        rather than "between transitions." Override directly to invert
        the default. color-mix is baseline-supported (Chrome 111+,
        Safari 16.2+, Firefox 113+; all 2023). */
-    --tp-dot-mixed: color-mix(in srgb, var(--tp-dot) 55%, transparent);
+    /* --tp-dot-mixed default: var() fallback in the [aria-checked="mixed"] rule.
+       A var() in a :root token is substituted AT :root, freezing out dotColor. */
     --tp-disabled-opacity: 0.5;
     --tp-readonly-opacity: 0.85;
     /* Thin INSET focus ring (negative offset) that hugs the control, coloured
        as a LIGHTENED version of the track the toggle is currently showing —
        the off-state track, which is the neutral chrome of the control.
        Override `--tp-focus-ring-color` for a brighter ring. */
-    --tp-focus-ring-color: color-mix(in srgb, var(--tp-off-bg) 45%, #fff);
-    --tp-focus-ring: 1px solid var(--tp-focus-ring-color);
+    /* --tp-focus-ring / --tp-focus-ring-color defaults: var() fallbacks in the
+       :focus-visible rule, so offColor and element-level overrides apply. */
     --tp-focus-ring-offset: -1px;
   }
 }
@@ -45,9 +50,9 @@
 /* Indeterminate state — pill background stays at off-color (the dot's
    centered position carries the "mixed" signal); dot fill is dimmed via
    --tp-dot-mixed. The pure dotTranslate helper computes the centered
-   transform; this rule only governs the visual fill. */
+   offset; this rule only governs the visual fill. */
 .ctp-root[aria-checked="mixed"] .ctp-dot {
-  background: var(--tp-dot-mixed);
+  background: var(--tp-dot-mixed, color-mix(in srgb, var(--tp-dot) 55%, transparent));
 }
 
 .ctp-root:disabled,
@@ -62,15 +67,25 @@
 }
 
 .ctp-root:focus-visible {
-  outline: var(--tp-focus-ring);
+  outline: var(--tp-focus-ring, 1px solid var(--tp-focus-ring-color, color-mix(in srgb, var(--tp-off-bg) 45%, #fff)));
   outline-offset: var(--tp-focus-ring-offset);
 }
 
 /* Sliding dot */
 .ctp-dot {
   position: absolute;
+  /* Anchor the transform base explicitly — the abspos static position is the
+     flex main-start, which flips under direction: rtl. */
+  left: 0;
+  /* Default size: inset on every side, round via aspect-ratio; in CSS so a
+     percentage height resolves against the pill. Inline dotSize overrides both. */
+  height: calc(100% - var(--tp-dot-inset) * 2);
+  aspect-ratio: 1;
   border-radius: 50%;
   background: var(--tp-dot);
+  /* The component writes --tp-dot-x; animating transform keeps the slide on the
+     compositor. Press effects compose onto this same declaration below. */
+  transform: translateX(var(--tp-dot-x, 0));
   transition: transform var(--tp-transition, 150ms linear);
   display: inline-flex;
   align-items: center;
@@ -80,8 +95,9 @@
 }
 
 /* Press effects */
-.ctp-root[data-press-effect="scale"]:active:not(:disabled) .ctp-dot {
-  transform: var(--tp-dot-transform, none) scale(0.85);
+/* readOnly / loading are inactive but not :disabled — exclude them too. */
+.ctp-root[data-press-effect="scale"]:active:not(:disabled):not([aria-readonly="true"]):not([aria-busy="true"]) .ctp-dot {
+  transform: translateX(var(--tp-dot-x, 0)) scale(0.85);
 }
 
 .ctp-root[data-press-effect="ripple"] {
@@ -96,7 +112,7 @@
   pointer-events: none;
   transition: opacity 300ms ease;
 }
-.ctp-root[data-press-effect="ripple"]:active:not(:disabled)::after {
+.ctp-root[data-press-effect="ripple"]:active:not(:disabled):not([aria-readonly="true"]):not([aria-busy="true"])::after {
   opacity: 1;
   transition: opacity 0ms;
 }

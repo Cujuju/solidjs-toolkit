@@ -1,5 +1,5 @@
 import { type JSX, Show } from 'solid-js';
-import { dotTranslate } from './_internal/dotPosition';
+import { centerOffset, DOT_INSET_PX, dotTranslate } from './_internal/dotPosition';
 
 export interface PillToggleProps {
   enabled: boolean;
@@ -83,12 +83,10 @@ export function PillToggle(props: PillToggleProps): JSX.Element {
   const width = (): string => toCssSize(props.width) ?? `${preset().w}px`;
   const height = (): string => toCssSize(props.height) ?? `${preset().h}px`;
 
-  // Default dot size = height - 4 (2px padding on each side).
-  const dotSize = (): string => {
-    if (props.dotSize !== undefined) return toCssSize(props.dotSize)!;
-    const h = typeof props.height === 'number' ? props.height : preset().h;
-    return `${h - 4}px`;
-  };
+  // Default dot size lives in the stylesheet (height minus twice the inset, aspect-ratio 1)
+  // so a percentage `height` resolves against the pill. Only an explicit dotSize is inline.
+  const dotSizeValue = (): number | string | undefined => props.dotSize;
+  const dotSize = (): string | undefined => toCssSize(dotSizeValue());
 
   const anim = (): { ms: number; easing: string } => {
     const base = ANIMATION_PRESETS[props.animation ?? 'linear'];
@@ -107,7 +105,13 @@ export function PillToggle(props: PillToggleProps): JSX.Element {
   };
 
   const handleKey = (e: KeyboardEvent): void => {
-    // Space toggles; Enter does NOT (matches role="switch" spec)
+    // Space toggles; Enter is deliberately inert (APG lists Enter as optional
+    // for role="switch").
+    // A native <button> clicks on Enter, so cancel it to keep Enter inert.
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      return;
+    }
     if (e.key === ' ') {
       e.preventDefault();
       if (inactive()) return;
@@ -115,16 +119,36 @@ export function PillToggle(props: PillToggleProps): JSX.Element {
     }
   };
 
-  // Resolve the numeric width and dot-size used by the pure dotTranslate helper.
-  // The CSS-string variants (when consumers pass strings like '40%') fall back
-  // to preset numbers — matching the existing behavior; non-numeric inputs are
-  // not directly supported by the math.
-  const dotTranslateValue = (): string => {
-    const w = typeof props.width === 'number' ? props.width : preset().w;
-    const d = typeof props.dotSize === 'number'
-      ? props.dotSize
-      : (typeof props.height === 'number' ? props.height : preset().h) - 4;
-    return dotTranslate(props.enabled, props.indeterminate ?? false, w, d);
+  // Inputs for the pure position helpers. Percentage bases differ per axis:
+  // `top` against the pill, `translateX()` against the dot's own width.
+
+  // Dot size as `translateX()` reads it: '100%' is the dot's own width, which is
+  // exactly the stylesheet-sized default dot whatever unit sized the pill.
+  const dotTrackSize = (): number | string => {
+    if (props.dotSize !== undefined) return props.dotSize;
+    if (typeof props.height === 'string') return '100%';
+    return (props.height ?? preset().h) - DOT_INSET_PX * 2;
+  };
+
+  // Tangent inset on the stadium track — identical on both axes. The
+  // stylesheet-sized default dot is inset by DOT_INSET_PX by construction.
+  const dotInset = (): number | string =>
+    props.dotSize === undefined ? DOT_INSET_PX : centerOffset(props.height ?? preset().h, props.dotSize);
+
+  const dotTranslateValue = (): string => dotTranslate(
+    props.enabled,
+    props.indeterminate ?? false,
+    props.width ?? preset().w,
+    dotTrackSize(),
+    dotInset(),
+  );
+
+  // `top` percentages refer to the pill's rendered box, so a CSS-string height
+  // (e.g. '40%', '2rem') resolves as '100%' there.
+  const dotTopValue = (): string => {
+    if (props.dotSize === undefined) return `${DOT_INSET_PX}px`;
+    const h = typeof props.height === 'string' ? '100%' : (props.height ?? preset().h);
+    return centerOffset(h, props.dotSize);
   };
 
   const rootStyle = (): JSX.CSSProperties => {
@@ -141,12 +165,17 @@ export function PillToggle(props: PillToggleProps): JSX.Element {
     return s;
   };
 
-  const dotStyle = (): JSX.CSSProperties => ({
-    width: dotSize(),
-    height: dotSize(),
-    top: '2px',
-    transform: `translateX(${dotTranslateValue()})`,
-  });
+  const dotStyle = (): JSX.CSSProperties => {
+    const explicit = dotSize();
+    return {
+      ...(explicit !== undefined ? { width: explicit, height: explicit } : {}),
+      // Slide via a custom property so the stylesheet owns `transform` and can
+      // compose the press effect onto it — `transform` stays compositor-only,
+      // where animating `left` would force layout every frame.
+      top: dotTopValue(),
+      '--tp-dot-x': dotTranslateValue(),
+    };
+  };
 
   return (
     <button
