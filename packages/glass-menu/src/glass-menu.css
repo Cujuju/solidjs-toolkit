@@ -1,14 +1,5 @@
-/* @cujuju/solidjs-glass-menu — chrome for the GlassMenu shell.
-
-   The `.glass-menu` surface treatment (tint, blur, border, shadow,
-   menu-scoped token rebinds) comes from `@cujuju/solidjs-glass`; this
-   stylesheet adds only the header / body LAYOUT on top.
-
-   Plain prefixed global classes (`cujuju-glass-menu*`), matching the
-   rest of the toolkit. Host theme tokens are referenced with inline
-   fallbacks so the shell renders standalone; a themed host overrides
-   them. NO position / width / height / z-index rules — the caller owns
-   placement and sizing on the root element. */
+/* @cujuju/solidjs-glass-menu — header/body layout over `.glass-menu` from @cujuju/solidjs-glass.
+   Host tokens have inline fallbacks. No position/size/z-index: the caller owns placement. */
 
 .cujuju-glass-menu {
   display: flex;
@@ -82,24 +73,16 @@
   background: var(--color-border, rgba(255, 255, 255, 0.18));
 }
 
-/* Body — scrolls when the caller constrains the root's height.
-   `min-height: 0` lets the flex child shrink so `overflow-y` engages.
-   A flex column so a consumer can give one child `flex: 1` for an
-   internal scroll region and keep a sibling (e.g. a footer affordance)
-   pinned. No padding: a padded panel and an edge-to-edge option list
-   want different insets, so the caller pads its own body content. */
+/* Scrolls when the root's height is constrained (`min-height: 0` lets overflow engage). Flex
+   column for pinned siblings; no padding, callers pad their own content. */
 .cujuju-glass-menu-body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  /* The UA scrollbar is painted for a LIGHT page — on the smoked-glass surface
-     it lands as a bright white slab, which is the most eye-catching thing in
-     the panel. Fixed here rather than in any one consumer because this is the
-     scroll container every one of them inherits (select, chip, context menu,
-     editable list). Standard properties first; the WebKit pseudo-elements
-     below cover engines that do not honour them yet. */
+  /* The UA scrollbar is a bright slab on smoked glass. Fixed here, the scroll container every
+     consumer inherits; WebKit pseudo-elements cover engines lacking the standard properties. */
   scrollbar-width: auto;
   scrollbar-color: var(--glass-menu-scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
 }

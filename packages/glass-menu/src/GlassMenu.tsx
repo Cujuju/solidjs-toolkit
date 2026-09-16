@@ -1,18 +1,18 @@
 import { Show, splitProps, type JSX } from 'solid-js';
 
 /**
- * Props for {@link GlassMenu}. Extends the native `div` attributes
- * (minus the HTML `title` string attribute, which is repurposed below
- * as the header content), so `ref`, `style`, `class`, `role`, and
- * `aria-*` all pass through to the root element — the caller positions
- * and labels the surface, `GlassMenu` only paints the chrome.
+ * Native `div` attributes (minus string `title`, repurposed as header content) pass through to
+ * the root; the caller positions and labels, `GlassMenu` paints chrome.
+ *
+ * `classList` is folded into the root's `class` string rather than bound separately, so a
+ * `classList`-only change rewrites `className` wholesale: classes added to the root imperatively
+ * by a third party are dropped on the next change to `class` or `classList`.
  */
 export interface GlassMenuProps
   extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'title'> {
-  /** Header content (left side). A string or any node. Optional — when
-   *  `title`, `headerAction`, and `onClose` are all omitted, the header
-   *  row is not rendered at all and `GlassMenu` is a bare glass surface
-   *  wrapping `children`. */
+  /** Header content (left). With `title`, `headerAction` and `onClose` all omitted, no header
+   *  renders. `null`, `undefined`, a boolean and the empty string all count as omitted, so a
+   *  `label() ?? ''` caller gets no header rather than an empty strip. */
   title?: JSX.Element;
   /** Optional node rendered in the header between the title and the
    *  close button — e.g. a "Clear" action. */
@@ -24,11 +24,8 @@ export interface GlassMenuProps
    *  `false` for a flush header (no border-bottom) — e.g. an option
    *  list where a header-to-body rule reads as visual clutter. */
   headerDivider?: boolean;
-  /** Root `overflow`. Defaults to `'hidden'` — clips edge-to-edge body
-   *  content (e.g. full-width row hovers) to the rounded corners. Pass
-   *  `'visible'` for a menu whose children must paint past the surface
-   *  edge — a context menu with Portal-less submenus, or one relying on
-   *  the drop shadow rendering outside the box. */
+  /** Root `overflow`. Default `'hidden'` clips body content to the rounded corners; `'visible'`
+   *  lets submenus or shadows paint past the edge. */
   overflow?: 'hidden' | 'visible';
   /** Forwarded to the root element so a caller (e.g. a positioned
    *  popover) can measure the surface. */
@@ -36,18 +33,8 @@ export interface GlassMenuProps
 }
 
 /**
- * Glass-surfaced menu shell — an optional header row (title + optional
- * action slot + optional close button) above a scrollable body. Purely
- * presentational: it owns no positioning, no Portal, and no dismiss
- * lifecycle (outside-click / Escape belong to the caller that controls
- * open state). The root element carries the `.glass-menu` surface class
- * from `@cujuju/solidjs-glass`, so the caller can make `GlassMenu`
- * itself the positioned element without nesting an extra box.
- *
- * The header is rendered only when at least one of `title`,
- * `headerAction`, or `onClose` is supplied — so `GlassMenu` doubles as
- * a plain glass container for headerless menus (option lists, context
- * menus) as well as the full titled-panel shell.
+ * Presentational glass menu shell: optional header over a scrollable body. No positioning, Portal
+ * or dismiss; the root carries `.glass-menu`, so it can be the positioned element.
  */
 export function GlassMenu(props: GlassMenuProps): JSX.Element {
   const [local, rest] = splitProps(props, [
@@ -58,11 +45,23 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
     'overflow',
     'children',
     'class',
+    'classList',
   ]);
 
+  // Solid renders nothing visible for these; they must not force an empty header row.
+  const isRendered = (node: JSX.Element): boolean =>
+    node !== undefined && node !== null && typeof node !== 'boolean' && node !== '';
+
+  // Folded into the class string: a separate classList binding is wiped whenever `class` is rewritten.
+  const callerClassList = (): string =>
+    Object.entries(local.classList ?? {})
+      .filter(([, on]) => on)
+      .map(([name]) => ` ${name}`)
+      .join('');
+
   const hasHeader = (): boolean =>
-    local.title !== undefined ||
-    local.headerAction !== undefined ||
+    isRendered(local.title) ||
+    isRendered(local.headerAction) ||
     local.onClose !== undefined;
 
   return (
@@ -72,7 +71,7 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
         local.overflow === 'visible'
           ? ' cujuju-glass-menu--overflow-visible'
           : ''
-      }${local.class ? ` ${local.class}` : ''}`}
+      }${local.class ? ` ${local.class}` : ''}${callerClassList()}`}
     >
       <Show when={hasHeader()}>
         <div
@@ -82,10 +81,7 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
               : ''
           }`}
         >
-          {/* Always rendered so the actions cluster stays right-
-              aligned even with no title — an empty title div has zero
-              content width. A `div` (not `span`) so callers can pass
-              block content, e.g. a stacked stats cluster. */}
+          {/* Always rendered so actions stay right-aligned without a title; a `div` so callers can pass block content. */}
           <div class="cujuju-glass-menu-title">{local.title}</div>
           <div class="cujuju-glass-menu-header-actions">
             {local.headerAction}

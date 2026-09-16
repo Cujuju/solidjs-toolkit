@@ -77,7 +77,9 @@ them from its own stylesheet:
 ### When is the header rendered?
 
 The header row renders when **at least one** of `title`, `headerAction`,
-or `onClose` is supplied. If all three are omitted, no header element is
+or `onClose` is supplied. `null`, `undefined`, a boolean and the empty string
+count as omitted for `title`/`headerAction`, so a `label() ?? ''` caller gets
+no header. If all three are omitted, no header element is
 emitted at all and `GlassMenu` is a bare glass surface wrapping
 `children` — see the [headerless recipe](#headless-surface-option-list--context-menu--info-panel).
 
@@ -91,14 +93,14 @@ content). Every attribute not in the table below — `ref`, `style`,
 
 | Prop | Type | Default | Notes |
 |------|------|---------|-------|
-| `title` | `JSX.Element?` | — | Header content, left side. A string or any node. Omit `title` + `headerAction` + `onClose` together to drop the header row entirely. |
+| `title` | `JSX.Element?` | — | Header content, left side. A string or any node; `null`/`false`/`''` count as omitted. Omit `title` + `headerAction` + `onClose` together to drop the header row entirely. |
 | `headerAction` | `JSX.Element?` | — | Node rendered in the header between the title and the close button — e.g. a "Clear" action. |
 | `onClose` | `() => void`? | — | Close-button handler. The close button renders **only** when this is provided. `GlassMenu` does not close itself — this is a callback into caller-owned state. |
 | `headerDivider` | `boolean?` | `true` | Hairline `border-bottom` under the header. Pass `false` for a flush header (e.g. an option list where a header-to-body rule reads as clutter). |
 | `overflow` | `'hidden' \| 'visible'`? | `'hidden'` | Root `overflow`. `'hidden'` clips edge-to-edge body content (full-width row hovers, etc.) to the rounded corners. `'visible'` is for a menu whose children must paint past the surface edge — a context menu with non-Portal'd submenus, or one relying on a drop shadow rendering outside the box. |
 | `children` | `JSX.Element?` | — | Body content. Rendered inside `.cujuju-glass-menu-body`. |
 | `ref` | `HTMLDivElement \| (el) => void` | — | Forwarded to the root. Use it to measure the surface, or to set the `popover` attribute (see [recipe](#as-the-positioned-popover-element)). |
-| ...rest | `JSX.HTMLAttributes<HTMLDivElement>` | — | `style`, `class`, `role`, `aria-*`, `data-*`, handlers — all forwarded to the root. A caller `class` is appended after the package classes, so it wins specificity ties. |
+| ...rest | `JSX.HTMLAttributes<HTMLDivElement>` | — | `style`, `class`, `role`, `aria-*`, `data-*`, handlers — all forwarded to the root. A caller `class` / `classList` is merged into the root's class string. Class order does not affect the cascade: at equal specificity the later stylesheet wins, so raise specificity or override the custom properties the stylesheet reads (e.g. `--radius-md`). |
 
 ## Recipes
 
@@ -119,7 +121,7 @@ button, above a scrollable body.
 
 ### Headerless surface (option list / context menu / info panel)
 
-Omit `title`, `headerAction`, and `onClose` — no header is rendered and
+Omit `title`, `headerAction`, and `onClose` (or pass `null`/`''`) — no header is rendered and
 `GlassMenu` is a bare glass container. This is the right shape for a
 dropdown option list, a context menu, or a **purely visual information
 panel**.

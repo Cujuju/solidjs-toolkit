@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createSignal } from 'solid-js';
 import { render, fireEvent } from '@solidjs/testing-library';
 import { GlassMenu } from '../GlassMenu';
 
@@ -139,6 +140,48 @@ describe('GlassMenu', () => {
     expect(header.classList.contains('cujuju-glass-menu-header--flush')).toBe(
       false,
     );
+  });
+
+  it('renders no header when title and headerAction are null / false', () => {
+    const { container } = render(() => (
+      <GlassMenu title={null} headerAction={false}>
+        body
+      </GlassMenu>
+    ));
+    expect(container.querySelector('.cujuju-glass-menu-header')).toBeNull();
+  });
+
+  it('renders no header when title is an empty string', () => {
+    const { container } = render(() => <GlassMenu title="">body</GlassMenu>);
+    expect(container.querySelector('.cujuju-glass-menu-header')).toBeNull();
+  });
+
+  it('applies a caller classList on first render', () => {
+    const { container } = render(() => (
+      <GlassMenu title="T" class="my-panel" classList={{ 'is-open': true }}>
+        body
+      </GlassMenu>
+    ));
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.classList.contains('is-open')).toBe(true);
+    expect(root.classList.contains('my-panel')).toBe(true);
+    expect(root.classList.contains('cujuju-glass-menu')).toBe(true);
+  });
+
+  it('keeps classList tokens when the computed class changes', () => {
+    const [overflow, setOverflow] = createSignal<'hidden' | 'visible'>('hidden');
+    const [open, setOpen] = createSignal(true);
+    const { container } = render(() => (
+      <GlassMenu title="T" overflow={overflow()} classList={{ 'is-open': open() }}>
+        body
+      </GlassMenu>
+    ));
+    const root = container.firstElementChild as HTMLElement;
+    setOverflow('visible');
+    expect(root.classList.contains('cujuju-glass-menu--overflow-visible')).toBe(true);
+    expect(root.classList.contains('is-open')).toBe(true);
+    setOpen(false);
+    expect(root.classList.contains('is-open')).toBe(false);
   });
 
   it('drops the header divider when headerDivider is false', () => {
