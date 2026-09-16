@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent, createSignal, type JSX } from 'solid-js';
-import { KvTooltip, KvTooltipPanel } from '../KvTooltip';
+import { KvTooltip } from '../KvTooltip';
+import { KvTooltipPanel } from '../KvTooltipPanel';
 import { isTopLayerSurfaceOpen } from '../_internal/topLayer';
 import AnchoredPopover from '../../../anchored-popover/src/AnchoredPopover';
 
