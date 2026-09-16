@@ -1,11 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import solid from 'vite-plugin-solid';
 
-// `happy-dom` (not `jsdom`): the Flyout test suite was authored against
-// happy-dom's requestAnimationFrame / effect-flush interleave. The
-// focus-after-paint assertions await a single rAF that lands after
-// both the component's `afterPaint` focus call and AnchoredPopover's
-// measure pass — timing that happy-dom resolves deterministically.
+// happy-dom, not jsdom: focus-after-paint tests rely on its deterministic rAF / effect-flush
+// ordering after afterPaint and AnchoredPopover's measure.
 export default defineConfig({
   plugins: [solid()],
   resolve: {

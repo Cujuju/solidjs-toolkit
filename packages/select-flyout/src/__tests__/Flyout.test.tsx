@@ -1,11 +1,6 @@
 /**
- * Tests for Flyout — custom-rendered <select> alternative.
- *
- * happy-dom has no Popover API, so the suite stubs the bits the
- * AnchoredPopover panel needs:
- *   - HTMLElement.prototype.matches(':popover-open') returns a value
- *     we control via `setOpen(true/false)`.
- *   - showPopover / hidePopover are no-op stubs that flip that bit.
+ * happy-dom has no Popover API; the suite stubs `matches(':popover-open')` and no-op
+ * showPopover/hidePopover via `setOpen`.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
@@ -115,17 +110,13 @@ describe('Flyout', () => {
 
   it('clicking the trigger opens the panel and renders all options', async () => {
     const { getTrigger, getOptions } = renderSelect({ initialValue: 'apple' });
-    // Before open: trigger reports closed via aria-expanded.
     expect(getTrigger().getAttribute('aria-expanded')).toBe('false');
     getTrigger().click();
     await nextFrame();
     expect(getTrigger().getAttribute('aria-expanded')).toBe('true');
     const opts = getOptions();
     expect(opts).toHaveLength(FRUITS.length);
-    // An option's text is its LABEL and nothing else. The selection marker is
-    // drawn in CSS off the `-option-selected` class, so it never lands in
-    // textContent — selecting a row must not change what copying it yields,
-    // and a text query for "Apple" must not have to know about a bullet.
+    // Text is the label only; the selection marker is CSS, so copying or text queries never see it.
     expect(opts.map((o) => o.textContent?.trim())).toEqual([
       'Apple',
       'Banana',
@@ -211,8 +202,6 @@ describe('Flyout', () => {
     expect(getOptions().length).toBeGreaterThan(0);
     expect(getTrigger().getAttribute('aria-expanded')).toBe('true');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    // happy-dom doesn't hide popover-attributed elements, so assert via
-    // reactive state (aria-expanded) and focus restoration.
     expect(getTrigger().getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(getTrigger());
   });
@@ -241,8 +230,6 @@ describe('Flyout', () => {
     expect(getTrigger().disabled).toBe(true);
     expect(getTrigger().getAttribute('aria-disabled')).toBe('true');
     getTrigger().click();
-    // Panel state stays closed — driven by aria-expanded since happy-dom
-    // doesn't enforce popover hiding.
     expect(getTrigger().getAttribute('aria-expanded')).toBe('false');
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -250,9 +237,11 @@ describe('Flyout', () => {
   it('Space key on closed trigger opens the panel', async () => {
     const { getTrigger, getOptions } = renderSelect({ initialValue: 'apple' });
     getTrigger().focus();
+    expect(getTrigger().getAttribute('aria-expanded')).toBe('false');
     getTrigger().dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
     await nextFrame();
     expect(getOptions().length).toBeGreaterThan(0);
+    expect(getTrigger().getAttribute('aria-expanded')).toBe('true');
   });
 
   it('Home jumps focus to the first enabled option', async () => {
@@ -288,5 +277,104 @@ describe('Flyout', () => {
     expect(banana.getAttribute('aria-selected')).toBe('true');
     const apple = getOptions().find((o) => o.textContent?.includes('Apple'))!;
     expect(apple.getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('clicking the trigger to close restores focus to the trigger', async () => {
+    const { getTrigger, getOptions } = renderSelect({ initialValue: 'apple' });
+    getTrigger().click();
+    await nextFrame();
+    expect(document.activeElement).toBe(getOptions()[0]);
+    // happy-dom's click() does not focus the button — same as Safari / macOS Firefox.
+    getTrigger().click();
+    expect(getTrigger().getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(getTrigger());
+  });
+
+  it('disabled flipping true while open closes the panel and blocks commit', async () => {
+    const onChange = vi.fn();
+    const [disabled, setDisabled] = createSignal(false);
+    dispose = render(
+      () => (
+        <Flyout options={FRUITS} value="apple" onChange={onChange} disabled={disabled()} />
+      ),
+      document.body,
+    );
+    const trigger = document.querySelector<HTMLButtonElement>('[role="combobox"]')!;
+    trigger.click();
+    await nextFrame();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    setDisabled(true);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    document.querySelectorAll<HTMLButtonElement>('[role="option"]')[1]!.click();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('panel keyboard handling survives focus landing on panel chrome', async () => {
+    const { getTrigger, getOptions } = renderSelect({ initialValue: 'apple' });
+    getTrigger().click();
+    await nextFrame();
+    const panel = document.querySelector<HTMLElement>('.cujuju-select-flyout-panel')!;
+    // A pointerdown on non-option chrome focuses the nearest focusable ancestor.
+    expect(panel.getAttribute('tabindex')).toBe('-1');
+    panel.focus();
+    expect(document.activeElement).toBe(panel);
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(getOptions()[1]);
+  });
+
+  it('re-anchors focus when options are re-created while open', async () => {
+    const [options, setOptions] = createSignal(FRUITS);
+    dispose = render(
+      () => <Flyout options={options()} value="banana" onChange={() => {}} />,
+      document.body,
+    );
+    const trigger = document.querySelector<HTMLButtonElement>('[role="combobox"]')!;
+    const getOptions = (): HTMLButtonElement[] =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+    trigger.click();
+    await nextFrame();
+    expect(document.activeElement).toBe(getOptions()[1]);
+    setOptions(FRUITS.map((o) => ({ ...o })));
+    await nextFrame();
+    expect(document.activeElement).toBe(getOptions()[1]);
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(getOptions()[2]);
+  });
+
+  it('shrinking options while open keeps DOM focus on the highlighted row', async () => {
+    const LETTERS: FlyoutOption[] = [
+      { value: 'a', label: 'A' },
+      { value: 'b', label: 'B' },
+      { value: 'c', label: 'C' },
+      { value: 'd', label: 'D' },
+    ];
+    const [options, setOptions] = createSignal(LETTERS);
+    const [value, setValue] = createSignal('d');
+    dispose = render(
+      () => <Flyout options={options()} value={value()} onChange={setValue} />,
+      document.body,
+    );
+    const trigger = document.querySelector<HTMLButtonElement>('[role="combobox"]')!;
+    const getOptions = (): HTMLButtonElement[] =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+    trigger.click();
+    await nextFrame();
+    expect(document.activeElement).toBe(getOptions()[3]); // D
+    // An external value change re-runs the label effect, which reorders Solid's observers.
+    setValue('c');
+    // D's row object survives, so <For> keeps its (focused) DOM node while the
+    // stale focusedIndex 3 is clamped to 0.
+    setOptions([LETTERS[2]!, LETTERS[3]!]);
+    await nextFrame();
+    const rows = getOptions();
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.className).toContain('cujuju-select-flyout-option-focused');
+    expect(rows[0]!.getAttribute('tabindex')).toBe('0');
+    // Highlight and DOM focus must agree, or Enter commits a row the AT never announced.
+    expect(document.activeElement).toBe(rows[0]);
   });
 });

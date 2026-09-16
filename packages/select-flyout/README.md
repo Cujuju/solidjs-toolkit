@@ -96,13 +96,14 @@ function Example() {
 
 `Flyout` uses stable global classes, prefixed `cujuju-select-flyout-*`
 (`-trigger`, `-trigger-open`, `-chevron`, `-label`, `-placeholder`,
-`-panel`, `-list`, `-option`, `-option-selected`, `-option-focused`,
-`-check`).
+`-panel`, `-list`, `-option`, `-option-selected`,
+`-option-focused`).
 
-The stylesheet registers itself as an import side effect — **when the
-package is consumed from source** (the `solid` export condition). A
-**published `dist` build** extracts CSS to a separate file that the
-JS bundle does not reference; `dist` consumers must import it once:
+The stylesheet registers itself as an import side effect under both
+export conditions: from source (`solid`) and from the published `dist`
+build, whose entry imports the extracted `dist/style.css` (also exported
+as `@cujuju/solidjs-select-flyout/style.css`). To order it explicitly,
+import it once:
 
 ```ts
 import '@cujuju/solidjs-select-flyout/styles.css';
@@ -117,8 +118,8 @@ The trigger / panel reference these CSS custom properties — provide
 them on a host ancestor (e.g. `:root`): `--height-btn`,
 `--color-border`, `--color-surface`, `--color-surface-hover`,
 `--color-text`, `--color-text-secondary`, `--color-primary`,
-`--color-primary-alpha-10`, `--radius-btn`, `--radius-sm`,
-`--font-size-sm`, `--z-flyout`.
+`--color-primary-alpha-10`, `--radius-btn`,
+`--font-size-sm`.
 
 ## License
 
