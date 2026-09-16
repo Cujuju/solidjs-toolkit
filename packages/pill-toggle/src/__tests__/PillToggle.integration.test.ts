@@ -2,14 +2,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanupToggles, dotOf, dotX, renderToggle } from './_helpers';
 
 /**
- * Integration tests — mount the component in jsdom and verify the JSX
- * wiring against the props contract. Pure dot-position math is covered
- * separately in dotPosition.test.ts.
- *
- * Why these tests matter: the indeterminate prop affects three layers
- * (aria-checked attribute, dot slide offset --tp-dot-x via the pure helper,
- * CSS styling via the [aria-checked="mixed"] selector). Unit tests on the
- * helper alone don't catch wiring drift between any two layers.
+ * Integration tests: mount in jsdom and check the JSX wiring against the props contract.
+ * `indeterminate` spans three layers (aria-checked, --tp-dot-x, the CSS selector), so helper
+ * unit tests miss wiring drift.
  */
 
 afterEach(cleanupToggles);

@@ -1,7 +1,5 @@
 /* cujuju-solidjs-pill-toggle — default theme via CSS custom properties.
-   Defaults in @layer so unlayered consumer overrides win regardless of
-   CSS file load order — or as var() fallbacks at the use site, which lose
-   to any declaration. */
+   Defaults in @layer so unlayered consumer overrides win regardless of load order. */
 
 @layer cujuju-defaults {
   :root {
@@ -11,19 +9,14 @@
     /* Gap between the dot and the track on every side. Mirrors DOT_INSET_PX in
        _internal/dotPosition.ts; the stadium track makes it equal on both axes. */
     --tp-dot-inset: 2px;
-    /* Indeterminate ("mixed") dot fill — defaults to ~55% alpha of the
-       solid dot color so the centered position reads as "uncommitted"
-       rather than "between transitions." Override directly to invert
-       the default. color-mix is baseline-supported (Chrome 111+,
-       Safari 16.2+, Firefox 113+; all 2023). */
+    /* Indeterminate ("mixed") dot fill — ~55% alpha of the solid dot colour, so the
+     centered position reads as "uncommitted" rather than mid-transition. */
     /* --tp-dot-mixed default: var() fallback in the [aria-checked="mixed"] rule.
        A var() in a :root token is substituted AT :root, freezing out dotColor. */
     --tp-disabled-opacity: 0.5;
     --tp-readonly-opacity: 0.85;
-    /* Thin INSET focus ring (negative offset) that hugs the control, coloured
-       as a LIGHTENED version of the track the toggle is currently showing —
-       the off-state track, which is the neutral chrome of the control.
-       Override `--tp-focus-ring-color` for a brighter ring. */
+    /* Thin INSET focus ring, a lightened version of the off-state track — the control's
+     neutral chrome. Override `--tp-focus-ring-color` for a brighter ring. */
     /* --tp-focus-ring / --tp-focus-ring-color defaults: var() fallbacks in the
        :focus-visible rule, so offColor and element-level overrides apply. */
     --tp-focus-ring-offset: -1px;
@@ -47,10 +40,8 @@
   background: var(--tp-on-bg);
 }
 
-/* Indeterminate state — pill background stays at off-color (the dot's
-   centered position carries the "mixed" signal); dot fill is dimmed via
-   --tp-dot-mixed. The pure dotTranslate helper computes the centered
-   offset; this rule only governs the visual fill. */
+/* Indeterminate — the track stays at off-colour (the centered dot carries the signal);
+   only the fill dims here. `dotTranslate` computes the offset. */
 .ctp-root[aria-checked="mixed"] .ctp-dot {
   background: var(--tp-dot-mixed, color-mix(in srgb, var(--tp-dot) 55%, transparent));
 }

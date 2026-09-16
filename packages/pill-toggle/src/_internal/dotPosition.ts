@@ -1,26 +1,7 @@
 /**
- * Pure helper computing the dot's horizontal offset from the pill's left edge.
- *
- * Three positions, deterministic:
- *   indeterminate  → centered:   (width - dotSize) / 2
- *   enabled=true   → right edge: width - dotSize - inset
- *   enabled=false  → left edge:  inset
- *
- * The track is a stadium (border-radius = height / 2), so the tangent inset is
- * (height - dotSize) / 2 on BOTH axes — callers pass the same centerOffset()
- * they use for `top`. For the default dot that is exactly DOT_INSET_PX.
- *
- * Indeterminate takes precedence over enabled because it represents
- * "explicitly mixed state" — enabled is the prediction of what the next
- * commit would set, not the current visual.
- *
- * Numbers are px. Strings are CSS lengths (e.g. '100%', '1.5rem'); any string
- * input yields a `calc()` expression. Returns a CSS length string.
- *
- * The result is consumed as `translateX()`, where a percentage resolves against
- * the DOT's own width: '100%' therefore denotes the dot itself (how the caller
- * names the stylesheet-sized default dot), and pill dimensions must be real
- * lengths.
+ * Dot offset from the pill's left edge: indeterminate centers (and wins over enabled), true goes
+ * right, false left. Consumed as `translateX()`, where a percentage resolves against the DOT's
+ * own width.
  */
 export const DOT_INSET_PX = 2;
 

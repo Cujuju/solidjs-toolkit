@@ -6,16 +6,8 @@ export interface PillToggleProps {
   onToggle: () => void;
 
   /**
-   * Renders an indeterminate ("mixed") visual state — center-positioned dot
-   * with dimmed fill — and emits `aria-checked="mixed"` (per W3C ARIA spec
-   * for partially-selected role="switch").
-   *
-   * Use for bulk toggles representing a heterogeneous group (some-on /
-   * some-off). `enabled` is still the "what would the next commit set"
-   * prediction; consumer decides the target state in `onToggle`.
-   *
-   * Default false. Loading state takes precedence over indeterminate
-   * (matches the precedence of `loading` over enabled visuals).
+   * Renders a "mixed" state — centered dot, dimmed fill — and emits `aria-checked="mixed"`.
+   * For bulk toggles over a heterogeneous group. Loading takes precedence. Default false.
    */
   indeterminate?: boolean;
 
@@ -30,7 +22,6 @@ export interface PillToggleProps {
   offColor?: string;
   dotColor?: string;
 
-  // State:
   disabled?: boolean;
   readOnly?: boolean;
   loading?: boolean;
@@ -45,12 +36,10 @@ export interface PillToggleProps {
   easing?: string;
   pressEffect?: 'none' | 'scale' | 'ripple';
 
-  // A11y:
   ariaLabel?: string;
   ariaLabelledBy?: string;
   title?: string;
 
-  // Passthrough:
   class?: string;
   style?: JSX.CSSProperties;
   dataAttr?: Record<string, string>;
