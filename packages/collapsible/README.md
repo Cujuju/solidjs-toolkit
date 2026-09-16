@@ -62,7 +62,7 @@ const state = useCollapsible({ storageKey: 'myapp:filters' });
 | `lazyMount` | `false` | Render children only after first open. |
 | `keepMounted` | `true` | Keep DOM when closed (hidden via CSS). Set false to unmount on close. |
 | `animated` | `false` | Animate content height on toggle. |
-| `ariaLabel`, `id` | — | a11y hooks. |
+| `ariaLabel`, `id` | — | a11y hooks. `ariaLabel` names the section (the root gets `role="group"`). |
 | `class`, `headerClass`, `contentClass` | — | Style passthrough. |
 
 ### `useCollapsible(options)`
@@ -114,7 +114,7 @@ Detection is **by value**: re-asserting the same `forceOpen` value is a no-op. O
 
 ## Animation caveat
 
-When `animated={true}`, the open→close transition uses `max-height`. If the content height changes while open (e.g., a list grows), the transition on the NEXT close will time against the stale height. Content is rendered normally — this is not a visible-overflow bug, just potentially an animation-timing oddity. Wire up a ResizeObserver yourself to re-measure if your content is dynamic and you care about the close-animation accuracy.
+When `animated={true}`, open↔close animates `grid-template-rows: 0fr ↔ 1fr` on the content wrapper, which tracks the content's natural height with no JS measurement — dynamic content needs no re-measure. Collapsed animated content stays mounted but `inert` (out of the tab order and accessibility tree). The transition itself needs grid-track interpolation — Chrome 107+ / Firefox 66+ / Safari 16+ (MDN BCD `css.properties.grid-template-rows.animation`). The `@supports (grid-template-rows: 0fr)` gate only tests that the declaration parses, so every CSS Grid engine (Chrome 57+ / Firefox 52+ / Safari 10.1+) enters it: older ones still collapse, just without a transition. Pre-Grid engines fall outside the gate and collapse through a `display: none` fallback, so `animated={true}` stays safe everywhere — only the animation degrades.
 
 ## License
 

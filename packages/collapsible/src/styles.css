@@ -16,9 +16,7 @@
     --cl-header-padding: 0;
     --cl-content-padding: 0;
     --cl-animation-duration: 180ms;
-    /* Thin INSET focus ring (negative offset) that hugs the header, coloured
-       as a LIGHTENED version of the control's own panel border rather than a
-       fixed accent. Override `--cl-focus-ring-color` for a brighter ring. */
+    /* Thin inset ring, a lightened version of the panel border rather than a fixed accent. */
     --cl-focus-ring-color: color-mix(in srgb, var(--cl-panel-border) 45%, #fff);
     --cl-focus-ring: 1px solid var(--cl-focus-ring-color);
     --cl-focus-ring-offset: -1px;
@@ -134,27 +132,21 @@
   padding: 8px 12px;
 }
 
-/* Wrapper element exists in the DOM even when animated=false; in that case
-   it's transparent (display: contents removes it from the box tree). When
-   animated=true, the wrapper implements the open/close transition via grid
-   row sizing — see the @supports block below. */
+/* `display: contents` when not animated; animated mode uses grid rows (see @supports below). */
 .ccl-content-wrapper {
   display: contents;
 }
 
-/* Animation: grid-template-rows 0fr → 1fr transition. Auto-tracks content's
-   natural height without JS measurement; handles dynamic content size for
-   free (expanding lists, async-loaded content, etc.) — replacing the old
-   `max-height: 0 ↔ none` style which CSS cannot interpolate.
+/* Any author `display` beats the UA `[hidden] { display: none }`; restore it. */
+/* Keep after the `display: contents` rule — jsdom's CSSOM ignores specificity, so styles.test.ts depends on source order. */
+.ccl-content-wrapper[hidden] {
+  display: none;
+}
 
-   The 0fr → 1fr trick requires the inner content to have min-height: 0 so
-   the grid can collapse it. We apply that via the descendant rule below.
-
-   Browser support is the reason for the @supports gate: Chrome 117+,
-   Firefox 121+, Safari 17.4+ (all shipped Sep 2023 - Mar 2024). Older
-   engines fall back to the snap behavior of the (default) display: contents
-   wrapper — matching the prior "broken animation" state, not introducing a
-   regression. */
+/* grid-template-rows 0fr → 1fr animates natural height without JS (max-height: none can't
+   interpolate); content needs min-height: 0. */
+/* The gate tests parsing only, so every Grid engine enters it. Without track interpolation
+   (< Chrome 107 / Firefox 66 / Safari 16 — MDN BCD grid-template-rows.animation) it snaps. */
 @supports (grid-template-rows: 0fr) {
   .ccl-root[data-animated="true"] .ccl-content-wrapper {
     display: grid;
@@ -167,6 +159,14 @@
   }
   .ccl-root[data-animated="true"] .ccl-content-wrapper > .ccl-content {
     min-height: 0;
+  }
+}
+
+/* Pre-Grid engines skip the gate, leaving `display: contents` — collapsed animated
+   content would stay visible. Hide it instead. */
+@supports not (grid-template-rows: 0fr) {
+  .ccl-root[data-animated="true"][data-open="false"] .ccl-content-wrapper {
+    display: none;
   }
 }
 

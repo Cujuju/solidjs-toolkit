@@ -11,25 +11,21 @@ export interface CollapsibleProps {
   openIcon?: JSX.Element;
   closedIcon?: JSX.Element;
 
-  // State:
   storageKey?: string;
   storageKeyPrefix?: string;
   defaultOpen?: boolean;
   forceOpen?: boolean | null;
   onChange?: (open: boolean) => void;
 
-  // Styling:
   uppercase?: boolean;
   variant?: 'section' | 'panel';
   lazyMount?: boolean;
   keepMounted?: boolean;
   animated?: boolean;
 
-  // A11y:
   ariaLabel?: string;
   id?: string;
 
-  // Passthrough:
   class?: string;
   headerClass?: string;
   contentClass?: string;
@@ -46,12 +42,13 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
     storageKeyPrefix: props.storageKeyPrefix,
     defaultOpen: props.defaultOpen,
     forceOpen: () => props.forceOpen,
-    onChange: props.onChange,
+    onChange: (open) => props.onChange?.(open),
   });
 
-  const baseId = props.id ?? createUniqueId();
-  const headerId = `${baseId}-header`;
-  const contentId = `${baseId}-content`;
+  const fallbackId = createUniqueId();
+  const baseId = (): string => props.id ?? fallbackId;
+  const headerId = (): string => `${baseId()}-header`;
+  const contentId = (): string => `${baseId()}-content`;
 
   const renderArrow = (): JSX.Element => {
     if (props.openIcon !== undefined && state.open()) return props.openIcon;
@@ -65,7 +62,7 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
 
   const shouldRender = (): boolean => {
     if (state.open()) return true;
-    if (props.lazyMount) return everOpen();
+    if (props.lazyMount && !everOpen()) return false;
     return keepMounted();
   };
 
@@ -76,15 +73,16 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
       data-open={state.open() ? 'true' : 'false'}
       data-uppercase={uppercase() ? 'true' : 'false'}
       data-animated={animated() ? 'true' : 'false'}
+      role={props.ariaLabel !== undefined ? 'group' : undefined}
       aria-label={props.ariaLabel}
     >
       <div class="ccl-header-row">
         <button
-          id={headerId}
+          id={headerId()}
           type="button"
           class={`ccl-header ${props.headerClass ?? ''}`.trim()}
           aria-expanded={state.open()}
-          aria-controls={contentId}
+          aria-controls={shouldRender() ? contentId() : undefined}
           onClick={state.toggle}
         >
           <span class="ccl-arrow" aria-hidden="true">{renderArrow()}</span>
@@ -98,23 +96,20 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
         </Show>
       </div>
       <Show when={shouldRender()}>
-        {/* When animated=true, the wrapper element implements the open/close
-            transition via CSS `grid-template-rows: 0fr ↔ 1fr`. This auto-tracks
-            content's natural height without JS measurement and handles dynamic
-            content size changes for free — replacing the old broken-by-design
-            `max-height: 0 ↔ none` style which CSS cannot interpolate.
-            Browser support: Chrome 117+ / Firefox 121+ / Safari 17.4+ (all
-            2023-Q1 2024). No-op fallback for `animated=false` (display: contents
-            on the wrapper makes it inert). */}
+        {/* animated: CSS grid-rows transition (see styles.css); otherwise the wrapper is
+        `display: contents`. */}
+        {/* Grid-row collapse only clips paint, so collapsed animated content is
+            made `inert` to leave the tab order and accessibility tree. */}
         <div
           class="ccl-content-wrapper"
           data-content-wrapper="true"
           hidden={keepMounted() && !state.open() && !animated()}
+          inert={animated() && !state.open()}
         >
           <div
-            id={contentId}
+            id={contentId()}
             role="region"
-            aria-labelledby={headerId}
+            aria-labelledby={headerId()}
             class={`ccl-content ${props.contentClass ?? ''}`.trim()}
           >
             {props.children}

@@ -114,7 +114,8 @@ describe('useCollapsible', () => {
 
     it('forceOpen transitioning to a NEW value resets manuallyToggled', async () => {
       await createRoot(async () => {
-        const [fo, setFo] = createSignal<boolean | null | undefined>(true);
+        // equals:false so the same-value write below re-runs the effect and exercises the edge guard.
+        const [fo, setFo] = createSignal<boolean | null | undefined>(true, { equals: false });
         const c = useCollapsible({ defaultOpen: false, forceOpen: fo });
         // Flush effect
         await Promise.resolve();
@@ -155,6 +156,64 @@ describe('useCollapsible', () => {
         c.toggle();
         expect(calls).toEqual([true, false]);
       });
+    });
+
+    function mountForced(initial: boolean | null, calls: boolean[]): {
+      c: ReturnType<typeof useCollapsible>;
+      setFo: (v: boolean | null) => void;
+      dispose: () => void;
+    } {
+      return createRoot((dispose) => {
+        const [fo, set] = createSignal<boolean | null>(initial);
+        const c = useCollapsible({ defaultOpen: false, forceOpen: fo, onChange: (v) => calls.push(v) });
+        return { c, setFo: (v) => set(v), dispose };
+      });
+    }
+
+    it('fires when forceOpen returns to null and the effective state flips', () => {
+      const calls: boolean[] = [];
+      const { c, setFo, dispose } = mountForced(true, calls);
+      expect(c.open()).toBe(true);
+      setFo(null);
+      expect(c.open()).toBe(false);
+      expect(calls).toEqual([false]);
+      dispose();
+    });
+
+    it('does not fire when a forceOpen edge leaves the effective state unchanged', () => {
+      const calls: boolean[] = [];
+      const { c, setFo, dispose } = mountForced(true, calls);
+      c.toggle();
+      expect(calls).toEqual([false]);
+      setFo(false);
+      expect(c.open()).toBe(false);
+      expect(calls).toEqual([false]);
+      dispose();
+    });
+
+    it('fires when reset() hands control back to a differing forceOpen', () => {
+      const calls: boolean[] = [];
+      const { c, dispose } = mountForced(true, calls);
+      c.toggle();
+      c.reset();
+      expect(c.open()).toBe(true);
+      expect(calls).toEqual([false, true]);
+      dispose();
+    });
+
+    it('fires on the first toggle when forceOpen changed before the effect first ran', () => {
+      const calls: boolean[] = [];
+      // A parent writing forceOpen in onMount lands before the child effect's first run.
+      const { c, dispose } = createRoot((dispose) => {
+        const [fo, setFo] = createSignal<boolean | null>(null);
+        const c = useCollapsible({ defaultOpen: false, forceOpen: fo, onChange: (v) => calls.push(v) });
+        setFo(true);
+        return { c, dispose };
+      });
+      expect(c.open()).toBe(true);
+      c.toggle();
+      expect(calls).toEqual([false]);
+      dispose();
     });
   });
 });

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, type Accessor } from 'solid-js';
+import { createSignal, createEffect, untrack, type Accessor } from 'solid-js';
 
 export interface UseCollapsibleOptions {
   /** Key for localStorage persistence. If omitted, state is ephemeral. */
@@ -8,9 +8,8 @@ export interface UseCollapsibleOptions {
   /** Initial value when no persisted state exists. Default true. */
   defaultOpen?: boolean;
   /**
-   * Accessor for external override (e.g. expand-all/collapse-all). When non-null/undefined,
-   * this value wins UNTIL the user manually toggles AFTER the override is set. Once the
-   * user toggles, their choice sticks until `forceOpen` transitions to a NEW value.
+   * External override (e.g. expand-all). Wins until the user toggles; their choice sticks
+   * until `forceOpen` changes to a NEW value.
    */
   forceOpen?: Accessor<boolean | null | undefined>;
   /** Called whenever the effective open state changes. */
@@ -29,14 +28,8 @@ export interface UseCollapsibleReturn {
 }
 
 /**
- * Hook for collapsible state with persistence + forceOpen override.
- *
- * Semantics of forceOpen:
- *  - When `forceOpen` returns a boolean, it overrides the local state.
- *  - If the user toggles AFTER a forceOpen is active, their choice sticks and
- *    `manuallyToggled` becomes true.
- *  - manuallyToggled resets to false on the next forceOpen EDGE (i.e., when its
- *    value changes to something different — not just re-asserted as the same value).
+ * Collapsible state with persistence and a `forceOpen` override; see that option for
+ * manual-toggle semantics. `manuallyToggled` resets only when `forceOpen` changes value.
  */
 export function useCollapsible(options: UseCollapsibleOptions = {}): UseCollapsibleReturn {
   const prefix = options.storageKeyPrefix ?? '';
@@ -66,6 +59,21 @@ export function useCollapsible(options: UseCollapsibleOptions = {}): UseCollapsi
     }
   };
 
+  const effectiveOpen = (): boolean => {
+    const fo = options.forceOpen?.();
+    if (fo !== null && fo !== undefined && !manuallyToggled()) return fo;
+    return localOpen();
+  };
+
+  // onChange reports effective-state transitions; every writer notifies through here.
+  let lastNotified = untrack(effectiveOpen);
+  const notifyIfChanged = (): void => {
+    const next = untrack(effectiveOpen);
+    if (next === lastNotified) return;
+    lastNotified = next;
+    options.onChange?.(next);
+  };
+
   // Watch forceOpen — reset manuallyToggled on value change.
   let prevForceOpen: boolean | null | undefined = undefined;
   let firstRun = true;
@@ -74,6 +82,9 @@ export function useCollapsible(options: UseCollapsibleOptions = {}): UseCollapsi
     if (firstRun) {
       firstRun = false;
       prevForceOpen = fo;
+      // Re-seed: forceOpen may have changed between hook creation and this first run.
+      // effectiveOpen/lastNotified are declared above: a synchronous first run must not hit the TDZ.
+      lastNotified = untrack(effectiveOpen);
       return;
     }
     if (fo !== prevForceOpen) {
@@ -82,34 +93,29 @@ export function useCollapsible(options: UseCollapsibleOptions = {}): UseCollapsi
       if (fo !== null && fo !== undefined) {
         setLocalOpen(fo);
         persist(fo);
-        options.onChange?.(fo);
       }
+      notifyIfChanged();
     }
   });
-
-  const effectiveOpen = (): boolean => {
-    const fo = options.forceOpen?.();
-    if (fo !== null && fo !== undefined && !manuallyToggled()) return fo;
-    return localOpen();
-  };
 
   const toggle = (): void => {
     const next = !effectiveOpen();
     setLocalOpen(next);
     setManuallyToggled(true);
     persist(next);
-    options.onChange?.(next);
+    notifyIfChanged();
   };
 
   const setOpen = (v: boolean): void => {
     setLocalOpen(v);
     setManuallyToggled(true);
     persist(v);
-    options.onChange?.(v);
+    notifyIfChanged();
   };
 
   const reset = (): void => {
     setManuallyToggled(false);
+    notifyIfChanged();
   };
 
   return {
