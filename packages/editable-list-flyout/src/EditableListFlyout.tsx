@@ -33,11 +33,8 @@ export interface EditableListFlyoutItemConfig {
   /** Per-item override; when set, this row's body click invokes this
    *  callback. When absent, the flyout's `onActivate(item)` is used. */
   onActivate?: () => void;
-  /** When true, suppress the rename affordance on this specific row
-   *  even when flyout-level `onRename` is wired. Use for non-editable
-   *  rows that share the list with editable peers — e.g. a pinned
-   *  built-in entry that the user activates but cannot rename.
-   *  Default false. */
+  /** Suppress the rename affordance on this row even when flyout-level `onRename` is wired —
+   *  e.g. a pinned built-in entry. Default false. */
   disableRename?: boolean;
   /** When true, suppress the delete affordance on this specific row
    *  even when flyout-level `onDelete` is wired. Same rationale as
@@ -75,10 +72,8 @@ export interface EditableListFlyoutProps<TItem extends { id: string; name: strin
   onRename?: (item: TItem, name: string) => Promise<void>;
   /** Delete commit (after `confirmDelete` resolves true). */
   onDelete?: (item: TItem) => Promise<void>;
-  /** When provided, a footer "+ New X" affordance renders. Button
-   *  morphs to input on click; Enter commits, Escape cancels, blur-
-   *  empty cancels, blur-with-value commits. Reject keeps the input
-   *  open with the typed value. */
+  /** Renders a footer "+ New X": button morphs to input; Enter commits, Escape or blur-empty
+   *  cancels, blur-with-value commits. Reject keeps the typed value. */
   onCreate?: (name: string) => Promise<void>;
   /** Footer add button label. Default `"+ New"`. */
   createButtonLabel?: string;
@@ -92,19 +87,9 @@ export interface EditableListFlyoutProps<TItem extends { id: string; name: strin
 }
 
 /**
- * EditableListFlyout — anchored popover wrapping a list of EditableListRow
- * entries with a built-in inline-add affordance at the footer.
- *
- * Three composition layers in one primitive:
- *   1. AnchoredPopover — positioning, dismiss, two-element shell shape.
- *   2. EditableListRow (per item) — inline rename, delete-with-confirm,
- *      selection (none/checkbox), drag handle when reorderProps set.
- *   3. Footer add affordance (when `onCreate` provided) — button morphs
- *      to input with matching geometry; Enter commits, Escape cancels.
- *
- * Per-item configuration via `itemConfig(item)` keeps the items array
- * lean (just `{ id, name }`) while letting consumers attach icons,
- * selection mode, busy gating, reorder props, etc. on a per-row basis.
+ * Anchored popover over EditableListRow entries with an optional footer add affordance.
+ * `itemConfig(item)` keeps `items` lean (`{ id, name }`) while attaching per-row icons,
+ * selection and busy state.
  */
 export default function EditableListFlyout<
   TItem extends { id: string; name: string },
