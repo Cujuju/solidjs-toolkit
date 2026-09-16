@@ -13,14 +13,17 @@
       "import": "./dist/index.js"
     },
     "./glass.css": "./src/glass.css",
-    "./menu-tint.css": "./src/menu-tint.css"
+    "./menu-tint.css": "./src/menu-tint.css",
+    "./style.css": "./dist/style.css"
   },
   "files": [
     "src",
     "dist"
   ],
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "./src/index.ts",
+    "./dist/index.js"
   ],
   "license": "MIT",
   "author": "Cujuju",

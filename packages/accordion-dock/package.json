@@ -12,14 +12,20 @@
       "solid": "./src/index.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./autoHide.css": "./src/autoHide.css",
+    "./rail.css": "./src/rail.css",
+    "./breadcrumb.css": "./src/breadcrumb.css",
+    "./style.css": "./dist/style.css"
   },
   "files": [
     "src",
     "dist"
   ],
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "./src/index.ts",
+    "./dist/index.js"
   ],
   "license": "MIT",
   "author": "Cujuju",

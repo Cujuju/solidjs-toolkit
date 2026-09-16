@@ -12,14 +12,17 @@
       "solid": "./src/index.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./src/chip-flyout.css"
+    "./styles.css": "./src/chip-flyout.css",
+    "./style.css": "./dist/style.css"
   },
   "files": [
     "src",
     "dist"
   ],
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "./src/index.ts",
+    "./dist/index.js"
   ],
   "license": "MIT",
   "author": "Cujuju",

@@ -33,6 +33,23 @@ pnpm add @cujuju/solidjs-pill-toggle
 
 Each package declares `solid-js >=1.7.0` as a peer dependency. `anchored-popover` and `editable-list-row` additionally peer-depend on `@cujuju/solidjs-hooks ^2.0.0`; `editable-list-flyout` peer-depends on `@cujuju/solidjs-anchored-popover`, `@cujuju/solidjs-editable-list-row`, and `@cujuju/solidjs-hooks`. `glass-menu` peer-depends on `@cujuju/solidjs-glass`; `chip-flyout` peer-depends on `@cujuju/solidjs-glass-menu`, `@cujuju/solidjs-tri-state-chip`, and `@cujuju/solidjs-hooks`; `context-menu` peer-depends on `@cujuju/solidjs-glass-menu` and `@cujuju/solidjs-hooks`; `select-flyout` peer-depends on `@cujuju/solidjs-anchored-popover`, `@cujuju/solidjs-glass-menu`, and `@cujuju/solidjs-hooks`; `pill-date-picker` peer-depends on `@cujuju/solidjs-kv-tooltip`; `accordion-dock` peer-depends on `@cujuju/solidjs-anchored-popover`, `@cujuju/solidjs-context-menu`, `@cujuju/solidjs-hooks`, and `@cujuju/solid-reorder-list >=0.3.0-rc.4`.
 
+## Styles
+
+Every package that ships CSS registers it as an import side effect, so `import { X } from
+'@cujuju/solidjs-<pkg>'` is enough — under the `solid` condition through `src/index.ts`, under the
+`import` condition through `dist/index.js`, which imports the extracted `dist/style.css`.
+
+That makes the published entry a CSS-importing module: load it with a bundler or another CSS-aware
+loader. Plain Node and SSR runtimes throw `ERR_UNKNOWN_FILE_EXTENSION` on `.css` — build the server
+entry with a bundler that inlines this package, or externalize `.css` in that build.
+
+Each sheet is also exported on its own subpath for hosts that order CSS explicitly: each source sheet
+under its own file name (see the package's `exports`) and the built aggregate
+(`@cujuju/solidjs-<pkg>/style.css`). The aggregate resolves only after that package has been built — published tarballs
+ship `dist/`, but a workspace consumer must run `pnpm -r build` first. It also merges every sheet the
+package contains, including ones whose component the consumer tree-shakes away, so it is larger than
+what the `solid` condition emits.
+
 ## Develop
 
 ```sh

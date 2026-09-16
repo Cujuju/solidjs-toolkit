@@ -12,14 +12,17 @@
       "solid": "./src/index.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./src/select-flyout.css"
+    "./styles.css": "./src/select-flyout.css",
+    "./style.css": "./dist/style.css"
   },
   "files": [
     "src",
     "dist"
   ],
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "./src/index.ts",
+    "./dist/index.js"
   ],
   "license": "MIT",
   "author": "Cujuju",

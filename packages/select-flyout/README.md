@@ -106,7 +106,7 @@ as `@cujuju/solidjs-select-flyout/style.css`). To order it explicitly,
 import it once:
 
 ```ts
-import '@cujuju/solidjs-select-flyout/styles.css';
+import '@cujuju/solidjs-select-flyout/style.css';
 ```
 
 The `.glass-menu` surface is themed through `@cujuju/solidjs-glass`
