@@ -1,15 +1,6 @@
 /**
- * Pop-out placement — pure geometry, no DOM.
- *
- * The collapsed picker expands into a panel that must ESCAPE its ancestors: a
- * consumer's row is very often inside something with `overflow: hidden` or
- * `overflow-y: auto`, which clips an absolutely-positioned child dead. The panel
- * is therefore rendered through a Portal and positioned in VIEWPORT coordinates
- * (`position: fixed`), which is why this math takes a viewport and not a
- * containing block.
- *
- * Kept separate from the component because it is the only part of the pop-out
- * with a right and a wrong answer, and it can be tested without a DOM.
+ * Pop-out placement — pure geometry, no DOM. The panel is portalled and positioned in VIEWPORT
+ * coordinates so it escapes any clipping ancestor.
  */
 
 export interface PopoutRect {
@@ -38,16 +29,8 @@ export const POPOUT_VIEWPORT_MARGIN_PX = 4;
 export const POPOUT_DEFAULT_GAP_PX = 4;
 
 /**
- * Where to put the panel, given where the anchor is.
- *
- * PREFERS ABOVE. That is deliberate and not symmetric: the anchor is a value the
- * user just clicked, and a panel below it would cover the rows *after* it — in a
- * list of legs that is the next leg, i.e. the thing they are most likely to click
- * next. Opening upward covers rows they have already dealt with.
- *
- * Flips below only when there is genuinely not enough room above, and if NEITHER
- * side fits, takes the side with more room and clamps — a panel with its top edge
- * off-screen is unusable, whereas a clipped bottom edge still shows the controls.
+ * Where to put the panel. PREFERS ABOVE: a panel below would cover the rows after the anchor,
+ * which is what the user is most likely to click next.
  */
 export function resolvePopoutPosition(
   anchor: PopoutRect,
@@ -78,9 +61,8 @@ export function resolvePopoutPosition(
   );
   const top = Math.min(Math.max(rawTop, POPOUT_VIEWPORT_MARGIN_PX), maxTop);
 
-  // Left-align to the anchor, then clamp into the viewport. A panel is wider than
-  // its anchor (it carries the +/- the anchor was hiding), so an anchor near the
-  // right edge would otherwise push the panel off-screen.
+  // Left-align to the anchor, then clamp into the viewport: a panel is wider than its
+    // anchor, so one near the right edge would otherwise run off-screen.
   const maxLeft = Math.max(
     POPOUT_VIEWPORT_MARGIN_PX,
     viewport.width - panel.width - POPOUT_VIEWPORT_MARGIN_PX,

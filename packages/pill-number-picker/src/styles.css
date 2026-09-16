@@ -10,12 +10,8 @@
     --pnp-suffix-color: #64748b;
     --pnp-radius: 9999px;
     --pnp-disabled-opacity: 0.3;
-    /* Thin INSET focus ring (note the negative offset) drawn just inside the
-       control's border, so it follows the pill's radius and never draws the
-       detached halo the old 2px/+2px version did — which crossed the pop-out
-       and sat on the adjacent stepper. Coloured as a LIGHTENED version of the
-       control's own border rather than a fixed accent, so it reads as part of
-       the pill. Override `--pnp-focus-ring-color` for a brighter ring. */
+    /* Thin INSET focus ring (note the negative offset), so it follows the pill's radius
+           instead of the detached halo the old 2px version drew across the pop-out. */
     --pnp-focus-ring-color: color-mix(in srgb, var(--pnp-border) 45%, #fff);
     --pnp-focus-ring: 1px solid var(--pnp-focus-ring-color);
     --pnp-focus-ring-offset: -1px;
@@ -23,10 +19,8 @@
     --pnp-btn-hover-bg: rgba(255, 255, 255, 0.06);
     --pnp-btn-hover-text: #e2e8f0;
     --pnp-btn-active-bg: rgba(255, 255, 255, 0.12);
-    /* Disabled glyph colour: the muted text faded toward the surface by
-       `--pnp-disabled-opacity`. Derived rather than hard-coded so a consumer
-       that retints `--pnp-text-muted` / `--pnp-bg` keeps a coherent disabled
-       state, and so the existing opacity token still controls the amount. */
+    /* Disabled glyph colour, derived rather than hard-coded so a consumer retinting
+           `--pnp-text-muted` / `--pnp-bg` keeps a coherent disabled state. */
     --pnp-btn-disabled-text: color-mix(
       in srgb,
       var(--pnp-text-muted) calc(var(--pnp-disabled-opacity) * 100%),
@@ -120,14 +114,8 @@
   background: var(--pnp-btn-active-bg);
 }
 
-/* Disabled dims the FOREGROUND, never the element.
-   `opacity` on the element dims its background too, so a disabled button
-   becomes see-through — harmless inline (the page behind it is the same card)
-   but wrong in the portalled pop-out, where whatever the panel floats over
-   shows straight through the button. The mix keeps `--pnp-disabled-opacity`
-   meaningful (it is still "how faded", 0..1) while the button stays opaque:
-   the glyph is blended toward the surface colour instead of the surface being
-   made translucent. */
+/* Disabled dims the FOREGROUND, never the element: `opacity` would dim the background
+   too, and in the portalled pop-out whatever it floats over shows through. */
 .cpnp-btn:disabled {
   color: var(--pnp-btn-disabled-text);
   cursor: not-allowed;
@@ -243,13 +231,8 @@
 /* ──────────────────────────────────────────────────────────────
    Collapse + pop-out (`collapsible`).
 
-   Collapsed, the picker is the value cell alone. Because it is then a
-   :first-child AND a :last-child of .cpnp-items, the existing corner rules
-   round BOTH ends of it for free — it reads as a complete pill, not as a
-   control with its buttons torn off.
-
-   The panel is portalled to <body> and positioned in viewport coords by the
-   component, so it escapes any overflow:hidden / overflow-y:auto ancestor.
+   Collapsed, the picker is the value cell alone — :first-child AND :last-child, so the
+   existing corner rules round both ends for free. The panel is portalled to <body>.
    ────────────────────────────────────────────────────────────── */
 
 @layer cujuju-defaults {
@@ -257,13 +240,8 @@
     --pnp-popout-z: 1000;
     --pnp-popout-pad: 0px;
     --pnp-popout-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-    /* The panel must paint its OWN surface. It is portalled to <body> and
-       floats over arbitrary page content, so any pixel it does not paint —
-       the corner slivers left by its radius, any `--pnp-popout-pad` gutter,
-       and anything showing through a translucent child — is page bleed. A
-       box-shadow without a background is a contradiction: the shadow claims
-       a surface that was never drawn. Mirrors `--pdp-popout-bg/-border` in
-       pill-date-picker, which already got this right. */
+    /* The panel paints its OWN surface: portalled over arbitrary content, any pixel it
+               does not paint is page bleed. */
     --pnp-popout-bg: var(--pnp-bg);
   }
 }
@@ -275,11 +253,8 @@
   white-space: nowrap;
 }
 
-/* Open: the anchor is a layout placeholder for the row. Dimmed, because the
-   live control is the panel floating above it — two identical numbers at equal
-   weight would be a puzzle. Tokenized: a consumer whose anchor stays a LIVE
-   readout during the session (commit:'change' publishes every step, so the
-   anchor keeps updating) can soften the dim without overriding the rule. */
+/* Open: the anchor is a layout placeholder, dimmed because the live control is the
+   panel above it. Tokenized so a consumer whose anchor stays live can soften it. */
 .cpnp-root[data-collapsible][data-open] .cpnp-anchor .cpnp-value {
   opacity: var(--pnp-open-anchor-opacity, 0.45);
 }
@@ -288,10 +263,8 @@
   z-index: var(--pnp-popout-z);
   padding: var(--pnp-popout-pad);
   border-radius: var(--pnp-radius);
-  /* Surface only, no border: with `--pnp-popout-pad: 0` the children sit flush
-     to the panel edge and already carry their own 1px borders, so a panel
-     border would double that edge — and it would grow the measured panel box
-     the pop-out positioner aligns against. */
+  /* Surface only, no border: children sit flush and carry their own 1px borders, so a
+       panel border would double that edge and grow the measured box. */
   background: var(--pnp-popout-bg);
   box-shadow: var(--pnp-popout-shadow);
   /* The panel is its own layer; it must not inherit a clipped/parent stacking

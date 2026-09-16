@@ -1,12 +1,6 @@
 /**
- * `excludeZero` — 0 is not a legal value; the picker never emits it.
- *
- * The consumer that motivated it (a SIGNED order-quantity field, +N long /
- * −N short) treats the sign as a semantic axis and zero as a non-entity:
- * stepping across zero must FLIP to the other sign in one step, and a typed
- * 0 must resolve to the smallest step on the current side.
- *
- * Rendered with solid-js/web + manual dispose — see collapse.test.tsx's note.
+ * `excludeZero` — 0 is not legal. Stepping across zero flips sign in one step; a typed 0
+ * resolves to the nearest step.
  */
 
 import { describe, it, expect, afterEach } from 'vitest';

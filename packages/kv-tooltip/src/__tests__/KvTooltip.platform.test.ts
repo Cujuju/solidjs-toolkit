@@ -224,9 +224,8 @@ describe('Escape (the layering contract)', () => {
   }
 
   it('marks the key CONSUMED when it actually hid a visible panel', () => {
-    // The shown tooltip is the top of the shared Escape stack: it hides alone, so the menu
-    // (an AnchoredPopover opened first) survives.
-    // AnchoredPopover needs the Popover API; stubbed for this case only (jsdom has none).
+    // The shown tooltip tops the shared Escape stack, so it hides alone and the menu
+        // survives. AnchoredPopover needs the Popover API; stubbed for this case only.
     const proto = HTMLElement.prototype as Partial<Record<'showPopover' | 'hidePopover', () => void>>;
     proto.showPopover = () => {};
     proto.hidePopover = () => {};

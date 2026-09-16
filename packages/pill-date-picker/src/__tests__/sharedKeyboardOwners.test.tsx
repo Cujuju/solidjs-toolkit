@@ -1,7 +1,6 @@
 /**
- * One keyboard-owner stack across packages: each picker binds Escape to the DOCUMENT, and a
- * per-module stack let one Escape close both pop-outs. `createEscapeOwner` holds the stack on
- * `globalThis`, so separately bundled copies share it.
+ * One keyboard-owner stack across packages. `createEscapeOwner` holds it on `globalThis`, so
+ * separately bundled copies share one stack.
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';

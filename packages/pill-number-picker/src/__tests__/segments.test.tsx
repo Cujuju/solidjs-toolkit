@@ -1,20 +1,7 @@
 /**
- * CUSTOM SEGMENTS (`segments`) — and the built-in reset (`resetTo`) that is
- * sugar over the same contract.
+ * CUSTOM SEGMENTS, and the `resetTo` that is sugar over the same contract.
  *
- * The contract under test:
- *  - descriptors render as `.cpnp-btn` row members, `data-pos="seg-<key>"`,
- *    in [start…][layout parts][end…][reset] order;
- *  - `onSelect` receives a session-aware api: `setValue` publishes through the
- *    picker's own channel (clamped, excludeZero-resolved, silent inside a
- *    'finish' session), `commit`/`cancel` end an open session;
- *  - the `disabled` predicate tracks the current value reactively;
- *  - `resetTo` renders through the SAME path (key 'reset', outermost-last,
- *    disabled at target) — it had no coverage of its own before this file.
- *
- * Rendered with solid-js/web + manual dispose — NOT @solidjs/testing-library.
- * See the note at the top of collapse.test.tsx: it resolves a second Solid
- * instance and the component's <Portal> then outlives the harness's teardown.
+ * solid-js/web + manual dispose — see the note atop collapse.test.tsx.
  */
 
 import { describe, it, expect, afterEach } from 'vitest';

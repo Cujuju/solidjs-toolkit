@@ -600,8 +600,8 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
 
   let panelEl: HTMLElement | undefined;
   /**
-   * Escape dismisses a visible panel (WAI-ARIA). A tooltip shown over an open menu is above it on
-   * the shared stack, so it hides alone; `transparent` leaves the menu its other keys.
+   * Escape dismisses a visible panel (WAI-ARIA). A tooltip over an open menu sits above it on
+   * the shared stack, so it hides alone.
    */
   createEscapeOwner({
     open: panelOnScreen,

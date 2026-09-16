@@ -565,7 +565,7 @@ describe('closing while the editor holds typed text', () => {
   });
 
   // The mirror image: a consumer that never lowers `open` keeps the panel alive after a
-  // commit, so the editor can be re-opened. That later blur is NOT a close — it publishes.
+    // commit. That later blur is NOT a close — it publishes.
   it('a consumer that ignores onOpenChange still publishes text typed after a commit', () => {
     const changes: number[] = [];
     const [v, setV] = createSignal(5);

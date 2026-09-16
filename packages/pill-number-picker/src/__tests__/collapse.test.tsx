@@ -1,17 +1,8 @@
 /**
  * Collapse + pop-out — the BEHAVIOUR, not the geometry.
  *
- * `popout.test.ts` proves the placement math. It cannot prove the things that actually
- * break: that a collapsed picker hides its buttons, that expanding escapes a clipping
- * ancestor, that the resting state still steps, that the thing can be dismissed.
- *
- * Rendered with `render` from `solid-js/web` and disposed by hand — the toolkit's own
- * pattern (see ContextMenu.test.tsx, AnchoredPopover.test.tsx). NOT
- * `@solidjs/testing-library`: it resolves its own copy of Solid, and two Solid instances
- * means two ownership graphs — its `cleanup()` disposes the root IT created while the
- * component's <Portal> belongs to the other one, so pop-outs survive teardown and the
- * next test silently queries a stale panel. (Diagnosed the hard way: an assertion that
- * looked like a component leak was the harness all along.)
+ * solid-js/web + manual dispose: `@solidjs/testing-library` resolves a second Solid instance,
+ * so Portals outlive its teardown.
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
@@ -118,9 +109,8 @@ describe('collapsible', () => {
   });
 
   it('the +/- inside the pop-out actually change the value', () => {
-    // Opening puts the value cell into edit mode, so the live value is the INPUT's value,
-    // not a span's text. The anchor mirrors it — a stale number under an open panel would
-    // be a lie about what pressing Enter is about to commit.
+    // Opening puts the value cell into edit mode, so the live value is the INPUT's. The
+        // anchor mirrors it — a stale number would misstate what Enter is about to commit.
     const c = mount(() => <Harness collapsible initial={3} />);
     click(spinbuttons(c)[0]);
     const [inc, dec] = buttonsIn(panel());
@@ -137,9 +127,8 @@ describe('collapsible', () => {
   });
 
   it('PORTALS the pop-out out of the root — the reason the feature works at all', () => {
-    // An in-flow expansion is clipped dead by any overflow:hidden / overflow-y:auto
-    // ancestor, which is exactly the dense layout this exists for. The panel must not be
-    // a descendant of the picker's root.
+    // An in-flow expansion is clipped dead by any overflow ancestor, which is the dense
+        // layout this exists for. The panel must not descend from the picker's root.
     const c = mount(() => (
       <div style={{ overflow: 'hidden', width: '40px' }}>
         <Harness collapsible />

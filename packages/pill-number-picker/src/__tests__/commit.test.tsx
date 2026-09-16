@@ -1,17 +1,7 @@
 /**
- * The editing SESSION — commit / cancel, and the two commit modes.
+ * The editing SESSION — commit, cancel, and the two commit modes.
  *
- * A session begins when the collapsed pill is clicked (the editor opens) and ends on a
- * COMMIT (Enter, or clicking the pill again) or a CANCEL (Escape, or an outside press).
- *
- * `commit: 'change'` publishes every step as it happens (the historical behaviour).
- * `commit: 'finish'` steps a local draft and publishes ONLY on commit — for a consumer
- * where every intermediate value costs something real (a request, a reprice), being told
- * about values the user never settled on is not noise, it is wrong.
- *
- * Rendered with solid-js/web + manual dispose — NOT @solidjs/testing-library. See the
- * note at the top of collapse.test.tsx: it resolves a second Solid instance and the
- * component's <Portal> then outlives the harness's teardown.
+ * solid-js/web + manual dispose — see the note atop collapse.test.tsx.
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
@@ -51,9 +41,8 @@ const typeInto = (input: HTMLInputElement, text: string) => {
   input.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
-/** Records everything the component published, so a test can assert on the WHOLE stream —
- *  "did it stay silent" is the entire point of 'finish' mode and a final-value check
- *  cannot see it. */
+/** Records everything published, so a test can assert the WHOLE stream — "did it stay
+ *  silent" is the point of 'finish' mode, and a final-value check cannot see it. */
 interface Log {
   changes: number[];
   commits: number[];
@@ -86,8 +75,8 @@ function harness(opts: {
 
 describe('editing session — opening', () => {
   it('clicking the collapsed pill opens the EDITOR, focused and selected', () => {
-    // "Click to open the editor" — the text field must be live immediately, or the user
-    // has to click a second time to type, which is the tax this design exists to remove.
+    // "Click to open the editor" — the field must be live immediately, or the user clicks
+        // twice to type, which is the tax this design removes.
     const { host } = harness({});
     click(anchorValue(host));
     expect(panel()).not.toBeNull();
@@ -113,11 +102,8 @@ describe('editing session — opening', () => {
   });
 
   it('REGRESSION: typing a value and pressing Enter publishes it (plain, non-collapsible)', () => {
-    // This was BROKEN in the shipped 0.1.0 and nothing caught it, because the package had
-    // no DOM tests at all. `commitDraft` called setEditing(false) BEFORE reading the
-    // draft, which re-armed the "not editing → resync the draft from the value" effect and
-    // overwrote the typed text with the old value before it could be parsed. Typing 42 and
-    // pressing Enter silently left you on 5.
+    // BROKEN in shipped 0.1.0, uncaught because the package had no DOM tests: `commitDraft`
+        // cleared editing before reading the draft, so the resync overwrote the typed text.
     const log: Log = { changes: [], commits: [], cancels: [] };
     const [v, setV] = createSignal(5);
     const host = mount(() => (
