@@ -1,18 +1,3 @@
-import { defineConfig } from 'vitest/config';
-import solid from 'vite-plugin-solid';
+import { libTest } from '../_shared/vitest.base.config';
 
-export default defineConfig({
-  plugins: [solid()],
-  resolve: {
-    conditions: ['development', 'browser'],
-  },
-  test: {
-    environment: 'jsdom',
-    include: ['src/__tests__/**/*.test.{ts,tsx}'],
-    server: {
-      deps: {
-        inline: ['solid-js'],
-      },
-    },
-  },
-});
+export default libTest(__dirname);

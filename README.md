@@ -58,6 +58,12 @@ pnpm -r build
 pnpm -r test
 ```
 
+Build order: dependents typecheck against their sibling packages' `dist/` types (every package's `types`
+export points at `dist/`), so in a fresh checkout run `pnpm -r build` before `tsc`.
+
+Tests: every `packages/*/vitest.config.ts` is `libTest(__dirname, overrides?)` from
+[`packages/_shared/vitest.base.config.ts`](packages/_shared/vitest.base.config.ts).
+
 See [`packages/_shared/CONTRIBUTING.md`](packages/_shared/CONTRIBUTING.md) for package conventions.
 
 ## License

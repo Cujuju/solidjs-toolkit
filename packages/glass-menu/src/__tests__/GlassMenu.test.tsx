@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createSignal } from 'solid-js';
-import { render, fireEvent } from '@solidjs/testing-library';
+import { createSignal, onCleanup } from 'solid-js';
+import { render, fireEvent, cleanup } from '@solidjs/testing-library';
 import { GlassMenu } from '../GlassMenu';
 
 describe('GlassMenu', () => {
@@ -194,5 +194,24 @@ describe('GlassMenu', () => {
     expect(header.classList.contains('cujuju-glass-menu-header--flush')).toBe(
       true,
     );
+  });
+});
+
+describe('GlassMenu — harness teardown', () => {
+  // Guards the testing-library inline in the vitest base config: a second Solid instance
+  // leaves the component undisposed, so its cleanups never run.
+  it('cleanup() disposes the rendered menu and its children', () => {
+    const disposed = vi.fn();
+    const Probe = () => {
+      onCleanup(disposed);
+      return <span>probe</span>;
+    };
+    render(() => (
+      <GlassMenu title="T">
+        <Probe />
+      </GlassMenu>
+    ));
+    cleanup();
+    expect(disposed).toHaveBeenCalledTimes(1);
   });
 });

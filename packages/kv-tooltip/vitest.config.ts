@@ -1,19 +1,8 @@
-import { defineConfig } from 'vitest/config';
-import solid from 'vite-plugin-solid';
+import { libTest } from '../_shared/vitest.base.config';
 
-// Pure-helper tests run in node; integration tests mount JSX in jsdom.
-export default defineConfig({
-  plugins: [solid()],
-  resolve: {
-    conditions: ['solid', 'development', 'browser'],
-  },
+// Pure-helper and integration tests both run in jsdom (base config).
+export default libTest(__dirname, {
   test: {
-    environment: 'jsdom',
     include: ['src/__tests__/**/*.test.ts'],
-    server: {
-      deps: {
-        inline: ['solid-js'],
-      },
-    },
   },
 });

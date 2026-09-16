@@ -1,20 +1,8 @@
-import { defineConfig } from 'vitest/config';
-import solid from 'vite-plugin-solid';
+import { libTest } from '../_shared/vitest.base.config';
 
-export default defineConfig({
-  plugins: [solid()],
-  resolve: {
-    conditions: ['development', 'browser'],
-  },
+// Base `css: true`: Vitest stubs .css to empty by default; styles.contract.test.ts reads styles.css as text.
+export default libTest(__dirname, {
   test: {
-    environment: 'jsdom',
-    // Vitest stubs .css to empty by default; styles.contract.test.ts reads styles.css as text.
-    css: true,
     include: ['src/__tests__/**/*.test.ts'],
-    server: {
-      deps: {
-        inline: ['solid-js'],
-      },
-    },
   },
 });
