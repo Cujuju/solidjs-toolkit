@@ -81,6 +81,10 @@ const [theme, setTheme] = createLocalStorage('theme', 'dark');
 setTheme('light');
 ```
 
+`set(undefined)` — or a value `JSON.stringify` turns into `undefined`, such as a symbol or a
+function — removes the key, so the next load falls back to `defaultValue`. A BigInt or circular
+structure throws out of `set` instead. `null` serializes to `"null"` and round-trips.
+
 ### `createPersistedSet<T>(key, options?)`
 
 `Set<T>` backed by localStorage. Defaults to `Set<string>`.

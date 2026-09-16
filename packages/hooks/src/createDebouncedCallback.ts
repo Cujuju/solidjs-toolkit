@@ -1,15 +1,8 @@
 import { createSignal, onCleanup, type Accessor } from 'solid-js';
 
 /**
- * Wraps `fn` so each call resets a pending invocation; `fn` fires once after
- * `ms` ms of no further calls. Pending calls are cancelled on dispose.
- *
- * Returns an object with the debounced function, manual controls, and a
- * reactive `isPending` accessor for "saving…" indicators and similar UX.
- *
- * `isPending` is true between a `call()` and the firing of `fn` (or the
- * intervening `cancel()` / `flush()`). It flips back to false even if `fn`
- * throws — the pending state describes scheduling, not the in-flight call.
+ * Trailing debounce of `fn`, cancelled on dispose. `isPending` spans call to fire/cancel/flush,
+ * and clears even if `fn` throws.
  */
 export function createDebouncedCallback<A extends unknown[]>(
   fn: (...args: A) => void,

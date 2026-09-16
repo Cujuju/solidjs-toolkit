@@ -1,12 +1,4 @@
-/**
- * localStorage read/write primitives that swallow errors (SSR, disabled
- * storage, quota exceeded, corrupted JSON) and fall back to a default.
- *
- * All hooks in this package that touch localStorage go through these
- * helpers so error-handling policy lives in one place. If we ever want
- * to log errors, add a storage-event listener for cross-tab sync, or
- * switch to a different storage backend, only this file changes.
- */
+/** localStorage primitives that swallow errors (SSR, disabled, quota, bad JSON); all storage access goes through here. */
 
 /**
  * Reads a stored value. If the key is missing, storage is unavailable,
@@ -37,5 +29,18 @@ export function safeStorageWrite(key: string, raw: string): void {
     localStorage.setItem(key, raw);
   } catch {
     // quota or unavailable — silent
+  }
+}
+
+/**
+ * Removes a stored value. Silent on SSR / unavailable storage.
+ * Does not throw.
+ */
+export function safeStorageRemove(key: string): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // unavailable — silent
   }
 }

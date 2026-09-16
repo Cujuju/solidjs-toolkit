@@ -15,17 +15,8 @@ export interface CreatePersistedSetReturn<T> {
 }
 
 /**
- * A `Set<T>` backed by localStorage. Defaults to `Set<string>` with identity serialization.
- * The full set is persisted on every mutation.
- *
- * @example
- *   const expanded = createPersistedSet<string>('myapp:expanded');
- *   expanded.toggle('panel-1');
- *
- *   const selectedIds = createPersistedSet<number>('myapp:selected', {
- *     serialize: String,
- *     deserialize: Number,
- *   });
+ * A `Set<T>` in localStorage, persisted in full on every mutation. Pass
+ * `serialize`/`deserialize` for non-string `T`.
  */
 export function createPersistedSet<T = string>(
   storageKey: string,
@@ -37,13 +28,13 @@ export function createPersistedSet<T = string>(
   const [set, setSet] = createSignal<Set<T>>(
     safeStorageRead(
       storageKey,
-      (raw) => new Set((JSON.parse(raw) as string[]).map(deserialize)),
+      (raw) => new Set((JSON.parse(raw) as string[]).map((s) => deserialize(s))),
       new Set<T>(),
     ),
   );
 
   const persist = (next: Set<T>): void => {
-    safeStorageWrite(storageKey, JSON.stringify([...next].map(serialize)));
+    safeStorageWrite(storageKey, JSON.stringify([...next].map((v) => serialize(v))));
   };
 
   const toggle = (value: T): void => {

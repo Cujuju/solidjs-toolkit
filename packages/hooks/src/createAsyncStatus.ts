@@ -17,14 +17,7 @@ export interface CreateAsyncStatusReturn<T, A extends unknown[]> {
   reset: () => void;
 }
 
-/**
- * State machine for async actions with a timed auto-reset. Cycles:
- *   idle → loading → done → (after resetMs) idle
- *   idle → loading → error → (after resetMs if resetOnError) idle
- *
- * Useful for buttons that show a brief "done" / "error" state before
- * returning to their default look.
- */
+/** Async action state: idle → loading → done/error → idle after `resetMs` (error only if `resetOnError`). */
 export function createAsyncStatus<T, A extends unknown[] = unknown[]>(
   fn: (...args: A) => Promise<T>,
   options: CreateAsyncStatusOptions = {},

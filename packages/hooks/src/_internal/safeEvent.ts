@@ -1,14 +1,8 @@
 import { onCleanup } from 'solid-js';
 
 /**
- * SSR-safe DOM event listener registration. No-ops on server render
- * (where `window` is undefined or `target` is null). On client, registers
- * the listener and hooks its removal into the current reactive scope's
- * cleanup — no manual `onCleanup` needed at the caller.
- *
- * This is the primitive every DOM-touching hook in this package uses so
- * we get one SSR strategy, one cleanup contract. No hook below this
- * file should call `addEventListener` directly; adding one is a bug.
+ * SSR-safe listener: no-op without `window` or `target`; removal hooks into the reactive scope's
+ * cleanup. Every DOM hook here must use it, never `addEventListener`.
  */
 export function safeAddEventListener(
   target: EventTarget | null | undefined,

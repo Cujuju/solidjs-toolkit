@@ -130,10 +130,7 @@ describe('createDebouncedCallback', () => {
         const { call, isPending } = createDebouncedCallback(fn, 100);
         call('a');
         expect(isPending()).toBe(true);
-        // Timer fires inside this advance; fn throws; finally runs setPending(false).
-        // The throw escapes the timer callback (uncaught in the timer queue) — vitest
-        // surfaces it via the timer's runner; we catch any error so the test framework
-        // doesn't fail on the rethrow, then assert the finally still ran.
+        // fn throws inside the advance; catch the rethrow and assert finally still cleared isPending.
         try { vi.advanceTimersByTime(100); } catch { /* expected: thrown by fn */ }
         expect(fn).toHaveBeenCalled();
         expect(isPending()).toBe(false);

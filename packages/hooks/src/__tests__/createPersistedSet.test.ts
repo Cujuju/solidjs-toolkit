@@ -72,6 +72,26 @@ describe('createPersistedSet', () => {
     });
   });
 
+  it('calls deserialize with exactly one argument', () => {
+    localStorage.setItem(KEY, JSON.stringify(['8', '9', '10']));
+    createRoot(() => {
+      const s = createPersistedSet<number>(KEY, { deserialize: parseInt });
+      expect([...s.set()]).toEqual([8, 9, 10]);
+    });
+  });
+
+  it('calls serialize with exactly one argument', () => {
+    createRoot(() => {
+      const s = createPersistedSet<number>(KEY, {
+        serialize: (v: number, width?: number) => String(v).padStart(width ?? 0, '0'),
+      });
+      s.add(1);
+      s.add(2);
+      s.add(3);
+      expect(localStorage.getItem(KEY)).toBe(JSON.stringify(['1', '2', '3']));
+    });
+  });
+
   it('supports custom serializers for non-string types', () => {
     createRoot(() => {
       const s = createPersistedSet<number>(KEY, {

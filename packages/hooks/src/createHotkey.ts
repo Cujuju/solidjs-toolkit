@@ -17,15 +17,8 @@ interface ParsedCombo {
 }
 
 /**
- * Aliases for keys whose `KeyboardEvent.key` value differs from common user
- * vocabulary. Each value matches a real `KeyboardEvent.key` per W3C UI Events.
- *
- *   'space' → ' '   — KeyboardEvent.key for space is literally a single space character.
- *   'plus'  → '+'   — '+' is the combo separator in this hook's syntax, so a literal
- *                     plus key can only be expressed via this alias.
- *
- * Aliases are additive: direct names like 'arrowup' / 'enter' / 'escape' continue
- * to work unchanged.
+ * Aliases for keys whose `KeyboardEvent.key` differs from common names: space is ' ', and '+' is
+ * the combo separator. Direct names still work.
  */
 const KEY_ALIASES: Record<string, string> = {
   up: 'arrowup',
@@ -38,9 +31,7 @@ const KEY_ALIASES: Record<string, string> = {
   plus: '+',
 };
 
-// Parse 'ctrl+shift+k' / 'shift+?' / 'escape' into modifier flags + key.
-// Case-insensitive, modifier order irrelevant. 'cmd' aliases 'meta', 'option' aliases 'alt'.
-// Key aliases (see KEY_ALIASES above) are applied so 'up' / 'esc' / 'space' / etc. work.
+// Case-insensitive, any modifier order; 'cmd' → 'meta', 'option' → 'alt', plus KEY_ALIASES.
 function parseCombo(combo: string): ParsedCombo {
   const parts = combo
     .toLowerCase()
@@ -70,15 +61,8 @@ function matchesCombo(e: KeyboardEvent, combo: ParsedCombo): boolean {
 }
 
 /**
- * Fires `handler` when the given keyboard combo is pressed.
- *
- * Combo syntax: modifiers (`ctrl`, `shift`, `alt`, `meta`) separated by `+`, then the key.
- * Case-insensitive. Modifier order irrelevant. `cmd`/`command` alias `meta`; `option` aliases `alt`.
- *
- * @example
- *   createHotkey('ctrl+k', () => openSearch());
- *   createHotkey('shift+?', () => showHelp());
- *   createHotkey('escape', () => close(), { enabled: () => modalOpen() });
+ * Fires `handler` on a combo like `'ctrl+k'` or `'shift+?'`: case-insensitive modifiers joined
+ * by `+`; `cmd` aliases `meta`, `option` aliases `alt`.
  */
 export function createHotkey(
   combo: string,

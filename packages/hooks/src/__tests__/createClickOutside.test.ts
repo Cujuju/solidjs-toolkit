@@ -4,11 +4,8 @@ import { createClickOutside } from '../createClickOutside';
 import { contains } from '../contains';
 
 /**
- * Dispatch a pointerdown on `el`. happy-dom Event constructor sets
- * `timeStamp = performance.now()`, so events created here are stamped *after*
- * any prior `createClickOutside` attach (which captures `performance.now()` at
- * its own attach time). That gives the timestamp-suppression mechanism real
- * monotonic timestamps to compare against.
+ * happy-dom stamps `timeStamp = performance.now()` at construction, so these events postdate the
+ * hook's attach time, exercising timestamp suppression.
  */
 const firePointerDown = (el: EventTarget): void => {
   el.dispatchEvent(new Event('pointerdown', { bubbles: true }));

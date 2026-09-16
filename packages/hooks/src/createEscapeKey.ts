@@ -6,12 +6,7 @@ export interface CreateEscapeKeyOptions {
   enabled?: Accessor<boolean>;
 }
 
-/**
- * Fires `handler` on Escape keydown while enabled.
- *
- * @param handler - Callback fired on Escape keydown.
- * @param options - Options object (convention: `enabled` gate lives here).
- */
+/** Fires `handler` on Escape keydown while enabled. */
 export function createEscapeKey(
   handler: (e: KeyboardEvent) => void,
   options: CreateEscapeKeyOptions = {},

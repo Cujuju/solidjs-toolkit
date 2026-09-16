@@ -2,9 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
 import { createDebounce } from '../createDebounce';
 
-// Fake timers interact oddly with Solid's reactive scheduler. The trick that
-// works reliably: use Promise-based microtask flushing between reactive updates
-// and timer advances. We wrap scenarios in a helper that does this plumbing.
+// Fake timers race Solid's scheduler; flush microtasks between reactive updates and timer advances.
 async function flush(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();

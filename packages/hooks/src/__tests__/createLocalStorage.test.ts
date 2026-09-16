@@ -57,6 +57,39 @@ describe('createLocalStorage', () => {
     });
   });
 
+  it('removes the key when set to undefined instead of storing "undefined"', () => {
+    localStorage.setItem(KEY, JSON.stringify('stored'));
+    createRoot(() => {
+      const [value, setValue] = createLocalStorage<string | undefined>(KEY, 'default');
+      setValue(undefined);
+      expect(value()).toBeUndefined();
+      expect(localStorage.getItem(KEY)).toBeNull();
+    });
+  });
+
+  it('reloads as defaultValue after set(undefined)', () => {
+    createRoot(() => {
+      const [, setValue] = createLocalStorage<string | undefined>(KEY, 'default');
+      setValue(undefined);
+    });
+    createRoot(() => {
+      const [value] = createLocalStorage<string | undefined>(KEY, 'default');
+      expect(value()).toBe('default');
+    });
+  });
+
+  it('round-trips null', () => {
+    createRoot(() => {
+      const [, setValue] = createLocalStorage<string | null>(KEY, 'default');
+      setValue(null);
+    });
+    expect(localStorage.getItem(KEY)).toBe('null');
+    createRoot(() => {
+      const [value] = createLocalStorage<string | null>(KEY, 'default');
+      expect(value()).toBeNull();
+    });
+  });
+
   it('stores complex objects', () => {
     createRoot(() => {
       const [value, setValue] = createLocalStorage<{ a: number; b: string }>(KEY, { a: 0, b: 'x' });

@@ -15,7 +15,6 @@ describe('createAfterPaint', () => {
       dispose = d;
       const schedule = createAfterPaint();
       schedule(fn);
-      // Synchronous: not yet fired.
       expect(fn).not.toHaveBeenCalled();
     });
     await nextFrame();

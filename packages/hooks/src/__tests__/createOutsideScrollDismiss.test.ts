@@ -124,12 +124,8 @@ describe('createOutsideScrollDismiss', () => {
   });
 
   it('suppresses dismiss when shouldSuppress predicate returns true', async () => {
-    // Models the parent panel + Portal'd descendant popover case: both
-    // live as siblings under <body>, so panel.contains(target) is false
-    // for scrolls inside the descendant. The shouldSuppress predicate
-    // (mirroring the click-path's [data-flyout-descendant] / dialog:modal
-    // whitelist) must keep the parent open while the descendant is being
-    // scrolled.
+    // Portal'd descendant is a <body> sibling, so panel.contains is false; shouldSuppress must keep
+    // the parent open while the descendant scrolls.
     const onDismiss = vi.fn();
     const panel = document.createElement('div');
     const descendant = document.createElement('div');
@@ -165,11 +161,8 @@ describe('createOutsideScrollDismiss', () => {
   });
 
   it('does NOT dismiss when panel ref is undefined (mount race guard)', async () => {
-    // Scroll-during-mount race: getOpen() flips true but the JSX hasn't
-    // committed yet so the consumer's panel ref is still null/undefined.
-    // Without this guard a queued scroll event (touchpad fling, mid-
-    // wheel-tick at open time) dismisses the just-opened panel before
-    // the user sees it.
+    // Scroll-during-mount race: open() is true but the panel ref is still unset; a queued scroll
+    // must not dismiss the just-opened panel.
     const onDismiss = vi.fn();
     const outside = document.createElement('div');
     document.body.appendChild(outside);
