@@ -1,22 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * Resize from the KEYBOARD, in a real browser.
- *
- * The engine's arithmetic is unit-tested; what needs a browser is whether the
- * handle can be reached and operated at all. "Is this element focusable" and "did
- * the column actually get wider" are layout questions, and the defect being pinned
- * — a `role="separator"` with no `tabindex` and no key handler — is invisible to
- * every check that does not try to use it.
+ * Resize from the KEYBOARD. The arithmetic is unit-tested; what needs a browser is whether the
+ * handle can be reached and operated — a `role="separator"` with no `tabindex` is invisible
+ * otherwise.
  */
 
 const MULTI_DOCK = '[aria-label="Multi-open group"]';
 
 /**
- * This dock is VERTICAL — panels stack downward, so the boundary slides on y and
- * the keys are Up/Down. Stated once here because every assertion below reads
- * `height`, and reading `width` instead would produce a suite that passes only if
- * the splitter does nothing.
+ * This dock is VERTICAL — the boundary slides on y and the keys are Up/Down. Every assertion
+ * reads `height`; reading `width` would pass only if the splitter did nothing.
  */
 const GROW_KEY = 'ArrowDown';
 const SHRINK_KEY = 'ArrowUp';
@@ -102,25 +96,12 @@ test('the separator announces where it is', async ({ page }) => {
 
 test('the panel follows the pointer DURING a drag, not only on release', async ({ page }) => {
   /*
-   * The risk the preview/commit split introduces, and the only one worth a browser
-   * test.
-   *
-   * Splitting the writer means intermediate sizes take a different path from the
-   * settled one. Wire that path to the wrong place and the drag still ends
-   * correctly — so every end-state assertion passes — while the panel stops moving
-   * under the pointer and jumps at release. That is a wholly different control to
-   * use, and it is invisible to any test that only looks after mouseup.
-   *
-   * (The "one commit per gesture" half is asserted in the unit tests, against a
-   * host that records which writer was called. Counting localStorage writes here
-   * would be vacuous: this group declares no storageKey, so the count is zero
-   * whether the split works or not.)
+   * The risk the preview/commit split introduces: wire the intermediate path wrong and the drag
+   * still ENDS correctly, so every end-state assertion passes while the panel jumps at release.
    */
   const panel = resizedPanel(page);
-  // Scrolled into view FIRST. `page.mouse` takes viewport coordinates, and this
-  // dock sits thousands of pixels down the demo page — pressing at an unscrolled
-  // `boundingBox()` lands on empty space, and the drag silently never starts. The
-  // keyboard tests above never hit this because `.focus()` scrolls on its own.
+  // Scrolled into view FIRST: `page.mouse` takes viewport coordinates, and this dock sits far
+  // down the page, so pressing at an unscrolled `boundingBox()` lands on empty space.
   await splitter(page).scrollIntoViewIfNeeded();
   const before = (await panel.boundingBox())!.height;
 

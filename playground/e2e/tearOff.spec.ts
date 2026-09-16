@@ -1,28 +1,16 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
 /**
- * Tear-off, in a real browser.
- *
- * This suite exists because the jsdom tests CANNOT answer the questions that
- * matter most about this feature. There, `window.open` is a stub returning a
- * hand-built object, the popup "document" is one I constructed, and there is no
- * layout engine — so every assertion about cross-document rendering was really
- * an assertion about my own fake. Here the browser answers:
- *
- *   - does a real popup actually open, and is it same-origin scriptable;
- *   - are the panel's nodes MOVED into it rather than re-created (the entire
- *     premise of the single-Portal design, and the thing that decides whether a
- *     scroll position or an in-flight edit survives);
- *   - does the cloned CSS actually paint there;
- *   - does the popup body keep the frame that `mirrorAttributes` used to wipe.
+ * Tear-off in a real browser. jsdom stubs `window.open` and has no layout, so its cross-document
+ * assertions tested the fake. Here: a real popup, nodes MOVED not re-created, cloned CSS
+ * painting.
  */
 
 const RAIL_DOCK = '[aria-label="Horizontal rail dock"]';
 const PANEL_TITLE = 'Solution Explorer';
 
-/** Marker written onto a live node inside the popup, then looked for back in the
- *  dock. An attribute set from the test is invisible to the framework, so it can
- *  only survive if the ELEMENT survived — which is exactly the claim under test. */
+/** Marker written onto a live node inside the popup, then looked for in the dock. Invisible to
+ *  the framework, so it survives only if the ELEMENT did. */
 const MOVE_TOKEN_ATTR = 'data-e2e-move-token';
 
 function railDock(page: Page): Locator {
@@ -76,14 +64,8 @@ test.describe('tear-off — opening', () => {
   });
 
   test('the popup body keeps the panel FRAME', async ({ page }) => {
-    // Regression, and the reason this suite exists. `syncStyles` mirrors the
-    // opener's root attributes onto the popup, and its reconciliation loop
-    // removed any attribute the opener lacked — including `style`, since a normal
-    // <body> has no inline style. That wiped the frame set moments earlier, so
-    // the panel did not fill its window and the popup document scrolled.
-    //
-    // Asserted on COMPUTED style in a real engine, which is the only place the
-    // question is actually settled.
+    // Regression. `syncStyles` removed any attribute the opener lacked — including `style`, since
+    // a plain <body> has none — wiping the frame set moments earlier. Asserted on COMPUTED style.
     const popup = await openPopup(page, PANEL_TITLE);
     const frame = await popup.evaluate(() => {
       const s = getComputedStyle(document.body);
@@ -112,9 +94,8 @@ test.describe('tear-off — opening', () => {
   });
 
   test('the opener’s stylesheets actually paint there', async ({ page }) => {
-    // jsdom clones style nodes without ever applying them, so the whole
-    // `syncStyles` path was previously unfalsifiable. A padding that resolves to
-    // a real value can only come from the cloned `--acc-content-pad` token.
+    // jsdom clones style nodes without applying them, so `syncStyles` was unfalsifiable there. A
+    // padding that resolves can only come from the cloned `--acc-content-pad`.
     const popup = await openPopup(page, PANEL_TITLE);
     const styled = await popup.evaluate(() => {
       const host = document.querySelector('.readout');
@@ -129,10 +110,8 @@ test.describe('tear-off — opening', () => {
 
 test.describe('tear-off — the nodes are MOVED, not re-created', () => {
   test('a node tagged in the popup comes home to the dock', async ({ page }) => {
-    // THE test. The control's stay-mounted rule, its scroll-position promise and
-    // its in-flight-edit promise all reduce to this one physical claim: docking
-    // re-parents the SAME elements. An attribute written from the test is
-    // invisible to the framework, so it cannot be re-created — only carried.
+    // THE test. The stay-mounted rule, the scroll-position promise and the in-flight-edit promise
+    // all reduce to one claim: docking re-parents the SAME elements.
     const popup = await openPopup(page, PANEL_TITLE);
     await popup
       .getByText('file 1', { exact: true })
@@ -146,16 +125,9 @@ test.describe('tear-off — the nodes are MOVED, not re-created', () => {
   });
 
   test('the whole subtree is carried, not just the element that was tagged', async ({ page }) => {
-    // Tagging every row rules out the one alternative explanation for the test
-    // above — that the framework happened to re-create a single node in a way
-    // that preserved an unknown attribute. A dozen carried tags cannot be a
-    // coincidence.
-    //
-    // Scroll position was the obvious user-facing version of this claim, and it
-    // is deliberately NOT tested: at this card's fixed 360px height the demo
-    // content does not overflow, so the assertion would have been vacuous or
-    // permanently skipped. Node identity is the property that scroll position
-    // would have been standing in for, and it is asserted directly.
+    // Tagging every row rules out the framework re-creating a single node in a way that preserved
+    // an unknown attribute. Scroll position is deliberately not tested: this card's content
+    // never overflows.
     const popup = await openPopup(page, PANEL_TITLE);
     const tagged = await popup.locator('.readout > div').evaluateAll((els, attr) => {
       els.forEach((el, i) => el.setAttribute(attr, `row-${i}`));
@@ -206,18 +178,12 @@ test.describe('tear-off — coming home', () => {
 });
 
 test.describe('tear-off — the opener dying', () => {
-  // A popup outliving its opener still PAINTS, but its reactive graph is gone — a
-  // frozen screenshot that looks live and accepts clicks that do nothing. There
-  // are two distinct ways the opener can die, they run through different code,
-  // and each needs its own test.
+  // A popup outliving its opener still PAINTS, but its reactive graph is gone — a frozen
+  // screenshot that accepts dead clicks. Two distinct death paths, each needing its own test.
 
   test('an SPA route change unmounts the group and takes its popups', async ({ page }) => {
-    // No document unload here — the page swaps a component. Only the group's own
-    // `onCleanup -> dockAll` can catch this, so this is the sole test that
-    // exercises that path.
-    //
-    // Navigating to `#/` would NOT do it: the router resolves an unknown hash to
-    // PAGES[0], which is this very page. It has to be a genuinely different one.
+    // No document unload — the page swaps a component, so only the group's `onCleanup -> dockAll`
+    // catches it. `#/` would not do: the router resolves unknown hashes to this page.
     const popup = await openPopup(page, PANEL_TITLE);
     await page.goto('/#/collapsible');
 

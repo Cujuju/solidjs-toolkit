@@ -1,17 +1,8 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
 /**
- * Auto-hide flyouts, in a real browser.
- *
- * This suite exists because of a bug found BY EYE, in a screenshot, that no test
- * in this repo could have caught: the flying-out panel's docked column stayed in
- * the layout and painted its title bar on top of the flyout floating over it, so
- * the panel's first row was hidden behind a header. jsdom has no layout, so
- * "is anything drawing on top of this" is not a question it can be asked.
- *
- * Every assertion here is therefore GEOMETRIC or COMPUTED — what overlaps what,
- * what actually occupies space, what a click at a point would hit. Those are the
- * only terms in which that class of defect is expressible.
+ * Auto-hide flyouts in a real browser. Every assertion is geometric or computed — what overlaps
+ * what, what a click would hit — because jsdom has no layout.
  */
 
 const AUTO_HIDE_DOCK = '[aria-label="Auto-hide dock"]';
@@ -22,9 +13,8 @@ function dock(page: Page): Locator {
   return page.locator(AUTO_HIDE_DOCK);
 }
 
-/** The flyout surface. Portalled to <body>, so it is deliberately NOT looked up
- *  inside the dock — a selector scoped to the group would silently match nothing
- *  and every `toBeVisible` would fail for the wrong reason. */
+/** The flyout surface. Portalled to <body>, so deliberately NOT looked up inside the dock — a
+ *  group-scoped selector would match nothing and fail for the wrong reason. */
 function flyout(page: Page): Locator {
   return page.locator('.acc-flyout');
 }
@@ -62,11 +52,8 @@ test.describe('auto-hide — the flyout is an overlay', () => {
   });
 
   test('NOTHING paints on top of the flyout’s first row', async ({ page }) => {
-    // THE regression test. Previously the docked column's `.acc-col-bar` sat over
-    // the flyout at the same top edge and covered the first row, because the
-    // panel never received `data-flyout` and so was never taken out of the
-    // layout. `elementFromPoint` asks the question the way the user asked it:
-    // what is actually drawn here?
+    // THE regression test. The docked column's bar sat over the flyout and covered the first row,
+    // because the panel never got `data-flyout` and stayed in the layout.
     await railButton(page, RAIL_LABEL).click();
     const firstRow = flyout(page).getByText('file 1', { exact: true });
     await expect(firstRow).toBeVisible();
@@ -109,12 +96,8 @@ test.describe('auto-hide — the flyout is an overlay', () => {
   });
 
   test('the flyout can scroll its own overflow rather than clipping it', async ({ page }) => {
-    // `.acc-flyout` is `overflow: hidden`, so if the host does not scroll, any
-    // content taller than the dock is unreachable with no affordance.
-    //
-    // EXPL rather than OUT: this rail is short enough that the fourth button
-    // lives in the `⋯` overflow menu, so addressing it by rail label would be
-    // asserting against the overflow strategy rather than against scrolling.
+    // `.acc-flyout` is `overflow: hidden`, so content taller than the dock is unreachable unless
+    // the host scrolls. EXPL, not OUT: the fourth button lives in the overflow menu.
     await railButton(page, RAIL_LABEL).click();
     const overflow = await flyout(page)
       .locator('.acc-flyout-host')
@@ -143,15 +126,8 @@ test.describe('auto-hide — pinning changes what the panel IS', () => {
   });
 
   test('a pinned column is not overlapped by a second panel’s flyout', async ({ page }) => {
-    // The claim the demo card makes in prose: once pinned, "the next panel you
-    // open floats over the remainder instead of displacing it".
-    //
-    // NOT-overlapping would be the wrong assertion, and asserting it was my
-    // error before this: in `fill` mode a single pinned column expands to the
-    // whole dock, so there is no remainder to sit beside and the flyout is
-    // SUPPOSED to float over it. Overlap is the feature. What must not happen is
-    // the pinned column being moved or resized to make room — the reflow that
-    // pinning is a promise against.
+    // The demo's prose claim: once pinned, the next panel floats over the remainder. Overlap is
+    // the FEATURE here — what must not happen is the pinned column being moved or resized.
     await railButton(page, RAIL_LABEL).click();
     await flyout(page).locator('.acc-pin').click();
     const before = await panelShell(page, PANEL_TITLE).boundingBox();
@@ -189,12 +165,8 @@ test.describe('auto-hide — dismissal', () => {
 
 test.describe('auto-hide — hover-to-open', () => {
   /**
-   * The grace period after the pointer leaves a hover-opened flyout is
-   * FLYOUT_HOVER_LEAVE_GRACE_MS (260) and the open delay is
-   * FLYOUT_HOVER_ENTER_DELAY_MS (350). Both are waited out with margin rather
-   * than mirrored as constants here: a test that imports the timing it is
-   * verifying passes when the constant is wrong, and the only thing this suite
-   * can honestly assert is "longer than the product waits".
+   * The hover grace (260ms) and open delay (350ms) are waited out with margin rather than
+   * mirrored here: a test importing the timing it verifies passes when that constant is wrong.
    */
   const PAST_GRACE_MS = 600;
 
@@ -210,18 +182,9 @@ test.describe('auto-hide — hover-to-open', () => {
   });
 
   /**
-   * THE regression test for the bug the user reported by eye.
-   *
-   * The pointer-intent listeners lived on `.acc-flyout-host` — the element the
-   * panel's subtree portals into — which is only PART of the flyout surface: its
-   * title bar is a SIBLING, not a descendant. `pointerleave` does not bubble and
-   * fires per element, so moving from the content up into the title bar left the
-   * listening element and entered nothing, the grace timer ran to completion, and
-   * the flyout dismissed under a pointer that had never left it.
-   *
-   * The user-visible consequence is the one asserted here: the pin — the single
-   * control the whole auto-hide mode exists for, and which lives IN that title
-   * bar — could not be reached by hover before the panel vanished.
+   * THE regression test. Pointer-intent listeners lived on `.acc-flyout-host`, but the title bar
+   * is a SIBLING — moving into it left the listener, the grace expired, and the pin was
+   * unreachable.
    */
   test('the flyout survives the pointer moving onto its own title bar', async ({ page }) => {
     await enableHover(page);
@@ -253,9 +216,7 @@ test.describe('auto-hide — hover-to-open', () => {
   });
 
   test('leaving the flyout entirely still dismisses it', async ({ page }) => {
-    // The other half of the contract — the fix must not turn a peek into a
-    // permanent overlay. Without this, "survives the title bar" could be passed
-    // by simply never dismissing on hover at all.
+    // The other half of the contract: the fix must not turn a peek into a permanent overlay.
     await enableHover(page);
     await railButton(page, RAIL_LABEL).hover();
     await expect(flyout(page)).toBeVisible();

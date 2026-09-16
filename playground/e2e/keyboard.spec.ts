@@ -1,12 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * The keyboard routes to things that are otherwise pointer-only.
- *
- * Both defects here are of the same kind and neither is visible to a unit test: a
- * capability exists, is correct, and has no route to it that does not involve a
- * mouse. Whether focus can REACH something is a question about the document's tab
- * order and about which listeners fire — so it needs a real browser.
+ * The keyboard routes to things that are otherwise pointer-only. Whether focus can REACH
+ * something is a question about tab order and listeners, so it needs a real browser.
  */
 
 const AUTO_HIDE_DOCK = '[aria-label="Auto-hide dock"]';
@@ -21,12 +17,9 @@ test.beforeEach(async ({ page }) => {
 test.describe('a flyout can be reached and left by keyboard', () => {
   test('opening one moves focus into it', async ({ page }) => {
     /*
-     * THE regression test. Focus used to stay on the rail button; the popover is
-     * Portal'd to the end of <body> so it is nowhere near that button in tab
-     * order; and the first Tab moved focus to the next rail button, which
-     * `onFocusIn` reads as "you left" and dismisses. Every route in was a route
-     * out, so the content had no keyboard path at all.
-     */
+         * THE regression test. Focus stayed on the rail button; the popover is Portal'd away, so the
+         * first Tab hit the next rail button, which `onFocusIn` reads as leaving.
+         */
     await page.locator(AUTO_HIDE_DOCK).getByRole('tab', { name: new RegExp(RAIL_LABEL) }).click();
     await expect(page.locator('.acc-flyout')).toBeVisible();
 
@@ -74,9 +67,8 @@ test.describe('a flyout can be reached and left by keyboard', () => {
   });
 
   test('a HOVER-opened flyout does not steal focus', async ({ page }) => {
-    // The other half of the contract. A pointer user mid-traverse has committed to
-    // nothing, and moving the caret out from under them would be hostile — so the
-    // focus move is for deliberate opens only.
+    // The other half: a pointer user mid-traverse has committed to nothing, so moving the caret
+    // out from under them would be hostile. Deliberate opens only.
     await page.getByRole('button', { name: /hoverToOpen: false/ }).click();
     await page.locator(AUTO_HIDE_DOCK).getByRole('tab', { name: new RegExp(RAIL_LABEL) }).hover();
     await expect(page.locator('.acc-flyout')).toBeVisible();
@@ -90,23 +82,9 @@ test.describe('a flyout can be reached and left by keyboard', () => {
 
 test.describe('the panel menu answers to the keyboard directly', () => {
   /*
-   * A CORRECTION, recorded because the original finding was wrong.
-   *
-   * The review claimed this menu was pointer-only. It was not: browsers synthesise
-   * a `contextmenu` EVENT for Shift+F10 and the ContextMenu key, and the existing
-   * `onContextMenu` handler caught it. Verified by disabling the explicit binding
-   * below — every one of these tests still passed on a real key press, because it
-   * was the platform answering, not this control.
-   *
-   * The explicit binding is kept anyway, for two reasons that are about guarantees
-   * rather than about a bug: that synthesis is a platform courtesy (macOS has no
-   * ContextMenu key at all, and Shift+F10 is not a Safari binding), and a
-   * synthesised event carries whatever coordinates the browser chooses, whereas
-   * `openAtElement` anchors the menu to the activator deterministically.
-   *
-   * So these tests dispatch the keydown DIRECTLY. A real `keyboard.press` would
-   * exercise the platform path and pass with this control's handler removed, which
-   * is a test of Chromium, not of us.
+   * A CORRECTION: the menu was never pointer-only — browsers synthesise `contextmenu` for
+   * Shift+F10 and the ContextMenu key. The binding is kept for platforms lacking it; these tests
+   * dispatch the keydown directly.
    */
   async function pressKeyOnFocused(page: Page, key: string, shift: boolean): Promise<void> {
     await page.evaluate(
