@@ -4,6 +4,7 @@ import {
   createEffect,
   createUniqueId,
   untrack,
+  on,
   onCleanup,
   onMount,
   For,
@@ -23,6 +24,7 @@ import {
 } from './_internal/dte';
 import {
   resolvePopoutPosition,
+  isAnchorOutsideViewport,
   POPOUT_DEFAULT_GAP_PX,
   POPOUT_DEFAULT_PREFERENCE,
   type PopoutPosition,
@@ -284,8 +286,15 @@ const isDev = Boolean(
  * Last opened wins, and closing hands the keyboard back to whoever was under
  * it — the stack, not a single "current", because pickers can close in any
  * order.
+ *
+ * ONE stack for every pill picker, kept on `globalThis` under a registered symbol, so a date
+ * picker and a number picker share it without either package depending on the other.
  */
-const keyboardOwners: symbol[] = [];
+// Survives HMR: a picker never disposed across a module reload keeps its owner on top, blocking Escape until a full reload.
+const KEYBOARD_OWNERS_KEY = Symbol.for('@cujuju/solidjs-toolkit/pill-keyboard-owners');
+const keyboardOwners: symbol[] = ((globalThis as unknown as Record<symbol, symbol[] | undefined>)[
+  KEYBOARD_OWNERS_KEY
+] ??= []);
 
 export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   props: PillDatePickerProps<T>,
@@ -309,8 +318,11 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
 
   /** ONE definition of this item's DTE — the caller's if they own the number,
    *  else calendar days. Everything that shows a DTE flows through here. */
-  const dteOf = (item: T): number | null =>
-    props.dteOf ? props.dteOf(item) : daysToExpiration(dateOf(item), now());
+  const dteOf = (item: T): number | null => {
+    const dte = props.dteOf ? props.dteOf(item) : daysToExpiration(dateOf(item), now());
+    // Non-finite is "none to show" too: the documented `null`, for every consumer downstream.
+    return dte !== null && Number.isFinite(dte) ? dte : null;
+  };
   const labelOf = (iso: string): string =>
     props.formatDate ? props.formatDate(iso) : formatMonthDay(iso);
 
@@ -404,6 +416,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     if (props.open === undefined) setOpenUncontrolled(next);
     props.onOpenChange?.(next);
   };
+  /** Open AND operable: the one predicate the panel, its listeners and its ARIA share. A
+   *  controlled parent can hold `open` true across `disabled`. Memo, so only the boolean re-runs effects. */
+  const isPanelOpen = createMemo<boolean>(() => isOpen() && !props.disabled);
 
   /**
    * The cursor is stored as the row's KEY, never its index.
@@ -430,7 +445,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   let panelEl: HTMLDivElement | undefined;
 
   /**
-   * Measure and place the panel.
+   * Measure and place the panel. Returns whether the anchor is inside the viewport.
    *
    * Runs after the panel is in the DOM (its size is not knowable before), and again on
    * scroll and resize: the panel is `position: fixed`, so ANY scroll of ANY ancestor moves
@@ -438,20 +453,37 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
    * precisely because the scrolling ancestor is usually not `window` — it is the consumer's
    * own scroll container, and a bubbling listener would never hear it (scroll does not
    * bubble from an element).
+   *
+   * It REPORTS the in-view state, it never remembers it: the in-view → out-of-view edge that
+   * closes the ladder belongs to `onReflow` alone, so a placement from any other caller (mount,
+   * the ResizeObserver, a changed gap) cannot consume it.
    */
-  const place = (): void => {
-    if (!anchorEl || !panelEl) return;
+  const place = (): boolean => {
+    // No anchor to measure: report in-view, because "unknown" must never close the ladder.
+    if (!anchorEl) return true;
     const a = anchorEl.getBoundingClientRect();
+    // The LAYOUT viewport — the space the rects and `position: fixed` live in, excluding classic scrollbars.
+    const viewport = {
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
+    };
+    // Hide, never close, here: `place` runs inside opening. Residual: only the viewport is checked, not clipping ancestors.
+    if (isAnchorOutsideViewport(a, viewport)) {
+      setPopout(null);
+      return false;
+    }
+    if (!panelEl) return true;
     const p = panelEl.getBoundingClientRect();
     setPopout(
       resolvePopoutPosition(
         { top: a.top, left: a.left, width: a.width, height: a.height },
         { width: p.width, height: p.height },
-        { width: window.innerWidth, height: window.innerHeight },
+        viewport,
         props.popoutGap ?? POPOUT_DEFAULT_GAP_PX,
         props.preferPlacement ?? POPOUT_DEFAULT_PREFERENCE,
       ),
     );
+    return true;
   };
 
   const close = (refocus: boolean): void => {
@@ -533,12 +565,12 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
    * completes, so a user pressing a control in a neighbouring row would otherwise interact
    * with a panel that is still on top of it.
    *
-   * The keyboard is bound to the DOCUMENT, not to the panel: an open list owns the arrows
-   * regardless of where focus happens to sit, and binding to the panel would silently do
-   * nothing whenever the consumer's own focus management moved focus elsewhere.
+   * The keyboard is bound to the DOCUMENT, not to the panel, but serves only keys aimed at the
+   * pill, the panel, or nothing focused (body) — judged on the composed path, so shadow roots
+   * work. A ladder opened while focus sits elsewhere ignores the keyboard until focus reaches the pill.
    */
   createEffect(() => {
-    if (!isOpen()) {
+    if (!isPanelOpen()) {
       setPopout(null);
       return;
     }
@@ -552,15 +584,29 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     // whole effect re-run whenever the caller re-supplies the ladder — teleporting the
     // user's cursor back to the selection mid-interaction (and re-registering every
     // document listener) every time an async chain settles. Seeding is an OPEN-time
-    // decision, so it depends on `isOpen` and nothing else.
+    // decision, so it depends on `isPanelOpen` and nothing else.
     untrack(() => setActiveKey(props.value ?? null));
-    place();
+    // Untracked too: `place` reads `popoutGap`/`preferPlacement`. The placement effect below owns those.
+    // Seeds the reflow edge: a ladder opened on an off-screen anchor is hidden, and must not
+    // then read the next scroll as a departure it never made.
+    let anchorWasInView = untrack(place);
 
     // Take the keyboard. Popped in this effect's cleanup, so it is released on close,
     // on unmount, and on the re-run of this effect — every path out.
     const owner = Symbol('pdp');
     keyboardOwners.push(owner);
     const ownsKeyboard = (): boolean => keyboardOwners[keyboardOwners.length - 1] === owner;
+    /** Aimed at the pill, the panel, or nothing focused. The composed path, because at `document` the target is retargeted to any shadow host. */
+    const isOurs = (e: Event): boolean => {
+      const path = e.composedPath();
+      const origin = path[0] ?? e.target;
+      return (
+        origin === document ||
+        origin === document.body ||
+        (!!anchorEl && path.includes(anchorEl)) ||
+        (!!panelEl && path.includes(panelEl))
+      );
+    };
 
     const onPointerDown = (e: PointerEvent): void => {
       const t = e.target as Node;
@@ -568,15 +614,21 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       if (anchorEl?.contains(t)) return; // the pill's own click toggles; don't double-handle
       close(false);
     };
+    const onEscape = (e: KeyboardEvent): void => {
+      // Ownership alone: Escape is a dismissal, and stack-top ownership is the contract. Gating on
+      // `isOurs` made a ladder opened with focus elsewhere un-dismissable and blocked pickers below.
+      if (e.key !== 'Escape' || !ownsKeyboard()) return;
+      // With the capture-phase binding this stops the surrounding modal's handlers too; preventDefault cancels the native close-request.
+      e.preventDefault();
+      e.stopPropagation();
+      close(true);
+    };
     const onKey = (e: KeyboardEvent): void => {
       // Only the top of the stack acts; a picker underneath another one must not
       // silently commit the keypress its neighbour is receiving.
       if (!ownsKeyboard()) return;
+      if (!isOurs(e)) return;
       switch (e.key) {
-        case 'Escape':
-          e.stopPropagation();
-          close(true);
-          break;
         case 'ArrowDown':
           e.preventDefault();
           moveActive(1);
@@ -595,17 +647,31 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
           break;
         case 'Enter':
         case ' ':
-          if (activeIndex() === NO_ACTIVE_INDEX) return;
+          // Owned even with no active row: unprevented, the focused pill's native activation clicks it shut.
           e.preventDefault();
+          if (activeIndex() === NO_ACTIVE_INDEX) return;
           commit(activeIndex());
           break;
         default:
       }
     };
-    const onReflow = (): void => place();
+    const onReflow = (): void => {
+      const isInView = place();
+      // Once, on leaving the viewport: a controlled parent that ignores it keeps a hidden panel, not a request per scroll.
+      if (anchorWasInView && !isInView) close(false);
+      anchorWasInView = isInView;
+    };
+    // Focus moving to another control — Tab included — takes the ladder with it.
+    const onFocusIn = (e: FocusEvent): void => {
+      if (!isOurs(e)) close(false);
+    };
 
     document.addEventListener('pointerdown', onPointerDown, true);
+    // Capture, Escape only: an Escape consumed here must be stopped before ancestor handlers run, not after.
+    // Navigation/commit keys stay in the bubble phase, after the element's own handlers.
+    document.addEventListener('keydown', onEscape, true);
     document.addEventListener('keydown', onKey);
+    document.addEventListener('focusin', onFocusIn);
     window.addEventListener('resize', onReflow);
     // Capture: the scroll that moves us is almost never on `window`.
     window.addEventListener('scroll', onReflow, true);
@@ -613,7 +679,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       const at = keyboardOwners.lastIndexOf(owner);
       if (at !== -1) keyboardOwners.splice(at, 1);
       document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onEscape, true);
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('resize', onReflow);
       window.removeEventListener('scroll', onReflow, true);
     });
@@ -630,6 +698,17 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   createEffect(() => {
     if (props.disabled && isOpen()) close(false);
   });
+
+  /** Re-place when the caller moves the placement inputs while open. `on` untracks `place` itself. */
+  createEffect(
+    on(
+      () => [props.popoutGap, props.preferPlacement],
+      () => {
+        if (isPanelOpen()) place();
+      },
+      { defer: true },
+    ),
+  );
 
   // ── Collapsed pill ───────────────────────────────────────────────────
   const collapsedLabel = (): string => {
@@ -664,6 +743,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     }
   };
 
+  /** The cursor's key only while a row carrying it is rendered — an IDREF to nothing is a lie. */
+  const activeRowKey = (): string | null => (activeIndex() === NO_ACTIVE_INDEX ? null : activeKey());
+
   const trigger = (): JSX.Element => (
     <button
       ref={anchorEl}
@@ -671,12 +753,12 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       class="cpdp-pill"
       role="combobox"
       aria-haspopup="listbox"
-      aria-expanded={isOpen()}
-      aria-controls={isOpen() ? panelId : undefined}
+      aria-expanded={isPanelOpen()}
+      aria-controls={isPanelOpen() ? panelId : undefined}
       // Points at the row the arrows are on. Only while open — a closed
       // combobox owning a descendant that is not in the document is a lie a
       // screen reader will read out.
-      aria-activedescendant={isOpen() && activeKey() !== null ? rowId(activeKey()!) : undefined}
+      aria-activedescendant={isPanelOpen() && activeRowKey() !== null ? rowId(activeRowKey()!) : undefined}
       aria-label={props.ariaLabel}
       disabled={props.disabled}
       data-empty={selectedItem() ? undefined : 'true'}
@@ -721,6 +803,13 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   // can be 0 — which would resolve the placement against a phantom.
   const PanelBody = (): JSX.Element => {
     onMount(() => place());
+    // Re-place whenever the panel's own size changes: rows arriving, a status line, a wrapped note.
+    onMount(() => {
+      if (!panelEl || typeof ResizeObserver === 'undefined') return;
+      const observer = new ResizeObserver(() => place());
+      observer.observe(panelEl);
+      onCleanup(() => observer.disconnect());
+    });
     return (
       <>
         {/* Both messages are live regions, and both sit OUTSIDE the listbox.
@@ -879,7 +968,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
           detached node. */}
       <KvTooltip
         entries={tooltipEntries()}
-        disabled={(props.disableTooltip ?? false) || isOpen()}
+        disabled={(props.disableTooltip ?? false) || isPanelOpen()}
         class="cpdp-trigger-wrap"
       >
         {trigger()}
@@ -892,7 +981,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
           caller had switched off — inert, since commit() refuses, but a panel
           that looks operable and is not is worse than no panel. Rendering is
           ours to decide even when the open STATE is not. */}
-      <Show when={isOpen() && !props.disabled}>
+      <Show when={isPanelOpen()}>
         <Portal>
           {/* The positioned, scrolling SHELL — deliberately role-less. The
               listbox is the row container inside it, so the status messages can

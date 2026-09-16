@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolvePopoutPosition,
+  isAnchorOutsideViewport,
   POPOUT_VIEWPORT_MARGIN_PX,
   POPOUT_DEFAULT_GAP_PX,
 } from '../_internal/popout';
@@ -75,5 +76,19 @@ describe('resolvePopoutPosition', () => {
     const anchor = { top: 300, left: 100, width: 60, height: 22 };
     const p = resolvePopoutPosition(anchor, PANEL, VIEWPORT, 12);
     expect(p.top).toBe(300 + 22 + 12);
+  });
+});
+
+describe('isAnchorOutsideViewport', () => {
+  it('is true once the anchor has left the viewport on any side', () => {
+    expect(isAnchorOutsideViewport({ top: -500, left: 100, width: 60, height: 22 }, VIEWPORT)).toBe(true);
+    expect(isAnchorOutsideViewport({ top: 900, left: 100, width: 60, height: 22 }, VIEWPORT)).toBe(true);
+    expect(isAnchorOutsideViewport({ top: 300, left: -100, width: 60, height: 22 }, VIEWPORT)).toBe(true);
+    expect(isAnchorOutsideViewport({ top: 300, left: 1100, width: 60, height: 22 }, VIEWPORT)).toBe(true);
+  });
+
+  it('is false while any part of the anchor is visible, and for an unmeasured (zero) rect', () => {
+    expect(isAnchorOutsideViewport({ top: -10, left: 100, width: 60, height: 22 }, VIEWPORT)).toBe(false);
+    expect(isAnchorOutsideViewport({ top: 0, left: 0, width: 0, height: 0 }, { width: 0, height: 0 })).toBe(false);
   });
 });

@@ -116,3 +116,16 @@ export function resolvePopoutPosition(
 
   return { top, left, placement };
 }
+
+/**
+ * True once the anchor has left the viewport entirely — a panel clamped on-screen for it floats,
+ * attached to nothing. Strict comparisons, so an unmeasured all-zero rect counts as visible.
+ */
+export function isAnchorOutsideViewport(anchor: PopoutRect, viewport: PopoutViewport): boolean {
+  return (
+    anchor.top + anchor.height < 0 ||
+    anchor.top > viewport.height ||
+    anchor.left + anchor.width < 0 ||
+    anchor.left > viewport.width
+  );
+}

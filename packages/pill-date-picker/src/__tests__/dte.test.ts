@@ -161,3 +161,19 @@ describe('resolveDteColor', () => {
     expect(resolveDteColor(10, [])).toBeUndefined();
   });
 });
+
+describe('an invalid clock or a non-finite DTE has no honest number (F045 / F031)', () => {
+  it('daysToExpiration returns null for an Invalid Date `now`', () => {
+    expect(daysToExpiration('2026-07-17', new Date(''))).toBeNull();
+  });
+
+  it('formats a non-finite DTE as an em dash, not "NaNd"', () => {
+    expect(formatDte(Number.NaN)).toBe('—');
+    expect(formatDte(Number.POSITIVE_INFINITY)).toBe('—');
+  });
+
+  it('gives a non-finite DTE no colour, rather than the far band', () => {
+    expect(resolveDteColor(Number.NaN)).toBeUndefined();
+    expect(resolveDteColor(Number.POSITIVE_INFINITY)).toBeUndefined();
+  });
+});

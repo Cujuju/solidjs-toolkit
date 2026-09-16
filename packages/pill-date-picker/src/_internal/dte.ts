@@ -87,6 +87,8 @@ export function daysToExpiration(iso: string, now: Date): number | null {
   if (!d) return null;
   const expiryUtc = Date.UTC(d.year, d.month - 1, d.day);
   const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  // An Invalid Date clock has no honest DTE either.
+  if (Number.isNaN(todayUtc)) return null;
   return (expiryUtc - todayUtc) / MS_PER_UTC_DAY;
 }
 
@@ -106,9 +108,9 @@ export function formatLongDate(iso: string): string {
   return `${MONTH_ABBREVIATIONS[d.month - 1]} ${d.day}, ${d.year}`;
 }
 
-/** `34d`. Null DTE (unparseable date) has no honest rendering, so it gets an em dash. */
+/** `34d`. A null or non-finite DTE (unparseable date, or a caller's NaN) has no honest rendering, so it gets an em dash. */
 export function formatDte(dte: number | null): string {
-  if (dte === null) return '—';
+  if (dte === null || !Number.isFinite(dte)) return '—';
   return `${dte}d`;
 }
 
@@ -167,7 +169,8 @@ export function resolveDteColor(
   dte: number | null,
   ramp: readonly DteColorStop[] = DEFAULT_DTE_RAMP,
 ): string | undefined {
-  if (dte === null || ramp.length === 0) return undefined;
+  // Non-finite fails every `<=` below and would fall through to the far band.
+  if (dte === null || !Number.isFinite(dte) || ramp.length === 0) return undefined;
   for (const stop of ramp) {
     if (dte <= stop.maxDte) return stop.color;
   }
