@@ -1,11 +1,6 @@
 /**
- * One keyboard-owner stack across packages.
- *
- * pill-date-picker and pill-number-picker each bind Escape to the DOCUMENT. With a stack per
- * module, each saw itself on top of its OWN stack, so one Escape closed both pop-outs.
- * Neither package may depend on the other, so the stack lives on `globalThis`.
- *
- * The number picker is imported by relative source path: it is not a dependency.
+ * One keyboard-owner stack across packages: each picker binds Escape to the DOCUMENT, and a
+ * per-module stack let one Escape close both pop-outs. The stack lives on `globalThis`.
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';

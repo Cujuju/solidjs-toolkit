@@ -1,25 +1,6 @@
 /**
- * The row list is keyed — a re-supplied ladder UPDATES rows, it does not
- * replace them.
- *
- * `keyOf` is documented as "stable across refetches", and the control already
- * relied on that for the selection and for `stateByKey`. The row list did not:
- * `<For>` reconciles by REFERENCE, and a caller's ladder is re-supplied with
- * structurally-equal, referentially-new items every time their data settles (an
- * async chain filling in, an idle refetch, a live re-derive). So every row was
- * torn down and rebuilt for a ladder whose contents had not changed at all —
- * measured in a consumer 2026-07-25 as 35 rows destroyed and recreated per
- * re-supply, the single largest cost in the profile, and enough on its own to
- * make a busy ladder feel broken.
- *
- * DOM node identity is the honest assertion here: it is exactly what a rebuild
- * destroys and what a keyed update preserves, and it is what everything
- * expensive downstream (row effects, listeners, the browser's own layout of
- * those nodes) is paid for.
- *
- * Same harness conventions as the sibling suites — hand-disposed `render` from
- * solid-js/web, never @solidjs/testing-library (two Solid instances leave
- * portalled panels alive across tests).
+ * The row list is keyed — a re-supplied ladder UPDATES rows. `<For>` reconciles by REFERENCE,
+ * so every row was rebuilt per re-supply. DOM node identity is the honest assertion.
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
@@ -143,13 +124,8 @@ describe('keyed rows', () => {
 });
 
 /**
- * `dteOf` — the caller's own DTE, when they have one.
- *
- * The default derives DTE from the date, and a derivation can disagree with the
- * domain. It does: an options venue counts the expiration day itself, so its
- * number runs one HIGHER than the calendar difference. A consumer rendering the
- * venue's number everywhere else got a ladder that contradicted it (observed
- * 2026-07-26: `Jul 27 … 1d` here, `Jul 27 2d` on the pill it drops out of).
+ * `dteOf` — the caller's own DTE. The default derives it from the date, and a venue counts the
+ * expiration day itself, so its number runs one HIGHER than the calendar difference.
  */
 describe('dteOf', () => {
   const VENUE = (date: string): Entry => ({ date, expId: `${date}~SPY` });

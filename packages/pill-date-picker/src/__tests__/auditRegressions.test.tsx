@@ -1,8 +1,6 @@
 /**
  * Audit register regressions (F060, F006, F063, F008, F029, F033, F030, F010, F046, F043).
- *
- * Same harness conventions as hardening.test.tsx — hand-disposed `render` from solid-js/web.
- * Layout is stubbed per test: jsdom lays nothing out, so every rect is otherwise zero.
+ * Layout is stubbed per test — jsdom lays nothing out, so every rect is otherwise zero.
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
@@ -202,8 +200,8 @@ describe('F063 — an Escape the picker consumed goes no further', () => {
     expect(e.defaultPrevented).toBe(true);
     expect(topOpenChanges).toEqual([false]);
     expect(pills()[1].getAttribute('aria-expanded')).toBe('false');
-    // And the stack was released: the picker underneath is dismissable again, though focus
-    // is now on the other pill — it owns the top of the stack, which is the whole contract.
+    // And the stack was released: the picker underneath is dismissable again, though focus is
+    // now on the other pill — which owns the top of the stack.
     click(pills()[0]);
     expect(panels()).toHaveLength(1);
     expect(keyOn(pills()[1], 'Escape').defaultPrevented).toBe(true);

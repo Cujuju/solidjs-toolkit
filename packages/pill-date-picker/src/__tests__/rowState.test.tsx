@@ -1,16 +1,7 @@
 /**
- * Per-row state (`itemState` / `annotation`) and the row escape hatch (`renderRow`).
- *
- * The styling is not what these prove — the INTERACTION is. A row the caller
- * marked unavailable must be impossible to commit down every route into
- * `commit()` (click, a click on something a custom row nested inside it, Enter
- * on a cursor that started there), and the keyboard cursor must never come to
- * rest anywhere Enter refuses to act. A control where the highlight and the
- * action disagree is worse than one with no highlight at all.
- *
- * Same harness conventions as PillDatePicker.test.tsx — hand-disposed `render`
- * from solid-js/web, never @solidjs/testing-library (two Solid instances leave
- * portalled panels alive across tests).
+ * Per-row state and the `renderRow` escape hatch, tested as INTERACTION: an unavailable row
+ * must be uncommittable by every route, and the cursor must never rest where Enter refuses to
+ * act.
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
@@ -312,9 +303,8 @@ describe('renderRow — the escape hatch', () => {
   });
 
   it('hands a custom row the colour the BUILT-IN row would paint — including none, when disabled', () => {
-    // Otherwise the same state looks like two different things: the default row
-    // drops the urgency ramp on a row that cannot be acted on, and a custom row
-    // reading a raw lookup would paint it warning-red.
+    // Otherwise one state looks like two things: the default row drops the ramp on an
+    // unactionable row, while a custom row reading the raw lookup would paint it red.
     const seen: Record<string, string | undefined> = {};
     const c = mount(() => (
       <Harness

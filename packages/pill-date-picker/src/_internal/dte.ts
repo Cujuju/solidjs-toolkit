@@ -1,25 +1,15 @@
 /**
- * DTE math + expiration formatting — pure, no DOM, no ambient clock.
- *
- * Everything here takes `now` as an argument. That is the whole point: DTE is the one
- * number in this control with a right and a wrong answer, and a function that reaches for
- * `Date.now()` internally can only be tested by mocking the clock — which tests the mock.
- *
- * Kept out of the component for the same reason `popout.ts` is: it is the part that can be
- * proven without mounting anything.
+ * DTE math + expiration formatting — pure, no DOM, no ambient clock. Everything takes `now` as
+ * an argument: a function reaching for `Date.now()` can only be tested by mocking the clock.
  */
 
 /** Milliseconds in a UTC day. Exact — UTC has no DST, which is why the math below normalises
  *  both ends of the subtraction to UTC midnight before dividing. */
 const MS_PER_UTC_DAY = 86_400_000;
 
-/** Fixed month abbreviations, deliberately NOT `Intl` / `toLocaleDateString`.
- *
- *  Intl's output varies with the host's ICU build and locale ('Jul 17' vs '17 Jul' vs
- *  'juil. 17'), which would make both the rendered pill and its tests non-deterministic
- *  across machines. An expiration label is a fixed market convention, not prose, so a
- *  fixed table is the correct trade — and a consumer who genuinely needs localised dates
- *  overrides `formatDate` on the component. */
+/** Fixed month abbreviations, deliberately NOT `Intl`: its output varies with the host's ICU
+ *  build and locale, which would make the pill and its tests non-deterministic. Callers
+ *  override `formatDate`. */
 const MONTH_ABBREVIATIONS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -34,15 +24,8 @@ export interface CalendarDate {
 }
 
 /**
- * Parse the leading `YYYY-MM-DD` of an ISO date (or ISO datetime) string.
- *
- * Deliberately does NOT go through `new Date(str)`: that constructor treats a bare
- * '2026-07-17' as UTC midnight but '2026-07-17T00:00:00' as LOCAL midnight, so the same
- * calendar day parses to two different instants depending on a suffix the caller may or
- * may not have included. Reading the fields off the string sidesteps the whole trap.
- *
- * Returns null on anything unparseable — the component then renders the raw string rather
- * than throwing, because a caller's bad date must not take the panel down with it.
+ * Parse the leading `YYYY-MM-DD`. NOT via `new Date(str)`: that reads a bare date as UTC
+ * midnight but a datetime as LOCAL, so one calendar day parses two ways.
  */
 export function parseIsoDate(iso: string): CalendarDate | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/.exec(iso);
@@ -65,22 +48,8 @@ export function parseIsoDate(iso: string): CalendarDate | null {
 }
 
 /**
- * Days to expiration: a CALENDAR-DAY difference, not an elapsed-time division.
- *
- * `(expiry - now) / MS_PER_DAY` is the obvious implementation and it is wrong twice over:
- *   1. It drifts with the time of day. At 09:00 the same expiration reads 34 days; at 23:00
- *      it reads 33. DTE is a property of the DATE, not of the hour you asked.
- *   2. Doing the arithmetic on LOCAL dates makes a DST boundary a 23- or 25-hour day, so
- *      the floor lands one day off for anyone whose window spans the changeover.
- *
- * So both ends are collapsed to UTC midnight first — `now` via its LOCAL calendar fields
- * (a trader at 20:00 ET on the 16th is on the 16th, and tomorrow's expiry is 1 DTE, not 0),
- * the expiration via its parsed Y/M/D. Both are then exact multiples of a UTC day and the
- * subtraction is exact.
- *
- * Returns null for an unparseable date. Negative values are returned as-is: the caller owns
- * which dates are legitimate, and silently clamping an already-expired one to 0 would hide
- * their bug rather than surface it.
+ * Days to expiration: a CALENDAR-DAY difference, not elapsed time. A naive division drifts
+ * with the hour and lands a day off across DST, so both ends collapse to UTC midnight.
  */
 export function daysToExpiration(iso: string, now: Date): number | null {
   const d = parseIsoDate(iso);
@@ -125,28 +94,16 @@ export interface DteColorStop {
 }
 
 /**
- * The default bands, in days.
- *
- * These are calendar boundaries, not tuning knobs: an option expiring TODAY (0) is a
- * different animal from one expiring this week (a weekly cycle, 7), which is different from
- * one inside the current monthly cycle (30). Past a month out, urgency stops being a useful
- * signal, so everything beyond is one band.
- *
- * A consumer whose ramp disagrees passes their own `dteRamp` — the thresholds are a PROP,
- * not a constant, precisely because "urgent" is a house opinion.
+ * The default bands, in days: today (0), this week (7), this monthly cycle (30), and one
+ * unbounded band beyond, where urgency stops being a useful signal.
  */
 export const DTE_EXPIRING_MAX_DAYS = 0;
 export const DTE_URGENT_MAX_DAYS = 7;
 export const DTE_NEAR_MAX_DAYS = 30;
 
 /**
- * Default ramp. The colours are CSS custom properties, NOT literals: the package must not
- * ship an opinion about a consuming app's palette, and a token indirects the choice back to
- * the consumer's stylesheet where the rest of their theme already lives. `styles.css`
- * defines neutral fallbacks so the control is legible out of the box.
- *
- * The terminal band is unbounded (`Infinity`) so the ramp is TOTAL — every DTE resolves to
- * a colour, and `resolveDteColor` never has to invent one.
+ * Default ramp. The colours are custom properties, not literals: the package ships no opinion
+ * about a consumer's palette. The terminal band is unbounded so the ramp is TOTAL.
  */
 export const DEFAULT_DTE_RAMP: readonly DteColorStop[] = [
   { maxDte: DTE_EXPIRING_MAX_DAYS, color: 'var(--pdp-dte-expiring)' },
@@ -156,14 +113,8 @@ export const DEFAULT_DTE_RAMP: readonly DteColorStop[] = [
 ];
 
 /**
- * First band whose bound the DTE fits under.
- *
- * Stops are consulted IN ORDER and the first match wins, so an unsorted or overlapping ramp
- * degrades to "the caller's order is the priority" rather than to nonsense.
- *
- * A ramp with no terminal catch-all still resolves — the last stop's colour is used — which
- * is the belt to the `Infinity` suspenders: a consumer who forgets the catch-all gets the
- * far-dated colour, never `undefined` leaking into a style attribute.
+ * First band whose bound the DTE fits under. Stops are consulted IN ORDER, so an unsorted ramp
+ * degrades to the caller's priority; one with no catch-all still resolves.
  */
 export function resolveDteColor(
   dte: number | null,

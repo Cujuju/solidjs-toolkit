@@ -9,9 +9,8 @@
     --pdp-text-muted: #94a3b8;
     --pdp-radius: 6px;
     --pdp-disabled-opacity: 0.3;
-    /* Thin INSET focus ring (negative offset) that hugs the control, coloured
-       as a LIGHTENED version of the control's own border rather than a fixed
-       accent. Override `--pdp-focus-ring-color` for a brighter ring. */
+    /* Thin INSET focus ring that hugs the control, coloured as a lightened version of
+     its own border. Override `--pdp-focus-ring-color` for a brighter ring. */
     --pdp-focus-ring-color: color-mix(in srgb, var(--pdp-border) 45%, #fff);
     --pdp-focus-ring: 1px solid var(--pdp-focus-ring-color);
     --pdp-focus-ring-offset: -1px;
@@ -29,15 +28,14 @@
 
     /* Row states */
     --pdp-row-hover-bg: rgba(255, 255, 255, 0.07);
-    /* An 'adjusted' row is PICKABLE with a caveat, so it is tinted, not dimmed —
-       dimming it would read as unavailable and hide a row the user can take.
-       Amber rather than the selection indigo: this is a caution, not a choice
-       already made. */
+    /* An 'adjusted' row is PICKABLE with a caveat, so it is tinted rather than dimmed —
+     dimming would read as unavailable. Amber, not the selection indigo: a caution, not
+     a choice. */
     --pdp-row-adjusted-bg: rgba(251, 146, 60, 0.10);
     --pdp-row-adjusted-note: #fb923c;
-    /* A 'disabled' row stays legible — it is information about the ladder, not
-       noise. Muted to the same token the empty message uses rather than an
-       opacity wash, which would fade the caller's own annotation to unreadable. */
+    /* A 'disabled' row stays legible — it is information about the ladder. Muted to the
+     empty-message token rather than an opacity wash, which would fade the caller's
+     annotation to unreadable. */
     --pdp-row-disabled-color: var(--pdp-text-muted);
     --pdp-row-note-color: var(--pdp-text-muted);
     --pdp-row-selected-bg: rgba(99, 102, 241, 0.18);
@@ -47,9 +45,9 @@
     --pdp-rail-width: 3px;
     --pdp-rail-color: #6366f1;
 
-    /* DTE urgency ramp. Referenced by DEFAULT_DTE_RAMP, so a consuming app re-themes the
-       colours from its own stylesheet without ever passing the `dteRamp` prop. Neutral,
-       legible defaults — NOT an opinion about anyone's palette. */
+    /* DTE urgency ramp, referenced by DEFAULT_DTE_RAMP so an app re-themes from its own
+     stylesheet without passing `dteRamp`. Neutral, legible defaults — not an opinion
+     about anyone's palette. */
     --pdp-dte-expiring: #f87171;
     --pdp-dte-urgent: #fb923c;
     --pdp-dte-near: #fbbf24;
@@ -110,9 +108,8 @@
 }
 
 /* ── The pop-out ladder. ──────────────────────────────────────────────────
-   Portalled to <body> and positioned in viewport coords by the component, so it escapes any
-   overflow:hidden / overflow-y:auto ancestor. Nothing here may depend on the pill's
-   ancestors — by the time this paints, it has none of them. */
+   Portalled to <body> and positioned in viewport coords, so it escapes any clipping
+   ancestor. Nothing here may depend on the pill's ancestors. */
 .cpdp-popout {
   box-sizing: border-box;
   z-index: var(--pdp-popout-z);
@@ -128,9 +125,8 @@
   /* Vertical only: a horizontal inset would float the selection rail in from
      the pop-out's edge instead of running flush against it. */
   padding: 3px 0;
-  /* The UA scrollbar is painted for a light page and lands as a bright slab on
-     a dark pop-out. Transparent track, translucent thumb, full width (a thin
-     scrollbar is harder to grab). Matches glass-menu and editable-list-flyout. */
+  /* The UA scrollbar is a bright slab on a dark pop-out. Transparent track, translucent
+   thumb, full width (thin is harder to grab). Matches glass-menu and editable-list-flyout. */
   scrollbar-width: auto;
   scrollbar-color: var(--pdp-scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
 }
@@ -155,9 +151,8 @@
   white-space: nowrap;
 }
 
-/* The listbox proper. A plain column so the rows stack exactly as they did when
-   they were direct children of the scrolling shell — this element exists for
-   ARIA (a listbox may only contain options), not for layout. */
+/* The listbox proper: a plain column, so rows stack exactly as they did as direct
+   children of the scrolling shell. This element exists for ARIA, not layout. */
 .cpdp-list {
   display: flex;
   flex-direction: column;
@@ -169,9 +164,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 4px 7px;
-  /* Square and full-bleed so the selection rail below reaches the pop-out's
-     own edge — a rounded row rounds the ENDS of an inset-shadow rail with it,
-     turning a stripe into a lozenge. Matches select-flyout. */
+  /* Square and full-bleed so the selection rail reaches the pop-out's own edge — a
+   rounded row would round the rail's ends into a lozenge. Matches select-flyout. */
   border-radius: 0;
   cursor: pointer;
   color: var(--pdp-text);
@@ -184,11 +178,9 @@
   background: var(--pdp-row-hover-bg);
 }
 
-/* Selection RAIL down the inline-start edge, painted with an inset box-shadow
-   so it occupies no layout. Same treatment as select-flyout's selected option,
-   so a selected row reads identically wherever the toolkit shows a list in a
-   pop-out. `currentColor` would be the row's text colour here, so the rail
-   takes the accent explicitly. */
+/* Selection RAIL down the inline-start edge, painted with an inset box-shadow so it
+   occupies no layout. Same as select-flyout's selected option; the accent is explicit,
+   not `currentColor`. */
 /* States. Attribute selectors (not classes) so a consumer can target the same
    state their `itemState` returned, with the same name. */
 .cpdp-row[data-state='adjusted'] {
@@ -199,10 +191,8 @@
   color: var(--pdp-row-adjusted-note);
 }
 
-/* Hover/active tint still wins over the adjusted tint — the cursor must be
-   visible on every row it can land on, including this one. Excludes the
-   SELECTED row: that rule below is the strongest state, and without the
-   :not() this higher-specificity selector would quietly outrank it. */
+/* Hover/active tint wins over the adjusted tint — the cursor must be visible on every
+   row it can land on. Excludes the SELECTED row, whose rule below is the strongest state. */
 .cpdp-row[data-state='adjusted'][data-active]:not([data-selected]) {
   background: var(--pdp-row-hover-bg);
 }
@@ -212,17 +202,14 @@
   color: var(--pdp-row-disabled-color);
 }
 
-/* Belt for the cursor rule in the component: even if a disabled row somehow
-   took `data-active`, it must not paint as though Enter would act on it. The
-   selected row keeps its own paint (the current value can itself become
-   disabled — it is still the current value). */
+/* Belt for the component's cursor rule: even if a disabled row took `data-active`, it
+   must not paint as though Enter would act. The selected row keeps its own paint. */
 .cpdp-row[data-state='disabled'][data-active]:not([data-selected]) {
   background: transparent;
 }
 
-/* Selection is the STRONGEST row state and must out-paint the state tints
-   above. Equal specificity to them ((0,2,0) each), so this rule's POSITION is
-   what decides it — keep it last of the three. */
+/* Selection is the STRONGEST row state and must out-paint the tints above. Equal
+   specificity to them, so this rule's POSITION decides it — keep it last. */
 .cpdp-row[data-selected] {
   background: var(--pdp-row-selected-bg);
   box-shadow: inset var(--pdp-rail-width) 0 0 var(--pdp-rail-color);
@@ -258,8 +245,8 @@
 
 /* ── Size presets. Match the sibling pill-number-picker's rhythm so the two controls sit in
    the same row without a half-pixel step between them. ───────────────────── */
-/* The size class is on BOTH the root and the portalled panel, so one descendant rule covers
-   the pill and the ladder even though they are in different subtrees of the document. */
+/* The size class is on BOTH the root and the portalled panel, so one descendant rule
+   covers the pill and the ladder despite being in different subtrees. */
 .cpdp-size-xs .cpdp-pill { height: 18px; font-size: 10px; padding: 0 6px; }
 .cpdp-size-xs .cpdp-row { font-size: 10px; }
 

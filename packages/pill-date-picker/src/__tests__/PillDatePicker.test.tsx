@@ -1,17 +1,7 @@
 /**
- * The BEHAVIOUR, not the geometry.
- *
- * `popout.test.ts` proves the placement math and `dte.test.ts` proves the number. Neither can
- * prove the things that actually break: that the collapsed pill hides the DTE, that expanding
- * escapes a clipping ancestor, that selecting hands back the caller's ORIGINAL object, that
- * the thing can be dismissed at all.
- *
- * Rendered with `render` from `solid-js/web` and disposed by hand — the toolkit's own pattern
- * (see pill-number-picker's collapse.test.tsx, ContextMenu.test.tsx). NOT
- * `@solidjs/testing-library`: it resolves its own copy of Solid, and two Solid instances means
- * two ownership graphs — its `cleanup()` disposes the root IT created while the component's
- * <Portal> belongs to the other one, so pop-outs survive teardown and the next test silently
- * queries a stale panel.
+ * The BEHAVIOUR, not the geometry: the pill hides the DTE, expanding escapes a clipping
+ * ancestor, selecting hands back the caller's ORIGINAL object. Hand-disposed `render`, never
+ * testing-library.
  */
 
 import { describe, it, expect, afterEach } from 'vitest';

@@ -1,9 +1,6 @@
 /**
- * DTE math + formatting — the part with a right and a wrong answer.
- *
- * Every case pins `now` explicitly. That is the contract the `now` prop exists to serve: if
- * these needed a mocked clock, the component would too, and a control whose central number
- * can only be tested against a fake is a control whose central number is untested.
+ * DTE math + formatting — the part with a right and a wrong answer. Every case pins `now`
+ * explicitly: a central number testable only against a fake is untested.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -61,8 +58,8 @@ describe('daysToExpiration', () => {
   });
 
   it('does NOT drift with the time of day — the whole reason this is not a ms division', () => {
-    // (expiry - now) / 86_400_000 gives 34.6 at 09:00 and 33.0 at 23:59, so a naive floor
-    // silently drops a day as the session wears on. DTE is a property of the DATE.
+    // (expiry - now) / 86_400_000 gives 34.6 at 09:00 and 33.0 at 23:59, so a naive floor drops
+    // a day as the session wears on.
     const morning = new Date(2026, 5, 13, 9, 0, 0);
     const lateNight = new Date(2026, 5, 13, 23, 59, 59);
     expect(daysToExpiration('2026-07-17', morning)).toBe(34);
@@ -70,9 +67,8 @@ describe('daysToExpiration', () => {
   });
 
   it('survives a DST boundary — the days between are not all 24h long', () => {
-    // US DST springs forward 2026-03-08. A local-date subtraction makes that a 23-hour day,
-    // so a naive floor over any window containing it lands one day short.
-    // 2026-03-01 -> 2026-03-15 is 14 calendar days regardless.
+    // US DST springs forward 2026-03-08: a local-date subtraction makes that a 23-hour day, so a
+    // naive floor lands one day short.
     expect(daysToExpiration('2026-03-15', new Date(2026, 2, 1))).toBe(14);
     // And the fall-back boundary (2026-11-01), where a day is 25 hours long.
     expect(daysToExpiration('2026-11-15', new Date(2026, 9, 25))).toBe(21);

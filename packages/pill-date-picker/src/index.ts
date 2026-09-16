@@ -7,9 +7,8 @@ export {
   type PillDateRowContext,
 } from './PillDatePicker';
 export {
-  // The DTE math is exported because a consumer that renders expirations ELSEWHERE (a chain
-  // header, a position row) must be able to compute the same number the same way. A second,
-  // subtly-different DTE in the same app is worse than no DTE at all.
+  // The DTE math is exported so a consumer rendering expirations elsewhere computes the same
+  // number the same way — two subtly different DTEs in one app is worse than none.
   daysToExpiration,
   formatMonthDay,
   formatLongDate,

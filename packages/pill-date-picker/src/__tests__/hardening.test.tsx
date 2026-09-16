@@ -1,21 +1,7 @@
 /**
- * The five defects an adversarial pass found before 0.2.0 shipped. Three of
- * them predate it, and all five share a shape: the control was correct about
- * the case it was written for and silent about the case next to it.
- *
- *  1. `disabled` guarded the trigger but not an ALREADY-OPEN panel — a control
- *     the caller had switched off could still be clicked into committing.
- *  2. Two open pickers both bound the document keyboard, so one Enter committed
- *     in both. `open` is a public prop; two open pickers is legal usage.
- *  3. The cursor was an INDEX, and the open-effect tracked `items` — so a
- *     re-supplied ladder either teleported the cursor to the selection or wiped
- *     it, and "row 3" after the change was a different date than the one the
- *     user was looking at.
- *  4. No `aria-activedescendant` / row ids: focus stays on the combobox, so
- *     cursor movement was silent to a screen reader — worse once rows could be
- *     disabled, which is exactly what such a user cannot see.
- *  5. `itemState` was invoked ~3× per row per render and again per keypress; a
- *     prop documented as a simple predicate was expensive to supply honestly.
+ * The five defects found before 0.2.0 shipped: `disabled` guarded only the trigger, two open
+ * pickers shared one keypress, the cursor was an INDEX, no `aria-activedescendant`, and
+ * `itemState` ran per render.
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
@@ -62,9 +48,8 @@ describe('1 — a disabled control is inert, panel and all', () => {
   });
 
   it('hides the ladder of a CONTROLLED-open picker too, and tells the parent', () => {
-    // Controlled open belongs to the parent, so disabling can only ASK it to
-    // close — but rendering is ours, and a panel on a switched-off control must
-    // not stay on screen just because the parent ignored the request.
+    // Controlled open belongs to the parent, so disabling can only ASK it to close — but
+    // rendering is ours, and a panel on a switched-off control must not stay.
     const onOpenChange = vi.fn();
     const [dis, setDis] = createSignal(false);
     mount(() => (
@@ -211,15 +196,8 @@ describe('4 — the active row is announceable', () => {
   });
 
   /**
-   * The pop-out's status line is the ONLY thing that reports a ladder whose rows
-   * are all inert, and its text changes underneath a user who is already looking
-   * at it — a caller resolving rows against a broker moves it from "checking…"
-   * to the real answer. Announced once on open and never again, a screen-reader
-   * user never hears the answer arrive.
-   *
-   * It also may not live INSIDE the listbox: a listbox may only contain options
-   * and groups, so a bare div among the rows is markup a reader is entitled to
-   * drop — which would make the live region silent for the users it exists for.
+   * The status line is the only thing reporting an all-inert ladder, and its text changes
+   * underneath a user already reading it. It may not live INSIDE the listbox.
    */
   it('announces the status line, and keeps it out of the listbox', () => {
     mount(() => (

@@ -1,8 +1,6 @@
 /**
- * Placement geometry — pure, so it is provable without a DOM.
- *
- * These are the cases the browser will not tell you about until a user is standing at the
- * bottom of the screen with a 10-row ladder and nowhere to put it.
+ * Placement geometry — pure, provable without a DOM. These are the cases the browser will not
+ * tell you about until a user is at the bottom of the screen.
  */
 
 import { describe, it, expect } from 'vitest';

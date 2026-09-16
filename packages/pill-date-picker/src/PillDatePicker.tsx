@@ -32,39 +32,21 @@ import {
 } from './_internal/popout';
 
 /**
- * An entry in the expiration list.
- *
- * Two shapes, because callers come in two kinds. A bare ISO string covers the trivial case.
- * The object form exists so a caller can hang THEIR OWN payload off each expiration (open
- * interest, IV, a broker's contract id, whatever) and get it back intact — `onChange` hands
- * back the ORIGINAL item by reference, never a stringified or reconstructed copy. The
- * generic parameter is what carries those extra keys through to the handler with their types
- * still attached.
+ * An entry: a bare ISO string, or an object so a caller can hang their own payload off it —
+ * `onChange` hands back the ORIGINAL item by reference.
  */
 export type PillDateEntry = string | { date: string };
 
 /**
- * What a row is, from the CALLER's point of view. The control renders the
- * difference; it never decides it.
- *
- * The three exist because "can I pick this?" is not a boolean in a real ladder.
- * An expiration can be exactly what you asked for, or takeable on terms you did
- * not ask for (a chain whose strike grid coarsens with time has no rung at your
- * strike four months out, but it has one nearby), or listed for other contracts
- * and not for yours. Collapsing the middle case into either neighbour is what
- * pushes consumers into hijacking `formatDate` to smuggle a marker into the
- * label, or into deleting rows from `items` so the user cannot tell "not for
- * you" from "does not exist".
+ * The caller's verdict on a row: exactly what you asked for, takeable on terms you did not ask
+ * for, or listed for other contracts and not yours.
  */
 export type PillDateItemState = 'available' | 'adjusted' | 'disabled';
 
 /**
- * Everything the default row derives, handed to {@link PillDatePickerProps.renderRow}
- * so a custom row never has to re-implement (or re-guess) any of it.
- *
- * `label`, `dteLabel` and `dteColor` are the SAME values the built-in row uses —
- * `formatDate` and `dteRamp` are already applied — so a caller who only wants to
- * add a column keeps the package's formatting for the columns they did not touch.
+ * Everything the default row derives, handed to {@link PillDatePickerProps.renderRow}. `label`,
+ * `dteLabel` and `dteColor` are the SAME values the built-in row uses, with
+ * `formatDate`/`dteRamp` applied.
  */
 export interface PillDateRowContext<T extends PillDateEntry = PillDateEntry> {
   /** The caller's original item, by reference. */
@@ -79,17 +61,8 @@ export interface PillDateRowContext<T extends PillDateEntry = PillDateEntry> {
   /** The formatted DTE the built-in row would render (e.g. `34d`). */
   dteLabel: string;
   /**
-   * The ramp colour the BUILT-IN row would paint, or `undefined` when there is
-   * none to paint: an unparseable date, an empty ramp — or a `'disabled'` row,
-   * which drops the ramp on purpose (urgency is a call to act, and this row
-   * cannot be acted on).
-   *
-   * That last case is why this is the rendered colour rather than the raw ramp
-   * lookup: this context is documented as the values the built-in row uses, and
-   * a custom row that painted a disabled date in warning-red while the default
-   * row painted it grey would make the same state look like two different
-   * things. A caller who genuinely wants the raw value can call the exported
-   * `resolveDteColor` themselves.
+   * The ramp colour the BUILT-IN row would paint, or `undefined` when there is none: an
+   * unparseable date, an empty ramp, or a `'disabled'` row, which drops the ramp on purpose.
    */
   dteColor: string | undefined;
   state: PillDateItemState;
@@ -104,67 +77,32 @@ export interface PillDateRowContext<T extends PillDateEntry = PillDateEntry> {
 
 export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
   /**
-   * The valid expirations, in the order they should be listed.
-   *
-   * The control does NOT fetch, validate, sort, or filter these — every date supplied is
-   * assumed to be a legitimate expiration. Deciding what exists is the caller's job and
-   * theirs alone; deciding how it LOOKS is this component's.
+   * The valid expirations, in listing order. The control does not fetch, validate, sort or
+   * filter them — deciding what exists is the caller's job; deciding how it LOOKS is this
+   * component's.
    */
   items: readonly T[];
   /**
-   * The selected expiration, as its KEY — see `keyOf`. By default that key is the ISO date.
-   *
-   * Keyed by value, never by object identity: a caller who refetches their chain gets
-   * structurally-equal items with brand-new identities, and an identity-keyed selection
-   * would silently deselect on every refresh.
+   * The selected expiration, as its KEY — see `keyOf`, which defaults to the ISO date. Keyed by
+   * value, never identity: a refetch hands back structurally-equal items with new identities.
    */
   value?: string | null;
   /**
-   * The stable key of an item. Defaults to its ISO date.
-   *
-   * Supply this when a date is NOT unique in your ladder — which is not a hypothetical:
-   * AM- and PM-settled index options (SPX and SPXW on the third Friday) are two different
-   * contracts on the same calendar day. Keyed by date alone, this control cannot tell them
-   * apart and would select the wrong one.
-   *
-   * The key must be STABLE ACROSS REFETCHES, and that is why it is yours to supply rather
-   * than something the control derives. A tempting-but-broken choice is the item's POSITION
-   * in the array: rebuild the ladder after a weekly expires and position 3 now names a
-   * different expiration, so the selection silently moves to the wrong contract — a failure
-   * that is worse than deselecting, because nothing about it looks wrong. Use an id, an OCC
-   * root, `${date}:${settlement}` — anything that names the CONTRACT rather than its slot.
+   * The stable key of an item; defaults to its ISO date. Supply it when a date is not unique
+   * (AM/PM-settled index options share a day). Never use the array position.
    */
   keyOf?: (item: T) => string;
   /** Fires with the ORIGINAL item — payload keys intact. */
   onChange: (item: T) => void;
 
   /**
-   * The clock DTE is measured from. Defaults to `new Date()`.
-   *
-   * Injectable because DTE is the one number here that can be WRONG, and a function that
-   * reaches for the ambient clock can only be tested by mocking the clock — which tests the
-   * mock. A caller pinning a session date (backtesting, a replay view) also gets correct
-   * DTE for free.
-   *
-   * Ignored when `dteOf` is supplied — that hands over the number itself.
+   * The clock DTE is measured from. Defaults to `new Date()`; injectable so DTE is testable
+   * without mocking the clock, and for a pinned session date. Ignored when `dteOf` is supplied.
    */
   now?: Date;
   /**
-   * This item's days-to-expiration, when the CALLER already owns that number.
-   * Defaults to calendar days between `now` and the item's date.
-   *
-   * The default is a derivation, and a derivation can disagree with the domain.
-   * It does, routinely: an options venue counts the expiration day itself, so
-   * its DTE runs one HIGHER than the calendar difference — and a consumer whose
-   * chain, order tickets and position rows all render the venue's number got a
-   * ladder that quietly disagreed with every one of them (observed in a
-   * consumer 2026-07-26: `Jul 27 … 1d` in this pop-out, `Jul 27 2d` on the pill
-   * it drops out of). Neither number is wrong in the abstract; two numbers for
-   * one date on one screen is.
-   *
-   * So: if your data carries a DTE, pass it. This control cannot know your
-   * convention and should not guess it. `null` renders the same "no DTE" the
-   * default uses for an unparseable date.
+   * This item's DTE when the caller owns that number; defaults to calendar days. A venue counts
+   * the expiration day itself, so its number runs one higher — pass yours.
    */
   dteOf?: (item: T) => number | null;
 
@@ -175,13 +113,8 @@ export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
   /** Shown in the pop-out when `items` is empty. Default 'No expirations'. */
   emptyMessage?: string;
   /**
-   * Shown ABOVE the rows when every row is `'disabled'` — the ladder is real
-   * and stays visible, but nothing in it can be taken, and a user clicking
-   * row after row deserves to be told that once rather than discover it five
-   * times. Default `'Nothing selectable'`.
-   *
-   * Distinct from `emptyMessage`, which is the different fact that there are no
-   * rows at all.
+   * Shown above the rows when every row is `'disabled'` — said once rather than discovered five
+   * times by clicking. Distinct from `emptyMessage`, which means no rows at all.
    */
   noneSelectableMessage?: string;
 
@@ -197,62 +130,36 @@ export interface PillDatePickerProps<T extends PillDateEntry = PillDateEntry> {
   preferPlacement?: PopoutPlacement;
 
   /**
-   * Urgency ramp for the DTE colour: ordered bands, first match wins.
-   *
-   * A prop rather than a constant because "urgent" is a house opinion — the consuming app's
-   * thresholds and palette are its own. The default bands are calendar boundaries (today /
-   * this week / this month / beyond) and resolve to `--pdp-dte-*` tokens, so the common case
-   * is re-themed from CSS without touching this prop at all.
+   * Urgency ramp: ordered bands, first match wins. A prop because "urgent" is a house opinion;
+   * the defaults resolve to `--pdp-dte-*` tokens, so CSS re-themes without touching it.
    */
   dteRamp?: readonly DteColorStop[];
 
   /** Override the `Jul 17` label — the escape hatch for locales the fixed format cannot serve. */
   formatDate?: (iso: string) => string;
   /**
-   * Rows for the hover tooltip. Defaults to the long date + the DTE.
-   *
-   * Takes the whole item, so a caller with payload can surface it here (open interest,
-   * volume, "monthly") without this package knowing anything about their domain.
+   * Rows for the hover tooltip; defaults to the long date plus the DTE. Takes the whole item,
+   * so a caller can surface their own payload here.
    */
   tooltipEntries?: (item: T, dte: number | null) => Record<string, string>;
   /** Suppress the hover tooltip entirely. */
   disableTooltip?: boolean;
 
   /**
-   * Per-item state. Defaults to `'available'` for every item, which is exactly
-   * the pre-0.2 behaviour.
-   *
-   * `'adjusted'` is offered and fully pickable — it is a row with a caveat, not
-   * a lesser row, and hiding it behind a disabled style would be a lie about
-   * what the user can do. `'disabled'` is rendered but inert: it cannot be
-   * clicked, the arrow keys step over it, and it never takes the cursor. It
-   * stays VISIBLE on purpose — a ladder silently missing its unavailable rows
-   * misrepresents the market's calendar.
+   * Per-item state; defaults to `'available'`. `'adjusted'` is fully pickable — a caveat, not a
+   * lesser row. `'disabled'` is rendered but inert, and stays VISIBLE: a ladder missing rows
+   * misrepresents the calendar.
    */
   itemState?: (item: T) => PillDateItemState;
   /**
-   * A short caller-authored note rendered on the row (`≈ 145`, `PM settle`,
-   * `no puts listed`). The package supplies no vocabulary of its own here: the
-   * reason a row is what it is belongs to the domain, not to a date picker.
-   *
-   * Keep it to a few characters — the row is one line in a dense pop-out. The
-   * long form belongs in `tooltipEntries`.
+   * A short caller-authored note on the row. The package supplies no vocabulary — the reason
+   * belongs to the domain. Keep it short; the long form goes in `tooltipEntries`.
    */
   annotation?: (item: T) => string | undefined;
   /**
-   * Full control of a row's CONTENT — the escape hatch for a row shape the
-   * built-in date/annotation/DTE layout cannot express.
-   *
-   * It replaces what is INSIDE the row, never the row element itself. The
-   * package keeps ownership of the parts that are easy to get wrong and
-   * invisible when they are: `role="option"`, the selected/active/disabled
-   * state attributes, click-to-commit, the pointer cursor, and the guarantee
-   * that a `'disabled'` row cannot be committed no matter what a custom row
-   * renders inside it (a nested button's click still bubbles into the same
-   * guarded handler).
-   *
-   * Prefer `itemState` + `annotation` where they fit: they keep every consumer's
-   * ladder looking like the same control. Reach for this when they do not.
+   * Full control of a row's CONTENT, never the row element: the package keeps `role="option"`,
+   * the state attributes, click-to-commit and the guarantee a `'disabled'` row cannot commit.
+   * Prefer `itemState` + `annotation`.
    */
   renderRow?: (ctx: PillDateRowContext<T>) => JSX.Element;
 
@@ -275,20 +182,8 @@ const isDev = Boolean(
 );
 
 /**
- * Which open picker owns the keyboard.
- *
- * Each instance binds its keys to the DOCUMENT (an open list owns the arrows
- * wherever focus happens to sit — see the open-effect), so two pickers open at
- * once would BOTH act on one keypress: one Enter, two commits, in two different
- * controls. `open` is a public controlled prop, so two open pickers is legal
- * API usage, not a misuse.
- *
- * Last opened wins, and closing hands the keyboard back to whoever was under
- * it — the stack, not a single "current", because pickers can close in any
- * order.
- *
- * ONE stack for every pill picker, kept on `globalThis` under a registered symbol, so a date
- * picker and a number picker share it without either package depending on the other.
+ * Which open picker owns the keyboard. Each instance binds to the DOCUMENT, so two open
+ * pickers would both act on one keypress. A stack on `globalThis`, shared across pill packages.
  */
 // Survives HMR: a picker never disposed across a module reload keeps its owner on top, blocking Escape until a full reload.
 const KEYBOARD_OWNERS_KEY = Symbol.for('@cujuju/solidjs-toolkit/pill-keyboard-owners');
@@ -300,11 +195,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   props: PillDatePickerProps<T>,
 ): JSX.Element {
   /**
-   * Instance id for the ARIA wiring below. The combobox keeps DOM focus while
-   * the ladder is open, so the only way a screen reader can announce the row
-   * the arrows are on is `aria-activedescendant` pointing at that row's id —
-   * without it, cursor movement is silent, and a user who cannot see the tint
-   * has no way to know a row is disabled before trying it.
+   * Instance id for the ARIA wiring: the combobox keeps DOM focus, so `aria-activedescendant` is
+   * the only way a screen reader can announce the row the arrows are on.
    */
   const uid = createUniqueId();
   const panelId = `${uid}-listbox`;
@@ -331,26 +223,15 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   const keyOf = (item: T): string => (props.keyOf ? props.keyOf(item) : dateOf(item));
 
   /**
-   * Caller's verdict per item, computed ONCE per (items × itemState) change.
-   *
-   * `itemState` is a caller predicate that can do real work — resolving a row
-   * against a broker's listings, say — and it is consulted by the renderer, by
-   * every arrow key's scan and by the commit guard. Calling it ad hoc made that
-   * ~3 invocations per row per render and another per row per keypress; a
-   * consumer would have to memoize defensively to make a documented-as-simple
-   * prop affordable. Keyed by the item's own key so the map survives a
-   * re-supplied array with equal contents.
+   * Caller's verdict per item, memoized per (items × itemState) change: `itemState` can do real
+   * work and is consulted by the renderer, every arrow scan and the commit guard.
    */
   const stateByKey = createMemo<Map<string, PillDateItemState>>(() => {
     const map = new Map<string, PillDateItemState>();
     for (const item of props.items) {
       const key = keyOf(item);
-      // A duplicate key is a caller bug with three silent consequences: two rows
-      // share one state, `value` selects both, and (since row ids derive from
-      // the key) the document gets duplicate ids, which makes
-      // `aria-activedescendant` ambiguous. Cheap to say so, expensive to debug
-      // from the symptoms. Dev-only: a shipped app should not pay for the
-      // check, and by then the wiring is fixed or it is not.
+      // A duplicate key is a caller bug: two rows share one state, `value` selects both, and
+      // duplicate row ids make `aria-activedescendant` ambiguous. Dev-only.
       if (isDev && map.has(key)) {
         // eslint-disable-next-line no-console
         console.warn(
@@ -365,21 +246,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   const stateOf = (item: T): PillDateItemState => stateByKey().get(keyOf(item)) ?? 'available';
 
   /**
-   * The ladder as its KEYS — what the row list is actually built from.
-   *
-   * `<For>` reconciles by REFERENCE, and a caller's ladder is re-supplied
-   * whenever their data settles: an async chain filling in, an idle refetch, a
-   * live re-derive. Those arrays hold structurally-equal items with brand-new
-   * identities, so `<For each={props.items}>` tore down and rebuilt EVERY row
-   * each time — for a ladder whose contents had not changed at all. Measured in
-   * a consumer 2026-07-25: 35 rows destroyed and recreated per re-supply, with
-   * the row-building path the single largest cost in the profile.
-   *
-   * Keys are strings, so this memo's value equality is real value equality: a
-   * re-supplied ladder with the same contracts produces the same array and the
-   * rows are left alone. It is the same promise `keyOf` already makes for
-   * selection and for `stateByKey` — "stable across refetches" — finally
-   * honoured by the row list too.
+   * The ladder as its KEYS. `<For>` reconciles by REFERENCE, so a re-supplied ladder rebuilt
+   * every row; keys compare by value, so equal contents leave the rows alone.
    */
   const itemKeys = createMemo<string[]>(
     () => props.items.map(keyOf),
@@ -387,9 +255,10 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     { equals: (a, b) => a.length === b.length && a.every((k, i) => k === b[i]) },
   );
 
-  /** Key → the CURRENT item under it. A keyed row reads its item through this
-   *  rather than closing over one, so a re-supplied ladder updates the row in
-   *  place instead of replacing it. */
+  /**
+   * Key → the CURRENT item under it. A keyed row reads its item through this, so a re-supplied
+   * ladder updates the row in place.
+   */
   const itemByKey = createMemo<Map<string, T>>(() => {
     const map = new Map<string, T>();
     for (const item of props.items) map.set(keyOf(item), item);
@@ -421,14 +290,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   const isPanelOpen = createMemo<boolean>(() => isOpen() && !props.disabled);
 
   /**
-   * The cursor is stored as the row's KEY, never its index.
-   *
-   * An index is a slot, and a ladder is not a stable set of slots: it is
-   * re-supplied whenever the caller's data settles (an async chain filling in,
-   * an idle refetch, a row dropping out). Under an index cursor, "row 3" after
-   * such a change names a DIFFERENT contract than the one the user was looking
-   * at — and Enter would commit it. Keyed, the cursor follows the row it was
-   * on, and honestly disappears if that row does.
+   * The cursor is stored as the row's KEY, never its index: a re-supplied ladder makes "row 3" a
+   * different contract. Keyed, the cursor follows its row or disappears.
    */
   const [activeKey, setActiveKey] = createSignal<string | null>(null);
   const activeIndex = createMemo<number>(() => {
@@ -445,18 +308,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   let panelEl: HTMLDivElement | undefined;
 
   /**
-   * Measure and place the panel. Returns whether the anchor is inside the viewport.
-   *
-   * Runs after the panel is in the DOM (its size is not knowable before), and again on
-   * scroll and resize: the panel is `position: fixed`, so ANY scroll of ANY ancestor moves
-   * the anchor out from under it. The scroll listener is CAPTURING (third arg `true`)
-   * precisely because the scrolling ancestor is usually not `window` — it is the consumer's
-   * own scroll container, and a bubbling listener would never hear it (scroll does not
-   * bubble from an element).
-   *
-   * It REPORTS the in-view state, it never remembers it: the in-view → out-of-view edge that
-   * closes the ladder belongs to `onReflow` alone, so a placement from any other caller (mount,
-   * the ResizeObserver, a changed gap) cannot consume it.
+   * Measure and place the panel; returns whether the anchor is in view. Re-runs on scroll and
+   * resize — CAPTURING, since the scrolling ancestor is rarely `window`.
    */
   const place = (): boolean => {
     // No anchor to measure: report in-view, because "unknown" must never close the ladder.
@@ -495,17 +348,12 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   };
 
   /**
-   * Fail-closed commit: a disabled item can never reach `onChange`, whatever
-   * route asked for it — a click on the row, a click on something a custom
-   * `renderRow` put INSIDE the row, or an Enter on a cursor that somehow landed
-   * there. The keyboard already steps over disabled rows and they never take
-   * the pointer cursor; this is the guard that makes those two facts
-   * unnecessary rather than load-bearing.
+   * Fail-closed commit: a disabled item can never reach `onChange`, whatever route asked — a row
+   * click, a click inside a custom `renderRow`, or Enter on a cursor that landed there.
    */
   const commit = (index: number): void => {
-    // A control the caller disabled must not act, even with a panel already on
-    // screen when it was disabled (the trigger's own guards cannot cover that —
-    // the rows are portalled and still under the pointer).
+    // A control the caller disabled must not act, even with a panel already on screen — the rows
+    // are portalled and still under the pointer.
     if (props.disabled) return;
     const item = props.items[index];
     if (!item) return;
@@ -515,12 +363,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   };
 
   /**
-   * Wrap so ArrowDown off the end lands on the first row rather than dead-ending,
-   * and STEP OVER disabled rows: a cursor that can land somewhere Enter refuses
-   * to act reads as a broken control.
-   *
-   * Bounded by the row count, so a ladder where every row is disabled settles on
-   * "nothing active" instead of spinning.
+   * Wrap at the ends and STEP OVER disabled rows: a cursor that lands where Enter refuses to act
+   * reads as broken. Bounded, so an all-disabled ladder settles on nothing active.
    */
   const moveActive = (delta: number): void => {
     const n = props.items.length;
@@ -558,37 +402,21 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   };
 
   /**
-   * Everything that is only true while the pop-out is open: placement, reflow, dismissal,
-   * and the list's keyboard.
-   *
-   * Outside-press closes on `pointerdown` rather than `click`: a click fires after the press
-   * completes, so a user pressing a control in a neighbouring row would otherwise interact
-   * with a panel that is still on top of it.
-   *
-   * The keyboard is bound to the DOCUMENT, not to the panel, but serves only keys aimed at the
-   * pill, the panel, or nothing focused (body) — judged on the composed path, so shadow roots
-   * work. A ladder opened while focus sits elsewhere ignores the keyboard until focus reaches the pill.
+   * Everything true only while the pop-out is open: placement, reflow, dismissal, the list's
+   * keyboard. Outside-press closes on `pointerdown`; the document keyboard serves only keys
+   * aimed at the pill or panel.
    */
   createEffect(() => {
     if (!isPanelOpen()) {
       setPopout(null);
       return;
     }
-    // Open with the current selection under the cursor, so Enter is a no-op rather than a
-    // surprise, and ArrowDown starts from where the user already is. Seeded even when that
-    // row is now DISABLED: moving the cursor to a different row would make Enter pick a
-    // value the user never chose, which is the surprise this seeding exists to avoid. The
-    // commit guard already refuses it, and the first arrow key steps to a usable row.
-    //
-    // UNTRACKED, and this is load-bearing: reading `items`/`value` here would make this
-    // whole effect re-run whenever the caller re-supplies the ladder — teleporting the
-    // user's cursor back to the selection mid-interaction (and re-registering every
-    // document listener) every time an async chain settles. Seeding is an OPEN-time
-    // decision, so it depends on `isPanelOpen` and nothing else.
+    // Open with the current selection under the cursor, so Enter is a no-op. UNTRACKED: reading
+    // `items`/`value` here would re-run this effect on every re-supply, teleporting the cursor
+    // mid-interaction.
     untrack(() => setActiveKey(props.value ?? null));
-    // Untracked too: `place` reads `popoutGap`/`preferPlacement`. The placement effect below owns those.
-    // Seeds the reflow edge: a ladder opened on an off-screen anchor is hidden, and must not
-    // then read the next scroll as a departure it never made.
+    // Untracked too: `place` reads `popoutGap`/`preferPlacement`, which the placement effect owns.
+    // Seeds the reflow edge so a hidden ladder is not read as a departure.
     let anchorWasInView = untrack(place);
 
     // Take the keyboard. Popped in this effect's cleanup, so it is released on close,
@@ -688,12 +516,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   });
 
   /**
-   * Disabling a control with its ladder open must put the ladder away.
-   *
-   * The trigger's guards cover the trigger; they cannot cover a panel that is
-   * ALREADY on screen and portalled out to <body>, still under the pointer.
-   * Without this, "disabled" meant only "cannot be opened" — a control the
-   * caller had switched off could still be operated.
+   * Disabling a control with its ladder open must put the ladder away: the trigger's guards
+   * cannot cover a panel already on screen and portalled to <body>.
    */
   createEffect(() => {
     if (props.disabled && isOpen()) close(false);
@@ -755,9 +579,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       aria-haspopup="listbox"
       aria-expanded={isPanelOpen()}
       aria-controls={isPanelOpen() ? panelId : undefined}
-      // Points at the row the arrows are on. Only while open — a closed
-      // combobox owning a descendant that is not in the document is a lie a
-      // screen reader will read out.
+      // Points at the row the arrows are on, and only while open: a closed combobox owning a
+      // descendant that is not in the document is a lie.
       aria-activedescendant={isPanelOpen() && activeRowKey() !== null ? rowId(activeRowKey()!) : undefined}
       aria-label={props.ariaLabel}
       disabled={props.disabled}
@@ -784,10 +607,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       <Show when={p.ctx.annotation}>
         {(note) => <span class="cpdp-row-note">{note()}</span>}
       </Show>
-      {/* The colour is a style, not a class, because the ramp is caller-supplied:
-          the package cannot know the class names of a palette it does not own.
-          A disabled row drops the ramp: urgency is a call to act, and this row
-          cannot be acted on — it would be shouting about an unavailable date. */}
+      {/* The colour is a style, not a class: the ramp is caller-supplied, so the
+                package cannot know a palette's class names. A disabled row drops the ramp. */}
       <span
         class="cpdp-row-dte"
         style={p.ctx.state === 'disabled' ? undefined : { color: p.ctx.dteColor }}
@@ -798,9 +619,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   );
 
   // ── Pop-out panel ────────────────────────────────────────────────────
-  // Re-place once the panel has actually been laid out. The first `place()` inside the
-  // open-effect runs before the browser has sized the portalled panel, so its measured height
-  // can be 0 — which would resolve the placement against a phantom.
+  // Re-place once the panel has been laid out: the first `place()` runs before the
+  // portalled panel is sized, so its measured height can be 0.
   const PanelBody = (): JSX.Element => {
     onMount(() => place());
     // Re-place whenever the panel's own size changes: rows arriving, a status line, a wrapped note.
@@ -812,17 +632,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     });
     return (
       <>
-        {/* Both messages are live regions, and both sit OUTSIDE the listbox.
-            Outside because a listbox may only contain options and groups — a
-            bare div among the rows is markup a screen reader is entitled to
-            drop. Live because they are the only thing that reports a ladder
-            whose rows are all inert, and their text CHANGES underneath a user
-            who is already looking at it (a caller resolving its rows against a
-            broker moves from "checking…" to the real answer): announced once on
-            open, that user would never hear the answer arrive. `role="status"`
-            is polite by definition — it waits for a pause rather than cutting
-            across whatever the reader is saying about the row under the
-            cursor. */}
+        {/* Both messages are live regions sitting OUTSIDE the listbox: a listbox may
+                    only contain options, and their text changes underneath a user already
+                    looking at it. `role="status"` is polite. */}
         <Show when={props.items.length === 0}>
           <div class="cpdp-empty" role="status">{props.emptyMessage ?? 'No expirations'}</div>
         </Show>
@@ -845,18 +657,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
         <For each={itemKeys()}>
           {(key, i) => {
             /**
-             * This row's CURRENT item.
-             *
-             * Looked up by key rather than captured, because the row now
-             * outlives any single `items` array: a re-supplied ladder with equal
-             * keys keeps this row alive and hands it the fresh object here.
-             *
-             * The fallback exists for one frame: `<For>` reconciles against the
-             * new key list before it disposes the rows whose keys are gone, so a
-             * departing row can be asked to render once after its item has left
-             * the map. Rendering its last known values for that frame is
-             * correct — it is on its way out — and is the only alternative to
-             * a non-total type or a null-check in every field below.
+             * This row's CURRENT item, looked up by key rather than captured: the row
+             * outlives any single `items` array. The fallback covers one frame — `<For>`
+             * reconciles keys before disposing departing rows.
              */
             let lastItem = itemByKey().get(key)!;
             const item = (): T => {
@@ -866,11 +669,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
             };
             const iso = (): string => dateOf(item());
             /**
-             * MEMOIZED, both of them. Every field of the row context is read at
-             * least once per render pass and `dte` three times (the number, its
-             * label, its ramp colour) — and each read parsed the ISO date and
-             * allocated a `new Date()` for the clock. Two memos make that once
-             * per row per pass, and they still re-run when `props.now` moves.
+             * MEMOIZED, both: every context field is read at least once per pass and
+             * `dte` three times, each read parsing the ISO date and allocating a `Date`.
              */
             const dte = createMemo<number | null>(() => dteOf(item()));
             const label = createMemo<string>(() => labelOf(iso()));
@@ -879,32 +679,15 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
             const selected = (): boolean => props.value === key;
             const state = (): PillDateItemState => stateByKey().get(key) ?? 'available';
             /**
-             * Compare KEYS, not indices. `activeIndex` is a memo that scans the
-             * ladder to find the cursor's row; asking it once PER ROW turns a
-             * cursor move into an O(n²) sweep (a 60-row LEAPS ladder = 3600
-             * comparisons per arrow key). The key comparison is the same answer
-             * in O(1).
+             * Compare KEYS, not indices: `activeIndex` scans the ladder, so asking it per
+             * row turns a cursor move into an O(n²) sweep. The key comparison is O(1).
              */
             const isActive = (): boolean => activeKey() === key;
             const note = (): string | undefined => props.annotation?.(item());
             /**
-             * The same values the built-in row renders — see PillDateRowContext.
-             *
-             * ONE object per row, and every field a GETTER.
-             *
-             * The getters are what make a `renderRow` correct: a custom row is
-             * called ONCE to build its JSX, so plain values would hand it a
-             * snapshot and it would never see the cursor move (or the selection
-             * change, or a re-supplied annotation). Reading through a getter puts
-             * the read inside the consumer's own JSX, which Solid compiles to a
-             * tracked expression.
-             *
-             * Building it once is what makes it AFFORDABLE. It used to be a
-             * function called at every use site, and `<DefaultRow ctx={…}/>`
-             * passes props as getters — so each of the five fields the default
-             * row reads rebuilt the whole eight-getter object first. `item` and
-             * `index` are getters for the same reason: with a keyed row they
-             * genuinely do change underneath it (a re-supplied ladder, a reorder).
+             * ONE object per row, every field a GETTER: a custom row is called once to
+             * build its JSX, so plain values would freeze it. Same values the built-in row
+             * renders.
              */
             const ctx: PillDateRowContext<T> = {
               get item() { return item(); },
@@ -927,9 +710,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
                 class="cpdp-row"
                 role="option"
                 aria-selected={selected()}
-                // Announced, not just styled: a screen reader must hear that the row is
-                // inert. `aria-disabled` (not `disabled`) because the row stays in the
-                // listbox and remains readable — it is unavailable, not absent.
+                // Announced, not just styled: `aria-disabled` (not `disabled`) because the row
+                // stays in the listbox and remains readable — unavailable, not absent.
                 aria-disabled={state() === 'disabled' ? 'true' : undefined}
                 data-state={state()}
                 data-active={isActive() ? 'true' : undefined}
@@ -956,16 +738,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
 
   return (
     <div class={`cpdp-root cpdp-size-${size()} ${props.class ?? ''}`.trim()}>
-      {/* Collapsed, the pill shows ONLY the date — the DTE is what the tooltip is FOR.
-          Suppressed while open: the ladder already shows every DTE, and a tooltip floating
-          over the panel that replaced it is noise on top of the answer.
-
-          The wrapper is always mounted and the tooltip is suppressed via `disabled`, rather
-          than mounting the pill under a <Show> with an unwrapped fallback. Both branches of
-          such a Show would construct their own <button> and each would claim `anchorEl` on
-          creation — leaving the ref pointing at whichever element was built last, which is
-          not necessarily the one in the document. The pop-out would then be placed against a
-          detached node. */}
+      {/* The pill shows ONLY the date; the tooltip carries the DTE and is suppressed
+                while open. Always mounted: a `<Show>`'s branches would both claim `anchorEl`. */}
       <KvTooltip
         entries={tooltipEntries()}
         disabled={(props.disableTooltip ?? false) || isPanelOpen()}
@@ -974,13 +748,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
         {trigger()}
       </KvTooltip>
 
-      {/* `!props.disabled` as well as `isOpen()`: a CONTROLLED parent owns the
-          open flag, so disabling the control can only ASK it to close (the
-          effect above fires `onOpenChange(false)`). A parent that ignores that
-          would otherwise leave a ladder on screen belonging to a control the
-          caller had switched off — inert, since commit() refuses, but a panel
-          that looks operable and is not is worse than no panel. Rendering is
-          ours to decide even when the open STATE is not. */}
+      {/* `!props.disabled` as well as `isOpen()`: a controlled parent owns the open
+                flag, so disabling can only ASK it to close. Rendering is ours even when the
+                open state is not. */}
       <Show when={isPanelOpen()}>
         <Portal>
           {/* The positioned, scrolling SHELL — deliberately role-less. The
