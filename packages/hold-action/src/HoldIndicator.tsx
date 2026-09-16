@@ -1,4 +1,4 @@
-import { createSignal, createMemo, onMount, onCleanup, Show, type Accessor, type JSX } from 'solid-js';
+import { createSignal, createMemo, createEffect, on, onCleanup, Show, type Accessor, type JSX } from 'solid-js';
 import { measureLayoutBox } from './_internal/measure';
 import { strokeOuterOffset as computeStrokeOuterOffset, type StrokePlacement } from './_internal/placement';
 import { applyEasing } from './_internal/easing';
@@ -68,6 +68,12 @@ export interface HoldIndicatorProps {
   style?: JSX.CSSProperties;
 }
 
+const ZERO_OFFSETS = { t: 0, r: 0, b: 0, l: 0 };
+/** An SVG circle's stroke starts at 3 o'clock; this rotation moves it to 12. */
+const CIRCLE_START_TO_TOP_DEG = -90;
+/** The counterclockwise mirror moves the start point half a turn. */
+const MIRROR_HALF_TURN_DEG = 180;
+
 function toCssSize(v: number | string | undefined): string | undefined {
   if (v === undefined) return undefined;
   return typeof v === 'number' ? `${v}px` : v;
@@ -96,9 +102,9 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
     props.strokePlacement ?? 'outside';
   const strokeInset = (): number => props.strokeInset ?? 0;
 
-  const explicitSize =
+  const explicitSize = (): boolean =>
     props.width !== undefined || props.height !== undefined || props.size !== undefined;
-  const fillParent = (): boolean => props.fillParent ?? !explicitSize;
+  const fillParent = createMemo((): boolean => props.fillParent ?? !explicitSize());
 
   const width = (): string | undefined =>
     toCssSize(props.size ?? props.width);
@@ -109,15 +115,16 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
   const [measuredSize, setMeasuredSize] = createSignal({ w: 0, h: 0 });
   const [borderOffsets, setBorderOffsets] = createSignal({ t: 0, r: 0, b: 0, l: 0 });
 
-  onMount(() => {
+  // Re-runs when the layout mode flips, so measurement re-targets parent ↔ self.
+  createEffect(on(fillParent, (fill) => {
     if (!rootEl) return;
-    const target = fillParent() ? rootEl.parentElement : rootEl;
+    const target = fill ? rootEl.parentElement : rootEl;
     if (!target) return;
 
     const measure = (): void => {
       // Layout box (unscaled by transforms). See measureLayoutBox for rationale.
       setMeasuredSize(measureLayoutBox(target));
-      if (fillParent()) {
+      if (fill) {
         const cs = getComputedStyle(target);
         setBorderOffsets({
           t: parseFloat(cs.borderTopWidth) || 0,
@@ -125,6 +132,8 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
           b: parseFloat(cs.borderBottomWidth) || 0,
           l: parseFloat(cs.borderLeftWidth) || 0,
         });
+      } else {
+        setBorderOffsets(ZERO_OFFSETS);
       }
     };
     measure();
@@ -134,7 +143,7 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
       ro.observe(target);
       onCleanup(() => ro.disconnect());
     }
-  });
+  }));
 
   /**
    * Signed distance from parent's border-OUTER edge to the stroke's OUTER edge.
@@ -151,8 +160,10 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
   // (where inset:0 sits). Size = border-box + sum of outer offsets on each side.
   const rootStyle = (): JSX.CSSProperties => {
     if (fillParent()) {
-      const o = borderOffsets();
-      const out = strokeOuterOffset();
+      // The bar is a fill, not a stroke: it needs no outward room, so it sits at inset 0.
+      const isBar = shape() === 'bar';
+      const o = isBar ? ZERO_OFFSETS : borderOffsets();
+      const out = isBar ? ZERO_OFFSETS : strokeOuterOffset();
       return {
         position: 'absolute',
         // Each inset = -(borderOffset + outerOffset). When outerOffset is
@@ -186,6 +197,13 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
     };
   });
 
+  // Only the fill-parent wrapper is grown by the outer offsets; in explicit-size
+  // mode shift the SVG out instead, keeping the stroke centered on the box.
+  const svgStyle = (): JSX.CSSProperties => {
+    const out = fillParent() ? ZERO_OFFSETS : strokeOuterOffset();
+    return { position: 'absolute', top: `${-out.t}px`, left: `${-out.l}px`, overflow: 'visible' };
+  };
+
   // ── Circle geometry ────────────────────────────────────────────────────
   // Stroke OUTER edge should touch the circle inscribed in the (parent's
   // border-box expanded by outer offset). For symmetric offsets this is a
@@ -202,7 +220,10 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
     const cx = w.w / 2;
     const cy = w.h / 2;
     const circumference = 2 * Math.PI * r;
-    const rotate = (direction() === 'counterclockwise' ? -1 : 1) * (props.startAngle ?? 0) - 90;
+    const rotate =
+      (props.startAngle ?? 0) +
+      CIRCLE_START_TO_TOP_DEG +
+      (direction() === 'counterclockwise' ? MIRROR_HALF_TURN_DEG : 0);
     return { w: w.w, h: w.h, cx, cy, r, sw, circumference, rotate };
   });
 
@@ -266,7 +287,7 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
           <svg
             width={g().w}
             height={g().h}
-            style={{ position: 'absolute', top: '0', left: '0', overflow: 'visible' }}
+            style={svgStyle()}
           >
             <circle
               cx={g().cx}
@@ -294,7 +315,7 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
           <svg
             width={g().w}
             height={g().h}
-            style={{ position: 'absolute', top: '0', left: '0', overflow: 'visible' }}
+            style={svgStyle()}
           >
             <path
               d={g().d}

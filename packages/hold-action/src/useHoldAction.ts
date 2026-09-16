@@ -27,7 +27,8 @@ export interface UseHoldActionOptions {
    * Called when an in-progress hold is cancelled before completion. Fires for
    * every user-cancellation path: pointerup mid-hold, pointerleave (when
    * cancelOnLeave is true), document mouseup (when cancelOnDocumentMouseUp is
-   * true), and the imperative `cancel()` return-value method.
+   * true), pointercancel (the platform took the pointer), and the imperative
+   * `cancel()` return-value method.
    *
    * Does NOT fire after a completed hold (use `onComplete` for that).
    * Does NOT fire on component cleanup — the component is being torn down,
@@ -35,7 +36,10 @@ export interface UseHoldActionOptions {
    */
   onCancel?: () => void;
 
-  /** Default true: eats the synthetic click that fires after a completed hold. */
+  /**
+   * Default true: `shouldSuppressClick()` reports the synthetic click after a
+   * completed hold. Nothing is suppressed unless your onClick calls it.
+   */
   suppressClickAfterComplete?: boolean;
   /** Default true: cancel on pointerleave from the target. */
   cancelOnLeave?: boolean;
@@ -48,6 +52,7 @@ export interface UseHoldActionHandlers {
   onPointerUp: (e: PointerEvent) => void;
   onPointerEnter: (e: PointerEvent) => void;
   onPointerLeave: (e: PointerEvent) => void;
+  onPointerCancel: (e: PointerEvent) => void;
 }
 
 export interface UseHoldActionReturn {
@@ -87,6 +92,11 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
   let startTime: number | null = null;
   let reachedStages = new Set<number>();
   let justCompleted = false;
+  let activePointerId: number | undefined;
+
+  // A second pointer (e.g. another finger) must neither restart nor cancel the hold.
+  const isOtherPointer = (e: PointerEvent): boolean =>
+    startTime !== null && e.pointerId !== activePointerId;
 
   // Pure state reset. Used by both stop() (user-cancellation path) and
   // onCleanup (component-disposal path). Splitting these is what lets
@@ -113,10 +123,11 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
     if (wasInProgress) options.onCancel?.();
   };
 
-  const start = (): void => {
+  const start = (pointerId: number | undefined): void => {
     if (!enabled()) return;
     stop();
     justCompleted = false;
+    activePointerId = pointerId;
     startTime = performance.now();
     setHolding(true);
 
@@ -169,18 +180,28 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
     onPointerDown: (e) => {
       if (trigger !== 'press') return;
       if (e.button !== undefined && e.button !== 0) return; // left click only for mouse
-      start();
+      if (isOtherPointer(e)) return;
+      start(e.pointerId);
     },
-    onPointerUp: () => {
+    onPointerUp: (e) => {
       if (trigger !== 'press') return;
+      if (isOtherPointer(e)) return;
       stop();
     },
-    onPointerEnter: () => {
+    onPointerEnter: (e) => {
       if (trigger !== 'hover') return;
-      start();
+      if (isOtherPointer(e)) return;
+      start(e.pointerId);
     },
-    onPointerLeave: () => {
+    onPointerLeave: (e) => {
+      if (isOtherPointer(e)) return;
       if (trigger === 'hover' || cancelOnLeave) stop();
+    },
+    // The platform took the pointer (touch pan, gesture). No pointerup follows,
+    // and a trailing pointerleave is inert when cancelOnLeave is false.
+    onPointerCancel: (e) => {
+      if (isOtherPointer(e)) return;
+      stop();
     },
   };
 

@@ -45,9 +45,9 @@ function DeleteButton() {
 | `stages` | — | Array of `{ at: ms, onReach }` intermediate callbacks. Each fires once per hold when its `at` ms is crossed. Not re-fired if the hold cancels. |
 | `trigger` | `'press'` | `'press'` = pointerdown starts, pointerup stops. `'hover'` = pointerenter starts, pointerleave stops. |
 | `enabled` | `() => true` | Accessor; when false, holds do not start. |
-| `onCancel` | — | Called when an in-progress hold is cancelled (pointerup, pointerleave, doc-mouseup, or imperative `cancel()`). Does NOT fire after `onComplete`, and does NOT fire on component cleanup. Use for reverting visual state set during the hold. |
-| `suppressClickAfterComplete` | `true` | Completed hold swallows the subsequent `click` event (prevents double-firing with the parent element's click handler). |
-| `cancelOnLeave` | `true` | Pointer leaving the element cancels. |
+| `onCancel` | — | Called when an in-progress hold is cancelled (pointerup, pointerleave, doc-mouseup, pointercancel, or imperative `cancel()`). Does NOT fire after `onComplete`, and does NOT fire on component cleanup. Use for reverting visual state set during the hold. |
+| `suppressClickAfterComplete` | `true` | Lets `shouldSuppressClick()` report the `click` that follows a completed hold, so your `onClick` can swallow it (prevents double-firing). Nothing is suppressed unless your `onClick` calls it — see [Suppression details](#suppression-details). |
+| `cancelOnLeave` | `true` | Pointer leaving the element cancels. `pointercancel` (the platform taking the pointer, e.g. a touch pan) always cancels, regardless of this. |
 | `cancelOnDocumentMouseUp` | `true` | Mouse up anywhere on the document cancels an in-progress hold (catches release outside the element). |
 
 ### Returns
@@ -55,10 +55,11 @@ function DeleteButton() {
 ```ts
 {
   handlers: {
-    onPointerDown, onPointerUp, onPointerEnter, onPointerLeave, onClick
+    onPointerDown, onPointerUp, onPointerEnter, onPointerLeave, onPointerCancel
   },                           // spread onto the target element
   progress: Accessor<number>,  // 0 → 1
   holding: Accessor<boolean>,
+  shouldSuppressClick: () => boolean, // one-shot; call from your onClick
   cancel: () => void,
 }
 ```
@@ -80,7 +81,7 @@ function DeleteButton() {
 | `direction` | `'clockwise'` | |
 | `class`, `style` | — | Passthrough. |
 
-The component measures its parent (or self, when explicit size) via `getBoundingClientRect` + `ResizeObserver` for correct geometry.
+The component measures its parent (or self, when explicit size) via `offsetWidth`/`offsetHeight` + `ResizeObserver` for correct geometry. Those are layout dimensions, so a CSS `transform` on an ancestor is not double-applied to the SVG.
 
 ## Multi-stage holds
 
@@ -112,7 +113,17 @@ return (
 
 ## Suppression details
 
-The `click` event fires AFTER `pointerup` on mouse interactions. Without suppression, a hold that completes on pointerup would also fire the parent's `onClick` (e.g., opening a popover). With `suppressClickAfterComplete: true` (default), the hold-action's `onClick` handler in the returned `handlers` object will `preventDefault` + `stopPropagation` on the next click event immediately after a completed hold. Tap-without-holding still fires onClick normally.
+The `click` event fires AFTER `pointerup` (touch: `pointerup` → `pointerleave` → `click`). Without suppression, a completed hold would also fire the element's `onClick` (e.g., opening a popover). `handlers` has no `onClick`: call `shouldSuppressClick()` from your own. It returns `true` once after a completed hold (when `suppressClickAfterComplete` is `true`, the default), then `false`. Tap-without-holding still fires onClick normally.
+
+```tsx
+const onClick = (e: MouseEvent) => {
+  if (hold.shouldSuppressClick()) { e.preventDefault(); return; }
+  openPopover();
+};
+return <button {...hold.handlers} onClick={onClick}>…</button>;
+```
+
+If the release after a completed hold lands off the element, no click follows and the flag stays set until the next hold starts — the next click on the element (including a keyboard click) is then swallowed.
 
 ## Future ideas
 

@@ -262,4 +262,112 @@ describe('useHoldAction', () => {
       expect(onCancel).not.toHaveBeenCalled();
     });
   });
+
+  // ─── Multiple pointers ──────────────────────────────────────────────────
+
+  describe('concurrent pointers', () => {
+    const PRIMARY = 1;
+    const SECONDARY = 2;
+
+    it('a second pointer going down, up, and leaving does not cancel or restart the hold', () => {
+      const onCancel = vi.fn();
+      const onComplete = vi.fn();
+      createRoot(() => {
+        const hold = useHoldAction({ durationMs: 100, onComplete, onCancel });
+        h.setTime(0);
+        hold.handlers.onPointerDown({ button: 0, pointerId: PRIMARY } as PointerEvent);
+        h.flushRaf();
+        h.setTime(80);
+        h.flushRaf();
+        hold.handlers.onPointerDown({ button: 0, pointerId: SECONDARY } as PointerEvent);
+        expect(onCancel).not.toHaveBeenCalled();
+        h.setTime(90);
+        h.flushRaf();
+        // Touch order: pointerup → pointerleave for the lifted finger.
+        hold.handlers.onPointerUp({ button: 0, pointerId: SECONDARY } as PointerEvent);
+        hold.handlers.onPointerLeave({ pointerId: SECONDARY } as PointerEvent);
+        expect(onCancel).not.toHaveBeenCalled();
+        expect(hold.holding()).toBe(true);
+        h.setTime(100); // original start still counts
+        h.flushRaf();
+        expect(onComplete).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('the pointer that started the hold still cancels it', () => {
+      const onCancel = vi.fn();
+      createRoot(() => {
+        const hold = useHoldAction({ durationMs: 100, onComplete: () => {}, onCancel });
+        h.setTime(0);
+        hold.handlers.onPointerDown({ button: 0, pointerId: PRIMARY } as PointerEvent);
+        h.flushRaf();
+        hold.handlers.onPointerDown({ button: 0, pointerId: SECONDARY } as PointerEvent);
+        hold.handlers.onPointerUp({ button: 0, pointerId: PRIMARY } as PointerEvent);
+        expect(onCancel).toHaveBeenCalledTimes(1);
+        expect(hold.holding()).toBe(false);
+      });
+    });
+  });
+
+  describe('pointercancel', () => {
+    const PRIMARY = 1;
+    const SECONDARY = 2;
+
+    it('cancels the hold without completing, even when cancelOnLeave is false', () => {
+      const onCancel = vi.fn();
+      const onComplete = vi.fn();
+      createRoot(() => {
+        const hold = useHoldAction({ durationMs: 100, onComplete, onCancel, cancelOnLeave: false });
+        h.setTime(0);
+        hold.handlers.onPointerDown({ button: 0, pointerId: PRIMARY } as PointerEvent);
+        h.flushRaf();
+        h.setTime(50);
+        h.flushRaf();
+        // Touch pan: the browser takes the pointer, then leave/up never arrive.
+        hold.handlers.onPointerCancel({ pointerId: PRIMARY } as PointerEvent);
+        expect(onCancel).toHaveBeenCalledTimes(1);
+        expect(hold.holding()).toBe(false);
+        h.setTime(100);
+        h.flushRaf();
+        expect(onComplete).not.toHaveBeenCalled();
+      });
+    });
+
+    it('a cancel for another pointer leaves the hold running', () => {
+      const onCancel = vi.fn();
+      const onComplete = vi.fn();
+      createRoot(() => {
+        const hold = useHoldAction({ durationMs: 100, onComplete, onCancel });
+        h.setTime(0);
+        hold.handlers.onPointerDown({ button: 0, pointerId: PRIMARY } as PointerEvent);
+        h.flushRaf();
+        hold.handlers.onPointerCancel({ pointerId: SECONDARY } as PointerEvent);
+        expect(onCancel).not.toHaveBeenCalled();
+        expect(hold.holding()).toBe(true);
+        h.setTime(100);
+        h.flushRaf();
+        expect(onComplete).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('releases the active pointer so a later hold can start', () => {
+      const onComplete = vi.fn();
+      createRoot(() => {
+        const hold = useHoldAction({ durationMs: 100, onComplete, cancelOnLeave: false });
+        h.setTime(0);
+        hold.handlers.onPointerDown({ button: 0, pointerId: PRIMARY } as PointerEvent);
+        h.flushRaf();
+        hold.handlers.onPointerCancel({ pointerId: PRIMARY } as PointerEvent);
+        h.setTime(60);
+        hold.handlers.onPointerDown({ button: 0, pointerId: SECONDARY } as PointerEvent);
+        h.flushRaf();
+        h.setTime(100);
+        h.flushRaf();
+        expect(onComplete).not.toHaveBeenCalled();
+        h.setTime(160);
+        h.flushRaf();
+        expect(onComplete).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });
