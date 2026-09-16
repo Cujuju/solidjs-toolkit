@@ -1,12 +1,8 @@
 import type { JSX } from 'solid-js';
 
 /**
- * Inline SVG icons used by EditableListRow. Bundled to avoid an icon-library
- * dependency. Sized 12-14px to match the row's compact density.
- *
- * Paths are lifted from the Lucide icon set (MIT-licensed) — pencil, trash-2,
- * grip-vertical. Stroke-based, currentColor-inheriting, so consumers control
- * color via parent text-color.
+ * Inline SVG icons (Lucide, MIT: pencil, trash-2, grip-vertical) to avoid an icon-library
+ * dependency. Stroke-based and `currentColor`-inheriting.
  */
 
 const STROKE_PROPS = {

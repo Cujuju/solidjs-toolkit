@@ -24,15 +24,11 @@ export interface EditableListRowProps {
    *  inline-rename input does NOT auto-open from a body click. When absent
    *  AND `onRename` is provided, body-click enters rename mode. */
   onActivate?: () => void;
-  /** When provided, a pencil icon shows as an explicit rename trigger.
-   *  Inline rename: Enter saves, Escape cancels, blur saves. On reject the
-   *  row STAYS in rename mode with the typed value preserved. A blur refused
-   *  while `busy()` commits once busy clears, unless the input regained focus. */
+  /** Pencil rename trigger. Enter saves, Escape cancels, blur saves. On reject the row stays in
+   *  rename mode with the typed value; a blur refused while `busy()` commits once busy clears. */
   onRename?: (next: string) => Promise<void>;
-  /** When provided, a trash icon shows. Click trash → `confirmDelete` →
-   *  `onDelete`. Rejections from either are swallowed; surface errors
-   *  yourself. `busy()` is checked before the confirm opens; once the user
-   *  confirms, the delete proceeds. */
+  /** Trash icon. Click → `confirmDelete` → `onDelete`; rejections are swallowed, so surface
+   *  errors yourself. `busy()` is checked before the confirm opens. */
   onDelete?: () => Promise<void>;
   /** Active-state styling. */
   active?: boolean;
@@ -65,13 +61,8 @@ export interface EditableListRowProps {
   renameAriaLabel?: string;
   /** ARIA label override for the delete button (default: `Delete ${name}`). */
   deleteAriaLabel?: string;
-  /** Reactive trigger to enter rename mode from OUTSIDE the row. Edge-
-   *  triggered: a false → true transition starts rename. The consumer
-   *  should pair this with `onRenameClose` so they can clear whatever
-   *  signal drove the initial enter (otherwise the next enter cycle for
-   *  the same row won't fire). An edge refused while `busy()` stays latched
-   *  while `pendingRename()` remains true:
-   *  rename starts, and focuses the input, once busy clears. */
+  /** Edge-triggered (false → true) rename entry from outside. Pair with `onRenameClose` to clear
+   *  the driving signal. An edge refused while `busy()` stays latched until busy clears. */
   pendingRename?: () => boolean;
   /** Notification fired when the row EXITS rename mode for any reason
    *  (commit, Escape-cancel, blur-empty-cancel). Pair with `pendingRename`. */
@@ -84,11 +75,8 @@ export interface EditableListRowProps {
 export default function EditableListRow(props: EditableListRowProps): JSX.Element {
   const [renaming, setRenaming] = createSignal(false);
   const [renameValue, setRenameValue] = createSignal('');
-  // savePending gates the input + commit path while an in-flight onRename
-  // promise is resolving. Distinct from the consumer's busy() (which blocks
-  // all interaction). On rejection the row stays in rename mode with the
-  // typed value intact; the consumer is responsible for surfacing the error
-  // message.
+  // Gates input + commit while an `onRename` promise resolves; distinct from the consumer's
+  // `busy()`. On rejection the row keeps rename mode and the typed value.
   const [savePending, setSavePending] = createSignal(false);
   const [deletePending, setDeletePending] = createSignal(false);
   let inputRef: HTMLInputElement | undefined;
@@ -141,9 +129,7 @@ export default function EditableListRow(props: EditableListRowProps): JSX.Elemen
       props.onRenameClose?.();
       if (fromKeyboard) focusLabelAfterExit();
     } catch {
-      // Reject: STAY in rename mode with the typed value preserved so
-      // the user can fix + retry. Don't fire onRenameClose — the row
-      // hasn't actually exited.
+      // Reject: stay in rename mode with the typed value; no onRenameClose, the row hasn't exited.
       // Browsers drop focus from the disabled input; restore it after it re-enables.
       if (fromKeyboard) afterPaint(() => focusIfDropped(inputRef));
     } finally {
@@ -218,7 +204,6 @@ export default function EditableListRow(props: EditableListRowProps): JSX.Elemen
     ),
   );
 
-  // Auto-focus + select on entering rename mode.
   createEffect(() => {
     if (renaming() && inputRef) {
       afterPaint(() => {
@@ -228,9 +213,8 @@ export default function EditableListRow(props: EditableListRowProps): JSX.Elemen
     }
   });
 
-  // External trigger to enter rename mode. Edge-triggered (false → true
-  // transitions only) so a parent that holds the signal true longer
-  // than one tick doesn't re-trigger after the user cancels via Escape.
+  // Edge-triggered (false → true) so a parent holding the signal true doesn't re-trigger after
+  // an Escape cancel.
   let lastPending = false;
   createEffect(() => {
     const pending = props.pendingRename?.() ?? false;

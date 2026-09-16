@@ -1,22 +1,13 @@
 /*
- * @cujuju/solidjs-editable-list-row — base styles.
- *
- * Selectors are scoped under `[data-cuj-elr]` to avoid colliding with consumer
- * class names. The row element + every interactive child carries the attribute
- * so consumers can also write their own `[data-cuj-elr=row]` selectors.
- *
- * CSS variables for theming — defaults render a neutral palette. App consumers
- * typically override these with theme tokens via their own selectors.
+ * @cujuju/solidjs-editable-list-row. Selectors scoped under `[data-cuj-elr]` so they can't
+ * collide with consumer classes; theme via the CSS variables below.
  */
 
 [data-cuj-elr] {
   --cuj-elr-bg-active: rgba(59, 130, 246, 0.1);
   --cuj-elr-bg-hover: rgba(59, 130, 246, 0.05);
-  /* Derived from the row's own text colour, NOT a hard-coded #fff. The row
-     itself is `transparent` (it inherits the host surface), so a literal white
-     fill made the rename field flash bright against every dark theme. A faint
-     wash of `currentColor` reads as a recessed field on both light and dark
-     without the package having to know the host's surface colour. */
+  /* From the row's own text colour, not `#fff`: the row is transparent, so a literal white
+       flashed bright on dark themes. */
   --cuj-elr-bg-rename-input: color-mix(in srgb, currentColor 8%, transparent);
   --cuj-elr-border-rename: #3b82f6;
   --cuj-elr-icon-fg: #6b7280;
