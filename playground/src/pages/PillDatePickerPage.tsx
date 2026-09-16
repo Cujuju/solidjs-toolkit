@@ -181,8 +181,8 @@ export function PillDatePickerPage(): JSX.Element {
 import { PillDatePicker } from '@cujuju/solidjs-pill-date-picker';
 import '@cujuju/solidjs-pill-date-picker/styles.css';
 
-const DATES = [{ value: '2026-08-21', label: 'Aug 21', dte: 29 }, …];
-const [v, setV] = createSignal(DATES[0].value);
+const DATES = ['2026-08-21', '2026-08-28', …];
+const [v, setV] = createSignal(DATES[0]);
 
 <PillDatePicker
   items={DATES}

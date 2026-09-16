@@ -42,7 +42,7 @@ function TopLayerCase(): JSX.Element {
   const [open, setOpen] = createSignal(false);
   const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
   return (
-    <Card title="Tooltip over an open popover (top layer)">
+    <Card cap="Tooltip over an open popover (top layer)">
       <button
         ref={(el) => setAnchor(el)}
         data-testid="tl-open"

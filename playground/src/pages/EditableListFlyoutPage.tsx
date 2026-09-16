@@ -115,9 +115,9 @@ import EditableListFlyout from '@cujuju/solidjs-editable-list-flyout';
   itemConfig={(item) => ({
     trailingLabel: () => <span>{item.symbols}</span>,
   })}
-  onRename={(id, name) => …}
-  onDelete={(id) => …}
-  onAdd={(name) => …}
+  onRename={(item, name) => …}     // async; item is the whole row
+  onDelete={(item) => …}
+  onCreate={(name) => …}
 />
 `}</Code>
 

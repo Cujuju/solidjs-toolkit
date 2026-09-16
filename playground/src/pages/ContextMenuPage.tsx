@@ -29,13 +29,13 @@ export function ContextMenuPage(): JSX.Element {
       label: 'Snap to grid',
       checked: snap(),
       keepOpen: true, // stays open — a checkbox you have to reopen to toggle twice is a tax
-      onClick: () => { setSnap((s) => !s); log.log('checkbox', { snap: !snap() }); },
+      onClick: () => { const next = !snap(); setSnap(next); log.log('checkbox', { snap: next }); },
     },
     {
       label: 'Show advanced rows',
       checked: showAdvanced(),
       keepOpen: true,
-      onClick: () => { setShowAdvanced((s) => !s); log.log('checkbox', { advanced: !showAdvanced() }); },
+      onClick: () => { const next = !showAdvanced(); setShowAdvanced(next); log.log('checkbox', { advanced: next }); },
     },
     {
       label: 'Advanced: reset layout',
@@ -101,9 +101,9 @@ import { ContextMenu, type ContextMenuEntry } from '@cujuju/solidjs-context-menu
 
 const [at, setAt] = createSignal<{ x: number; y: number } | null>(null);
 const items: ContextMenuEntry[] = [
-  { kind: 'item', label: 'Close position', onSelect: () => … },
-  { kind: 'divider' },
-  { kind: 'item', label: 'Delete', danger: true, onSelect: () => … },
+  { label: 'Close position', onClick: () => … },
+  { divider: true },
+  { label: 'Delete', danger: true, onClick: () => … },
 ];
 
 <div onContextMenu={(e) => { e.preventDefault(); setAt({ x: e.clientX, y: e.clientY }); }}>

@@ -58,7 +58,7 @@ import {
   ChipFlyout, EMPTY_TRI_STATE, type ChipOption, type TriStateValue,
 } from '@cujuju/solidjs-chip-flyout';
 
-const BROKERS: ChipOption[] = [{ id: 'ibkr', label: 'IBKR' }, …];
+const BROKERS: ChipOption[] = [{ value: 'ibkr', label: 'IBKR' }, …];
 const [tri, setTri] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
 
 <ChipFlyout

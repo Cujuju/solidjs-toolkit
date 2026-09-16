@@ -82,9 +82,10 @@ export function PillNumberPickerPage(): JSX.Element {
   const [controlledOpen, setControlledOpen] = createSignal(false);
   const [controlledVal, setControlledVal] = createSignal(4);
 
-  // commit: 'finish' — onChange still streams every keystroke/step for a live preview, but
-  // onCommit fires ONLY when the user is done (blur / Enter / pop-out close). The difference
-  // between "re-render a chart" and "send an order".
+  // commit: 'finish' — the pop-out edits a local draft; onChange and onCommit fire together ONLY
+  // on commit (Enter, or clicking the pill to close). The difference between "re-render a
+  // chart" and "send an order". Escape or an outside click reverts and fires onCancel. Wheel or
+  // arrow keys on the collapsed pill still stream onChange.
   const [limit, setLimit] = createSignal(412.5);
   const [committed, setCommitted] = createSignal(412.5);
   const [cancels, setCancels] = createSignal(0);
@@ -229,9 +230,11 @@ const [qty, setQty] = createSignal(1);
       <p class="note">
         <code>commit: 'change'</code> (default) means every step IS the value. Fine for a chart
         setting; wrong for a limit price, where an intermediate keystroke would fire a request per
-        digit. With <code>commit: 'finish'</code>, <code>onChange</code> still streams for a live
-        preview, but <code>onCommit</code> fires only on blur / Enter / pop-out close — and{' '}
-        <b>Escape</b> reverts to the last committed value and calls <code>onCancel</code>.
+        digit. With <code>commit: 'finish'</code>, the pop-out edits a local draft: <code>onChange</code>{' '}
+        and <code>onCommit</code> fire together only on commit — <b>Enter</b>, or clicking the pill
+        to close it. <b>Escape</b> or a pointer press outside reverts to the last committed value
+        and calls <code>onCancel</code>. Stepping the collapsed pill with the wheel or the arrow
+        keys opens no session, so it still streams <code>onChange</code> alone.
       </p>
       <div class="row">
         <Card cap="commit: 'finish' — type, then Enter (commit) or Escape (revert)">
@@ -252,7 +255,7 @@ const [qty, setQty] = createSignal(1);
             ariaLabel="Limit price"
           />
           <span class="readout">
-            live <b>{limit().toFixed(2)}</b>
+            onChange <b>{limit().toFixed(2)}</b>
             <br />
             committed <b>{committed().toFixed(2)}</b>
             <br />
