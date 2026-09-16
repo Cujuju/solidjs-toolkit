@@ -36,20 +36,20 @@ import EditableListRow from '@cujuju/solidjs-editable-list-row';
 | `name` | `string` | Display name. |
 | `selection` | `{ kind: 'none' } \| { kind: 'checkbox'; checked; onToggle; disabled? }` | Selection-affordance variant. |
 | `onActivate?` | `() => void` | Body-click handler. When provided, click-on-name invokes this. |
-| `onRename?` | `(next: string) => Promise<void>` | Inline rename commit. Reject keeps row in rename with typed value. |
-| `onDelete?` | `() => Promise<void>` | Delete commit. Runs after `confirmDelete` resolves true. |
+| `onRename?` | `(next: string) => Promise<void>` | Inline rename commit. Reject keeps row in rename with typed value. A blur refused while `busy()` commits once busy clears, unless the input regained focus. |
+| `onDelete?` | `() => Promise<void>` | Delete commit. Runs after `confirmDelete` resolves true. A rejection (or a `confirmDelete` rejection) is swallowed (surface the error yourself); the trash button stays disabled until it settles. `busy()` is checked before the confirm opens; once confirmed, the delete proceeds. |
 | `active?` | `boolean` | Active-state styling. |
 | `deleteDisabled?` | `boolean` | Disable just the delete button. |
 | `trailingLabel?` | `() => JSX.Element` | Right-aligned badge slot inside the label. |
 | `leadingIcon?` | `() => JSX.Element` | Decorative left-side icon slot. |
 | `leadingControl?` | `() => JSX.Element` | Interactive left-side slot (wins over `leadingIcon`). |
-| `busy?` | `() => boolean` | Block all interactions; row dims and sets `aria-busy`. |
+| `busy?` | `() => boolean` | Block new interactions; row dims and sets `aria-busy`. A confirmed delete and a busy-deferred blur commit still complete. |
 | `onContextMenu?` | `(e: MouseEvent) => void` | Right-click handler. |
 | `reorderProps?` | `Record<string, unknown>` | Spread from a reorder library (e.g. `@cujuju/solid-reorder-list`). Adds a drag handle. |
 | `infoTooltip?` | `string` | Tooltip on the row. |
 | `deleteConfirmTitle?` | `string` | Default `"Delete"`. |
 | `deleteConfirmMessage?` | `string` | Default `Delete "${name}"?`. |
-| `renameAriaLabel?` | `string` | Default `Rename ${name}`. |
+| `renameAriaLabel?` | `string` | Rename button and input label. Default `Rename ${name}`. |
 | `deleteAriaLabel?` | `string` | Default `Delete ${name}`. |
 | `pendingRename?` | `() => boolean` | External edge-triggered rename entry (false → true starts rename). |
 | `onRenameClose?` | `() => void` | Fired when rename exits for any reason. Pair with `pendingRename`. |
@@ -73,7 +73,7 @@ CSS variables (defaults shown):
 [data-cuj-elr] {
   --cuj-elr-bg-active: rgba(59, 130, 246, 0.1);
   --cuj-elr-bg-hover: rgba(59, 130, 246, 0.05);
-  --cuj-elr-bg-rename-input: #fff;
+  --cuj-elr-bg-rename-input: color-mix(in srgb, currentColor 8%, transparent); /* derived from the row's inherited text colour */
   --cuj-elr-border-rename: #3b82f6;
   --cuj-elr-icon-fg: #6b7280;
   --cuj-elr-icon-fg-hover: #111827;
