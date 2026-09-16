@@ -1,13 +1,6 @@
 /**
- * Pure geometry helper for HoldIndicator. Computes the signed per-side
- * distance from parent's border-OUTER edge to stroke's OUTER edge,
- * given a named placement and an additional inset shift.
- *
- * Positive = outward (stroke outer beyond border-outer).
- * Negative = inward (stroke outer inside border-outer).
- *
- * Extracted as a pure function so it can be unit-tested independently
- * of the rendering component.
+ * Signed per-side distance from the parent's border-OUTER edge to the stroke's OUTER edge;
+ * positive is outward. Pure, so it unit-tests without rendering.
  */
 
 export type StrokePlacement = 'outside' | 'center' | 'on-border' | 'inside';

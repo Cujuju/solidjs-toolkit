@@ -1,10 +1,8 @@
 import { onCleanup } from 'solid-js';
 
 /**
- * SSR-safe DOM event listener registration. Identical pattern to the one
- * in cujuju-solidjs-hooks/_internal/safeEvent — duplicated here to avoid
- * adding a cross-package dependency. The function is small and its
- * contract is stable; if it grows or drifts, unify via a shared package.
+ * SSR-safe listener registration. Duplicated from `@cujuju/solidjs-hooks` rather than adding a
+ * cross-package dependency; unify if it grows.
  */
 export function safeAddEventListener(
   target: EventTarget | null | undefined,

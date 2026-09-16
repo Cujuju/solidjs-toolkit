@@ -24,15 +24,8 @@ export interface UseHoldActionOptions {
   enabled?: Accessor<boolean>;
 
   /**
-   * Called when an in-progress hold is cancelled before completion. Fires for
-   * every user-cancellation path: pointerup mid-hold, pointerleave (when
-   * cancelOnLeave is true), document mouseup (when cancelOnDocumentMouseUp is
-   * true), pointercancel (the platform took the pointer), and the imperative
-   * `cancel()` return-value method.
-   *
-   * Does NOT fire after a completed hold (use `onComplete` for that).
-   * Does NOT fire on component cleanup — the component is being torn down,
-   * so any "revert UI" logic in onCancel would run against a dead tree.
+   * Fires when an in-progress hold is cancelled: pointerup mid-hold, leave, document mouseup,
+   * pointercancel, or `cancel()`. Not after completion, and not on cleanup (the tree is gone).
    */
   onCancel?: () => void;
 
@@ -60,18 +53,8 @@ export interface UseHoldActionReturn {
   progress: Accessor<number>;
   holding: Accessor<boolean>;
   /**
-   * Returns true if the most recent hold just completed AND the current
-   * call is the first check since completion — callers use this in their
-   * own onClick to decide whether to suppress the click that synthetically
-   * follows pointerup. The flag auto-clears after one read (single-shot),
-   * so subsequent clicks are never suppressed.
-   *
-   * @example
-   *   const hold = useHoldAction({ durationMs: 250, onComplete: markRead });
-   *   const onClick = (e: MouseEvent) => {
-   *     if (hold.shouldSuppressClick()) { e.preventDefault(); return; }
-   *     openPopover();
-   *   };
+   * True once if the last hold just completed, so an onClick can suppress the synthetic click
+   * after pointerup. Auto-clears on read.
    */
   shouldSuppressClick: () => boolean;
   /** Imperatively cancel an in-progress hold. */
@@ -98,10 +81,8 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
   const isOtherPointer = (e: PointerEvent): boolean =>
     startTime !== null && e.pointerId !== activePointerId;
 
-  // Pure state reset. Used by both stop() (user-cancellation path) and
-  // onCleanup (component-disposal path). Splitting these is what lets
-  // onCancel fire only on user gestures, not on lifecycle events — running
-  // consumer logic against a torn-down component would be a footgun.
+  // Pure state reset, shared by stop() and onCleanup. Separate paths are what keep onCancel to
+  // user gestures, never disposal.
   const resetState = (): void => {
     if (rafId !== null) {
       cancelAnimationFrame(rafId);
@@ -113,10 +94,8 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
     reachedStages = new Set<number>();
   };
 
-  // User-cancellation entry point. Fires onCancel only if a hold was actually
-  // in progress (startTime !== null). After a completion the inline path at
-  // line ~115 already nulled startTime, so a trailing pointerup that calls
-  // stop() is a no-op here — onCancel does NOT fire after onComplete.
+  // User-cancellation entry: fires onCancel only if a hold was in progress. Completion nulls
+  // startTime first, so a trailing pointerup is a no-op here.
   const stop = (): void => {
     const wasInProgress = startTime !== null;
     resetState();
@@ -206,10 +185,8 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
   };
 
   /**
-   * One-shot accessor: true if a hold just completed and this is the first
-   * read since. Automatically clears on read so subsequent clicks aren't
-   * accidentally suppressed. No-ops (returns false) when the feature is
-   * disabled via `suppressClickAfterComplete: false`.
+   * One-shot: true if a hold just completed and this is the first read; clears on read. False
+   * when `suppressClickAfterComplete` is off.
    */
   const shouldSuppressClick = (): boolean => {
     if (!suppressClick) return false;

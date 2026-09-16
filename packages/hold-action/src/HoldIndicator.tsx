@@ -17,7 +17,6 @@ export interface HoldIndicatorProps {
   /** Default true when no explicit w/h/size provided. */
   fillParent?: boolean;
 
-  // Stroke:
   stroke?: string;
   strokeWidth?: number;
   strokeLinecap?: 'butt' | 'round' | 'square';
@@ -25,21 +24,12 @@ export interface HoldIndicatorProps {
   // Rect-specific: matches the parent button's border-radius.
   radius?: number;
 
-  // Path origin:
   startAngle?: number;
   direction?: 'clockwise' | 'counterclockwise';
 
   /**
-   * Where the stroke sits relative to the parent's border.
-   *
-   *   'outside'   — stroke entirely outside the parent's border.
-   *                 Stroke INNER edge at border OUTER edge. (Default.)
-   *   'center'    — stroke centered on the border's outer edge
-   *                 (half outside border, half inside padding).
-   *   'on-border' — stroke OUTER edge at border OUTER edge;
-   *                 extends inward over the border and into padding.
-   *   'inside'    — stroke OUTER edge at border INNER edge (padding-edge);
-   *                 stroke contained entirely within the padding area.
+   * Where the stroke sits relative to the parent's border: `outside` (default) beyond it,
+   * `center` straddling its outer edge, `on-border` inward from it, `inside` at the padding edge.
    */
   strokePlacement?: 'outside' | 'center' | 'on-border' | 'inside';
 
@@ -52,15 +42,8 @@ export interface HoldIndicatorProps {
   strokeInset?: number;
 
   /**
-   * Optional easing curve applied to progress before the indicator's geometry
-   * is computed. Pure function `t => t'`, both in `[0, 1]`. Output is clamped,
-   * so an overshoot/undershoot easing won't break geometry.
-   *
-   * Default: undefined (linear progress, identical to pre-easing behavior).
-   *
-   *   easing={(t) => t * t}                                       // ease-in
-   *   easing={(t) => 1 - Math.pow(1 - t, 3)}                      // ease-out
-   *   easing={(t) => t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2} // ease-in-out
+   * Easing applied to progress before geometry, `t => t'` in `[0, 1]`; output is clamped, so
+   * overshoot is safe. Default linear.
    */
   easing?: (t: number) => number;
 
@@ -146,18 +129,14 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
   }));
 
   /**
-   * Signed distance from parent's border-OUTER edge to the stroke's OUTER edge.
-   * Positive = stroke outer extends past border-outer (outward).
-   * Negative = stroke outer is inside border-outer (toward button center).
-   *
-   * Measured per side using the parent's border widths (may be asymmetric).
+   * Signed per-side distance from the parent's border-OUTER edge to the stroke's OUTER edge;
+   * positive is outward. Border widths may be asymmetric.
    */
   const strokeOuterOffset = (): { t: number; r: number; b: number; l: number } =>
     computeStrokeOuterOffset(placement(), strokeWidth(), borderOffsets(), strokeInset());
 
-  // Wrapper occupies exactly the rect that the SVG needs to draw the full
-  // stroke. Left/top offsets are negative from the parent's padding-edge
-  // (where inset:0 sits). Size = border-box + sum of outer offsets on each side.
+  // Wrapper is exactly the rect the SVG needs for the full stroke; left/top offsets are negative
+  // from the parent's padding-edge.
   const rootStyle = (): JSX.CSSProperties => {
     if (fillParent()) {
       // The bar is a fill, not a stroke: it needs no outward room, so it sits at inset 0.
@@ -205,9 +184,8 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
   };
 
   // ── Circle geometry ────────────────────────────────────────────────────
-  // Stroke OUTER edge should touch the circle inscribed in the (parent's
-  // border-box expanded by outer offset). For symmetric offsets this is a
-  // square; use the min side for the inscribed circle.
+  // Stroke OUTER edge touches the circle inscribed in the border-box expanded by the outer
+  // offset; use the min side.
   const circleGeom = createMemo(() => {
     const w = wrapperDims();
     const side = Math.min(w.w, w.h);
@@ -234,9 +212,7 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
   };
 
   // ── Rect geometry ──────────────────────────────────────────────────────
-  // Path traces a rounded rectangle whose STROKE OUTER edge has corner
-  // radius = parent's radius + (avg outer offset). The outer offset adjusts
-  // the effective corner curve as the stroke moves outward/inward.
+  // Stroke OUTER corner radius = parent's radius + average outer offset.
   const rectGeom = createMemo(() => {
     const w = wrapperDims();
     if (w.w <= 0 || w.h <= 0) return null;
