@@ -12,6 +12,7 @@ import {
   type JSX,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { createEscapeOwner, isEscapeDismissing } from '@cujuju/solidjs-hooks';
 import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
 import {
   daysToExpiration,
@@ -180,16 +181,6 @@ const NO_ACTIVE_INDEX = -1;
 const isDev = Boolean(
   (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV,
 );
-
-/**
- * Which open picker owns the keyboard. Each instance binds to the DOCUMENT, so two open
- * pickers would both act on one keypress. A stack on `globalThis`, shared across pill packages.
- */
-// Survives HMR: a picker never disposed across a module reload keeps its owner on top, blocking Escape until a full reload.
-const KEYBOARD_OWNERS_KEY = Symbol.for('@cujuju/solidjs-toolkit/pill-keyboard-owners');
-const keyboardOwners: symbol[] = ((globalThis as unknown as Record<symbol, symbol[] | undefined>)[
-  KEYBOARD_OWNERS_KEY
-] ??= []);
 
 export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   props: PillDatePickerProps<T>,
@@ -401,6 +392,23 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     return NO_ACTIVE_INDEX;
   };
 
+  /*
+   * Which open picker owns the keyboard: each binds to the DOCUMENT, so two open pickers would
+   * both act on one keypress. `createEscapeOwner` holds one toolkit-wide stack on `globalThis`.
+   */
+  /**
+   * Escape DISMISSES this picker — but only while it is the topmost open surface in the app, and
+   * it consumes the key, so the surface underneath keeps its own Escape.
+   */
+  const escapeOwner = createEscapeOwner({
+    open: isPanelOpen,
+    // Ownership alone, no `isOurs` gate: it made a ladder opened with focus elsewhere
+    // un-dismissable and blocked pickers below.
+    onDismiss: () => close(true),
+    // A custom `renderRow` may hold its own editor; an Escape inside the panel reaches it first.
+    owns: () => [panelEl],
+  });
+
   /**
    * Everything true only while the pop-out is open: placement, reflow, dismissal, the list's
    * keyboard. Outside-press closes on `pointerdown`; the document keyboard serves only keys
@@ -419,11 +427,9 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     // Seeds the reflow edge so a hidden ladder is not read as a departure.
     let anchorWasInView = untrack(place);
 
-    // Take the keyboard. Popped in this effect's cleanup, so it is released on close,
-    // on unmount, and on the re-run of this effect — every path out.
-    const owner = Symbol('pdp');
-    keyboardOwners.push(owner);
-    const ownsKeyboard = (): boolean => keyboardOwners[keyboardOwners.length - 1] === owner;
+    // The keyboard owner is claimed above, for `isPanelOpen()`'s whole lifetime; only the
+    // navigation keys below are scoped to this effect.
+    const ownsKeyboard = escapeOwner.isTop;
     /** Aimed at the pill, the panel, or nothing focused. The composed path, because at `document` the target is retargeted to any shadow host. */
     const isOurs = (e: Event): boolean => {
       const path = e.composedPath();
@@ -441,15 +447,6 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       if (panelEl?.contains(t)) return;
       if (anchorEl?.contains(t)) return; // the pill's own click toggles; don't double-handle
       close(false);
-    };
-    const onEscape = (e: KeyboardEvent): void => {
-      // Ownership alone: Escape is a dismissal, and stack-top ownership is the contract. Gating on
-      // `isOurs` made a ladder opened with focus elsewhere un-dismissable and blocked pickers below.
-      if (e.key !== 'Escape' || !ownsKeyboard()) return;
-      // With the capture-phase binding this stops the surrounding modal's handlers too; preventDefault cancels the native close-request.
-      e.preventDefault();
-      e.stopPropagation();
-      close(true);
     };
     const onKey = (e: KeyboardEvent): void => {
       // Only the top of the stack acts; a picker underneath another one must not
@@ -491,23 +488,22 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     };
     // Focus moving to another control — Tab included — takes the ladder with it.
     const onFocusIn = (e: FocusEvent): void => {
+      // Escape dismisses ONE layer: the focus the layer above hands back on its way out is not
+      // the user leaving this one.
+      if (isEscapeDismissing()) return;
       if (!isOurs(e)) close(false);
     };
 
     document.addEventListener('pointerdown', onPointerDown, true);
-    // Capture, Escape only: an Escape consumed here must be stopped before ancestor handlers run, not after.
-    // Navigation/commit keys stay in the bubble phase, after the element's own handlers.
-    document.addEventListener('keydown', onEscape, true);
+    // The shared owner stops Escape before ancestor handlers run: in capture, or at the panel for
+    // in-panel Escapes. Navigation/commit keys stay in the bubble phase, after the element's own.
     document.addEventListener('keydown', onKey);
     document.addEventListener('focusin', onFocusIn);
     window.addEventListener('resize', onReflow);
     // Capture: the scroll that moves us is almost never on `window`.
     window.addEventListener('scroll', onReflow, true);
     onCleanup(() => {
-      const at = keyboardOwners.lastIndexOf(owner);
-      if (at !== -1) keyboardOwners.splice(at, 1);
       document.removeEventListener('pointerdown', onPointerDown, true);
-      document.removeEventListener('keydown', onEscape, true);
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('resize', onReflow);

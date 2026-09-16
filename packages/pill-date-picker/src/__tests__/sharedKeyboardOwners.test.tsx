@@ -1,12 +1,17 @@
 /**
  * One keyboard-owner stack across packages: each picker binds Escape to the DOCUMENT, and a
- * per-module stack let one Escape close both pop-outs. The stack lives on `globalThis`.
+ * per-module stack let one Escape close both pop-outs. `createEscapeOwner` holds the stack on
+ * `globalThis`, so separately bundled copies share it.
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
+import { ESCAPE_OWNERS_KEY } from '@cujuju/solidjs-hooks';
 import { PillDatePicker } from '../PillDatePicker';
 import { PillNumberPicker } from '../../../pill-number-picker/src/PillNumberPicker';
+
+const escapeStack = (): unknown[] =>
+  (globalThis as unknown as Record<symbol, { stack: unknown[] }>)[ESCAPE_OWNERS_KEY].stack;
 
 let dispose: (() => void) | null = null;
 function mount(ui: () => any): void {
@@ -35,6 +40,7 @@ describe('a date picker and a number picker open together', () => {
         <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} open onOpenChange={dateOpenChange} />
       </>
     ));
+    expect(escapeStack(), 'the two packages kept separate stacks').toHaveLength(2);
     escape();
     expect(dateOpenChange).toHaveBeenCalledWith(false);
     expect(numberCancel, 'the number picker underneath cancelled too').not.toHaveBeenCalled();

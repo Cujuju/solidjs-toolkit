@@ -14,7 +14,7 @@ import {
   createAfterPaint,
   createOutsideScrollDismiss,
   createClickOutside,
-  createEscapeKey,
+  createEscapeOwner,
   contains,
 } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
@@ -311,20 +311,19 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   }
 
   // Dismiss triggers. `createClickOutside` is pointerdown + capture-phase
-  // with opening-gesture suppression; `createEscapeKey` closes on Esc.
-  // Both are gated on `open` so they cost nothing while closed.
+  // with opening-gesture suppression; `createEscapeOwner` closes on Esc while this flyout is
+  // topmost. Both are gated on `open`.
   createClickOutside(
     contains(() => [triggerEl, panelEl]),
     () => closePanel(false),
     { enabled: open },
   );
-  createEscapeKey(
-    (e) => {
-      closePanel();
-      e.stopPropagation();
-    },
-    { enabled: open },
-  );
+  createEscapeOwner({
+    open,
+    onDismiss: () => closePanel(),
+    // A control inside the panel keeps its own Escape by calling `preventDefault`.
+    owns: () => [panelEl],
+  });
 
   // Close on viewport resize — a fixed-position panel desyncs from its
   // trigger when the viewport changes size. Always-on; `closePanel`

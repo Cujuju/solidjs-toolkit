@@ -11,6 +11,7 @@ import {
   type JSX,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { createEscapeOwner } from '@cujuju/solidjs-hooks';
 import {
   createClampedPosition,
   ensureViewportListeners,
@@ -99,6 +100,8 @@ interface TooltipContentProps extends KvTooltipAnchoringProps {
    * Escape). See `KvTooltipPanelProps.onPlatformDismiss`.
    */
   onPlatformDismiss?: () => void;
+  /** The mounted panel element, for the wrapper's Escape ownership. */
+  panelRef?: (el: HTMLElement) => void;
 }
 
 function toCssSize(v: number | string | undefined): string | undefined {
@@ -238,6 +241,7 @@ function TooltipContent(props: TooltipContentProps): JSX.Element {
       <div
         ref={(el) => {
           ref = el;
+          props.panelRef?.(el);
           // Registered synchronously in the ref: `onCleanup` inside the microtask has no owner and
           // would leak. Unconditional: inert without promotion, and testable without a Popover API.
           const onToggle = (e: Event): void => onPopoverToggle(el, e);
@@ -594,19 +598,16 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     return childFocusable() ? undefined : 0;
   };
 
+  let panelEl: HTMLElement | undefined;
   /**
-   * Escape dismisses a visible panel (WAI-ARIA). Capture phase + `preventDefault` makes it
-   * innermost-first: AnchoredPopover's bubble handler skips prevented events, so the menu survives.
+   * Escape dismisses a visible panel (WAI-ARIA). A tooltip shown over an open menu is above it on
+   * the shared stack, so it hides alone; `transparent` leaves the menu its other keys.
    */
-  createEffect(() => {
-    if (!panelOnScreen()) return;
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return;
-      hoverIntent.hideNow();
-      e.preventDefault();
-    };
-    document.addEventListener('keydown', onKeyDown, true);
-    onCleanup(() => document.removeEventListener('keydown', onKeyDown, true));
+  createEscapeOwner({
+    open: panelOnScreen,
+    onDismiss: () => hoverIntent.hideNow(),
+    owns: () => [panelEl, wrapperEl],
+    transparent: true,
   });
 
   return (
@@ -679,6 +680,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
           onPanelMouseLeave={hoverIntent.onPanelLeave}
           // Resync on platform dismissal, or `visible()` stays true and the next hover is a no-op.
           onPlatformDismiss={hoverIntent.hideNow}
+          panelRef={(el) => (panelEl = el)}
           anchor={panelAnchor()}
           placement={props.placement}
           anchorGapPx={props.anchorGapPx}

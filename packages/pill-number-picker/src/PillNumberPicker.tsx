@@ -1,5 +1,6 @@
 import { createSignal, createEffect, on, onCleanup, onMount, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { createEscapeOwner } from '@cujuju/solidjs-hooks';
 import {
   effectivePrecision,
   clampAndRound,
@@ -257,16 +258,6 @@ export interface PillNumberPickerProps {
   // Passthrough:
   class?: string;
 }
-
-/**
- * Which open pop-out owns the keyboard: last opened wins. Shared with pill-date-picker via a
- * `globalThis` registered symbol, so one Escape never cancels two pickers.
- */
-// Survives HMR: a picker never disposed across a module reload keeps its owner on top, blocking Escape until a full reload.
-const KEYBOARD_OWNERS_KEY = Symbol.for('@cujuju/solidjs-toolkit/pill-keyboard-owners');
-const keyboardOwners: symbol[] = ((globalThis as unknown as Record<symbol, symbol[] | undefined>)[
-  KEYBOARD_OWNERS_KEY
-] ??= []);
 
 /** PageUp/PageDown move ±step×10, as documented in the README (Keyboard). */
 const PAGE_STEPS = 10;
@@ -551,12 +542,6 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     }
     place();
 
-    // Take the keyboard. Popped in this effect's cleanup, so it is released on close,
-    // on unmount, and on a re-run of this effect — every path out.
-    const owner = Symbol('pnp');
-    keyboardOwners.push(owner);
-    const ownsKeyboard = (): boolean => keyboardOwners[keyboardOwners.length - 1] === owner;
-
     const onPointerDown = (e: PointerEvent): void => {
       const t = e.target as Node;
       if (panelEl?.contains(t)) return;
@@ -566,31 +551,33 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       // Never restore focus: at pointerdown the browser has not yet moved it to what was pressed.
       cancelSession({ restoreFocus: false });
     };
-    const onKey = (e: KeyboardEvent): void => {
-      // Only the top of the stack acts; a picker underneath another one must not discard
-      // an edit on a keypress meant for its neighbour.
-      if (!ownsKeyboard()) return;
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        // Return focus to where the user was, or the close is a dead end for the keyboard.
-        cancelSession({ restoreFocus: true });
-      }
-    };
     const onReflow = (): void => place();
 
     document.addEventListener('pointerdown', onPointerDown, true);
-    document.addEventListener('keydown', onKey);
     window.addEventListener('resize', onReflow);
     // Capture: the scroll that moves us is almost never on `window`.
     window.addEventListener('scroll', onReflow, true);
     onCleanup(() => {
-      const at = keyboardOwners.lastIndexOf(owner);
-      if (at !== -1) keyboardOwners.splice(at, 1);
       document.removeEventListener('pointerdown', onPointerDown, true);
-      document.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', onReflow);
       window.removeEventListener('scroll', onReflow, true);
     });
+  });
+
+  /*
+   * Which open pop-out owns the keyboard: last opened wins. `createEscapeOwner` holds that stack on
+   * `globalThis` for the whole toolkit, so one Escape never cancels two surfaces.
+   */
+  /**
+   * Escape CANCELS the session — but only while this pop-out is the topmost open surface. The
+   * owner is released on close and on unmount, so every path out pops it.
+   */
+  createEscapeOwner({
+    open: sessionOpen,
+    // Return focus to where the user was, or the close is a dead end for the keyboard.
+    onDismiss: () => cancelSession({ restoreFocus: true }),
+    // The value editor inside the pop-out handles its own Escape first.
+    owns: () => [panelEl],
   });
 
   createEffect(() => {

@@ -308,6 +308,9 @@ importers:
         specifier: '>=1.7.0'
         version: 1.9.12
     devDependencies:
+      '@cujuju/solidjs-hooks':
+        specifier: workspace:^
+        version: link:../hooks
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1
@@ -327,6 +330,9 @@ importers:
         specifier: '>=1.7.0'
         version: 1.9.12
     devDependencies:
+      '@cujuju/solidjs-hooks':
+        specifier: workspace:^
+        version: link:../hooks
       '@cujuju/solidjs-kv-tooltip':
         specifier: workspace:^
         version: link:../kv-tooltip
@@ -349,6 +355,9 @@ importers:
         specifier: '>=1.7.0'
         version: 1.9.12
     devDependencies:
+      '@cujuju/solidjs-hooks':
+        specifier: workspace:^
+        version: link:../hooks
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1

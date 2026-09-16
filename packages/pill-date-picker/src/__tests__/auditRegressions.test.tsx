@@ -200,10 +200,10 @@ describe('F063 — an Escape the picker consumed goes no further', () => {
     expect(e.defaultPrevented).toBe(true);
     expect(topOpenChanges).toEqual([false]);
     expect(pills()[1].getAttribute('aria-expanded')).toBe('false');
-    // And the stack was released: the picker underneath is dismissable again, though focus is
-    // now on the other pill — which owns the top of the stack.
-    click(pills()[0]);
+    // Escape dismisses ONE layer: the picker underneath survives the refocus the dismissed one
+    // hands back to its pill, and is then the top of the stack for the next Escape.
     expect(panels()).toHaveLength(1);
+    expect(pills()[0].getAttribute('aria-expanded')).toBe('true');
     expect(keyOn(pills()[1], 'Escape').defaultPrevented).toBe(true);
     expect(panels()).toHaveLength(0);
   });

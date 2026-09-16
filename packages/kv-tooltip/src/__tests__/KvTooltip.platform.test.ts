@@ -3,6 +3,7 @@ import { render } from 'solid-js/web';
 import { createComponent, createSignal, type JSX } from 'solid-js';
 import { KvTooltip, KvTooltipPanel } from '../KvTooltip';
 import { isTopLayerSurfaceOpen } from '../_internal/topLayer';
+import AnchoredPopover from '../../../anchored-popover/src/AnchoredPopover';
 
 /**
  * Platform contract (`popover="hint"`). jsdom has no Popover API, so this tests OUR side: the
@@ -223,17 +224,47 @@ describe('Escape (the layering contract)', () => {
   }
 
   it('marks the key CONSUMED when it actually hid a visible panel', () => {
-    // `preventDefault` makes Escape innermost-first: AnchoredPopover's bubble handler skips
-    // prevented events, so the menu survives.
-    const { trigger, dispose } = mountWrapper();
+    // The shown tooltip is the top of the shared Escape stack: it hides alone, so the menu
+    // (an AnchoredPopover opened first) survives.
+    // AnchoredPopover needs the Popover API; stubbed for this case only (jsdom has none).
+    const proto = HTMLElement.prototype as Partial<Record<'showPopover' | 'hidePopover', () => void>>;
+    proto.showPopover = () => {};
+    proto.hidePopover = () => {};
+    const originalMatches = HTMLElement.prototype.matches;
+    HTMLElement.prototype.matches = function (this: HTMLElement, selectors: string): boolean {
+      return selectors === ':popover-open' ? false : originalMatches.call(this, selectors);
+    };
+    const cleanups: Array<() => void> = [];
+    try {
+      const menuDismiss = vi.fn();
+      const menuAnchor = document.createElement('button');
+      document.body.appendChild(menuAnchor);
+      cleanups.push(() => menuAnchor.remove());
+      cleanups.push(mount(() =>
+        createComponent(AnchoredPopover, {
+          open: () => true,
+          anchor: () => menuAnchor,
+          onDismiss: menuDismiss,
+          get children() {
+            return 'menu';
+          },
+        }),
+      ));
+      const { trigger, dispose } = mountWrapper();
+      cleanups.push(dispose);
 
-    fire(trigger, 'mouseenter');
-    expect(getPanel()).not.toBeNull();
+      fire(trigger, 'mouseenter');
+      expect(getPanel()).not.toBeNull();
 
-    expect(pressEscape()).toBe(true);
-    expect(getPanel()).toBeNull();
-
-    dispose();
+      expect(pressEscape()).toBe(true);
+      expect(getPanel()).toBeNull();
+      expect(menuDismiss, 'one Escape closed the menu under the tooltip too').not.toHaveBeenCalled();
+    } finally {
+      while (cleanups.length) cleanups.pop()!();
+      delete proto.showPopover;
+      delete proto.hidePopover;
+      HTMLElement.prototype.matches = originalMatches;
+    }
   });
 
   it('leaves the key alone when there is no visible panel', () => {

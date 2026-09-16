@@ -41,6 +41,7 @@
     "input"
   ],
   "peerDependencies": {
+    "@cujuju/solidjs-hooks": "workspace:^",
     "solid-js": ">=1.7.0"
   },
   "scripts": {
@@ -50,6 +51,7 @@
     "prepublishOnly": "vite build"
   },
   "devDependencies": {
+    "@cujuju/solidjs-hooks": "workspace:^",
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",
     "vite-plugin-solid": "^2.11.12",
