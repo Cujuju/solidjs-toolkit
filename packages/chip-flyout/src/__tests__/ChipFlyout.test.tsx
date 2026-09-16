@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@solidjs/testing-library';
-import { ChipFlyout } from '../ChipFlyout';
-import { EMPTY_TRI_STATE } from '@cujuju/solidjs-tri-state-chip';
+import { createSignal } from 'solid-js';
+import { ChipFlyout, VIEWPORT_MARGIN_PX, type ChipOption } from '../ChipFlyout';
+import { EMPTY_TRI_STATE, type TriStateValue } from '@cujuju/solidjs-tri-state-chip';
 
 // Dispose each render between tests, then hard-clear the body.
 // ChipFlyout's panel is Portal'd to `document.body`; without a full
@@ -9,6 +10,8 @@ import { EMPTY_TRI_STATE } from '@cujuju/solidjs-tri-state-chip';
 // lookups the helpers below rely on.
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.body.innerHTML = '';
 });
 
@@ -365,6 +368,27 @@ describe('ChipFlyout — tab strip', () => {
     expect(onTabChange).toHaveBeenCalledWith('nhentai');
   });
 
+  it('arrow keys reach the right tab after `tabs` shrinks while open', () => {
+    const [tabs, setTabs] = createSignal<typeof THREE_TABS>(THREE_TABS);
+    const { container } = render(() => (
+      <ChipFlyout
+        mode="multi"
+        label="Tags"
+        options={OPTIONS}
+        value={[]}
+        onChange={() => {}}
+        tabs={tabs()}
+        activeTab="mangadex"
+      />
+    ));
+    fireEvent.click(trigger(container));
+    // Same objects, middle one removed: `For` keeps the surviving buttons.
+    setTabs([THREE_TABS[0]!, THREE_TABS[2]!]);
+    const [first, last] = tabButtons() as [HTMLButtonElement, HTMLButtonElement];
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(last);
+  });
+
   it('falls back to the first tab when `activeTab` names no tab', () => {
     // A caller whose tab list is fed by an async query can hold an id that
     // has since vanished; the strip must not end up with zero selected
@@ -439,5 +463,314 @@ describe('ChipFlyout — tab strip', () => {
     const search = body.querySelector('.cujuju-cf-search')!;
     expect(strip.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
+  });
+});
+
+describe('ChipFlyout — harness teardown', () => {
+  // Guards the testing-library inline in vitest.config: a second Solid instance
+  // leaves the component undisposed, leaking its Portal and document listeners.
+  it('cleanup() disposes the panel and its document listeners', () => {
+    const onOpenChange = vi.fn();
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onOpenChange={onOpenChange} />
+    ));
+    fireEvent.click(trigger(container));
+    cleanup();
+    expect(panel()).toBeNull();
+    onOpenChange.mockClear();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChipFlyout — controlled open', () => {
+  it('renders the panel when mounted with open={true}', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} open={true} onOpenChange={() => {}} />
+    ));
+    expect(trigger(container).getAttribute('aria-expanded')).toBe('true');
+    expect(panel()).not.toBeNull();
+    expect(chips()).toHaveLength(2);
+  });
+
+  it('clamps a panel mounted open into the viewport', async () => {
+    const PANEL_WIDTH = 400;
+    const PANEL_HEIGHT = 100;
+    const TRIGGER_WIDTH = 60;
+    const TRIGGER_HEIGHT = 28;
+    // Trigger hugging the right edge, so the unclamped panel overflows it.
+    const triggerLeft = window.innerWidth - TRIGGER_WIDTH;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const isPanel = this.classList.contains('cujuju-cf-panel');
+      const left = isPanel ? 0 : triggerLeft;
+      const width = isPanel ? PANEL_WIDTH : TRIGGER_WIDTH;
+      const height = isPanel ? PANEL_HEIGHT : TRIGGER_HEIGHT;
+      return { x: left, y: 0, left, top: 0, width, height, right: left + width, bottom: height, toJSON: () => ({}) } as DOMRect;
+    });
+    render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} open={true} onOpenChange={() => {}} />
+    ));
+    await vi.waitFor(() => {
+      expect(panel()?.style.left).toBe(`${window.innerWidth - PANEL_WIDTH - VIEWPORT_MARGIN_PX}px`);
+    });
+  });
+});
+
+describe('ChipFlyout — onOpenChange reports changes only', () => {
+  it('does not report a close on resize while uncontrolled and closed', () => {
+    const onOpenChange = vi.fn();
+    render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onOpenChange={onOpenChange} />
+    ));
+    window.dispatchEvent(new Event('resize'));
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('does not report a close on resize while controlled closed', () => {
+    const onOpenChange = vi.fn();
+    render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} open={false} onOpenChange={onOpenChange} />
+    ));
+    window.dispatchEvent(new Event('resize'));
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('still reports the close when resize dismisses an open panel', () => {
+    const onOpenChange = vi.fn();
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onOpenChange={onOpenChange} />
+    ));
+    fireEvent.click(trigger(container));
+    onOpenChange.mockClear();
+    window.dispatchEvent(new Event('resize'));
+    expect(onOpenChange).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(panel()).toBeNull();
+  });
+});
+
+describe('ChipFlyout — focus management', () => {
+  const TABS = [
+    { id: 'mangadex', label: 'MangaDex' },
+    { id: 'local', label: 'Local' },
+  ];
+
+  it('moves focus into the search input on open', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onSearchInput={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    expect(document.activeElement).toBe(document.querySelector('.cujuju-cf-search'));
+  });
+
+  it('moves focus to the active tab on open when there is no search input', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} tabs={TABS} activeTab="local" />
+    ));
+    fireEvent.click(trigger(container));
+    expect(document.activeElement?.textContent).toBe('Local');
+  });
+
+  it('moves focus to the panel itself when it has no search input or tabs', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    expect(document.activeElement).toBe(panel());
+  });
+
+  it('restores focus to the trigger when Escape closes the panel', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onSearchInput={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    document.querySelector<HTMLInputElement>('.cujuju-cf-search')!.focus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(panel()).toBeNull();
+    expect(document.activeElement).toBe(trigger(container));
+  });
+
+  it('restores focus to the trigger when the close button closes the panel', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onSearchInput={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    const close = document.querySelector<HTMLButtonElement>('.cujuju-glass-menu-close')!;
+    close.focus();
+    fireEvent.click(close);
+    expect(panel()).toBeNull();
+    expect(document.activeElement).toBe(trigger(container));
+  });
+
+  it('does not pull focus to the trigger when an outside click closes the panel', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onSearchInput={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    document.querySelector<HTMLInputElement>('.cujuju-cf-search')!.focus();
+    fireEvent.pointerDown(document.body);
+    expect(panel()).toBeNull();
+    expect(document.activeElement).not.toBe(trigger(container));
+  });
+
+  it('keeps focus in the panel when a controlled parent vetoes the close', () => {
+    render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} open={true} onOpenChange={() => {}} onSearchInput={() => {}} />
+    ));
+    const search = document.querySelector<HTMLInputElement>('.cujuju-cf-search')!;
+    search.focus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(panel()).not.toBeNull();
+    expect(document.activeElement).toBe(search);
+  });
+
+  function renderParentControlled() {
+    const [open, setOpen] = createSignal(false);
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} open={open()} onOpenChange={setOpen} onSearchInput={() => {}} />
+    ));
+    return { container, setOpen };
+  }
+
+  it('moves focus into the panel on a parent-driven open', () => {
+    const { setOpen } = renderParentControlled();
+    setOpen(true);
+    expect(document.activeElement).toBe(document.querySelector('.cujuju-cf-search'));
+  });
+
+  it('restores focus to the trigger on a parent-driven close', () => {
+    const { container, setOpen } = renderParentControlled();
+    setOpen(true);
+    document.querySelector<HTMLInputElement>('.cujuju-cf-search')!.focus();
+    setOpen(false);
+    expect(panel()).toBeNull();
+    expect(document.activeElement).toBe(trigger(container));
+  });
+
+  it('does not take focus when mounted open', () => {
+    render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} open={true} onOpenChange={() => {}} onSearchInput={() => {}} />
+    ));
+    expect(panel()).not.toBeNull();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('skips the search input on a coarse pointer, so no soft keyboard opens', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }) as unknown as MediaQueryList);
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} onSearchInput={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    expect(document.activeElement).toBe(panel());
+  });
+});
+
+describe('ChipFlyout — non-neutral chips sort first', () => {
+  const ABC = [
+    { value: 'a', label: 'Alpha' },
+    { value: 'b', label: 'Beta' },
+    { value: 'c', label: 'Gamma' },
+  ];
+  const LABELS = ['Alpha', 'Beta', 'Gamma', 'One', 'Two'];
+
+  /** Chip labels in DOM order. Matched by label so a state glyph can't break the read. */
+  function chipOrder(): (string | undefined)[] {
+    return chips().map((c) => LABELS.find((l) => c.textContent!.includes(l)));
+  }
+  function chipByLabel(label: string): HTMLButtonElement {
+    const el = chips().find((c) => c.textContent!.includes(label));
+    if (!el) throw new Error(`expected a chip labelled ${label}`);
+    return el;
+  }
+
+  function renderMulti(initial: string[], options: ChipOption[] = ABC, extra: { sort?: boolean } = {}) {
+    const [value, setValue] = createSignal<string[]>(initial);
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={options} value={value()} onChange={setValue} sort={extra.sort} />
+    ));
+    return container;
+  }
+
+  it('hoists chips that are non-neutral when the panel opens', () => {
+    const container = renderMulti(['c']);
+    fireEvent.click(trigger(container));
+    expect(chipOrder()).toEqual(['Gamma', 'Alpha', 'Beta']);
+  });
+
+  it('hoists both enabled and disabled tri-state chips, keeping their order', () => {
+    const { container } = render(() => (
+      <ChipFlyout mode="tri-state" label="Status" options={ABC} value={{ included: ['c'], excluded: ['b'] }} onChange={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    expect(chipOrder()).toEqual(['Beta', 'Gamma', 'Alpha']);
+  });
+
+  it('does not move a chip toggled while open, in either direction', () => {
+    const container = renderMulti(['c']);
+    fireEvent.click(trigger(container));
+    fireEvent.click(chipByLabel('Beta'));
+    expect(chipOrder()).toEqual(['Gamma', 'Alpha', 'Beta']);
+    fireEvent.click(chipByLabel('Gamma'));
+    expect(chipOrder()).toEqual(['Gamma', 'Alpha', 'Beta']);
+  });
+
+  it('re-sorts on the next open', () => {
+    const container = renderMulti(['c']);
+    fireEvent.click(trigger(container));
+    fireEvent.click(chipByLabel('Gamma'));
+    fireEvent.click(chipByLabel('Beta'));
+    fireEvent.click(trigger(container));
+    fireEvent.click(trigger(container));
+    expect(chipOrder()).toEqual(['Beta', 'Alpha', 'Gamma']);
+  });
+
+  it('respects `sort` within the hoisted and remaining runs', () => {
+    const container = renderMulti(['c', 'b'], [ABC[2]!, ABC[1]!, ABC[0]!], { sort: true });
+    fireEvent.click(trigger(container));
+    expect(chipOrder()).toEqual(['Beta', 'Gamma', 'Alpha']);
+  });
+
+  it('hoists within its group and leaves group order alone', () => {
+    const container = renderMulti(['2'], [
+      { value: 'a', label: 'Alpha', group: 'letters' },
+      { value: 'b', label: 'Beta', group: 'letters' },
+      { value: '1', label: 'One', group: 'numbers' },
+      { value: '2', label: 'Two', group: 'numbers' },
+    ]);
+    fireEvent.click(trigger(container));
+    const headers = [...document.querySelectorAll('.cujuju-cf-group-header')];
+    expect(headers.map((h) => h.textContent)).toEqual(['Letters', 'Numbers']);
+    expect(chipOrder()).toEqual(['Alpha', 'Beta', 'Two', 'One']);
+  });
+
+  it('does not move a tri-state chip cycled through every state while open', () => {
+    const [value, setValue] = createSignal<TriStateValue>({ included: ['c'], excluded: [] });
+    const { container } = render(() => (
+      <ChipFlyout mode="tri-state" label="Status" options={ABC} value={value()} onChange={setValue} />
+    ));
+    fireEvent.click(trigger(container));
+    const atOpen = ['Gamma', 'Alpha', 'Beta'];
+    expect(chipOrder()).toEqual(atOpen);
+    fireEvent.click(chipByLabel('Beta')); // included
+    fireEvent.click(chipByLabel('Beta')); // excluded
+    fireEvent.click(chipByLabel('Gamma')); // excluded
+    expect(chipOrder()).toEqual(atOpen);
+    fireEvent.click(chipByLabel('Gamma')); // unselected
+    expect(chipOrder()).toEqual(atOpen);
+  });
+
+  it('snapshots on a parent-driven open and re-sorts on the next one', () => {
+    const [open, setOpen] = createSignal(false);
+    const [value, setValue] = createSignal<string[]>(['c']);
+    render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={ABC} value={value()} onChange={setValue} open={open()} onOpenChange={setOpen} />
+    ));
+    setOpen(true);
+    expect(chipOrder()).toEqual(['Gamma', 'Alpha', 'Beta']);
+    fireEvent.click(chipByLabel('Beta'));
+    expect(chipOrder()).toEqual(['Gamma', 'Alpha', 'Beta']);
+    setOpen(false);
+    setOpen(true);
+    expect(chipOrder()).toEqual(['Beta', 'Gamma', 'Alpha']);
   });
 });

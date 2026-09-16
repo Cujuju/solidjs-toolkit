@@ -136,7 +136,7 @@
   height: var(--height-btn, 28px);
   border: 1px solid var(--color-border, #334155);
   border-radius: var(--radius-sm, 4px);
-  background: var(--color-background, #0f172a);
+  background: var(--color-surface, #0f172a);
   color: var(--color-text, #e2e8f0);
   font-size: var(--font-size-sm, 13px);
   outline: none;
@@ -193,7 +193,7 @@
     border-color var(--transition-speed, 120ms);
 }
 
-.cujuju-cf-tab:hover {
+.cujuju-cf-tab:hover:not(.cujuju-cf-tab--active) {
   color: var(--color-text, #e2e8f0);
 }
 
@@ -255,7 +255,7 @@
   gap: var(--spacing-xs, 4px);
 
   /* Unselected — high-contrast neutral chip. */
-  --ctc-bg: var(--color-background, #0f172a);
+  --ctc-bg: var(--color-surface, #0f172a);
   --ctc-color: var(--color-text, #e2e8f0);
   --ctc-border: 1px solid var(--color-border, #334155);
   --ctc-border-hover: 1px solid var(--color-primary, #6366f1);

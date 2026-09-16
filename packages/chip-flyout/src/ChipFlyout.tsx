@@ -4,6 +4,7 @@ import {
   createEffect,
   createUniqueId,
   on,
+  untrack,
   For,
   Show,
   type JSX,
@@ -116,7 +117,9 @@ const DEFAULT_PANEL_MIN = 280;
 const DEFAULT_PANEL_MAX = 480;
 const PANEL_OFFSET_PX = 4;
 /** Minimum gap the panel keeps from any viewport edge when clamped. */
-const VIEWPORT_MARGIN_PX = 8;
+export const VIEWPORT_MARGIN_PX = 8;
+/** Touch-first devices, where focusing a text input raises the soft keyboard. */
+const COARSE_POINTER_QUERY = '(pointer: coarse)';
 
 /** In `multi` mode, chips are two-state (in array <-> out of array).
  *  Override the library's default 3-cycle so clicking a multi chip
@@ -147,8 +150,13 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
 
   const isControlled = () => props.open !== undefined;
   const open = () => (isControlled() ? !!props.open : internalOpen());
+  // The panel mounts only once it has a position; everything keyed to its
+  // presence (Show, viewport clamp) reads this, not `open` alone.
+  const panelShown = createMemo(() => open() && pos() !== null);
 
   function setOpen(next: boolean) {
+    // `onOpenChange` reports changes; a redundant request (e.g. resize while closed) is not one.
+    if (next === open()) return;
     if (isControlled()) {
       props.onOpenChange?.(next);
     } else {
@@ -223,6 +231,19 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     setOpen(true);
   }
 
+  /** Move focus into the dialog: search input, else active tab, else the panel. */
+  function focusPanel(): void {
+    if (!panelEl?.isConnected) return;
+    // On touch, focusing search raises the soft keyboard, whose resize would dismiss the panel.
+    const coarsePointer =
+      typeof window.matchMedia === 'function' && window.matchMedia(COARSE_POINTER_QUERY).matches;
+    const target =
+      (coarsePointer ? null : panelEl.querySelector<HTMLElement>('.cujuju-cf-search')) ??
+      panelEl.querySelector<HTMLElement>('[role="tab"][tabindex="0"]') ??
+      panelEl;
+    target.focus({ preventScroll: true });
+  }
+
   /** Clamp the panel inside the viewport after it renders. The initial
    *  position from `computePosition` is trigger-relative and can push
    *  the panel off the right or bottom edge when the trigger is near
@@ -268,13 +289,38 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   // `afterPaint` waits for the first layout pass so
   // `panelEl.getBoundingClientRect` reflects the real rendered size.
   createEffect(() => {
-    if (!open() || !panelEl) return;
+    if (!panelShown() || !panelEl) return;
     afterPaint(clampToViewport);
   });
 
-  function closePanel() {
+  /** `restoreFocus: false` (outside clicks) leaves focus where the user put it.
+   *  The restore itself runs when the panel actually hides — see the focus effect. */
+  function closePanel(restoreFocus = true) {
+    restoreFocusOnClose = restoreFocus;
     setOpen(false);
   }
+
+  // Focus contract keyed to the panel's real presence: trigger-, dismiss- and parent-driven
+  // opens/closes behave alike, and a vetoed close moves nothing.
+  let restoreFocusOnClose = true;
+  // Last focus move landed inside the panel. Removal-blur has no relatedTarget, so it keeps this set.
+  let focusInPanel = false;
+  // A flyout mounted open must not steal focus from the page.
+  let skipFocusOnFirstShow = untrack(open);
+  createEffect(
+    on(panelShown, (shown, wasShown) => {
+      if (shown) {
+        if (skipFocusOnFirstShow) skipFocusOnFirstShow = false;
+        else focusPanel();
+        return;
+      }
+      if (!wasShown) return;
+      const restore = restoreFocusOnClose && focusInPanel;
+      restoreFocusOnClose = true;
+      focusInPanel = false;
+      if (restore) triggerEl?.focus({ preventScroll: true });
+    }),
+  );
 
   function toggle() {
     if (open()) closePanel();
@@ -286,7 +332,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   // Both are gated on `open` so they cost nothing while closed.
   createClickOutside(
     contains(() => [triggerEl, panelEl]),
-    () => closePanel(),
+    () => closePanel(false),
     { enabled: open },
   );
   createEscapeKey(
@@ -319,9 +365,33 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
       (isOpen) => {
         if (isOpen) computePosition();
       },
-      { defer: true },
+      // Not deferred: a controlled `open={true}` at mount needs a position too.
+      { defer: false },
     ),
   );
+
+  // Values non-neutral (enabled or disabled) when the panel opened. Snapshotted, not live,
+  // so a toggled chip never moves under the pointer; the next open re-sorts.
+  const nonNeutralAtOpen = createMemo(
+    on(panelShown, (shown) => {
+      if (!shown) return null;
+      return new Set(
+        props.mode === 'tri-state'
+          ? [...props.value.included, ...props.value.excluded]
+          : props.value,
+      );
+    }),
+  );
+
+  /** Stable partition: chips non-neutral at open first; both runs keep their incoming order. */
+  function hoistNonNeutral(opts: ChipOption[]): ChipOption[] {
+    const hoisted = nonNeutralAtOpen();
+    if (!hoisted || hoisted.size === 0) return opts;
+    return [
+      ...opts.filter((o) => hoisted.has(o.value)),
+      ...opts.filter((o) => !hoisted.has(o.value)),
+    ];
+  }
 
   const sortedOptions = createMemo(() =>
     props.sort
@@ -364,7 +434,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   });
   // Roving-tabindex targets — the strip exposes ONE tab stop, and arrow
   // keys move focus between the buttons directly.
-  const tabEls: (HTMLButtonElement | undefined)[] = [];
+  // Keyed by tab object, as `For` is — a creation-time index goes stale when `tabs` changes.
+  const tabEls = new WeakMap<ChipFlyoutTab, HTMLButtonElement>();
   // Stable id base for the tab <-> tabpanel `aria-controls` /
   // `aria-labelledby` pairing. Per instance, so two flyouts on one page
   // never collide.
@@ -388,7 +459,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     else if (e.key === 'End') next = list.length - 1;
     else return;
     e.preventDefault();
-    tabEls[next]?.focus();
+    tabEls.get(list[next]!)?.focus();
   }
 
   function renderChip(opt: ChipOption): JSX.Element {
@@ -437,7 +508,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
         </Show>
       </button>
 
-      <Show when={open() && pos()}>
+      <Show when={panelShown()}>
         <Portal>
           <GlassMenu
             ref={(el) => (panelEl = el)}
@@ -449,6 +520,16 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
               'max-width': `${props.panelMaxWidth ?? DEFAULT_PANEL_MAX}px`,
             }}
             role="dialog"
+            tabIndex={-1}
+            onFocusIn={() => {
+              focusInPanel = true;
+              restoreFocusOnClose = true;
+            }}
+            onFocusOut={(e) => {
+              if (e.relatedTarget instanceof Node && !e.currentTarget.contains(e.relatedTarget)) {
+                focusInPanel = false;
+              }
+            }}
             aria-label={`${props.panelTitle ?? props.label} filter`}
             title={props.panelTitle ?? props.label}
             headerAction={
@@ -462,7 +543,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                 </button>
               </Show>
             }
-            onClose={closePanel}
+            onClose={() => closePanel()}
           >
             <div class="cujuju-cf-body">
               <Show when={tabs().length > 0}>
@@ -474,7 +555,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                   <For each={tabs()}>
                     {(tab, i) => (
                       <button
-                        ref={(el) => (tabEls[i()] = el)}
+                        ref={(el) => tabEls.set(tab, el)}
                         type="button"
                         role="tab"
                         id={tabDomId(i())}
@@ -526,7 +607,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                   when={grouped()}
                   fallback={
                     <div class="cujuju-cf-chips">
-                      <For each={sortedOptions()}>{renderChip}</For>
+                      <For each={hoistNonNeutral(sortedOptions())}>{renderChip}</For>
                     </div>
                   }
                 >
@@ -540,7 +621,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                           </div>
                         </Show>
                         <div class="cujuju-cf-chips">
-                          <For each={opts}>{renderChip}</For>
+                          <For each={hoistNonNeutral(opts)}>{renderChip}</For>
                         </div>
                       </>
                     )}

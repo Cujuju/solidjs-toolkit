@@ -12,6 +12,16 @@ The panel follows the trigger via `getBoundingClientRect`, clamps
 inside the viewport, and dismisses on outside click, Escape, viewport
 resize, and page scroll (in-panel scroll is preserved).
 
+Chips that are enabled or disabled when the panel opens are listed first
+(within their group, keeping `sort` order). The order is fixed while the
+panel is open, so a toggled chip never moves; the next open re-sorts.
+
+Opening moves focus into the panel: the search input (skipped on a coarse
+pointer, where it would raise the soft keyboard), else the active tab, else
+the panel itself. Closing returns focus to the trigger if it was inside the
+panel, except on outside click. Parent-driven `open` changes behave the
+same; a flyout mounted with `open={true}` does not take focus.
+
 ## Install
 
 ```sh
@@ -108,8 +118,9 @@ What the component provides, in full:
 
 The option list keeps its wrapper element when `tabs` is empty, but
 without the `tabpanel` role — so an untabbed panel exposes no orphan
-panel, and the layout is identical either way. The panel is not itself
-focusable; the chips inside it are.
+panel, and the layout is identical either way. The panel itself is
+focusable only programmatically (`tabindex="-1"`), as the last-resort focus
+target.
 
 ## Styling
 

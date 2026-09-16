@@ -11,7 +11,9 @@ export default defineConfig({
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
     server: {
       deps: {
-        inline: ['solid-js'],
+        // Inline testing-library too: externalised, it loads a second Solid instance,
+        // so `render` owns nothing and cleanup() never disposes the component.
+        inline: ['solid-js', '@solidjs/testing-library'],
       },
     },
   },
