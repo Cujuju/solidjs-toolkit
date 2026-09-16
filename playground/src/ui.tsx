@@ -1,17 +1,9 @@
 import { For, Show, createSignal, type Accessor, type JSX } from 'solid-js';
 
 /**
- * Playground chrome — the bits every package page reuses.
- *
- * Two things in here are load-bearing, and both exist because a control rendered alone on an
- * empty canvas proves nothing:
- *
- *   1. The HOSTILE ANCESTOR boxes. Nearly every floating surface in the toolkit (pop-outs,
- *      flyouts, tooltips, menus) is correct in isolation and broken inside a clipping or
- *      scrolling parent — which is exactly where a real app puts it. So: put it in the box
- *      that breaks it.
- *   2. The EVENT LOG. It is the only way to prove a component did NOT emit. "It looks right"
- *      cannot distinguish a control that fired once from one that fired on every frame.
+ * Playground chrome. Two load-bearing pieces: the HOSTILE ANCESTOR boxes (a floating surface is
+ * correct alone, broken inside a clipping parent) and the EVENT LOG (proof a component did NOT
+ * emit).
  */
 
 // ── Layout ──────────────────────────────────────────────────────────────────
@@ -30,14 +22,8 @@ export function Note(props: { children: JSX.Element }): JSX.Element {
 }
 
 /**
- * Copy-pasteable source for the control above it, COLLAPSED by default.
- *
- * The playground's job is not only "does it look right" but "how do I get
- * this" — a demo whose markup is only visible by reading the page's own
- * source makes the reader reverse-engineer the API. But usage text is
- * reference material, not something to scroll past on every visit, so it
- * stays shut until asked for. `<details>` gives that for free, keyboard- and
- * screen-reader-accessible, with no state to wire.
+ * Copy-pasteable source for the control above, COLLAPSED by default: usage text is reference
+ * material, not something to scroll past every visit. `<details>` gives that free and accessible.
  */
 export function Code(props: { children: string; cap?: string; open?: boolean }): JSX.Element {
   return (
@@ -57,11 +43,8 @@ export function Row(props: { children: JSX.Element }): JSX.Element {
 }
 
 /**
- * A labelled cell for a state matrix.
- *
- * The matrix is the Tier-2 equivalent of the hostile-ancestor box: a size that drifted, or a
- * disabled state that lost its opacity, is invisible on its own and obvious next to its
- * siblings. So every state gets rendered TOGETHER, each under its own label.
+ * A labelled cell for a state matrix: a size that drifted or a disabled state that lost its
+ * opacity is invisible alone and obvious beside its siblings.
  */
 export function Cell(props: { label: string; children: JSX.Element }): JSX.Element {
   return (
@@ -89,15 +72,8 @@ export function ClipBox(props: { width?: string; children: JSX.Element }): JSX.E
 }
 
 /**
- * `overflow-y: auto` — clips, AND scrolls the anchor out from under a fixed-positioned panel.
- *
- * This is the box that finds bugs. A panel must do ONE of two things when this scrolls:
- * follow its anchor (which needs a scroll listener registered in the CAPTURE phase — scroll
- * does not bubble from an element, so a bubbling listener on `window` never hears this box),
- * or dismiss itself. A panel that does neither is left floating over unrelated content, still
- * pointing at an anchor that has moved.
- *
- * The filler is deliberate: a scroll box that cannot actually scroll tests nothing.
+ * `overflow-y: auto` — clips AND scrolls the anchor out from under a fixed panel. The box that
+ * finds bugs: a panel must follow its anchor (capture-phase scroll listener) or dismiss.
  */
 export function ScrollBox(props: {
   width?: string;
@@ -122,12 +98,8 @@ export function ScrollBox(props: {
 }
 
 /**
- * Flush against the RIGHT VIEWPORT EDGE — not merely right-aligned in a card.
- *
- * The distinction matters: a panel is almost always wider than the anchor it hangs off (it
- * carries the content the trigger was hiding), so it is the real viewport boundary, not a
- * card boundary, that forces the clamp. This spans the full page column, which is why `.page`
- * carries no `max-width`.
+ * Flush against the RIGHT VIEWPORT EDGE, not merely right-aligned in a card: a panel is wider
+ * than its anchor, so it is the viewport boundary that forces the clamp.
  */
 export function EdgeRight(props: { children: JSX.Element }): JSX.Element {
   return <div class="edge-right">{props.children}</div>;
@@ -139,11 +111,8 @@ export function Tall(): JSX.Element {
 }
 
 /**
- * A deliberately BUSY backdrop.
- *
- * A glass surface over a flat colour is indistinguishable from an opaque one — blur has
- * nothing to blur and saturate has nothing to saturate. Text, edges and colour behind the
- * surface are the only way to see what the tint knobs are actually doing.
+ * A deliberately BUSY backdrop: a glass surface over a flat colour is indistinguishable from an
+ * opaque one — blur has nothing to blur.
  */
 export function BusyBackdrop(props: { height?: string; children: JSX.Element }): JSX.Element {
   return (
@@ -167,9 +136,8 @@ export function BusyBackdrop(props: { height?: string; children: JSX.Element }):
 // ── Event log ───────────────────────────────────────────────────────────────
 
 /**
- * Bounded so wheel-spam or an auto-repeat hold cannot grow the log without limit — an
- * unbounded log in a page you leave open is a slow leak, and the oldest entries are never the
- * ones you are looking at anyway.
+ * Bounded so wheel-spam or an auto-repeat hold cannot grow the log without limit; the oldest
+ * entries are never the ones you are looking at.
  */
 const EVENT_LOG_MAX_ENTRIES = 300;
 
@@ -238,12 +206,8 @@ export function createEventLog(): EventLogApi {
 }
 
 /**
- * The log panel.
- *
- * ALWAYS rendered, even when empty — silence is a result, not an absence. Half the assertions
- * on these pages are of the form "this must NOT emit while you do X" (a picker that is silent
- * until commit, a group that does not re-fire on a re-click of the active option), and you
- * cannot read that off a widget that is not on screen.
+ * The log panel. ALWAYS rendered — silence is a result: half these assertions are "this must NOT
+ * emit while you do X", which you cannot read off a hidden widget.
  */
 export function EventLog(props: { log: EventLogApi; hint?: string }): JSX.Element {
   return (

@@ -1,16 +1,9 @@
 /**
- * pdp-state-shot.mjs — drive the playground to prove the new row states behave,
- * not just compile. Screenshots the open ladder and asserts the interaction
- * rules that a unit test cannot show you: what the thing LOOKS like in each
- * state, and that the disabled row is inert against a real click.
- *
- * Run from the repo root with the playground dev server up:
- *   node playground/pdp-state-shot.mjs            (PORT=5201 by default)
+ * Hand-run: drive the playground (dev server up, PORT=5201) to prove the row states behave, not
+ * just compile — including that the disabled row is inert against a real click.
  */
-// Playwright is not a dependency of this repo — the toolkit ships no browser
-// tests. Resolved from a sibling checkout that has it (override with
-// PLAYWRIGHT_FROM) so this stays a hand-run verification script, not a new
-// devDependency on every contributor's install.
+// Playwright is not a dependency — the toolkit ships no browser tests. Resolved from a sibling
+// checkout (override with PLAYWRIGHT_FROM) so this stays hand-run.
 import { createRequire } from 'node:module';
 const from = process.env.PLAYWRIGHT_FROM || 'E:/Development/Projects/StockApp/client-solid/';
 const { chromium } = createRequire(from)('playwright');

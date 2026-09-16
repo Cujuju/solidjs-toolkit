@@ -1,26 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Browser tests for the accordion-dock mock.
- *
- * WHAT BELONGS HERE VS IN VITEST
- *
- * The split is by what is actually under test, not by convenience:
- *
- *   - vitest (`src/mock/**\/__tests__`) owns the PURE RULES — the visual order,
- *     the bulk-close exemption, the leaf chain, the breadcrumb path, the menu's
- *     enable/disable matrix. These take plain data and return plain data. A
- *     browser would make them slower and prove nothing extra.
- *   - this suite owns everything that needs a LAYOUT ENGINE or a second
- *     document: splitter drags, the auto-hide flyout overlaying real columns,
- *     the rail's measurement-driven overflow, and tear-off's cross-document
- *     rendering.
- *
- * The second list is precisely where the jsdom tests needed hand-built fakes —
- * a stub `window.open`, a stub `ResizeObserver`, hand-written
- * `getBoundingClientRect` values. Every one of those fakes is an assumption
- * about how a browser behaves, asserted by the same person who wrote the code.
- * Here the browser answers instead.
+ * Browser tests for the accordion-dock mock. vitest owns the PURE RULES; this suite owns
+ * whatever needs a layout engine or a second document — drags, flyout overlay, rail overflow,
+ * tear-off.
  */
 
 /** Distinct from the 5199 the playground's own `pnpm dev` uses, so a test run can

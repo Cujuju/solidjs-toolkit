@@ -41,12 +41,8 @@
 * { box-sizing: border-box; }
 
 /* ── Scrollbars, everywhere ──────────────────────────────────────────────────
-   The UA scrollbar is painted for a light page, so on this dark shell it lands
-   as a bright slab. `scrollbar-color` and `scrollbar-width` INHERIT, so setting
-   them once on :root covers the page, the nav, every ScrollBox and every panel
-   on every page — no per-container rule needed. Full width, not thin: a thin
-   scrollbar is harder to grab. The WebKit pseudo-elements do not inherit, so
-   they take a universal selector. */
+   `scrollbar-color` / `scrollbar-width` INHERIT, so one `:root` rule covers every container.
+   Full width, not thin: thin is harder to grab. WebKit pseudo-elements do not inherit. */
 :root {
   scrollbar-width: auto;
   scrollbar-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
@@ -80,9 +76,8 @@ body {
 }
 
 /* ── Shell: fixed left nav, scrolling page. ──────────────────────────────────
-   The nav is `position: fixed` so the page can scroll under it — a control parked at the
-   bottom of a long page is one of the states worth looking at (it must flip its pop-out
-   upward), and a nav that scrolled away with it would make that state hard to reach. */
+   The nav is `position: fixed` so the page scrolls under it: a control parked at the bottom
+   must flip its pop-out upward. */
 .shell { display: block; }
 
 .nav {
@@ -123,9 +118,8 @@ body {
 }
 .nav-item small { display: block; color: var(--text-muted); font-size: 10px; opacity: 0.7; }
 
-/* No `max-width`. The hostile-ancestor sections test clamping against the RIGHT VIEWPORT EDGE,
-   and a page column that stops short of it would make every such test a lie — the panel would
-   have room it will not have in a real app. */
+/* No `max-width`. The hostile-ancestor sections clamp against the RIGHT VIEWPORT EDGE; a column
+   stopping short of it would give the panel room it will not have in a real app. */
 .page {
   margin-left: var(--nav-width);
   padding: 24px 24px 120px;
@@ -171,10 +165,8 @@ code { font-family: var(--mono); color: var(--text); }
 /* Spans the row — used by the right-viewport-edge box, which is meaningless in a narrow card. */
 .card--wide { flex: 1 1 100%; }
 
-/* The hatch-variant rows carry their token overrides on a wrapper element, so
-   that wrapper — not the chips — is the card body's flex item and has to lay
-   the chips out itself. Same gap as the body so a variant card is
-   indistinguishable in rhythm from a plain one. */
+/* The hatch-variant rows carry token overrides on a wrapper, so that wrapper — not the chips —
+   is the card body's flex item and lays the chips out itself. */
 .hatch-variant { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 
 /* ── State matrix (Tier 2). Every state side by side, because drift is only visible next to
@@ -324,7 +316,7 @@ code { font-family: var(--mono); color: var(--text); }
 .evlog-name { color: var(--accent); font-weight: 700; }
 .evlog-detail { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
 /* Spans the full page column (which has no max-width), so "right edge" means the RIGHT EDGE OF
-   THE VIEWPORT and not the right edge of a card that still has 300px of room to its right. */
+   THE VIEWPORT, not of a card with room to spare. */
 .edge-right {
   display: flex;
   justify-content: flex-end;

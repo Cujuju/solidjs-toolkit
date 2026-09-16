@@ -20,18 +20,9 @@ import { TriStateChipPage } from './pages/TriStateChipPage';
 import { AccordionDockPage } from './pages/AccordionDockPage';
 
 /**
- * Playground — the live harness for the toolkit packages.
- *
- * Everything here is aimed at the cases that a unit test cannot show you and a static mock
- * cannot prove: how a control behaves inside HOSTILE ancestors (clipping, scrolling, a viewport
- * edge), at the density it will actually ship in, with real theme tokens.
- *
- * Packages are consumed FROM SOURCE via the `solid` export condition (see vite.config.ts), so
- * an edit in `packages/*\/src` hot-reloads here with no build, no publish, and no linking into a
- * consuming app.
- *
- * ONE page per package. If a package has no page, it is invisible here — and a control nobody
- * looks at is a control nobody notices breaking.
+ * Playground — the live harness. Aimed at what a unit test cannot show: how a control behaves
+ * inside HOSTILE ancestors, at shipping density. Packages load FROM SOURCE via the `solid`
+ * condition.
  */
 
 interface Page {
@@ -43,8 +34,7 @@ interface Page {
 }
 
 /** Ordered by how much there is to look at, not alphabetically — the two pickers carry the
- *  interesting behaviour (portalled pop-outs in hostile ancestors) and are what someone opening
- *  this is usually here for. */
+ *  interesting behaviour and are usually why someone opens this. */
 const PAGES: Page[] = [
   // Deliberately first: it is the thing currently being designed. Promoted from a
   // playground mock to packages/accordion-dock on 2026-07-26.
@@ -70,9 +60,8 @@ const PAGES: Page[] = [
 
 const DEFAULT_PAGE = PAGES[0].id;
 
-/** Routing is the URL hash and nothing else. No router dependency: the toolkit has none, and a
- *  16-line signal buys the one thing that actually matters here — a reload (or a hot-reload)
- *  puts you back on the page you were looking at instead of dumping you at the top. */
+/** Routing is the URL hash and nothing else — no router dependency. The one thing that matters:
+ *  a reload puts you back on the page you were looking at. */
 function currentIdFromHash(): string {
   const id = window.location.hash.replace(/^#\/?/, '');
   return PAGES.some((p) => p.id === id) ? id : DEFAULT_PAGE;
@@ -89,9 +78,8 @@ export function App(): JSX.Element {
 
   const navigate = (next: string): void => {
     window.location.hash = `/${next}`;
-    // The hashchange event covers the back button and a pasted URL; this covers the case where
-    // the hash is already what we are setting it to (a re-click on the current page), which
-    // fires no event at all.
+    // `hashchange` covers the back button and a pasted URL; this covers re-clicking the current
+    // page, which fires no event at all.
     setId(next);
     window.scrollTo(0, 0);
   };
@@ -118,8 +106,7 @@ export function App(): JSX.Element {
 
       <main class="page">
         {/* Keyed on the page id so switching pages REMOUNTS rather than diffing one control's
-            state onto another's. A stale open pop-out surviving a page switch would be a
-            playground bug that looks exactly like a package bug. */}
+            state onto another's — a stale pop-out surviving a switch would look like a package bug. */}
         <Show when={active()} keyed>
           {(p) => <p.component />}
         </Show>
