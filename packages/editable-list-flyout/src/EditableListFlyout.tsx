@@ -1,4 +1,4 @@
-import { Show, For, createSignal, type Accessor, type JSX } from 'solid-js';
+import { Show, For, createMemo, createSignal, untrack, type Accessor, type JSX } from 'solid-js';
 import AnchoredPopover, {
   type AnchoredPlacement,
 } from '@cujuju/solidjs-anchored-popover';
@@ -18,6 +18,8 @@ export interface EditableListFlyoutItemConfig {
   leadingControl?: () => JSX.Element;
   trailingLabel?: () => JSX.Element;
   selection?: SelectionMode;
+  /** Marks the row as the current/selected entry (selection rail). */
+  active?: boolean;
   deleteDisabled?: boolean;
   busy?: () => boolean;
   infoTooltip?: string;
@@ -114,6 +116,7 @@ export default function EditableListFlyout<
   const [createValue, setCreateValue] = createSignal('');
   const [pending, setPending] = createSignal(false);
   let createInputRef: HTMLInputElement | undefined;
+  let addButtonRef: HTMLButtonElement | undefined;
   const afterPaint = createAfterPaint();
 
   function startCreating(): void {
@@ -122,12 +125,29 @@ export default function EditableListFlyout<
     afterPaint(() => createInputRef?.focus());
   }
 
+  // Keyboard exits (Escape/Enter) unmount the focused input; hand focus back
+  // to the add button. Blur exits already moved focus elsewhere — leave it.
+  function inputOwnsFocus(): boolean {
+    return createInputRef !== undefined && document.activeElement === createInputRef;
+  }
+
+  // After an await the user may have moved focus; restore only if it stayed on the input or dropped to <body>.
+  function focusStayedOrDropped(): boolean {
+    const active = document.activeElement;
+    return active === null || active === document.body || active === createInputRef;
+  }
+
   function cancelCreate(): void {
-    setCreating(false);
+    const restoreFocus = inputOwnsFocus();
+    // Clear before unmounting: removing the focused input fires blur synchronously,
+    // and onBlur must see an empty value or it commits.
     setCreateValue('');
+    setCreating(false);
+    if (restoreFocus) addButtonRef?.focus();
   }
 
   async function commitCreate(): Promise<void> {
+    const restoreFocus = inputOwnsFocus();
     const name = createValue().trim();
     if (!name) {
       cancelCreate();
@@ -137,11 +157,19 @@ export default function EditableListFlyout<
     setPending(true);
     try {
       await props.onCreate(name);
-      setCreating(false);
+      const restore = restoreFocus && focusStayedOrDropped();
       setCreateValue('');
+      setCreating(false);
+      if (restore) addButtonRef?.focus();
     } catch {
       // Reject: keep input open with typed value so consumer can show
       // toast and let user retry / amend.
+      // Disabling the focused input dropped focus; return it once re-enabled.
+      if (restoreFocus) {
+        afterPaint(() => {
+          if (focusStayedOrDropped()) createInputRef?.focus();
+        });
+      }
     } finally {
       setPending(false);
     }
@@ -173,42 +201,50 @@ export default function EditableListFlyout<
           </Show>
           <For each={props.items}>
             {(item) => {
-              const cfg = props.itemConfig?.(item) ?? {};
+              // <For> runs this factory untracked; the memo re-runs itemConfig
+              // when signals it reads change, and each prop getter tracks it.
+              const cfg = createMemo(() => props.itemConfig?.(item) ?? {});
+              const leadingIcon = stableSlot(cfg, (c) => c.leadingIcon);
+              const leadingControl = stableSlot(cfg, (c) => c.leadingControl);
+              const trailingLabel = stableSlot(cfg, (c) => c.trailingLabel);
               return (
-                <EditableListRow
-                  id={item.id}
-                  name={item.name}
-                  selection={cfg.selection ?? { kind: 'none' }}
-                  onActivate={
-                    cfg.onActivate || props.onActivate
-                      ? () => handleRowActivate(item, cfg.onActivate)
-                      : undefined
-                  }
-                  onRename={
-                    props.onRename && !cfg.disableRename
-                      ? (next) => props.onRename!(item, next)
-                      : undefined
-                  }
-                  onDelete={
-                    props.onDelete && !cfg.disableDelete
-                      ? () => props.onDelete!(item)
-                      : undefined
-                  }
-                  leadingIcon={cfg.leadingIcon}
-                  leadingControl={cfg.leadingControl}
-                  trailingLabel={cfg.trailingLabel}
-                  deleteDisabled={cfg.deleteDisabled}
-                  busy={cfg.busy}
-                  infoTooltip={cfg.infoTooltip}
-                  reorderProps={cfg.reorderProps}
-                  deleteConfirmTitle={cfg.deleteConfirmTitle}
-                  deleteConfirmMessage={cfg.deleteConfirmMessage}
-                  renameAriaLabel={cfg.renameAriaLabel}
-                  deleteAriaLabel={cfg.deleteAriaLabel}
-                  pendingRename={cfg.pendingRename}
-                  onRenameClose={cfg.onRenameClose}
-                  confirmDelete={props.confirmDelete}
-                />
+                <div role="listitem">
+                  <EditableListRow
+                    id={item.id}
+                    name={item.name}
+                    selection={cfg().selection ?? { kind: 'none' }}
+                    active={cfg().active}
+                    onActivate={
+                      cfg().onActivate || props.onActivate
+                        ? () => handleRowActivate(item, cfg().onActivate)
+                        : undefined
+                    }
+                    onRename={
+                      props.onRename && !cfg().disableRename
+                        ? (next) => props.onRename!(item, next)
+                        : undefined
+                    }
+                    onDelete={
+                      props.onDelete && !cfg().disableDelete
+                        ? () => props.onDelete!(item)
+                        : undefined
+                    }
+                    leadingIcon={leadingIcon()}
+                    leadingControl={leadingControl()}
+                    trailingLabel={trailingLabel()}
+                    deleteDisabled={cfg().deleteDisabled}
+                    busy={cfg().busy}
+                    infoTooltip={cfg().infoTooltip}
+                    reorderProps={cfg().reorderProps}
+                    deleteConfirmTitle={cfg().deleteConfirmTitle}
+                    deleteConfirmMessage={cfg().deleteConfirmMessage}
+                    renameAriaLabel={cfg().renameAriaLabel}
+                    deleteAriaLabel={cfg().deleteAriaLabel}
+                    pendingRename={cfg().pendingRename}
+                    onRenameClose={cfg().onRenameClose}
+                    confirmDelete={props.confirmDelete}
+                  />
+                </div>
               );
             }}
           </For>
@@ -219,6 +255,7 @@ export default function EditableListFlyout<
             when={creating()}
             fallback={
               <button
+                ref={(el) => (addButtonRef = el)}
                 type="button"
                 data-cuj-elf="add-button"
                 onClick={startCreating}
@@ -261,6 +298,20 @@ export default function EditableListFlyout<
       </div>
     </AnchoredPopover>
   );
+}
+
+type SlotRender = () => JSX.Element;
+
+/** Referentially stable slot renderer: the row re-mounts a slot only when it
+ *  appears or disappears, not on every itemConfig re-run. */
+function stableSlot(
+  cfg: Accessor<EditableListFlyoutItemConfig>,
+  pick: (config: EditableListFlyoutItemConfig) => SlotRender | undefined,
+): Accessor<SlotRender | undefined> {
+  const present = createMemo(() => pick(cfg()) !== undefined);
+  // Untrack only the config read; reads inside the slot function stay tracked by the row.
+  const render: SlotRender = () => pick(untrack(cfg))?.();
+  return () => (present() ? render : undefined);
 }
 
 function joinClass(...parts: Array<string | false | undefined>): string {

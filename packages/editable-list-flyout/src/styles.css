@@ -18,6 +18,9 @@
      must be opaque, so unlike the inputs it cannot derive from currentColor
      — it has to pick a side, and the toolkit's side is dark. */
   --cuj-elf-popover-bg: #1e293b;
+  /* The panel picks its own background, so it must pick its text colour too;
+     otherwise row labels inherit the host page's colour. */
+  --cuj-elf-popover-fg: #e2e8f0;
   --cuj-elf-popover-border: 1px solid rgba(255, 255, 255, 0.12);
   --cuj-elf-popover-radius: 8px;
   --cuj-elf-popover-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -39,8 +42,8 @@
   --cuj-elf-footer-radius: 6px;
   --cuj-elf-footer-border-style: 1px dashed #b6b6b6;
   --cuj-elf-footer-bg: transparent;
-  --cuj-elf-footer-fg: #6b7280;
-  --cuj-elf-footer-fg-hover: #111827;
+  --cuj-elf-footer-fg: #94a3b8;
+  --cuj-elf-footer-fg-hover: #e2e8f0;
   --cuj-elf-footer-bg-hover: rgba(59, 130, 246, 0.05);
   /* Derived from the footer's own text colour, NOT a hard-coded #fff — the
      add-input flashed bright white against every dark theme. A faint wash of
@@ -55,6 +58,7 @@
 
 [data-cuj-elf='popover'] {
   background: var(--cuj-elf-popover-bg);
+  color: var(--cuj-elf-popover-fg);
   border: var(--cuj-elf-popover-border);
   border-radius: var(--cuj-elf-popover-radius);
   box-shadow: var(--cuj-elf-popover-shadow);
@@ -107,6 +111,13 @@
    flush to the panel edge instead of floating in from it. */
 [data-cuj-elf='list'] [data-cuj-elr='row'] {
   border-radius: 0;
+}
+
+/* editable-list-row declares its light-theme tokens on every `[data-cuj-elr]`
+   element, so dark-panel overrides must match those elements, not an ancestor. */
+[data-cuj-elf='list'] [data-cuj-elr] {
+  --cuj-elr-icon-fg: #94a3b8;
+  --cuj-elr-icon-fg-hover: #e2e8f0;
 }
 
 [data-cuj-elf='list'] [data-cuj-elr='row'][data-active='true'] {

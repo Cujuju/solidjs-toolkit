@@ -531,4 +531,358 @@ describe('EditableListFlyout', () => {
       expect(document.querySelector('[data-cuj-elf="empty"]')).toBeNull();
     });
   });
+
+  describe('itemConfig reactivity', () => {
+    it('re-evaluates itemConfig when a signal it reads changes, without new item identities', () => {
+      const [selected, setSelected] = createSignal(false);
+      const [locked, setLocked] = createSignal(false);
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      const items = [{ id: 'a', name: 'Alpha' }];
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={items}
+            onDelete={() => Promise.resolve()}
+            itemConfig={() => ({
+              selection: { kind: 'checkbox', checked: selected(), onToggle: setSelected },
+              deleteDisabled: locked(),
+            })}
+          />
+        ),
+        document.body,
+      );
+      const checkbox = () =>
+        findRowByName('Alpha')!.querySelector('[data-cuj-elr="checkbox"]') as HTMLInputElement;
+      const trash = () => document.querySelector('button[aria-label="Delete Alpha"]') as HTMLButtonElement;
+      expect(checkbox().checked).toBe(false);
+      expect(trash().disabled).toBe(false);
+
+      setSelected(true);
+      setLocked(true);
+      expect(checkbox().checked).toBe(true);
+      expect(trash().disabled).toBe(true);
+    });
+
+    it('forwards itemConfig.active to the row and tracks changes', () => {
+      const [activeId, setActiveId] = createSignal('a');
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      const items = [
+        { id: 'a', name: 'Alpha' },
+        { id: 'b', name: 'Beta' },
+      ];
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={items}
+            itemConfig={(item) => ({ active: activeId() === item.id })}
+          />
+        ),
+        document.body,
+      );
+      expect(findRowByName('Alpha')!.getAttribute('data-active')).toBe('true');
+      expect(findRowByName('Beta')!.hasAttribute('data-active')).toBe(false);
+
+      setActiveId('b');
+      expect(findRowByName('Alpha')!.hasAttribute('data-active')).toBe(false);
+      expect(findRowByName('Beta')!.getAttribute('data-active')).toBe('true');
+    });
+  });
+
+  describe('list semantics', () => {
+    it('every item is an owned listitem of the role=list container', () => {
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={[
+              { id: 'a', name: 'Alpha' },
+              { id: 'b', name: 'Beta' },
+            ]}
+          />
+        ),
+        document.body,
+      );
+      const list = document.querySelector('[data-cuj-elf="list"]')!;
+      expect(list.getAttribute('role')).toBe('list');
+      const listItems = Array.from(list.children).filter((el) => el.getAttribute('role') === 'listitem');
+      expect(listItems).toHaveLength(2);
+      for (const li of listItems) expect(li.querySelector('[data-cuj-elr="row"]')).not.toBeNull();
+    });
+
+    it('no token-declaring [data-cuj-elf] element sits between the list and its rows', () => {
+      // `[data-cuj-elf]` redeclares every --cuj-elf-* default, so a wrapper matching it would reset list-level overrides.
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={[{ id: 'a', name: 'Alpha' }]}
+          />
+        ),
+        document.body,
+      );
+      const list = document.querySelector('[data-cuj-elf="list"]');
+      for (const row of findRows()) expect(row.parentElement!.closest('[data-cuj-elf]')).toBe(list);
+    });
+  });
+
+  describe('slot stability across itemConfig re-runs', () => {
+    it('a focused leadingControl keeps its node and focus when selection toggles', () => {
+      const [checked, setChecked] = createSignal(false);
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={[{ id: 'a', name: 'Alpha' }]}
+            itemConfig={() => ({
+              leadingControl: () => <button data-testid="ctl">ctl</button>,
+              selection: { kind: 'checkbox', checked: checked(), onToggle: setChecked },
+            })}
+          />
+        ),
+        document.body,
+      );
+      const ctl = document.querySelector('[data-testid="ctl"]') as HTMLButtonElement;
+      ctl.focus();
+      setChecked(true);
+      expect(document.querySelector('[data-testid="ctl"]')).toBe(ctl);
+      expect(document.activeElement).toBe(ctl);
+    });
+
+    it('a slot that appears on a later itemConfig run mounts', () => {
+      const [withIcon, setWithIcon] = createSignal(false);
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={[{ id: 'a', name: 'Alpha' }]}
+            itemConfig={() => (withIcon() ? { leadingIcon: () => <span data-testid="star">★</span> } : {})}
+          />
+        ),
+        document.body,
+      );
+      expect(document.querySelector('[data-testid="star"]')).toBeNull();
+      setWithIcon(true);
+      expect(document.querySelector('[data-testid="star"]')).not.toBeNull();
+    });
+
+    it('signals read inside a slot function still update the slot', () => {
+      const [count, setCount] = createSignal(1);
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={[{ id: 'a', name: 'Alpha' }]}
+            itemConfig={() => ({ trailingLabel: () => `n=${count()}` })}
+          />
+        ),
+        document.body,
+      );
+      const label = () => document.querySelector('[data-cuj-elr="trailing-label"]')?.textContent;
+      expect(label()).toBe('n=1');
+      setCount(2);
+      expect(label()).toBe('n=2');
+    });
+  });
+
+  describe('add affordance focus', () => {
+    function renderCreatable(onCreate: (name: string) => Promise<void>): void {
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={[]}
+            onCreate={onCreate}
+          />
+        ),
+        document.body,
+      );
+    }
+
+    function openFocusedInput(): HTMLInputElement {
+      findAddButton()!.click();
+      const input = findAddInput()!;
+      input.focus();
+      return input;
+    }
+
+    it('Escape returns focus to the add button', () => {
+      renderCreatable(() => Promise.resolve());
+      const input = openFocusedInput();
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(findAddInput()).toBeNull();
+      expect(document.activeElement).toBe(findAddButton());
+    });
+
+    it('successful Enter commit returns focus to the add button', async () => {
+      renderCreatable(() => Promise.resolve());
+      const input = openFocusedInput();
+      input.value = 'Created';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      expect(findAddInput()).toBeNull();
+      expect(document.activeElement).toBe(findAddButton());
+    });
+
+    it('blur exit does not steal focus from where the user moved it', () => {
+      renderCreatable(() => Promise.resolve());
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      openFocusedInput();
+      outside.focus();
+      expect(findAddInput()).toBeNull();
+      expect(document.activeElement).toBe(outside);
+    });
+
+    function nextFrame(): Promise<void> {
+      return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    }
+
+    // jsdom doesn't blur a focused element on removal; Chrome does, synchronously. Emulate it.
+    function emulateBlurOnRemoval(): () => void {
+      const replaceChild = Node.prototype.replaceChild;
+      const removeChild = Node.prototype.removeChild;
+      const remove = Element.prototype.remove;
+      const blurIfFocusedWithin = (node: Node): void => {
+        const active = document.activeElement;
+        if (active && node.contains(active)) active.dispatchEvent(new FocusEvent('blur'));
+      };
+      Node.prototype.replaceChild = function (this: Node, node: Node, child: Node) {
+        blurIfFocusedWithin(child);
+        return replaceChild.call(this, node, child);
+      } as typeof replaceChild;
+      Node.prototype.removeChild = function (this: Node, child: Node) {
+        blurIfFocusedWithin(child);
+        return removeChild.call(this, child);
+      } as typeof removeChild;
+      Element.prototype.remove = function (this: Element) {
+        blurIfFocusedWithin(this);
+        remove.call(this);
+      };
+      return () => {
+        Node.prototype.replaceChild = replaceChild;
+        Node.prototype.removeChild = removeChild;
+        Element.prototype.remove = remove;
+      };
+    }
+
+    it('Escape with typed text does not commit through the blur fired on unmount', async () => {
+      const restoreDom = emulateBlurOnRemoval();
+      try {
+        const onCreate = vi.fn(() => Promise.resolve());
+        renderCreatable(onCreate);
+        const input = openFocusedInput();
+        input.value = 'Typed';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        for (let i = 0; i < 5; i++) await Promise.resolve();
+        expect(onCreate).not.toHaveBeenCalled();
+        expect(findAddInput()).toBeNull();
+        expect(document.activeElement).toBe(findAddButton());
+      } finally {
+        restoreDom();
+      }
+    });
+
+    it('Enter commit rejection re-focuses the input after it re-enables', async () => {
+      const onCreate = vi.fn(() => {
+        const input = findAddInput()!;
+        // jsdom neither blurs on disable nor blurs a disabled element; emulate the browser dropping focus.
+        input.disabled = false;
+        input.blur();
+        input.disabled = true;
+        return Promise.reject(new Error('collision'));
+      });
+      renderCreatable(onCreate);
+      const input = openFocusedInput();
+      // Flush startCreating's own after-paint focus so it can't mask a missing refocus.
+      await nextFrame();
+      input.value = 'Conflicts';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(document.activeElement).not.toBe(input);
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      await nextFrame();
+      expect(input.disabled).toBe(false);
+      expect(document.activeElement).toBe(input);
+    });
+
+    function deferredOnCreate() {
+      const settle: { resolve?: () => void; reject?: (e: Error) => void } = {};
+      const onCreate = vi.fn(
+        () =>
+          new Promise<void>((resolve, reject) => {
+            settle.resolve = resolve;
+            settle.reject = reject;
+          }),
+      );
+      return { onCreate, settle };
+    }
+
+    async function enterWhilePending(value: string): Promise<HTMLButtonElement> {
+      const input = openFocusedInput();
+      await nextFrame();
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      outside.focus();
+      return outside;
+    }
+
+    it('successful commit does not pull focus from a control the user moved to during the await', async () => {
+      const { onCreate, settle } = deferredOnCreate();
+      renderCreatable(onCreate);
+      const outside = await enterWhilePending('Created');
+      settle.resolve!();
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      await nextFrame();
+      expect(findAddInput()).toBeNull();
+      expect(document.activeElement).toBe(outside);
+    });
+
+    it('rejected commit does not pull focus from a control the user moved to during the await', async () => {
+      const { onCreate, settle } = deferredOnCreate();
+      renderCreatable(onCreate);
+      const outside = await enterWhilePending('Conflicts');
+      settle.reject!(new Error('collision'));
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      await nextFrame();
+      expect(findAddInput()).not.toBeNull();
+      expect(document.activeElement).toBe(outside);
+    });
+  });
 });

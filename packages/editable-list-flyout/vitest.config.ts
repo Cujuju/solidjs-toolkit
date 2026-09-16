@@ -8,6 +8,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Vitest stubs stylesheets as empty by default; styles.test.ts needs the real text.
+    css: true,
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
     server: {
       deps: {
