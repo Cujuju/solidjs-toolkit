@@ -118,11 +118,31 @@ describe('buildCrumbPath — select() truncation', () => {
       panels: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
       open: ['a', 'b', 'c'],
       pinned: ['c'],
+      // Divider OFF (the stub defaults it on) so pinned c stays last; where c paints is not this rule.
+      railDivider: false,
     });
     buildCrumbPath(group)[0].select();
     expect(calls.setOpen).toEqual([
       { id: 'b', open: false },
       { id: 'c', open: false },
+    ]);
+  });
+
+  it('reads the DIVIDER\'s painted order — pinned columns first, in pin order', () => {
+    const { group, calls } = createStubGroup({
+      panels: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+      open: ['a', 'b', 'c'],
+      // Pinned c first, then a: the columns paint c | a | rail | b, so that is
+      // the order the breadcrumb reads and the sequence truncation walks.
+      pinned: ['c', 'a'],
+      railDivider: true,
+    });
+    expect(buildCrumbPath(group).map((c) => c.id)).toEqual(['c', 'a', 'b']);
+
+    buildCrumbPath(group)[0].select();
+    expect(calls.setOpen).toEqual([
+      { id: 'a', open: false },
+      { id: 'b', open: false },
     ]);
   });
 

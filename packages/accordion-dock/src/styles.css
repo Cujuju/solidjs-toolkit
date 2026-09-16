@@ -13,6 +13,9 @@
    without specificity games. Every COMPONENT rule in this file — `.acc-panel`,
    `.acc-header`, the lot — is deliberately UNLAYERED.
 
+   `--_`-prefixed names are PRIVATE — derived, group-scoped, never a host input —
+   so they are declared where they are derived, outside the layered `:root` block.
+
    That asymmetry is load-bearing, and the comment that used to sit here did not
    say so: it claimed defaults lived in a layer, full stop. A reader took it at its
    word and wrapped `autoHide.css` in the same layer to match — at which point
@@ -268,6 +271,9 @@
 /* ── Group ──────────────────────────────────────────────────────────────── */
 
 .acc-group {
+  /* Private (leading `_`): derived from `--acc-splitter-hit`, group-scoped, never a host
+     input. Every splitter offset and the animated clip margin read it. */
+  --_acc-splitter-overhang: calc(var(--acc-splitter-hit) / 2);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -606,11 +612,11 @@
    RTL while the column it resizes stayed put, so the user would be dragging the
    boundary they can see with the handle for the boundary they cannot. */
 .acc-group[data-orientation='horizontal'][data-rail-side='left'] .acc-splitter {
-  right: calc(var(--acc-splitter-hit) / -2);
+  right: calc(-1 * var(--_acc-splitter-overhang));
 }
 
 .acc-group[data-orientation='horizontal'][data-rail-side='right'] .acc-splitter {
-  left: calc(var(--acc-splitter-hit) / -2);
+  left: calc(-1 * var(--_acc-splitter-overhang));
 }
 
 /* Vertical: a horizontal hairline on the panel's bottom edge. Logical here only
@@ -619,7 +625,7 @@
 .acc-group[data-orientation='vertical'] .acc-splitter {
   inset-inline: 0;
   height: var(--acc-splitter-hit);
-  bottom: calc(var(--acc-splitter-hit) / -2);
+  bottom: calc(-1 * var(--_acc-splitter-overhang));
   cursor: row-resize;
 }
 
@@ -694,7 +700,10 @@
 
 /* A leaf is the end of the chain, so it gets a slightly recessed surface — the
    visual cue that it is a destination rather than another folder to walk into. */
-.acc-leaf {
+/* The cards selector outranks `appearance="cards"`'s panel background, which would
+   otherwise repaint the leaf like every folder card. */
+.acc-leaf,
+.acc-group[data-appearance='cards'] > .acc-panel.acc-leaf {
   background: color-mix(in srgb, var(--acc-bg) 82%, #000);
 }
 
@@ -1110,11 +1119,11 @@
      `clip` rather than `hidden` because `hidden` would make the panel a scroll
      container, and `overflow-clip-margin` is what keeps this from breaking the
      splitter: that handle is deliberately positioned half OUTSIDE the panel
-     (`right: calc(hit / -2)`), so the clip region is expanded by exactly that
-     overhang. Without it, animating a column would silently halve its resize
+     (`right: calc(-1 * var(--_acc-splitter-overhang))`), so the clip region is
+     expanded by exactly that overhang. Without it, animating a column would silently halve its resize
      hit area. */
   overflow: clip;
-  overflow-clip-margin: calc(var(--acc-splitter-hit) / 2);
+  overflow-clip-margin: var(--_acc-splitter-overhang);
 }
 
 /* The other end of the transition. A collapsed column is `display: none`, so it
@@ -1302,6 +1311,8 @@
      already had to remove once. The group keeps its layout job and gives up its
      decoration entirely — the host's own background is what shows between the
      cards and is what makes them read as separate surfaces. */
+  /* The handle sits mid-gap: half a gap further out. */
+  --_acc-splitter-overhang: calc(var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2);
   border: 0;
   background: transparent;
   /* The divider. Applied on the group so it follows the main axis in either
@@ -1382,16 +1393,16 @@
    space between the cards. */
 .acc-group[data-appearance='cards'][data-orientation='horizontal'][data-rail-side='left']
   .acc-splitter {
-  right: calc(-1 * (var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2));
+  right: calc(-1 * var(--_acc-splitter-overhang));
 }
 
 .acc-group[data-appearance='cards'][data-orientation='horizontal'][data-rail-side='right']
   .acc-splitter {
-  left: calc(-1 * (var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2));
+  left: calc(-1 * var(--_acc-splitter-overhang));
 }
 
 .acc-group[data-appearance='cards'][data-orientation='vertical'] .acc-splitter {
-  bottom: calc(-1 * (var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2));
+  bottom: calc(-1 * var(--_acc-splitter-overhang));
 }
 
 /* FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout` already draws a

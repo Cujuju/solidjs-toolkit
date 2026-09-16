@@ -18,6 +18,10 @@ import { RAIL_OVERFLOW_ATTR } from './railOverflow';
  *  "continues past here" along the rail's own axis of truncation. */
 const OVERFLOW_GLYPH = '⋯';
 
+/** `MouseEvent.detail` on a click with no press behind it — Enter or Space on a
+ *  focused button. A pointer-driven click reports its click count instead. */
+const KEYBOARD_CLICK_DETAIL = 0;
+
 export interface RailOverflowMenuProps {
   group: AccordionGroupApi;
   /** Panels that did not fit, in rail order. */
@@ -83,6 +87,23 @@ export function RailOverflowMenu(props: RailOverflowMenuProps): JSX.Element {
     setAt({ x: r.right, y: r.top });
   };
 
+  /** ContextMenu dismisses on document `mousedown`, then this trigger's `click` would reopen it. Recorded at the press, since `at()` is null by click. */
+  let dismissedByThisPress = false;
+
+  const onTriggerMouseDown = (): void => {
+    // Native listener at the target, so it runs before the document dismissal. Reassigned every press, so it cannot go stale.
+    dismissedByThisPress = at() !== null;
+  };
+
+  const onTriggerClick = (e: MouseEvent & { currentTarget: HTMLElement }): void => {
+    // A keyboard activation has no `mousedown` behind it, so it can never be the
+    // second half of a dismissing press — it always means "open".
+    const closesThePress = e.detail !== KEYBOARD_CLICK_DETAIL && dismissedByThisPress;
+    dismissedByThisPress = false;
+    if (closesThePress) return;
+    openFromTrigger(e.currentTarget);
+  };
+
   return (
     <Show when={props.ids().length > 0}>
       <button
@@ -103,11 +124,16 @@ export function RailOverflowMenu(props: RailOverflowMenuProps): JSX.Element {
            reorder. Also how `railPan` tells a control from bare background. */
         data-no-drag
         {...{ [RAIL_OVERFLOW_ATTR]: '' }}
+        /* Never the Tab stop: overflow always leaves `MIN_VISIBLE_RAIL_ITEMS` tabs on the rail to hold it. Arrow keys reach it. */
+        tabIndex={-1}
         aria-haspopup="menu"
         aria-expanded={at() !== null}
         title={`${props.ids().length} more`}
         aria-label={`${props.ids().length} more panels`}
-        onClick={(e) => openFromTrigger(e.currentTarget)}
+        /* Native, not delegated: Solid's delegated `onMouseDown` also runs at `document`,
+           and would beat the menu's dismiss listener only by registration order. */
+        on:mousedown={onTriggerMouseDown}
+        onClick={onTriggerClick}
       >
         {OVERFLOW_GLYPH}
       </button>

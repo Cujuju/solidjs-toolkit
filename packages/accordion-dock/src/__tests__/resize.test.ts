@@ -328,7 +328,7 @@ describe('createResize — lifecycle', () => {
     h.dispose();
   });
 
-  it('treats pointercancel as a release', () => {
+  it('treats pointercancel as a cancel', () => {
     const h = harness({ boxes: { a: 300, b: 300 } });
     down(h.api, 'a', 0);
     move(50);
@@ -474,6 +474,106 @@ describe('the keyboard moves the same boundary as the pointer', () => {
     expect(h.api.boundsOf('a')).toEqual({ value: 300, min: 100, max: 480 });
     // The last panel has no neighbour, so there is nothing to resize against.
     expect(h.api.boundsOf('b')).toBeUndefined();
+    h.dispose();
+  });
+});
+
+describe('createResize — one pointer, one primary press, one gesture', () => {
+  const SECONDARY_BUTTON = 2;
+  const FIRST_POINTER = 1;
+  const SECOND_POINTER = 2;
+
+  function pointer(type: string, at: number, pointerId: number, button = 0): PointerEvent {
+    return new PointerEvent(type, { clientX: at, bubbles: true, pointerId, button });
+  }
+
+  function press(api: ResizeApi, id: string, at: number, pointerId: number, button = 0): void {
+    const e = pointer('pointerdown', at, pointerId, button);
+    Object.defineProperty(e, 'currentTarget', { value: document.createElement('div'), configurable: true });
+    api.begin(id, e);
+  }
+
+  it('does not arm on a non-primary button', () => {
+    const h = harness({ boxes: { a: 200, b: 200 } });
+    press(h.api, 'a', 100, FIRST_POINTER, SECONDARY_BUTTON);
+    expect(h.api.resizing()).toBe(false);
+
+    window.dispatchEvent(pointer('pointermove', 160, FIRST_POINTER));
+    expect(h.previews).toHaveLength(0);
+    h.dispose();
+  });
+
+  it('ends WITHOUT committing, and restores the pre-drag sizes, when a context menu opens mid-drag', () => {
+    const h = harness({ boxes: { a: 200, b: 200 } });
+    const before = h.sizes();
+    press(h.api, 'a', 100, FIRST_POINTER);
+    window.dispatchEvent(pointer('pointermove', 150, FIRST_POINTER));
+
+    document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    expect(h.api.resizing()).toBe(false);
+    expect(h.commits).toHaveLength(0);
+    expect(h.sizes()).toEqual(before);
+
+    // The platform menu eats the release; later moves must not chase the cursor.
+    const previews = h.previews.length;
+    window.dispatchEvent(pointer('pointermove', 190, FIRST_POINTER));
+    expect(h.previews).toHaveLength(previews);
+    h.dispose();
+  });
+
+  it('ignores moves and releases from a second pointer', () => {
+    const h = harness({ boxes: { a: 200, b: 200 } });
+    press(h.api, 'a', 100, FIRST_POINTER);
+    const previews = h.previews.length;
+
+    window.dispatchEvent(pointer('pointermove', 500, SECOND_POINTER));
+    expect(h.previews).toHaveLength(previews);
+    window.dispatchEvent(pointer('pointerup', 500, SECOND_POINTER));
+    expect(h.commits).toHaveLength(0);
+    expect(h.api.resizing()).toBe(true);
+
+    window.dispatchEvent(pointer('pointermove', 120, FIRST_POINTER));
+    window.dispatchEvent(pointer('pointerup', 120, FIRST_POINTER));
+    expect(h.commits).toEqual([{ a: 220, b: 180 }]);
+    h.dispose();
+  });
+
+  it('does not let a second press take over a drag in flight', () => {
+    const h = harness({ boxes: { a: 200, b: 200 } });
+    press(h.api, 'a', 100, FIRST_POINTER);
+    press(h.api, 'a', 0, SECOND_POINTER);
+    const previews = h.previews.length;
+
+    window.dispatchEvent(pointer('pointermove', 300, SECOND_POINTER));
+    expect(h.previews).toHaveLength(previews);
+
+    window.dispatchEvent(pointer('pointerup', 100, FIRST_POINTER));
+    expect(h.commits).toHaveLength(1);
+    expect(h.api.resizing()).toBe(false);
+    h.dispose();
+  });
+});
+
+describe('createResize — pointercancel abandons the drag', () => {
+  it('restores the pre-drag sizes and commits nothing', () => {
+    const h = harness({ boxes: { a: 300, b: 300 } });
+    const before = h.sizes();
+    down(h.api, 'a', 0);
+    move(50);
+    window.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true }));
+    expect(h.commits).toHaveLength(0);
+    expect(h.sizes()).toEqual(before);
+    h.dispose();
+  });
+
+  it('ignores a pointercancel from another pointer', () => {
+    const OTHER_POINTER = 2;
+    const h = harness({ boxes: { a: 300, b: 300 } });
+    down(h.api, 'a', 0);
+    window.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: OTHER_POINTER }));
+    expect(h.api.resizing()).toBe(true);
+    up();
+    expect(h.commits).toHaveLength(1);
     h.dispose();
   });
 });

@@ -165,17 +165,25 @@
   font-style: italic;
 }
 
-.acc-rail-btn[data-flyout='true']::before {
+.acc-group[data-rail-side] .acc-rail-btn[data-open='true'][data-flyout='true'] {
   /* Overrides the solid accent stripe that `styles.css` paints for an open
      button. Same geometry, broken up — the marker's PRESENCE still means
      open, its CONTINUITY now means permanent. */
-  background: repeating-linear-gradient(
+  background-image: repeating-linear-gradient(
     to bottom,
     var(--acc-accent) 0,
     var(--acc-accent) var(--acc-flyout-marker-dash),
     transparent var(--acc-flyout-marker-dash),
     transparent calc(var(--acc-flyout-marker-dash) * 2)
   );
+  background-size: var(--acc-rail-marker-width) 100%;
+  background-repeat: no-repeat;
+  /* The open stripe is an inset box-shadow on the button, not a pseudo-element. */
+  box-shadow: none;
+}
+
+.acc-group[data-rail-side='right'] .acc-rail-btn[data-open='true'][data-flyout='true'] {
+  background-position: right;
 }
 
 @layer cujuju-defaults {

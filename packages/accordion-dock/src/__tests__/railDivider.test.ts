@@ -348,3 +348,19 @@ describe('a drag actually moves a pinned column (regression)', () => {
     expect(next).toEqual(['a']);
   });
 });
+
+describe('partitionAtRail — the painted sequence', () => {
+  it('is the static run in pin order, then the dynamic run, in flex-order order', () => {
+    const visualOpen = painted(['a', 'b', 'c'], ['a', 'b', 'c']);
+    const p = partitionAtRail({ visualOpen, pinOrder: ['c', 'a'], isLeaf, enabled: true });
+    expect(p.sequence).toEqual(['c', 'a', 'b']);
+    const orders = p.sequence.map((id) => p.orderOf(id));
+    expect(orders).toEqual([...orders].sort((x, y) => x - y));
+  });
+
+  it('is the input order when the divider is off', () => {
+    const visualOpen = painted(['a', 'b', 'c'], ['a', 'b', 'c']);
+    const p = partitionAtRail({ visualOpen, pinOrder: ['c'], isLeaf, enabled: false });
+    expect(p.sequence).toEqual(visualOpen);
+  });
+});

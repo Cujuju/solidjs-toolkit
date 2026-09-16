@@ -130,6 +130,8 @@ export interface RailPartition {
   staticIds: readonly string[];
   /** Everything else open, in painted order — after the rail. */
   dynamicIds: readonly string[];
+  /** The painted sequence — `staticIds` then `dynamicIds`, the order the flex `order` values encode. */
+  sequence: readonly string[];
   /** Flex `order` for the rail itself: after the static run, before the rest. */
   railOrder: number;
   /** Flex `order` per open id. */
@@ -178,6 +180,7 @@ export function partitionAtRail(input: RailPartitionInput): RailPartition {
   return {
     staticIds,
     dynamicIds,
+    sequence: [...staticIds, ...dynamicIds],
     railOrder,
     // Unopened panels never paint, so their slot is irrelevant; 0 keeps them out
     // of the numbered run rather than colliding with a real column.

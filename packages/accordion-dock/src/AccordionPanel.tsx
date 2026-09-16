@@ -1,5 +1,6 @@
 import {
   Show,
+  createEffect,
   createMemo,
   createSignal,
   createUniqueId,
@@ -144,6 +145,18 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
    *  measures from — a size seeded on the element's arrival needs to KNOW when it
    *  arrives, which only a signal can say. */
   const [panelEl, setPanelEl] = createSignal<HTMLElement | undefined>();
+  /** The column title bar's activator. A signal, not a `slotRef` ref: whether it claims the slot is reactive (`showsRailButton`), and a ref runs once. */
+  const [colBarEl, setColBarEl] = createSignal<HTMLElement | undefined>();
+
+  /** Holds the activator slot only while no rail button exists. Released through the identity-guarded `clear`, so it never deletes the rail button's entry. */
+  createEffect(() => {
+    const el = colBarEl();
+    if (el === undefined || group.showsRailButton(panelId)) return;
+    group.activators.set(panelId, el);
+    onCleanup(() => {
+      group.activators.clear(panelId, el);
+    });
+  });
   const afterPaint = createAfterPaint();
   /** One menu instance per panel, attached to whichever chrome this orientation
    *  renders — the header row (vertical) or the column title bar (horizontal). */
@@ -405,9 +418,13 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
                registered unconditionally would hand the flyout a zero-rect anchor
                and place it in the corner. Under the divider the two are mutually
                exclusive by construction (a button appears exactly when the column
-               does not), and this keeps that true rather than assuming it. */
+               does not), and this keeps that true rather than assuming it.
+
+               The claim is made by the `colBarEl` effect; this ref only reports the element. */
             ref={(el) => {
-              if (!group.showsRailButton(props.id)) registerHeaderEl(el);
+              setColBarEl(el);
+              // Released on unmount, as `slotRef` did, so the effect never holds a detached bar.
+              onCleanup(() => setColBarEl(undefined));
             }}
             id={headerId}
             type="button"

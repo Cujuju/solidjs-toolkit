@@ -186,6 +186,20 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
     els.get(keys[clamped])?.focus();
   };
 
+  /** Expand the elided middle and focus its first revealed crumb: the ellipsis unmounts itself, so focus would otherwise fall to `<body>`. */
+  const expandFrom = (hidden: readonly CrumbData[]): void => {
+    setExpanded(true);
+    const first = hidden[0];
+    if (first === undefined) return;
+    const index = focusKeys().indexOf(first.id);
+    if (index < 0) return;
+    focusAt(index);
+  };
+
+  /** Index step for ArrowRight. Crumbs run in DOM order along the inline axis, which RTL mirrors. */
+  const inlineStep = (e: KeyboardEvent): number =>
+    e.target instanceof Element && window.getComputedStyle(e.target).direction === 'rtl' ? -1 : 1;
+
   /**
    * Arrow movement along the bar. Deliberately does NOT wrap: a path has real
    * ends, and jumping from the deepest column back to the root would misreport
@@ -196,10 +210,10 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
     if (from < 0) return;
     switch (e.key) {
       case 'ArrowRight':
-        focusAt(from + 1);
+        focusAt(from + inlineStep(e));
         break;
       case 'ArrowLeft':
-        focusAt(from - 1);
+        focusAt(from - inlineStep(e));
         break;
       case 'Home':
         focusAt(0);
@@ -256,10 +270,11 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
                     title={hiddenSummary(entry.hidden)}
                     aria-label={hiddenSummary(entry.hidden)}
                     tabIndex={isTabStop(ELLIPSIS_KEY) ? 0 : -1}
-                    aria-expanded={false}
+                    /* From state, not hardcoded: it renders only while collapsed today. */
+                    aria-expanded={expanded()}
                     onFocus={() => setFocusIndex(focusKeys().indexOf(ELLIPSIS_KEY))}
                     onKeyDown={(e) => onKeyDown(e, ELLIPSIS_KEY)}
-                    onClick={() => setExpanded(true)}
+                    onClick={() => expandFrom(entry.hidden)}
                   >
                     …
                   </button>

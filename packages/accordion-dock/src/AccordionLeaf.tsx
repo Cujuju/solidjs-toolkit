@@ -293,7 +293,11 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
         data-chain-depth={chain.depthOf(props.id)}
         style={{
           ...(props.accent !== undefined ? { '--acc-accent': props.accent } : {}),
-          ...(horizontal() ? { order: group.columnOrder(props.id) } : {}),
+          ...(horizontal()
+            ? { order: group.columnOrder(props.id) }
+            : /* Past every panel (`order().length` is the highest panel order), in painted
+                 sequence so chained leaves keep chain order. */
+              { order: group.order().length + 1 + group.openIndex(props.id) }),
           ...sizeStyle(),
         }}
       >

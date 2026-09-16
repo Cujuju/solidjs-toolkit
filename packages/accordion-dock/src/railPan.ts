@@ -180,10 +180,14 @@ export function createRailPan(options: RailPanOptions): RailPan {
     e.preventDefault();
 
     const startY = e.clientY;
+    // A second touch neither moves nor ends this pan. Mouse buttons share one id, but
+    // a chorded button change fires `pointermove`, not `pointerup`.
+    const pointerId = e.pointerId;
     const startScroll = rail.scrollTop;
     let activated = false;
 
     const onMove = (ev: PointerEvent): void => {
+      if (ev.pointerId !== pointerId) return;
       const delta = ev.clientY - startY;
       if (!activated) {
         if (Math.abs(delta) < PAN_ACTIVATE_DISTANCE_PX) return;
@@ -195,7 +199,8 @@ export function createRailPan(options: RailPanOptions): RailPan {
       rail.scrollTop = startScroll - delta;
     };
 
-    const onUp = (): void => {
+    const onUp = (ev: PointerEvent): void => {
+      if (ev.pointerId !== pointerId) return;
       // Only a pan that actually MOVED eats the click. A press that never passed
       // the dead zone is still a click on the button underneath, which is the
       // same rule `createReorderList` applies to an unactivated drag — and it is
@@ -204,11 +209,22 @@ export function createRailPan(options: RailPanOptions): RailPan {
       stop();
     };
 
+    /** Touch scrolling can claim the gesture: the UA fires `pointercancel` and no `pointerup`, which would strand the listeners, the guard and `panning()`. */
+    const onCancelled = (ev: PointerEvent): void => {
+      if (ev.pointerId !== pointerId) return;
+      stop();
+    };
+
+    // At PRESS time: Esc / blur / contextmenu inside the dead zone must also release the in-flight guard.
+    cancel.add();
+
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onCancelled);
     cleanupMove = () => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancelled);
     };
   };
 

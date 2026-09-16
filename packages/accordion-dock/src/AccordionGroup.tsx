@@ -1,4 +1,12 @@
-import { For, Show, createMemo, createSignal, useContext, type JSX } from 'solid-js';
+import {
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  useContext,
+  type JSX,
+} from 'solid-js';
 import {
   ACCORDION_LAYOUT_VERSION,
   AccordionGroupContext,
@@ -289,6 +297,12 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const [railOverflowEl, setRailOverflowEl] = createSignal<HTMLElement | null>(null);
 
   /**
+   * The id whose activator was holding focus when it was released, until the effect
+   * below hands that focus to the panel's stand-in. Written by the slot's `clear`.
+   */
+  const [refocusPending, setRefocusPending] = createSignal<string | undefined>();
+
+  /**
    * The activators, as a slot. Signal-backed because a flyout resolves its anchor
    * during render, before the ref has fired — a plain Map read would answer
    * `undefined` once and never correct itself.
@@ -303,6 +317,9 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       });
     },
     clear: (id, el) => {
+      // The LAST moment ownership is knowable: the cleanup runs while the element is
+      // still focused. Detached, `document.activeElement` is `<body>` either way.
+      if (document.activeElement === el) setRefocusPending(id);
       setHeaderEls((prev) => {
         // Identity-guarded: on an orientation swap the incoming activator registers
         // BEFORE the outgoing one's cleanup runs, and an unconditional delete then
@@ -375,15 +392,6 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   let isFlyoutId: (id: string) => boolean = () => false;
 
   /**
-   * Open panels in the sequence they are painted — the order a splitter walks to
-   * find its neighbour, the breadcrumb reads, and the flex `order` follows.
-   *
-   * The RULE lives in `visualOrder.ts` and is documented there. This memo is only
-   * the reactive wrapper around it: its job is to name which signals the rule's
-   * inputs come from, so the sequence recomputes when any of them moves. Keeping
-   * the rule out of here is what let the test stub stop carrying a copy of it.
-   */
-  /**
    * The group's leaf chain — `parentId` edges, published by each `<AccordionLeaf>`
    * and read back here to sort the open leaves.
    *
@@ -396,7 +404,8 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    */
   const leafChain = createLeafChain();
 
-  const visualOpenIds = createMemo<readonly string[]>(() =>
+  /** Open ids in USER order: the partition's input. The painted order differs under the divider — read `visualOpenIds` for that. */
+  const userOrderOpenIds = createMemo<readonly string[]>(() =>
     orderVisualOpen({
       order: orderIds(),
       open: openList(),
@@ -409,13 +418,14 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   /**
    * Does any OPEN member declare itself the absorber of the group's surplus?
    *
-   * Derived over `visualOpenIds` rather than the whole registry so a CLOSED
+   * Derived over `userOrderOpenIds` rather than the whole registry so a CLOSED
    * grower cannot retire the trailing default and leave the surplus promised to a
    * panel that is not on screen — which would reinstate the dead strip the
    * declaration exists to remove.
    */
+  /* Membership only, so the partition's input serves — the partition is not built yet. */
   const hasDeclaredGrower = createMemo<boolean>(() =>
-    visualOpenIds().some((id) => metaOf(id)?.grow() === true),
+    userOrderOpenIds().some((id) => metaOf(id)?.grow() === true),
   );
 
   /** Divider mode follows `autoHide` unless the consumer says otherwise — see the
@@ -434,13 +444,26 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    */
   const railPartition = createMemo(() =>
     partitionAtRail({
-      visualOpen: visualOpenIds(),
+      visualOpen: userOrderOpenIds(),
       pinOrder: [...pinned()],
       isLeaf,
       enabled: railDivider(),
     }),
   );
   const railOrder = (): number => railPartition().railOrder;
+
+  /**
+   * Open panels in the sequence they are painted — the order a splitter walks to
+   * find its neighbour, the breadcrumb reads, and the flex `order` follows.
+   *
+   * One sequence: splitters, `fill` trailing and resize pairing all read it.
+   *
+   * The RULE lives in `visualOrder.ts` and is documented there; naming the signals
+   * its inputs come from is `userOrderOpenIds`' and `railPartition`'s job, and this
+   * memo is only the read-through onto the partition they produce. Keeping the rule
+   * out of here is what let the test stub stop carrying a copy of it.
+   */
+  const visualOpenIds = createMemo<readonly string[]>(() => railPartition().sequence);
 
   /**
    * THE writer for open membership. Every path that changes which panels are open
@@ -737,6 +760,15 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     enabled: () => orientation() === 'horizontal' && overflowStrategy() === 'menu',
   });
 
+  /** The rail `tablist`'s single Tab stop: the last-focused tab still on the rail, else the first open, else the first. */
+  const [railFocusId, setRailFocusId] = createSignal<string | undefined>();
+  const railTabStopId = createMemo<string | undefined>(() => {
+    const visible = railOverflow.visibleIds();
+    const focused = railFocusId();
+    if (focused !== undefined && visible.includes(focused)) return focused;
+    return visible.find((id) => openList().includes(id)) ?? visible[0];
+  });
+
   /**
    * Late-bound: `createAutoHide` needs the finished `api` to read group state, and
    * `api` needs the auto-hide answers. One of the two has to be resolved after the
@@ -1031,6 +1063,30 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     reorderActiveId: reorder.activeId,
   };
 
+  /**
+   * Hands focus dropped by a latched release to the panel's stand-in (e.g. the `⋯`
+   * trigger). Never acts without the latch; drops it once no stand-in can arrive.
+   */
+  createEffect(() => {
+    const focused = refocusPending();
+    if (focused === undefined) return;
+    // Someone claimed the dropped focus first; the latch is stale, not a mandate.
+    if (document.activeElement !== document.body) {
+      setRefocusPending(undefined);
+      return;
+    }
+    // The stand-in resolves a cycle late: `overflowIds` and the trigger's own ref
+    // settle after the button leaves the rail. Stay latched and retry on that change.
+    const el = api.activatorElOf(focused);
+    if (el === undefined) {
+      // A removed panel never gets a stand-in; left latched, its remount would take focus.
+      if (api.meta(focused) === undefined) setRefocusPending(undefined);
+      return;
+    }
+    setRefocusPending(undefined);
+    el.focus();
+  });
+
   createRailPan({
     railEl,
     group: api,
@@ -1142,7 +1198,15 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
                 const meta = (): PanelMeta | undefined => api.meta(id);
                 return (
                   <Show when={meta()}>
-                    {(m) => <RailButton group={api} meta={m()} autoHide={autoHide} />}
+                    {(m) => (
+                      <RailButton
+                        group={api}
+                        meta={m()}
+                        autoHide={autoHide}
+                        tabStop={() => railTabStopId() === id}
+                        onTabFocus={() => setRailFocusId(id)}
+                      />
+                    )}
                   </Show>
                 );
               }}
@@ -1182,6 +1246,9 @@ function RailButton(props: {
   group: AccordionGroupApi;
   meta: PanelMeta;
   autoHide: AutoHideApi;
+  /** Whether this tab is the rail's single Tab stop. */
+  tabStop: () => boolean;
+  onTabFocus: () => void;
 }): JSX.Element {
   const open = (): boolean => props.group.isOpen(props.meta.id);
   const pinned = (): boolean => props.group.isPinned(props.meta.id);
@@ -1230,6 +1297,8 @@ function RailButton(props: {
       type="button"
       class={`acc-rail-btn ${props.meta.railClass() ?? ''}`.trim()}
       role="tab"
+      tabIndex={props.tabStop() ? 0 : -1}
+      onFocus={() => props.onTabFocus()}
       title={props.meta.tooltip()}
       /* The other half of the tab/tabpanel pattern — see `PanelMeta.contentId`.
          A tab that controls nothing is a button wearing a role. */

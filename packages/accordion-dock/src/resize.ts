@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, type Accessor } from 'solid-js';
+import { createCancelListeners } from './gesture';
 
 /**
  * Splitter drag engine.
@@ -50,6 +51,10 @@ export const DEFAULT_MIN_SIZE_PX = 60;
  * to require intent, short enough to discover by accident once.
  */
 const COLLAPSE_OVERDRAG_PX = 40;
+
+/** Primary pointer button. A secondary press opens the platform context menu, which
+ *  consumes the release, so it must never arm a drag. */
+const PRIMARY_BUTTON = 0;
 
 /**
  * How much one arrow keypress moves the boundary, px.
@@ -321,10 +326,15 @@ export function createResize(host: ResizeHost): ResizeApi {
     Math.max(p.minA - p.startA, Math.min(raw, p.startB - p.minB));
 
   const begin = (id: string, e: PointerEvent): void => {
+    // One drag at a time: a second press would overwrite `endActiveDrag` and orphan the first.
+    if (e.button !== PRIMARY_BUTTON || endActiveDrag !== null) return;
     const p = pairFor(id);
     if (p === null) return;
 
     const startPointer = host.axis() === 'x' ? e.clientX : e.clientY;
+    // Only the pressing pointer drives the drag; capture does not stop other touches reaching `window`.
+    const pointerId = e.pointerId;
+    const sizesBefore = host.sizes();
 
     host.previewSizes(p.seeded);
     setResizing(true);
@@ -333,6 +343,7 @@ export function createResize(host: ResizeHost): ResizeApi {
     target?.setPointerCapture?.(e.pointerId);
 
     const onMove = (ev: PointerEvent): void => {
+      if (ev.pointerId !== pointerId) return;
       const now = host.axis() === 'x' ? ev.clientX : ev.clientY;
       /*
        * Applied from the first pixel — there is deliberately no activation
@@ -372,13 +383,15 @@ export function createResize(host: ResizeHost): ResizeApi {
     const detach = (): void => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+      cancel.remove();
       endActiveDrag = null;
       setCollapseCandidate(null);
       setResizing(false);
     };
 
     const onUp = (ev: PointerEvent): void => {
+      if (ev.pointerId !== pointerId) return;
       target?.releasePointerCapture?.(ev.pointerId);
       const victim = collapseCandidate();
       detach();
@@ -395,10 +408,23 @@ export function createResize(host: ResizeHost): ResizeApi {
       host.commitSizes(settled);
     };
 
+    // Abandoned, not released: restore the pre-drag sizes and commit nothing.
+    const abandon = (): void => {
+      target?.releasePointerCapture?.(pointerId);
+      detach();
+      host.previewSizes(sizesBefore);
+    };
+    const onPointerCancel = (ev: PointerEvent): void => {
+      if (ev.pointerId === pointerId) abandon();
+    };
+    // Esc / window blur / contextmenu: no release will arrive.
+    const cancel = createCancelListeners({ onCancel: abandon });
+    cancel.add();
+
     endActiveDrag = detach;
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointercancel', onPointerCancel);
     e.preventDefault();
     e.stopPropagation();
   };

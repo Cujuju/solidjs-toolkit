@@ -146,7 +146,7 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
    * drift as a possibility rather than as a thing to remember, which is the only
    * version of that guarantee worth having.
    */
-  const visualOpenIds = (): readonly string[] =>
+  const userOrderOpenIds = (): readonly string[] =>
     orderVisualOpen({ order: order(), open: openIds, isLeaf: isLeafId });
 
   /** The same partition the real group computes, from the same function. Pin ORDER
@@ -154,11 +154,13 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
   const railDivider = (): boolean => spec.railDivider ?? true;
   const partition = () =>
     partitionAtRail({
-      visualOpen: visualOpenIds(),
+      visualOpen: userOrderOpenIds(),
       pinOrder: [...pinned],
       isLeaf: isLeafId,
       enabled: railDivider(),
     });
+
+  const visualOpenIds = (): readonly string[] => partition().sequence;
 
   const setOpen = (id: string, open: boolean): void => {
     calls.setOpen.push({ id, open });
