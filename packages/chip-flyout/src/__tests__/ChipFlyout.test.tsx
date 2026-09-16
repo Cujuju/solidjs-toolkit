@@ -4,10 +4,8 @@ import { createSignal } from 'solid-js';
 import { ChipFlyout, VIEWPORT_MARGIN_PX, type ChipOption } from '../ChipFlyout';
 import { EMPTY_TRI_STATE, type TriStateValue } from '@cujuju/solidjs-tri-state-chip';
 
-// Dispose each render between tests, then hard-clear the body.
-// ChipFlyout's panel is Portal'd to `document.body`; without a full
-// clear a leftover panel contaminates the global `document.querySelector`
-// lookups the helpers below rely on.
+// Dispose each render, then hard-clear the body: ChipFlyout Portals its panel to
+// `document.body`, and a leftover contaminates the global lookups below.
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -216,9 +214,8 @@ describe('ChipFlyout — tab strip', () => {
     { id: 'mangadex', label: 'MangaDex' },
     { id: 'local', label: 'Local' },
   ];
-  /** Three entries so a wrap-around and a Home/End jump land somewhere
-   *  DIFFERENT from the neighbour step — with two tabs every movement
-   *  assertion is satisfied by the same element and can never fail. */
+  /** Three entries so wrap-around and Home/End land somewhere DIFFERENT from the neighbour
+   *  step; with two tabs every movement assertion is satisfied by the same element. */
   const THREE_TABS = [
     { id: 'mangadex', label: 'MangaDex' },
     { id: 'nhentai', label: 'nhentai' },
@@ -390,9 +387,8 @@ describe('ChipFlyout — tab strip', () => {
   });
 
   it('falls back to the first tab when `activeTab` names no tab', () => {
-    // A caller whose tab list is fed by an async query can hold an id that
-    // has since vanished; the strip must not end up with zero selected
-    // tabs and therefore zero tab stops.
+    // A caller whose tab list is fed by an async query can hold a vanished id; the strip
+    // must not end up with zero selected tabs and zero tab stops.
     const { container } = render(() => (
       <ChipFlyout
         mode="multi"

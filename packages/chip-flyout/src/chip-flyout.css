@@ -1,16 +1,6 @@
-/* @cujuju/solidjs-chip-flyout — trigger + panel-content styling.
-
-   Plain prefixed global classes (`cujuju-cf-*`), matching the toolkit.
-   The panel's surface + header/close/body chrome come from
-   `@cujuju/solidjs-glass-menu` (`GlassMenu`); this stylesheet owns only
-   the trigger button, the +N/-N badges, and the in-body controls
-   (search input, chip rows, group headers, status text, "Load more").
-
-   References host theme tokens directly (`--color-*`, `--font-size-*`,
-   `--radius-*`, `--height-btn`, `--spacing-*`, `--transition-speed`) —
-   see the package README for the required set. `--z-flyout` carries an
-   inline fallback so the Portal'd panel still layers above page content
-   when a host omits it. */
+/* @cujuju/solidjs-chip-flyout — trigger button, badges and in-body controls; the panel
+   surface comes from `GlassMenu`. Host tokens are read directly (see README); `--z-flyout`
+   carries an inline fallback. */
 
 /* ── Trigger button (secondary-button sized) ───────────────────── */
 
@@ -41,9 +31,8 @@
   color: var(--color-text, #e2e8f0);
 }
 
-/* Hover also LIFTS the surface. Border + text alone read as inert next to the
-   other toolkit controls, whose hover moves the fill too. Not applied to
-   `--active`, which already carries its own primary-tinted background. */
+/* Hover also LIFTS the surface: border and text alone read as inert next to other toolkit
+   controls. Not for `--active`, which carries its own tinted background. */
 .cujuju-cf-trigger:hover:not(:disabled):not(.cujuju-cf-trigger--active) {
   background: color-mix(
     in srgb,
@@ -152,12 +141,8 @@
 
 /* ── Tab strip ─────────────────────────────────────────────────── */
 
-/* Rendered at the top of the panel body when the caller passes `tabs`.
-   An UNDERLINE strip rather than a segmented control: the tabs slice the
-   option pool below them, so the active tab has to read as continuous
-   with the list, and a filled pill would compete with the selected
-   chips for the same "this one is on" cue. Scrolls horizontally when
-   more sources are present than the panel width fits. */
+/* Rendered when the caller passes `tabs`. An UNDERLINE strip, not a segmented control: the
+   tabs slice the list below them, and a filled pill would compete with the selected chips. */
 .cujuju-cf-tabs {
   display: flex;
   gap: var(--spacing-xs, 4px);
@@ -244,35 +229,29 @@
 
 /* ── Chips ─────────────────────────────────────────────────────── */
 
-/* The chip element is rendered by `@cujuju/solidjs-tri-state-chip`
-   (`.ctc-chip` global class). Its theme vars (`--ctc-*`) are overridden
-   here so chips match the host's design-token palette instead of the
-   library's hex-coded defaults. Setting `--ctc-*` on `.cujuju-cf-chips`
-   cascades down to every `.ctc-chip` rendered inside. */
+/* Chips come from `@cujuju/solidjs-tri-state-chip` (`.ctc-chip`); its `--ctc-*` vars are
+   overridden here so chips match the host palette. Set on `.cujuju-cf-chips`, they cascade
+   to every chip. */
 .cujuju-cf-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs, 4px);
 
-  /* Unselected — high-contrast neutral chip. */
   --ctc-bg: var(--color-surface, #0f172a);
   --ctc-color: var(--color-text, #e2e8f0);
   --ctc-border: 1px solid var(--color-border, #334155);
   --ctc-border-hover: 1px solid var(--color-primary, #6366f1);
 
-  /* Included — success/green accent. */
   --ctc-bg-included: var(--color-success-alpha-15, rgba(16, 185, 129, 0.15));
   --ctc-color-included: var(--color-success, #10b981);
   --ctc-border-included: 1px solid var(--color-success, #10b981);
   --ctc-bg-included-hover: var(--color-success-alpha-25, rgba(16, 185, 129, 0.25));
 
-  /* Excluded — danger/red accent. */
   --ctc-bg-excluded: var(--color-danger-alpha-15, rgba(244, 63, 94, 0.15));
   --ctc-color-excluded: var(--color-danger, #f43f5e);
   --ctc-border-excluded: 1px solid var(--color-danger, #f43f5e);
   --ctc-bg-excluded-hover: var(--color-danger-alpha-25, rgba(244, 63, 94, 0.25));
 
-  /* Layout. */
   --ctc-padding: 5px 10px;
   --ctc-radius: var(--radius-btn, 6px);
   --ctc-font-size: var(--font-size-sm, 13px);

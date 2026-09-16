@@ -63,10 +63,8 @@ interface BaseProps {
   open?: boolean;
   onOpenChange?: (next: boolean) => void;
   // ── Async / typeahead extensions ─────────────────────────────────
-  // Optional knobs that turn the static-options flyout into a server-
-  // backed catalog typeahead. All four are independent: a caller can
-  // pass `loading` alone to show a spinner over a static option set,
-  // or all four together for the full catalog-flyout experience.
+  // Independent knobs: `loading` alone shows a spinner over static options; all
+  // four together make a server-backed catalog typeahead.
   /** Show a small "Loading…" hint inside the panel body. */
   loading?: boolean;
   /** When true, the "Load more" sentinel renders below the chips. */
@@ -82,17 +80,13 @@ interface BaseProps {
   /** Optional JSX rendered between the header and the search input. */
   topSlot?: JSX.Element;
   // ── Tab strip ─────────────────────────────────────────
-  // A controlled strip rendered above the search input, splitting one
-  // option pool into caller-defined slices (e.g. one per content
-  // source). The component owns no tab state — it renders `activeTab`
-  // and reports clicks/arrow-keys through `onTabChange`; the caller
-  // re-supplies `options` for the newly active tab. Omitted or empty
-  // `tabs` renders nothing, so untabbed callers are unaffected.
+  // Controlled: renders `activeTab` and reports clicks/arrows through
+  // `onTabChange`; the caller re-supplies `options` for the new tab. No `tabs`
+  // renders nothing.
   /** Tabs to render above the search input. Empty/undefined = no strip. */
   tabs?: readonly ChipFlyoutTab[];
-  /** Id of the active tab. Defaults to the first tab when unset — and
-   *  also when it names a tab that isn't in `tabs`, so a caller whose tab
-   *  list shrinks can't leave the strip with nothing selected. */
+  /** Id of the active tab. Defaults to the first tab when unset, and when it names a tab that
+   *  isn't in `tabs`, so a shrinking list can't leave nothing selected. */
   activeTab?: string;
   /** Fired with the selected tab id. MANUAL activation: a click, or
    *  Enter/Space on a focused tab. Arrow keys only move focus. */
@@ -130,14 +124,8 @@ function multiNextState(current: TriState): TriState {
 }
 
 /**
- * Secondary-button-sized trigger that opens a Portal'd glass menu of
- * chip options. The panel follows the trigger's viewport position via
- * `getBoundingClientRect` and closes on outside click, Escape, resize,
- * or page scroll.
- *
- * In tri-state mode, clicking a chip cycles unselected -> included ->
- * excluded -> unselected. In multi mode, clicking toggles
- * unselected <-> included.
+ * Secondary-button trigger opening a Portal'd glass menu of chip options. The panel follows
+ * the trigger's rect and closes on outside click, Escape, resize or page scroll.
  */
 export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   const [internalOpen, setInternalOpen] = createSignal(false);
@@ -211,10 +199,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     const rect = triggerEl.getBoundingClientRect();
     const placement = props.placement ?? 'bottom-start';
     const top = rect.bottom + PANEL_OFFSET_PX;
-    // For bottom-end, right-align the panel to the trigger's right edge
-    // by snapping the panel's left so (left + minWidth) <= right. We
-    // don't know the panel's final width yet, so approximate via
-    // panelMinWidth.
+    // For bottom-end, right-align to the trigger's right edge by snapping left so
+    // (left + minWidth) <= right; the panel's final width isn't known yet.
     const left =
       placement === 'bottom-end'
         ? Math.max(
@@ -244,11 +230,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     target.focus({ preventScroll: true });
   }
 
-  /** Clamp the panel inside the viewport after it renders. The initial
-   *  position from `computePosition` is trigger-relative and can push
-   *  the panel off the right or bottom edge when the trigger is near
-   *  those edges. After mount, measure the actual panel size and shift
-   *  top/left so it stays fully visible with a safety margin. */
+  /** Clamp the panel inside the viewport after it renders: the trigger-relative position from
+   *  `computePosition` can push it off the right or bottom edge. */
   function clampToViewport(): void {
     if (!panelEl || !triggerEl) return;
     const panel = panelEl.getBoundingClientRect();
@@ -355,10 +338,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   // target containment.
   createOutsideScrollDismiss(open, () => panelEl, closePanel);
 
-  // Re-position when the controlled `open` prop flips from false to true
-  // with the trigger already rendered. Without this, a caller-driven
-  // open lands the panel at its last-computed position instead of the
-  // current trigger rect.
+  // Re-position when a controlled `open` flips true with the trigger already rendered;
+  // otherwise the panel lands at its last-computed position.
   createEffect(
     on(
       () => props.open,
@@ -414,17 +395,12 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   });
 
   // ── Tab strip ───────────────────────────────────────────────────
-  // Fully controlled: the strip renders `props.tabs` and highlights
-  // `props.activeTab`, falling back to the first tab so a caller that
-  // supplies tabs without a selection still shows a sensible default.
+  // Fully controlled: renders `props.tabs`, highlighting `props.activeTab` and
+  // falling back to the first tab.
   const tabs = createMemo<readonly ChipFlyoutTab[]>(() => props.tabs ?? []);
-  // Effective selection. `activeTab` is VALIDATED against the current
-  // list, not trusted: a caller whose tabs are fed by an async query can
-  // hand us an id that has since disappeared, and an id matching no tab
-  // would leave every button `aria-selected=false` with `tabindex=-1` —
-  // a strip that is unreachable by keyboard and looks like nothing is
-  // selected. Falling back to the first tab keeps the invariant that a
-  // non-empty strip always has exactly one selected tab and one tab stop.
+  // `activeTab` is VALIDATED, not trusted: an async-fed caller can pass an id that has
+  // vanished, which would leave every button `aria-selected=false` and `tabindex=-1` —
+  // unreachable by keyboard.
   const activeTabId = createMemo(() => {
     const list = tabs();
     const wanted = props.activeTab;
@@ -432,9 +408,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
       ? wanted
       : list[0]?.id;
   });
-  // Roving-tabindex targets — the strip exposes ONE tab stop, and arrow
-  // keys move focus between the buttons directly.
-  // Keyed by tab object, as `For` is — a creation-time index goes stale when `tabs` changes.
+  // One tab stop; arrows move focus directly. Keyed by tab object, as `For` is — a
+  // creation-time index goes stale when `tabs` changes.
   const tabEls = new WeakMap<ChipFlyoutTab, HTMLButtonElement>();
   // Stable id base for the tab <-> tabpanel `aria-controls` /
   // `aria-labelledby` pairing. Per instance, so two flyouts on one page
@@ -443,12 +418,9 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   const tabDomId = (i: number) => `${uid}-tab-${i}`;
   const panelDomId = `${uid}-tabpanel`;
 
-  /** MANUAL activation (WAI-ARIA APG): arrows/Home/End move FOCUS only.
-   *  Automatic activation would fire `onTabChange` on every keypress, and
-   *  each of those is a re-query for a catalog-backed caller — arrowing
-   *  across five sources would launch five fetches the user never asked
-   *  for. Enter/Space activates, which the native <button> already turns
-   *  into a click, so no key handling is needed for it here. */
+  /** MANUAL activation (WAI-ARIA APG): arrows/Home/End move FOCUS only. Automatic activation
+   *  would re-query per keypress for a catalog-backed caller. Enter/Space arrives as a native
+   *  button click. */
   function onTabKeyDown(e: KeyboardEvent, index: number): void {
     const list = tabs();
     if (list.length === 0) return;
@@ -464,13 +436,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
 
   function renderChip(opt: ChipOption): JSX.Element {
     const state = () => chipState(opt.value);
-    // The indicator is PINNED, not inherited. A tri-state chip has three
-    // states but only two are ever visible at rest, so include-vs-exclude has
-    // to be legible without clicking — `glyph` puts a ✓ / ✗ in the chip and
-    // makes the mode self-evident. `multi` is a plain on/off toggle, where a
-    // glyph column would be noise, so it takes `tint`. Leaving these to the
-    // chip's own default meant a change to that default silently removed this
-    // panel's only cue that it was tri-state at all.
+    // PINNED, not inherited: tri-state needs `glyph` so include-vs-exclude reads at rest,
+    // `multi` takes `tint`. Inheriting let a default change silently remove the cue.
     return (
       <TriStateChip
         label={opt.label}
@@ -587,12 +554,9 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                   aria-label={`Search ${props.panelTitle ?? props.label}`}
                 />
               </Show>
-              {/* The option list is what a tab controls, so it carries
-                  the `tabpanel` role and points back at the active tab.
-                  Rendered unconditionally (untabbed panels just get a
-                  plain wrapper) and styled as the same flex column the
-                  body is, so the chips/group-header spacing is identical
-                  with and without tabs. */}
+              {/* The option list is what a tab controls, so it carries the `tabpanel`
+                                role and points back at the active tab. Rendered unconditionally,
+                                styled as the body's flex column. */}
               <div
                 class="cujuju-cf-tabpanel"
                 id={panelDomId}
