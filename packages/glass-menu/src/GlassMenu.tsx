@@ -2,17 +2,13 @@ import { Show, splitProps, type JSX } from 'solid-js';
 
 /**
  * Native `div` attributes (minus string `title`, repurposed as header content) pass through to
- * the root; the caller positions and labels, `GlassMenu` paints chrome.
- *
- * `classList` is folded into the root's `class` string rather than bound separately, so a
- * `classList`-only change rewrites `className` wholesale: classes added to the root imperatively
- * by a third party are dropped on the next change to `class` or `classList`.
+ * the root. `classList` is folded into `class`, so imperatively added classes are dropped on
+ * the next change.
  */
 export interface GlassMenuProps
   extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'title'> {
-  /** Header content (left). With `title`, `headerAction` and `onClose` all omitted, no header
-   *  renders. `null`, `undefined`, a boolean and the empty string all count as omitted, so a
-   *  `label() ?? ''` caller gets no header rather than an empty strip. */
+  /** Header content (left). With `title`, `headerAction` and `onClose` all omitted — `null`, a
+   *  boolean and `''` count as omitted — no header renders. */
   title?: JSX.Element;
   /** Optional node rendered in the header between the title and the
    *  close button — e.g. a "Clear" action. */
