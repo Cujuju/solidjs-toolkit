@@ -148,6 +148,41 @@ describe('auto-repeat', () => {
     vi.advanceTimersByTime(5000); // no pointerup will ever arrive
     expect(changes, 'the repeat outlived the enabled state').toEqual([6]);
   });
+
+  it('a hold refused at a bound ends its timer chain', () => {
+    // A refused tick stopped the repeat, then the tick re-armed itself anyway.
+    vi.useFakeTimers();
+    const changes: number[] = [];
+    const [v, setV] = createSignal(4);
+    const host = mount(() => (
+      <PillNumberPicker value={v()} onChange={(n) => { changes.push(n); setV(n); }} min={1} max={5} />
+    ));
+    pointerDown(buttonsIn(host)[0]);
+    vi.advanceTimersByTime(400 + 60 * 3); // tick 1 reaches max, tick 2 is refused
+    expect(changes).toEqual([5]);
+    expect(vi.getTimerCount(), 'a refused hold left a timer armed').toBe(0);
+    setV(1);
+    vi.advanceTimersByTime(5000); // still no pointerup
+    expect(changes, 'a dead hold published after the value was lowered').toEqual([5]);
+  });
+});
+
+describe('wheel across a collapsible flip', () => {
+  it('still steps after `collapsible` swaps the root element', () => {
+    // The listener was bound to the first root only; the swapped-in root never got one.
+    const changes: number[] = [];
+    const [collapsible, setCollapsible] = createSignal(false);
+    const host = mount(() => (
+      <PillNumberPicker collapsible={collapsible()} value={5} onChange={(n) => changes.push(n)} min={1} max={100} />
+    ));
+    const root = () => host.querySelector('.cpnp-root') as HTMLElement;
+    wheel(root(), 100);
+    expect(changes).toEqual([4]);
+    setCollapsible(true);
+    expect(root().dataset.collapsible).toBe('true');
+    wheel(root(), 100);
+    expect(changes, 'the wheel died with the old root').toEqual([4, 4]);
+  });
 });
 
 describe('requireFocus', () => {

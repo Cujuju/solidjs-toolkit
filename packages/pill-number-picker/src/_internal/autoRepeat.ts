@@ -38,17 +38,19 @@ export function createAutoRepeat(options: {
     if (disabled()) return;
     holdStart = Date.now();
 
-    const doStep = (): void => {
+    /** Whether the tick stepped; a refused tick has already stopped the hold. */
+    const doStep = (): boolean => {
       // Re-checked every tick, not once at press time: a disabled <button> is inert, so
       // the pointerup that would have stopped the hold is never dispatched to it.
-      if (disabled()) { stopRepeat(); return; }
-      if (!stepBy(direction)) { stopRepeat(); return; }
+      if (disabled()) { stopRepeat(); return false; }
+      if (!stepBy(direction)) { stopRepeat(); return false; }
       repeated = true;
+      return true;
     };
 
     repeatTimer = setTimeout(() => {
       const scheduleNext = (): void => {
-        doStep();
+        if (!doStep()) return;
         let interval = autoRepeatInterval();
         if (autoRepeatAcceleration() && holdStart !== null) {
           const heldMs = Date.now() - holdStart;

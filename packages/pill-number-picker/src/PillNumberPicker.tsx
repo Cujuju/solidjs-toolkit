@@ -71,7 +71,8 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   const [editing, setEditing] = createSignal(false);
   const [draft, setDraft] = createSignal(String(props.value));
   let inputEl: HTMLInputElement | undefined;
-  let rootEl: HTMLDivElement | undefined;
+  // A signal, not a `let`: flipping `collapsible` swaps the root, and the wheel effect must re-bind.
+  const [rootEl, setRootEl] = createSignal<HTMLDivElement>();
 
   // ── Collapse / pop-out state ─────────────────────────────────────────
   const collapsible = (): boolean => props.collapsible ?? false;
@@ -234,7 +235,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
 
   /** Part of this widget: the in-flow root OR the portalled panel, which is not inside it. */
   const insideWidget = (node: Node | null): boolean =>
-    !!node && (!!rootEl?.contains(node) || !!panelEl?.contains(node));
+    !!node && (!!rootEl()?.contains(node) || !!panelEl?.contains(node));
   /** Focus left the widget for a real target, so a pending close must not pull it back. */
   const onWidgetFocusOut = (e: FocusEvent): void => {
     const next = e.relatedTarget as Node | null;
@@ -341,7 +342,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
 
   createEffect(() => {
     if (props.disableWheel) return;
-    const el = rootEl;
+    const el = rootEl();
     if (!el) return;
     el.addEventListener('wheel', onWheel, { passive: false });
     onCleanup(() => el.removeEventListener('wheel', onWheel));
@@ -714,7 +715,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       when={collapsible()}
       fallback={
         <div
-          ref={rootEl}
+          ref={setRootEl}
           class={`cpnp-root cpnp-size-${size()} ${props.class ?? ''}`.trim()}
           role="group"
           aria-label={props.ariaLabel}
@@ -730,7 +731,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       }
     >
       <div
-        ref={rootEl}
+        ref={setRootEl}
         class={`cpnp-root cpnp-size-${size()} ${props.class ?? ''}`.trim()}
         role="group"
         aria-label={props.ariaLabel}
