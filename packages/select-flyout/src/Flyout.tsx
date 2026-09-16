@@ -287,10 +287,9 @@ export function Flyout(props: FlyoutProps): JSX.Element {
     if (props.disabled && open()) closePanel(false);
   });
 
-  // <For> re-creates a row whose option object is replaced; removing the
-  // focused row drops focus to <body>, where panel keys never arrive.
-  // Residual: anything other than the focused row (panel chrome included) loses
-  // focus to that row on the next options change.
+  // <For> re-creates a row whose option object is replaced; removing the focused row drops
+  // focus to <body>, where panel keys never arrive. Residual: focus elsewhere in the panel
+  // also moves.
   createEffect(
     on(
       () => props.options.slice(),
