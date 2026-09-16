@@ -138,6 +138,91 @@ describe('editing session — opening', () => {
   });
 });
 
+/** The consumer owns `open` — it can raise or drop it with no gesture on the pill. */
+function controlledHarness(opts: { commit?: 'change' | 'finish'; initial?: number }) {
+  const log: Log = { changes: [], commits: [], cancels: [] };
+  const [v, setV] = createSignal(opts.initial ?? 5);
+  const [open, setOpen] = createSignal(false);
+  const host = mount(() => (
+    <PillNumberPicker
+      collapsible
+      commit={opts.commit}
+      open={open()}
+      onOpenChange={setOpen}
+      value={v()}
+      onChange={(n) => { log.changes.push(n); setV(n); }}
+      onCommit={(n) => log.commits.push(n)}
+      onCancel={(n) => log.cancels.push(n)}
+      min={1}
+      max={100}
+      ariaLabel="Quantity"
+    />
+  ));
+  return { host, log, setOpen, value: v };
+}
+
+describe('editing session — a CONTROLLED open state owns the session too', () => {
+  it('opening from OUTSIDE opens the editor, focused, exactly like the click does', () => {
+    const { setOpen } = controlledHarness({});
+    setOpen(true);
+    expect(panel()).not.toBeNull();
+    expect(inputEl(), 'the pop-out opened with no text field').not.toBeNull();
+    expect(document.activeElement).toBe(inputEl());
+  });
+
+  it("opening from OUTSIDE still starts a session — 'finish' mode stays silent", () => {
+    // The session hung off the click gesture, so a pop-out the host opened had none:
+    // 'finish' mode published every step it promises to withhold.
+    const { log, setOpen } = controlledHarness({ commit: 'finish', initial: 5 });
+    setOpen(true);
+    click(buttonsIn(panel())[0]);
+    click(buttonsIn(panel())[0]);
+    expect(log.changes, "'finish' published mid-session").toEqual([]);
+    key(inputEl()!, 'Enter');
+    expect(log.changes).toEqual([7]);
+    expect(log.commits).toEqual([7]);
+  });
+
+  it('cancelling a session opened from OUTSIDE still reverts', () => {
+    // With no session there was no `valueAtOpen`, so cancel skipped the revert entirely
+    // and reported the scrubbed value as if it had been kept.
+    const { log, setOpen, value } = controlledHarness({ commit: 'change', initial: 5 });
+    setOpen(true);
+    click(buttonsIn(panel())[0]); // 6, already published in 'change' mode
+    key(document, 'Escape');
+    expect(log.changes).toEqual([6, 5]);
+    expect(value()).toBe(5);
+    expect(log.cancels).toEqual([5]);
+  });
+
+  it('closing from OUTSIDE ends the session — the draft is never stranded', () => {
+    // {collapsed, session live} was reachable and unrecoverable: the pill displayed a
+    // number the consumer never received, and every later step wrote into the dead draft
+    // instead of publishing.
+    const { host, log, setOpen, value } = controlledHarness({ commit: 'finish', initial: 5 });
+    setOpen(true);
+    click(buttonsIn(panel())[0]); // draft 6, silent by design
+    setOpen(false);               // a route change, a "close all overlays" handler…
+    expect(panel()).toBeNull();
+    expect(value()).toBe(5);
+    expect(anchorValue(host).textContent, 'the pill kept showing the stranded draft').toBe('5');
+    expect(log.cancels).toEqual([5]);
+    // …and the resting pill publishes again, instead of feeding a session nothing can end.
+    key(anchorValue(host), 'ArrowUp');
+    expect(log.changes).toEqual([6]);
+  });
+
+  it('a session opened by CLICK and closed from outside is ended too', () => {
+    const { host, log, setOpen, value } = controlledHarness({ commit: 'finish', initial: 5 });
+    click(anchorValue(host));
+    click(buttonsIn(panel())[0]); // draft 6
+    setOpen(false);
+    expect(value()).toBe(5);
+    expect(log.changes).toEqual([]);
+    expect(log.cancels).toEqual([5]);
+  });
+});
+
 describe("commit: 'change' (default) — publish as you go", () => {
   it('publishes every step immediately', () => {
     const { host, log } = harness({ commit: 'change', initial: 5 });

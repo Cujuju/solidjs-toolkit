@@ -55,7 +55,7 @@ const [qty, setQty] = createSignal(1);
 | `showRange`, `rangeFormat` | `false` | Show `"3 / 100"`-style range. |
 | `invertScroll` | `false` | Wheel-up decrements instead of increments. |
 | `disableWheel` | `false` | No mouse-wheel handling. |
-| `requireFocus` | `false` | Wheel only works when focused (prevents scroll-trap in scrollable containers). |
+| `requireFocus` | `false` | Wheel only works when focus is inside the picker (value cell, buttons, pop-out) — prevents scroll-trap in scrollable containers. |
 | `autoRepeatDelay` | `400` | ms before held +/− starts repeating. |
 | `autoRepeatInterval` | `60` | ms between repeats. |
 | `autoRepeatAcceleration` | `false` | Interval halves every 1.5s held, floor 15ms. |

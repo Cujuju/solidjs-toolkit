@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, onMount, Show, type JSX } from 'solid-js';
+import { createSignal, createEffect, on, onCleanup, onMount, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import {
   effectivePrecision,
@@ -258,6 +258,19 @@ export interface PillNumberPickerProps {
   class?: string;
 }
 
+/**
+ * Which open pop-out owns the keyboard: last opened wins. Shared with pill-date-picker via a
+ * `globalThis` registered symbol, so one Escape never cancels two pickers.
+ */
+// Survives HMR: a picker never disposed across a module reload keeps its owner on top, blocking Escape until a full reload.
+const KEYBOARD_OWNERS_KEY = Symbol.for('@cujuju/solidjs-toolkit/pill-keyboard-owners');
+const keyboardOwners: symbol[] = ((globalThis as unknown as Record<symbol, symbol[] | undefined>)[
+  KEYBOARD_OWNERS_KEY
+] ??= []);
+
+/** PageUp/PageDown move ±step×10, as documented in the README (Keyboard). */
+const PAGE_STEPS = 10;
+
 function toCssSize(v: number | string | undefined): string | undefined {
   if (v === undefined) return undefined;
   return typeof v === 'number' ? `${v}px` : v;
@@ -312,7 +325,6 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   // ── Local editing state ──────────────────────────────────────────────
   const [editing, setEditing] = createSignal(false);
   const [draft, setDraft] = createSignal(String(props.value));
-  const [focused, setFocused] = createSignal(false);
   let inputEl: HTMLInputElement | undefined;
   let rootEl: HTMLDivElement | undefined;
 
@@ -325,6 +337,12 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   const isOpen = (): boolean =>
     !collapsible() ? true : (props.open ?? openUncontrolled());
   const setOpen = (next: boolean): void => {
+    // Already there: report nothing. The session enders call this on a close the
+    // CONSUMER initiated, and echoing its own `open` back at it is not a state change.
+    if (isOpen() === next) {
+      if (!next) setEditing(false);
+      return;
+    }
     if (props.open === undefined) setOpenUncontrolled(next);
     props.onOpenChange?.(next);
     // Leaving the pop-out must not strand a half-typed draft in edit mode.
@@ -367,7 +385,8 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     // the input showing a stale number, and the next Enter would parse that stale text and
     // shove the value BACK to it. Stepping and typing have to agree on one draft.
     setDraft(formatValue(next, precision()));
-    if (session() !== null) {
+    // `sessionOpen()` too: a draft that outlived its pop-out must not silence the resting pill's publishes.
+    if (sessionOpen() && session() !== null) {
       setSession(next);
       return;
     }
@@ -380,12 +399,33 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     setDraft(formatValue(props.value, precision()));
   };
 
-  /** Open the editor: the pop-out, with the value cell already in edit mode. */
+  /** Open the editor: the pop-out, with the value cell already in edit mode. Session and
+   *  edit mode hang off the OPEN STATE (effect below), not this gesture. */
   const openEditor = (): void => {
     if (props.disabled) return;
-    beginSession();
     setOpen(true);
-    if (editable()) setEditing(true);
+  };
+
+  /**
+   * Hand focus back to the collapsed value cell — only when focus is still ours or nobody's.
+   * The <body> fallback applies to self-initiated closes; others pass `restoreFocus: false`.
+   */
+  const panelOwnsFocus = (): boolean => {
+    const active = document.activeElement;
+    return !active || active === document.body || insideWidget(active);
+  };
+  const restoreAnchorFocus = (): void => {
+    (anchorEl?.querySelector('[data-pos="value"]') as HTMLElement | null)?.focus();
+  };
+  /** Decided when a close is requested; honoured on the close edge, once the collapsed cell exists. */
+  let returnFocusOnClose = false;
+  /** One-shot: set where a commit or a cancel DECIDES the close, cleared when the editor
+   *  next opens. `valueAtOpen === null` cannot serve here — it outlives the close. */
+  let closeDecided = false;
+  /** Open the value cell for typing. A live editor means no close is in flight, so it re-arms. */
+  const beginEditing = (): void => {
+    closeDecided = false;
+    setEditing(true);
   };
 
   /**
@@ -398,10 +438,12 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
    */
   const commitSession = (): void => {
     const pending = session();
+    returnFocusOnClose = panelOwnsFocus();
     if (pending !== null && pending !== props.value) props.onChange(pending);
     const settled = pending ?? props.value;
     setSession(null);
     valueAtOpen = null;
+    closeDecided = true;
     setOpen(false);
     props.onCommit?.(settled);
   };
@@ -415,12 +457,14 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
    * real `onChange(valueAtOpen)` — otherwise "cancel" would mean "undo" in one mode and
    * "keep" in the other, and no consumer could reason about it.
    */
-  const cancelSession = (): void => {
+  const cancelSession = (opts: { restoreFocus?: boolean } = {}): void => {
     const startedAt = valueAtOpen;
+    returnFocusOnClose = opts.restoreFocus ?? panelOwnsFocus();
     const revert = props.revertOnCancel ?? true;
     const pending = session();
     setSession(null);
     valueAtOpen = null;
+    closeDecided = true;
     setOpen(false);
 
     let restored = pending ?? props.value;
@@ -436,9 +480,39 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     props.onCancel?.(restored);
   };
 
+  /**
+   * THE SESSION'S LIFETIME IS THE OPEN STATE: controlled `open` can change with no gesture,
+   * so {closed, session live} must be unrepresentable. A close edge the picker didn't initiate CANCELS.
+   */
+  createEffect(
+    on(sessionOpen, (nowOpen, wasOpen = false) => {
+      if (nowOpen === wasOpen) return;
+      if (nowOpen) {
+        returnFocusOnClose = false;
+        beginSession();
+        if (editable()) beginEditing();
+        return;
+      }
+      // Still live here means the CONSUMER closed it: no evidence the user was on this pill.
+      if (valueAtOpen !== null) cancelSession({ restoreFocus: false });
+      // Re-checked here: focus may have moved on while a consumer took its time lowering `open`.
+      if (returnFocusOnClose && panelOwnsFocus()) restoreAnchorFocus();
+      returnFocusOnClose = false;
+    }),
+  );
+
   const [popout, setPopout] = createSignal<PopoutPosition | null>(null);
   let anchorEl: HTMLDivElement | undefined;
   let panelEl: HTMLDivElement | undefined;
+
+  /** Part of this widget: the in-flow root OR the portalled panel, which is not inside it. */
+  const insideWidget = (node: Node | null): boolean =>
+    !!node && (!!rootEl?.contains(node) || !!panelEl?.contains(node));
+  /** Focus left the widget for a real target, so a pending close must not pull it back. */
+  const onWidgetFocusOut = (e: FocusEvent): void => {
+    const next = e.relatedTarget as Node | null;
+    if (next && !insideWidget(next)) returnFocusOnClose = false;
+  };
 
   /**
    * Measure and place the panel.
@@ -477,20 +551,29 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     }
     place();
 
+    // Take the keyboard. Popped in this effect's cleanup, so it is released on close,
+    // on unmount, and on a re-run of this effect — every path out.
+    const owner = Symbol('pnp');
+    keyboardOwners.push(owner);
+    const ownsKeyboard = (): boolean => keyboardOwners[keyboardOwners.length - 1] === owner;
+
     const onPointerDown = (e: PointerEvent): void => {
       const t = e.target as Node;
       if (panelEl?.contains(t)) return;
       if (anchorEl?.contains(t)) return; // the anchor's own click toggles; don't double-handle
       // Clicking away is an ABANDONED edit, not a silent acceptance of whatever the value
       // happened to be mid-scrub.
-      cancelSession();
+      // Never restore focus: at pointerdown the browser has not yet moved it to what was pressed.
+      cancelSession({ restoreFocus: false });
     };
     const onKey = (e: KeyboardEvent): void => {
+      // Only the top of the stack acts; a picker underneath another one must not discard
+      // an edit on a keypress meant for its neighbour.
+      if (!ownsKeyboard()) return;
       if (e.key === 'Escape') {
         e.stopPropagation();
-        cancelSession();
         // Return focus to where the user was, or the close is a dead end for the keyboard.
-        (anchorEl?.querySelector('[data-pos="value"]') as HTMLElement | null)?.focus();
+        cancelSession({ restoreFocus: true });
       }
     };
     const onReflow = (): void => place();
@@ -501,6 +584,8 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     // Capture: the scroll that moves us is almost never on `window`.
     window.addEventListener('scroll', onReflow, true);
     onCleanup(() => {
+      const at = keyboardOwners.lastIndexOf(owner);
+      if (at !== -1) keyboardOwners.splice(at, 1);
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', onReflow);
@@ -524,12 +609,18 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   // ── Wheel handling ───────────────────────────────────────────────────
   const onWheel = (e: WheelEvent): void => {
     if (props.disabled) return;
-    if (props.requireFocus && !focused()) return;
+    // Read at wheel time, not stored: a stored flag goes stale when the panel unmounts with focus inside.
+    if (props.requireFocus && !insideWidget(document.activeElement)) return;
+    // deltaY is three-valued: 0 is a horizontal swipe or shift+wheel, not a request to step down.
+    if (e.deltaY === 0) return;
     const direction = (props.invertScroll ?? false) ? -1 : 1;
+    const dir: 1 | -1 = e.deltaY < 0 ? direction : direction === 1 ? -1 : 1;
+    // Claim the gesture only if it MOVES the value: a picker at a bound must not publish
+    // duplicates or swallow its container's scroll.
+    const next = resolveMove(dir);
+    if (next === null) return;
     e.preventDefault();
     e.stopPropagation();
-    const delta = e.deltaY < 0 ? step() * direction : -step() * direction;
-    const next = resolveStep(current() + delta, delta > 0 ? 1 : -1);
     setDraft(formatValue(next, precision()));
     emit(next);
   };
@@ -582,6 +673,20 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     if (clamped !== current()) emit(clamped);
   };
 
+  /** Where `steps` steps in `dir` land, or null if nowhere new. The ONE movement rule for
+   *  clicks, holds, keys and the wheel (excludeZero skip, bounds, no-op guard). */
+  const resolveMove = (dir: 1 | -1, steps = 1): number | null => {
+    const next = resolveStep(current() + step() * steps * dir, dir);
+    return next === current() ? null : next;
+  };
+  /** Take that move. Returns whether the value actually moved. */
+  const stepBy = (dir: 1 | -1, steps = 1): boolean => {
+    const next = resolveMove(dir, steps);
+    if (next === null) return false;
+    emit(next);
+    return true;
+  };
+
   // ── Auto-repeat ──────────────────────────────────────────────────────
   const autoRepeatDelay = (): number => props.autoRepeatDelay ?? 400;
   const autoRepeatInterval = (): number => props.autoRepeatInterval ?? 60;
@@ -590,6 +695,9 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   let repeatTimer: ReturnType<typeof setTimeout> | undefined;
   let repeatInterval: ReturnType<typeof setTimeout> | undefined;
   let holdStart: number | null = null;
+  /** A hold that reached the repeat threshold already stepped; the `click` that the
+   *  release dispatches afterwards must not add one more on top of it. */
+  let repeated = false;
 
   const stopRepeat = (): void => {
     if (repeatTimer !== undefined) { clearTimeout(repeatTimer); repeatTimer = undefined; }
@@ -599,13 +707,16 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
 
   const startRepeat = (direction: 1 | -1): void => {
     stopRepeat();
+    repeated = false;
     if (props.disabled) return;
     holdStart = Date.now();
 
     const doStep = (): void => {
-      const next = resolveStep(current() + step() * direction, direction);
-      if (next === current()) { stopRepeat(); return; }
-      emit(next);
+      // Re-checked every tick, not once at press time: a disabled <button> is inert, so
+      // the pointerup that would have stopped the hold is never dispatched to it.
+      if (props.disabled) { stopRepeat(); return; }
+      if (!stepBy(direction)) { stopRepeat(); return; }
+      repeated = true;
     };
 
     repeatTimer = setTimeout(() => {
@@ -624,19 +735,40 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
     }, autoRepeatDelay());
   };
 
+  /** Only a POINTER click (detail > 0) can release a hold; a keyboard click always steps,
+   *  so a stale flag never swallows one. */
+  const onStepperClick = (dir: 1 | -1) => (e: MouseEvent): void => {
+    if (props.disabled) return;
+    const releasesHold = repeated && e.detail > 0;
+    repeated = false;
+    if (releasesHold) return;
+    stepBy(dir);
+  };
+
+  // Belt-and-suspenders for the same hole: whichever release event goes missing, a hold
+  // cannot outlive the enabled state.
+  createEffect(() => {
+    if (props.disabled) stopRepeat();
+  });
+
   onCleanup(stopRepeat);
 
   // ── Keyboard (spinbutton a11y) ───────────────────────────────────────
   const onKeyDown = (e: KeyboardEvent): void => {
     if (props.disabled) return;
+    const dir: 1 | -1 | null =
+      e.key === 'ArrowUp' || e.key === 'PageUp' ? 1
+        : e.key === 'ArrowDown' || e.key === 'PageDown' ? -1
+          : null;
+    if (dir !== null) {
+      e.preventDefault();
+      stepBy(dir, e.key.startsWith('Page') ? PAGE_STEPS : 1);
+      return;
+    }
     let next: number | null = null;
-    if (e.key === 'ArrowUp') next = resolveStep(current() + step(), 1);
-    else if (e.key === 'ArrowDown') next = resolveStep(current() - step(), -1);
-    else if (e.key === 'PageUp') next = resolveStep(current() + step() * 10, 1);
-    else if (e.key === 'PageDown') next = resolveStep(current() - step() * 10, -1);
     // Home/End jump TO a bound; under excludeZero a 0 bound resolves one step
     // INWARD (the only legal direction from a bound).
-    else if (e.key === 'Home') next = resolveStep(min(), 1);
+    if (e.key === 'Home') next = resolveStep(min(), 1);
     else if (e.key === 'End') next = resolveStep(max(), -1);
     if (next !== null) {
       e.preventDefault();
@@ -657,10 +789,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       }}
       disabled={props.disabled || current() >= max()}
       aria-label={props.incrementLabel ?? 'Increase'}
-      onClick={() => {
-        if (props.disabled) return;
-        emit(clamp(current() + step()));
-      }}
+      onClick={onStepperClick(1)}
       onPointerDown={() => startRepeat(1)}
       onPointerUp={stopRepeat}
       onPointerLeave={stopRepeat}
@@ -682,10 +811,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       }}
       disabled={props.disabled || current() <= min()}
       aria-label={props.decrementLabel ?? 'Decrease'}
-      onClick={() => {
-        if (props.disabled) return;
-        emit(clamp(current() - step()));
-      }}
+      onClick={onStepperClick(-1)}
       onPointerDown={() => startRepeat(-1)}
       onPointerUp={stopRepeat}
       onPointerLeave={stopRepeat}
@@ -802,7 +928,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
             onClick={() => {
               if (props.disabled) return;
               if (collapsedCell) { openEditor(); return; }
-              if (editable()) setEditing(true);
+              if (editable()) beginEditing();
             }}
             onKeyDown={(e) => {
               // Enter / Space open the editor from the keyboard — without this the
@@ -814,8 +940,6 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
               }
               onKeyDown(e);
             }}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
           >
             {valueText()}
           </span>
@@ -836,9 +960,11 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
             // would mean reaching for `+` silently dismissed the field you were typing in.
             const next = e.relatedTarget as Node | null;
             const stayingInPanel = !!next && !!panelEl && panelEl.contains(next);
+            // Chromium blurs a focused input as it is removed. Once a close has decided the session
+            // (collapsed shut, or a close in flight), typed text must not publish.
+            if (isCollapsed() || (collapsible() && closeDecided)) return;
             commitDraft(!stayingInPanel);
           }}
-          onFocus={() => setFocused(true)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               // Take the text, then END the session: close and confirm. This is the
@@ -918,12 +1044,14 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
 
   const rangeText = (): string => {
     const fmt = props.rangeFormat ?? ((v: number, _min: number, mx: number) => `${v} / ${mx}`);
-    return fmt(props.value, min(), max());
+    // `current()`, not `props.value`: inside a 'finish' session the prop is deliberately
+    // stale, and a range rendered beside the stepped number must not disagree with it.
+    return fmt(current(), min(), max());
   };
 
   const suffixNode = (): JSX.Element => (
     <>
-      <Show when={props.suffix && !(props.value === 0 && props.zeroLabel)}>
+      <Show when={props.suffix && !(current() === 0 && props.zeroLabel)}>
         <span class="cpnp-suffix">{props.suffix}</span>
       </Show>
       <Show when={props.showRange}>
@@ -972,6 +1100,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
         aria-disabled={props.disabled ? true : undefined}
         data-collapsible="true"
         data-open={isOpen() ? 'true' : undefined}
+        onFocusOut={onWidgetFocusOut}
       >
         {/* The anchor stays in flow whether open or shut, so expanding NEVER reflows
             the row it lives in — the panel is a separate layer. */}
