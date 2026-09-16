@@ -1,17 +1,7 @@
 // @vitest-environment happy-dom
 /**
- * menuPalette contract tests.
- *
- * The interesting one is the LAST describe block: it reads `glass.css`
- * off disk and pins every default against it. The JS defaults and the
- * stylesheet are two statements of one fact — the CSS has to stand alone
- * with no JS on the page, so the duplication is deliberate — and this is
- * what stops them drifting silently.
- *
- * It also asserts the NAMESPACE, which is the whole point of the rename:
- * the six colours must not be declared under `--color-*`, because a name
- * in the host's namespace is a name a host can collide with, whichever
- * way the cascade happens to fall.
+ * menuPalette contracts. The last block pins JS defaults to glass.css (deliberate duplication: CSS
+ * must work without JS) and asserts the `--cujuju-glass-menu-*` namespace.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -21,6 +11,7 @@ import {
   GLASS_MENU_TEXT_CSS_VAR,
   GLASS_MENU_BORDER_CSS_VAR,
   GLASS_MENU_INPUT_BG_CSS_VAR,
+  GLASS_MENU_CHROME_BG_CSS_VAR,
   GLASS_MENU_PALETTE_DEFAULTS,
   applyGlassMenuPalette,
   resetGlassMenuPalette,
@@ -62,6 +53,13 @@ describe('applyGlassMenuPalette', () => {
     expect(root().style.getPropertyValue(GLASS_MENU_INPUT_BG_CSS_VAR)).toBe('');
   });
 
+  it('writes chromeBg — the public opaque backing for sticky menu chrome', () => {
+    applyGlassMenuPalette({ chromeBg: 'rgb(10, 20, 30)' });
+    expect(root().style.getPropertyValue(GLASS_MENU_CHROME_BG_CSS_VAR)).toBe('rgb(10, 20, 30)');
+    applyGlassMenuPalette(null);
+    expect(root().style.getPropertyValue(GLASS_MENU_CHROME_BG_CSS_VAR)).toBe('');
+  });
+
   it('resetGlassMenuPalette is the same clear', () => {
     applyGlassMenuPalette({ text: 'rgb(1, 2, 3)' });
     resetGlassMenuPalette();
@@ -87,6 +85,21 @@ describe('the stylesheet and the JS defaults are one fact', () => {
       )?.[1]?.trim();
       expect(declared, `${cssVar} drifted from GLASS_MENU_PALETTE_DEFAULTS`).toBe(value);
     }
+  });
+
+  it('writes the opaque menu tint once, and derives both the tint and the chrome backing from it', () => {
+    // The sticky chrome band must track the user's tint knobs, not the raw host surface.
+    const opaque = /--surface-glass-menu-tint-opaque:\s*([^;]+);/.exec(css)?.[1];
+    expect(opaque, '--surface-glass-menu-tint-opaque missing from glass.css').toBeDefined();
+    expect(opaque).toContain('--user-menu-tint-darken');
+    expect(opaque).toContain('--user-menu-tint-saturate');
+
+    // Written once: the translucent tint reuses the named token rather than restating the mix.
+    expect(css.match(/hsl\(from var\(--cujuju-glass-surface\)/g) ?? []).toHaveLength(1);
+    const tint = /--surface-glass-menu-tint:\s*([^;]+);/.exec(css)?.[1];
+    expect(tint).toContain('var(--surface-glass-menu-tint-opaque)');
+
+    expect(GLASS_MENU_PALETTE_DEFAULTS.chromeBg).toBe('var(--surface-glass-menu-tint-opaque)');
   });
 
   it('declares NO menu colour in the host --color-* namespace', () => {

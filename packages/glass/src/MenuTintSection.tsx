@@ -23,19 +23,8 @@ import {
 } from './menuTint';
 
 /**
- * Menu tint settings section — five knob sliders + named presets over
- * the surface-derived `--surface-glass-menu-tint` formula. The final
- * tint is composed entirely in CSS from `--color-surface` (host theme
- * value) and the knob CSS vars; this section only writes the knob
- * values to `document.documentElement` + localStorage.
- *
- * Storage shape is the knob object (NOT a final color string) so host
- * theme swaps continue to flow through to menus and the user's intent
- * is preserved across theme changes.
- *
- * `storageKey` lets a host pin the localStorage key to its own
- * namespace (and preserve already-stored values); it defaults to the
- * engine's `DEFAULT_MENU_TINT_STORAGE_KEY`.
+ * Menu tint settings: five knob sliders + presets. Writes knobs (not a final colour) to the root
+ * and localStorage, so host theme swaps still flow through.
  */
 export interface MenuTintSectionProps {
   /** localStorage key for the persisted knobs. Defaults to the engine's
@@ -193,11 +182,8 @@ export function MenuTintSection(props: MenuTintSectionProps) {
         </For>
       </div>
 
-      {/* Live preview — an actual `.glass-menu` surface over a black +
-          white reference backdrop so the user can see how the smoked-
-          glass treatment at the chosen knobs reads against extreme
-          luminances. Auto-updates because the knob CSS vars are at
-          root scope. */}
+      {/* Live `.glass-menu` preview over black and white backdrops; knob vars are root-scoped, so it
+      updates itself. */}
       <div class="cujuju-mt-preview-stage">
         <div class="cujuju-mt-preview-backdrop" aria-hidden="true">
           <div class="cujuju-mt-preview-box-black" />
@@ -253,10 +239,8 @@ function KnobSlider(props: KnobSliderProps) {
         return 'cujuju-mt-knob-track-bg-saturate';
     }
   };
-  // Tick position as a 0-100 unitless number consumed by CSS via the
-  // `--cujuju-mt-tick-pct` custom property. CSS anchors the tick to the
-  // thumb's reachable extremes so a tick at value=min lands exactly
-  // where the thumb's center sits at min.
+  // 0-100 for `--cujuju-mt-tick-pct`; CSS anchors ticks to the thumb's reachable extremes, so
+  // value=min sits under the thumb centre at min.
   const tickPercent = (value: number): number => {
     const span = props.max - props.min;
     if (span === 0) return 0;

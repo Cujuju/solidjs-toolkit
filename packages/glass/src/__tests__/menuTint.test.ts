@@ -65,10 +65,7 @@ describe('knobsEqual', () => {
   });
 });
 
-/** Install a fresh in-memory `localStorage` on `window` before each
- *  test. The engine wraps `window.localStorage`; testing against an
- *  explicit mock keeps these contract tests independent of whichever
- *  Storage implementation the test environment happens to provide. */
+/** Fresh in-memory `localStorage` per test, independent of the environment's Storage implementation. */
 function installMockLocalStorage(): void {
   const store = new Map<string, string>();
   const mock: Storage = {

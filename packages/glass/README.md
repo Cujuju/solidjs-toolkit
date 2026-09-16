@@ -45,6 +45,39 @@ standalone:
 | `--color-surface` | `#16213e` |
 | `--color-border` | `rgba(255,255,255,0.1)` |
 
+### Menu palette
+
+`.glass-menu` paints from package-owned `--cujuju-glass-menu-*` tokens
+(defaults in `@layer cujuju-defaults`). Override them in **unlayered**
+CSS of your own, or at runtime with `applyGlassMenuPalette({ … })` —
+partial; `null` or `resetGlassMenuPalette()` clears. A host override
+written inside a layer can lose to the defaults depending on layer
+order (a Tailwind v4 host registering `@layer theme` first is the known
+case); unlayered CSS and the inline properties `applyGlassMenuPalette()`
+writes both win. Each variable name is also exported
+as a `GLASS_MENU_*_CSS_VAR` constant.
+
+| Token | Palette field | Default | Use |
+|-------|---------------|---------|-----|
+| `--cujuju-glass-menu-text` | `text` | `rgba(255,255,255,0.95)` | primary menu text |
+| `--cujuju-glass-menu-text-secondary` | `textSecondary` | `rgba(255,255,255,0.78)` | labels, metadata |
+| `--cujuju-glass-menu-text-muted` | `textMuted` | `rgba(255,255,255,0.65)` | hints, disabled |
+| `--cujuju-glass-menu-border` | `border` | `rgba(255,255,255,0.18)` | dividers, outlines |
+| `--cujuju-glass-menu-surface-raised` | `surfaceRaised` | `rgba(255,255,255,0.1)` | hover rows, chips |
+| `--cujuju-glass-menu-input-bg` | `inputBg` | `rgba(255,255,255,0.08)` | input fills |
+| `--cujuju-glass-menu-chrome-bg` | `chromeBg` | the menu tint without its alpha (`--surface-glass-menu-tint-opaque`) | backing for sticky chrome inside a menu (e.g. a search row) |
+
+The first six are what `.glass-menu` rebinds the page-level
+`--color-text*` / `--color-border` / `--color-surface*` aliases to.
+`chromeBg` is not rebound: inside a menu `--color-surface` means the
+translucent input fill, so read `--cujuju-glass-menu-chrome-bg` when you
+need a backing that hides whatever scrolls behind it. It defaults to the
+menu's own tint with the alpha removed, so it follows the tint knobs.
+
+**Caveat:** that tint is built from the host's `--color-surface`. If the
+host surface is itself translucent, so is the band, and rows scroll
+visibly through it — set `chromeBg` to an opaque colour in that case.
+
 ## Menu-tint engine
 
 ```ts

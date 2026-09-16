@@ -1,36 +1,6 @@
 /**
- * Menu tint — five user-tunable knobs that drive the surface-derived
- * smoked-glass `.glass-menu` tint and its backdrop-filter chain. The
- * final tint color is composed entirely in CSS from `--color-surface`
- * (host theme value) and the knob CSS variables, so host theme swaps
- * flow through to menus automatically.
- *
- * Knobs (storage shape):
- *   - `darken`           — percent black mixed into the saturation-
- *                          adjusted surface (0-60, default 35).
- *   - `alpha`            — outer translucency percent (5-50, default 35).
- *   - `saturate`         — multiplier on the menu's OWN surface
- *                          saturation before mixing (0-2, default 1).
- *   - `backdropSaturate` — multiplier on `backdrop-filter: saturate()`
- *                          (0-2, default 0.8). Affects content bleeding
- *                          THROUGH the menu, not the menu's own fill.
- *   - `blur`             — backdrop-filter blur radius in px (0-30,
- *                          default 10).
- *
- * `darken` / `alpha` are stored as percentages WITHOUT the `%` sign;
- * `saturate` / `backdropSaturate` are unitless multipliers; `blur` is a
- * pixel count. The CSS variables driven by those values carry units
- * because CSS color-mix / calc expect those forms.
- *
- * Storage is keyed by a caller-supplied `storageKey`; the default
- * `DEFAULT_MENU_TINT_STORAGE_KEY` is namespaced so it cannot collide
- * with an unrelated host preference. A host with an existing key passes
- * its own string to every function to preserve already-stored values.
- *
- * Bootstrap path: call `bootstrapMenuTintFromStorage()` BEFORE the
- * SolidJS root renders so the first paint already has the user's tint.
- * There is no DB-backed mirror — menu tint is a per-device UI
- * preference.
+ * Five user knobs driving `.glass-menu` tint and backdrop filter, composed in CSS from
+ * `--color-surface`. Stored unitless; call `bootstrapMenuTintFromStorage()` before the first render.
  */
 
 /** Default localStorage key. Namespaced so it will not collide with an
@@ -84,20 +54,7 @@ export const MENU_TINT_DEFAULTS: MenuTintKnobs = {
   blur: MENU_TINT_DEFAULT_BLUR,
 };
 
-/**
- * Named presets shown as one-click chips in the settings UI.
- *
- * - `Smoked Navy`: default — the canonical shipped look.
- * - `Frost`:       lighter, less saturated, more solid.
- * - `Vapor`:       very translucent + soft.
- * - `Ink`:         heavy, vivid, dark.
- * - `Stone`:       grayscale, fully neutralized.
- *
- * Each preset carries a `color` used for the chip's leading dot and the
- * matching tick mark on each knob slider, so a chip visually pairs with
- * its position on every slider. Colors reference host theme tokens so
- * theme swaps recolor them in lockstep.
- */
+/** One-click presets. Each `color` (host theme tokens) paints the chip dot and matching slider ticks. */
 export const MENU_TINT_PRESETS: ReadonlyArray<{
   name: string;
   color: string;
@@ -186,11 +143,8 @@ export function knobsEqual(a: MenuTintKnobs, b: MenuTintKnobs): boolean {
 }
 
 /**
- * Read the persisted knobs from localStorage under `storageKey`.
- *
- * Returns `null` if the key is absent, localStorage is unavailable, or
- * the JSON parse fails — the caller should treat `null` as "use CSS
- * defaults" and not write any property overrides on documentElement.
+ * Persisted knobs, or `null` (missing, unavailable, bad JSON), meaning use CSS defaults and write
+ * no overrides.
  */
 export function readMenuTintKnobsFromStorage(
   storageKey: string = DEFAULT_MENU_TINT_STORAGE_KEY,
@@ -241,13 +195,8 @@ export function clearMenuTintKnobsFromStorage(
 }
 
 /**
- * Apply knobs to `document.documentElement` by setting the five CSS
- * variables. Pass `null` to clear all overrides and revert to the
- * `glass.css` defaults.
- *
- * `darken` / `alpha` are written with a `%` suffix; `blur` with `px`;
- * `saturate` / `backdropSaturate` as bare numbers — matching what CSS
- * color-mix / calc / backdrop-filter expect.
+ * Set the five variables on the root (`null` clears). `darken`/`alpha` get `%`, `blur` gets
+ * `px`, saturations stay bare.
  */
 export function applyMenuTintKnobs(knobs: MenuTintKnobs | null): void {
   const root = document.documentElement;
@@ -271,10 +220,8 @@ export function applyMenuTintKnobs(knobs: MenuTintKnobs | null): void {
 }
 
 /**
- * Bootstrap entry — read the persisted knobs and apply them to the
- * document root. Call this BEFORE the SolidJS root renders so the first
- * paint already has the user's tint. No-op if storage is empty (the
- * `glass.css` defaults apply) or `window` is undefined.
+ * Apply persisted knobs; call BEFORE the Solid root renders so first paint has the tint. No-op
+ * without storage or `window`.
  */
 export function bootstrapMenuTintFromStorage(
   storageKey: string = DEFAULT_MENU_TINT_STORAGE_KEY,

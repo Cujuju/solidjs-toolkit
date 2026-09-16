@@ -1,13 +1,11 @@
-// Side-effect: register the `.glass-panel` / `.glass-menu` global
-// classes + their token defaults. Importing anything from this package
-// pulls the glass stylesheet, so a host that imports only the menu-tint
-// engine still gets the surface classes available document-wide.
+// Side-effect: importing anything registers `.glass-panel`/`.glass-menu` and their tokens
+// document-wide.
 import './glass.css';
 
 export { MenuTintSection, type MenuTintSectionProps } from './MenuTintSection';
 
 // The menu palette. The ONLY supported runtime route to the six
-// `.glass-menu` colours — see menuPalette.ts for why overriding them is
+// `.glass-menu` colours plus the chrome backing — see menuPalette.ts for why overriding them is
 // deliberate rather than name-driven.
 export {
   GLASS_MENU_TEXT_CSS_VAR,
@@ -16,6 +14,7 @@ export {
   GLASS_MENU_BORDER_CSS_VAR,
   GLASS_MENU_SURFACE_RAISED_CSS_VAR,
   GLASS_MENU_INPUT_BG_CSS_VAR,
+  GLASS_MENU_CHROME_BG_CSS_VAR,
   GLASS_MENU_PALETTE_DEFAULTS,
   type GlassMenuPalette,
   applyGlassMenuPalette,

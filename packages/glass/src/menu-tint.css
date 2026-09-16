@@ -1,18 +1,5 @@
-/* @cujuju/solidjs-glass — MenuTintSection styling.
-
-   Plain global classes (prefixed `cujuju-mt-`) rather than CSS Modules,
-   matching the rest of the toolkit. The component applies these class
-   names as plain strings.
-
-   Geometry tokens live in `@layer cujuju-defaults` so a host can
-   override slider dimensions; the slider thumb/track/tick sizes stay
-   coupled through them.
-
-   This stylesheet references HOST theme tokens (`--color-*`,
-   `--font-size-*`, `--radius-*`, `--height-btn`, `--transition-speed-
-   fast`). MenuTintSection is a settings panel for a themed host — see
-   the package README for the required token list. The live-preview row
-   additionally needs the `.glass-menu` class from `glass.css`. */
+/* MenuTintSection styles. Geometry tokens live in @layer cujuju-defaults for host override.
+   Needs host tokens (see README) and `.glass-menu` for the preview. */
 
 @layer cujuju-defaults {
   :root {
@@ -25,7 +12,6 @@
   }
 }
 
-/* Section wrapper. */
 .cujuju-mt-section {
   margin-top: 24px;
   display: flex;
@@ -45,7 +31,6 @@
   color: var(--color-text);
 }
 
-/* Stack of knob rows. */
 .cujuju-mt-knobs {
   display: flex;
   flex-direction: column;
@@ -64,19 +49,8 @@
   color: var(--color-text);
 }
 
-/* Slider chrome — three-layer architecture so painting order is
-   deterministic:
-     1. `.cujuju-mt-knob-track-bg`  (z=0, absolute) — gradient + border + radius
-     2. `.cujuju-mt-knob-tick-row`  (z=1, absolute) — colored preset ticks
-     3. `.cujuju-mt-knob-slider`    (z=2, relative) — transparent input
-                                      whose pseudo-thumb paints over the ticks
-   The native pseudo-thumb is part of the input's stacking context, so
-   the input MUST be positioned with z-index higher than the tick row
-   for the thumb to paint over the ticks.
-
-   Positioning math anchors ticks to the THUMB's reachable extremes
-   (thumb-center moves between `thumbRadius` and `width - thumbRadius`),
-   not the wrap's edges. */
+/* Layers: track-bg (z0), tick-row (z1), slider (z2). The thumb lives in the input's stacking
+   context, so the input must out-rank the ticks. Ticks anchor to thumb-centre extremes. */
 
 .cujuju-mt-knob-track-wrap {
   position: relative;
@@ -153,10 +127,8 @@
   z-index: 1;
 }
 
-/* Tick mark. Width + color set inline per preset. Height clips to the
-   track interior; horizontal position anchors to the thumb's reachable
-   extremes via the `--cujuju-mt-tick-pct` custom property (unitless
-   0-100 from the consumer). */
+/* Width and colour inline per preset; height clips to the track interior; x anchors to thumb
+   extremes via `--cujuju-mt-tick-pct` (0-100). */
 .cujuju-mt-knob-tick {
   position: absolute;
   top: 50%;
@@ -260,7 +232,7 @@
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
-.cujuju-mt-preset-chip:hover {
+.cujuju-mt-preset-chip:hover:not(.cujuju-mt-preset-chip--active) {
   background: var(--color-surface-hover);
   color: var(--color-text);
 }
@@ -306,10 +278,7 @@
   background: #fff;
 }
 
-/* Live preview menu surface — the `.glass-menu` class (from glass.css)
-   is applied alongside this one in the component markup so the preview
-   reads as the actual menu chrome. `position: relative` + z-index keep
-   it painted ABOVE the backdrop boxes. */
+/* Paired with `.glass-menu` in markup; relative + z-index keeps it above the backdrop boxes. */
 .cujuju-mt-preview {
   position: relative;
   z-index: 1;
