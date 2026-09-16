@@ -2,12 +2,9 @@ import { createSignal, type Accessor } from 'solid-js';
 import { safeStorageRead, safeStorageRemove, safeStorageWrite } from './_internal/safeStorage';
 
 /**
- * Reactive JSON-serialized localStorage signal, shaped like `createSignal`. Falls back to
- * `defaultValue` on a missing key or parse error.
- *
- * `set(undefined)` — or a value `JSON.stringify` turns into `undefined`, such as a symbol or a
- * function — removes the key, so the next load returns `defaultValue`. A BigInt or circular
- * structure throws out of `set` instead. `null` serializes to `"null"` and round-trips.
+ * Reactive JSON-serialized localStorage signal, shaped like `createSignal`; falls back to
+ * `defaultValue` on a missing key or parse error. `set(undefined)` removes the key; a BigInt
+ * or circular value throws.
  */
 export function createLocalStorage<T>(
   key: string,
