@@ -1,8 +1,8 @@
 # defect-register implementation — handoff
 
-**Status**: SHIPPED+PUSHED (48 commits, `94e70f9..968ba91`)
+**Status**: SHIPPED+PUSHED — 48 code commits, `94e70f9..968ba91`, plus the `docs:` commit carrying this file and the new root `CLAUDE.md`.
 
-**Tip**: `968ba91` fix(kv-tooltip): keep the panel while focus moves into it; filterEntries lives with TooltipContent
+**Tip**: `968ba91` fix(kv-tooltip): keep the panel while focus moves into it; filterEntries lives with TooltipContent — the last code commit; `origin/main` is one `docs:` commit beyond it.
 
 ## What changed
 - All 153 confirmed register defects worked through 19 packages: each re-verified from source, fixed at the root cause, pinned by a failing-first test. 2–3 adversarial Opus reviews per package drove 1–5 fix rounds each (reviews caught real regressions in every package). Suite now 1362 tests / 19 projects, `pnpm -r test` exit 0.
