@@ -4,6 +4,7 @@ import {
   createEffect,
   createUniqueId,
   on,
+  onCleanup,
   untrack,
   For,
   Show,
@@ -109,6 +110,16 @@ export type ChipFlyoutProps = TriStateProps | MultiProps;
 
 const DEFAULT_PANEL_MIN = 280;
 const DEFAULT_PANEL_MAX = 480;
+/** Start the next page this far before the list bottom scrolls into view. */
+const LOAD_MORE_PREFETCH_PX = 120;
+
+function scrollParentOf(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const overflowY = getComputedStyle(p).overflowY;
+    if (overflowY === 'auto' || overflowY === 'scroll') return p;
+  }
+  return null;
+}
 const PANEL_OFFSET_PX = 4;
 /** Minimum gap the panel keeps from any viewport edge when clamped. */
 export const VIEWPORT_MARGIN_PX = 8;
@@ -141,6 +152,23 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   // The panel mounts only once it has a position; everything keyed to its
   // presence (Show, viewport clamp) reads this, not `open` alone.
   const panelShown = createMemo(() => open() && pos() !== null);
+  let loadMoreSentinel: HTMLButtonElement | undefined;
+
+  // Infinite scroll. Re-armed whenever a load settles: a fresh observer reports the current
+  // intersection, so a page too short to fill the panel keeps loading until it overflows.
+  createEffect(() => {
+    if (!panelShown() || !props.hasMore || !props.onLoadMore || props.loading) return;
+    const el = loadMoreSentinel;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) untrack(() => props.onLoadMore?.());
+      },
+      { root: scrollParentOf(el), rootMargin: `0px 0px ${LOAD_MORE_PREFETCH_PX}px 0px` },
+    );
+    io.observe(el);
+    onCleanup(() => io.disconnect());
+  });
 
   function setOpen(next: boolean) {
     // `onOpenChange` reports changes; a redundant request (e.g. resize while closed) is not one.
@@ -605,8 +633,10 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
               >
                 <div class="cujuju-cf-status">No matches.</div>
               </Show>
+              {/* Scrolling to this button loads the next page; the button stays for keyboard users. */}
               <Show when={props.hasMore && props.onLoadMore && !props.loading}>
                 <button
+                  ref={(el) => (loadMoreSentinel = el)}
                   type="button"
                   class="cujuju-cf-load-more"
                   onClick={() => props.onLoadMore?.()}
