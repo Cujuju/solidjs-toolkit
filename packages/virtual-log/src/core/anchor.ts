@@ -6,32 +6,38 @@ import type { Layout } from './layout';
 
 interface Pin {
   key: string;
-  /** The row's start minus L. */
+  /** The pinned edge's offset minus L. */
   rel: number;
 }
 
+/** Which edge of the pinned row holds: its bottom (it grows upward) or its top (it grows downward). */
+export type PinEdge = 'bottom' | 'top';
+
 /** A row at a viewport edge and where it sat, plus its newer neighbour in case it is removed. */
 export interface AnchorSnap {
+  edge: PinEdge;
   pins: Pin[];
 }
 
+const edgeAt = (layout: Layout, i: number, edge: PinEdge): number => layout.startAt(i) + (edge === 'top' ? layout.sizeAt(i) : 0);
+
 /**
- * Pins the row containing bottom-relative `edge` (L + viewport height for the top edge, L for the bottom). Rows below
- * it are then compensated; the pinned row grows away from them, out of view at the top edge.
+ * Pins the row containing bottom-relative `at` (the view's top edge, L + height, pinning the row's bottom: it grows
+ * upward, out of view; or the view's bottom edge, L, pinning its top: it grows downward, out of view).
  */
-export function captureAnchor(layout: Layout, edge: number, L: number): AnchorSnap | null {
-  const i = layout.indexAt(edge);
+export function captureAnchor(layout: Layout, at: number, L: number, edge: PinEdge = 'bottom'): AnchorSnap | null {
+  const i = layout.indexAt(at);
   if (i < 0) return null;
   const pins: Pin[] = [];
-  for (const j of [i, i + 1, i - 1]) if (j >= 0 && j < layout.count) pins.push({ key: layout.keyAt(j), rel: layout.startAt(j) - L });
-  return { pins };
+  for (const j of [i, i + 1, i - 1]) if (j >= 0 && j < layout.count) pins.push({ key: layout.keyAt(j), rel: edgeAt(layout, j, edge) - L });
+  return { edge, pins };
 }
 
 /** The L that puts the pinned row back where it was; null when every pinned row is gone. */
 export function anchoredOffset(layout: Layout, snap: AnchorSnap): number | null {
   for (const p of snap.pins) {
     const i = layout.indexOf(p.key);
-    if (i >= 0) return layout.startAt(i) - p.rel;
+    if (i >= 0) return edgeAt(layout, i, snap.edge) - p.rel;
   }
   return null;
 }

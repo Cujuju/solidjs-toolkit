@@ -73,11 +73,12 @@ describe('createSettle', () => {
     expect(h.onSettle).toHaveBeenCalledTimes(1);
   });
 
-  it('a lost touch end is cleared by the watchdog', () => {
+  it('a finger resting still holds it busy however long', () => {
     const h = harness();
     h.s.touches(1);
-    h.frameFor(1200);
-    expect(h.onSettle).toHaveBeenCalledTimes(1);
+    h.frameFor(10_000);
+    expect(h.onSettle).not.toHaveBeenCalled();
+    expect(h.s.busy()).toBe(true);
   });
 
   it('a mouse button down (scrollbar drag) holds it busy until released', () => {

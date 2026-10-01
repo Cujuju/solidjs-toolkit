@@ -53,6 +53,7 @@ export function mount(rows0: Row[], opts: Partial<VirtualLogOptions<Row>> = {}, 
           Object.defineProperties(el, {
             clientHeight: { get: () => view.height, configurable: true },
             clientWidth: { get: () => view.width, configurable: true },
+            getClientRects: { value: () => (view.height > 0 ? [{}] : []), configurable: true },
             scrollHeight: { get: () => Math.max(view.height, parseFloat((el.firstElementChild as HTMLElement | null)?.style.height || '0')), configurable: true },
             scrollTop: {
               get: () => scrollTop,
@@ -74,6 +75,13 @@ export function mount(rows0: Row[], opts: Partial<VirtualLogOptions<Row>> = {}, 
 
   const ro = (): FakeRO => FakeRO.all[FakeRO.all.length - 1]!;
   return {
+    view,
+    /** Resizes the scroller and delivers its observer entry (0 x 0 is hidden). */
+    resizeView(height: number, width = view.width) {
+      view.height = height;
+      view.width = width;
+      ro().cb([{ target: scroller } as unknown as ResizeObserverEntry], ro() as unknown as ResizeObserver);
+    },
     log: () => log,
     scroller: () => scroller,
     result,

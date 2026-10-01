@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, untrack, type Accessor } from 'solid-js';
+import { batch, createEffect, createMemo, createSignal, on, onCleanup, untrack, type Accessor } from 'solid-js';
 import { safeAddEventListener, safeResizeObserver, blockSize, isBrowser, nextFrame, toDevicePx } from './_internal/dom';
 import { alignedOffset, anchoredOffset, captureAnchor, clamp, type Align, type AnchorSnap } from './core/anchor';
 import { createLayout } from './core/layout';
@@ -48,8 +48,10 @@ export interface VirtualLogController<R> {
   shift: Accessor<number>;
   /** Pixels from the view's bottom edge to the newest row's end. */
   distanceFromBottom: () => number;
-  /** Pixels from the view's top edge to the top; positive while older rows remain. */
+  /** Pixels from the view's top edge to the top; positive while older rows remain or a runway is still drawn. */
   distanceFromTop: () => number;
+  /** How far the user's last scroll moved the view up (positive) or down; 0 for the log's own writes. */
+  lastScrollDelta: () => number;
   /** The newest row wholly or mostly in view. */
   inViewKey: () => string | null;
   /** Brings a row into view; false when no row has the key. */
@@ -110,10 +112,17 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   let bottomSnap: AnchorSnap | null = null;
   let ownWrites: { p: number; at: number }[] = [];
   let width = 0;
+  /** The runway in the committed extent: the top is only real once it is gone. */
+  let committedRunway = 0;
+  let lastDelta = 0;
+  let alive = true;
+  onCleanup(() => (alive = false));
 
   const native = (): number => (scroller ? -scroller.scrollTop : 0);
   const maxNative = (): number => (scroller ? Math.max(0, scroller.scrollHeight - scroller.clientHeight) : 0);
   const logical = (): number => p() + shift();
+  /** Hidden (display: none, a folded panel, a background tab): sizes read 0 and writes do nothing. */
+  const hidden = (): boolean => !scroller || scroller.clientHeight === 0 || scroller.getClientRects().length === 0;
   const runway = (): number => (o.hasOlder?.() ? (o.runwayPx ?? DEFAULT_RUNWAY_VIEWPORTS * viewH()) : 0);
 
   const settle = isBrowser()
@@ -133,8 +142,9 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
 
   const captureAnchors = (): void => {
     const L = untrack(logical);
-    topSnap = captureAnchor(layout, L + untrack(viewH), L);
-    bottomSnap = captureAnchor(layout, L, L);
+    topSnap = captureAnchor(layout, L + untrack(viewH), L, 'bottom');
+    // Following, the view's bottom edge holds: the row it cuts keeps its top, growing down past the edge.
+    bottomSnap = captureAnchor(layout, L, L, 'top');
   };
 
   const writeNative = (to: number): void => {
@@ -148,14 +158,18 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
 
   /** At rest (or navigating): sets the extent, then the offset that shows logical `L`, in one task. */
   const commit = (L: number): void => {
-    if (!scroller) return;
-    const total = layout.total() + untrack(runway);
-    setExtent(total);
-    // Written now, not when the signal reaches the DOM: the offset below is clamped against it.
-    if (canvas) canvas.style.height = `${total}px`;
-    writeNative(clamp(L, 0, maxNative()));
-    // A remainder past either end is dropped: a gap kept in shift would never close.
-    setShift(0);
+    if (!scroller || hidden()) return;
+    // One batch: the drawn range must never see the new offset with the old shift, which would drop and redraw rows.
+    batch(() => {
+      committedRunway = untrack(runway);
+      const total = layout.total() + committedRunway;
+      setExtent(total);
+      // Written now, not when the signal reaches the DOM: the offset below is clamped against it.
+      if (canvas) canvas.style.height = `${total}px`;
+      writeNative(clamp(L, 0, maxNative()));
+      // A remainder past either end is dropped: a gap kept in shift would never close.
+      setShift(0);
+    });
   };
 
   /** The L the active rule wants after the layout changed. */
@@ -180,28 +194,34 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       // At the very bottom a column-reverse scroller already holds the newest row; above it, keep the bottom edge.
       if (L <= 0.5) return L;
       followPending = true;
-      return (bottomSnap && anchoredOffset(layout, bottomSnap)) ?? L;
+      return (bottomSnap && anchoredOffset(layout, bottomSnap)) ?? 0;
     }
-    return (topSnap && anchoredOffset(layout, topSnap)) ?? L;
+    // No row the view held survives (every row replaced): a new log opens at its newest row.
+    return topSnap ? (anchoredOffset(layout, topSnap) ?? 0) : L;
   };
 
   /** After rows change size or come and go: keeps the view where the rule says, writing only at rest. */
   const relayout = (): void => {
-    setVersion(0);
-    if (!scroller) return;
-    const desired = desiredAfterChange();
-    if (busy()) setShift(desired - untrack(p));
-    else commit(desired);
-    captureAnchors();
+    batch(() => {
+      setVersion(0);
+      // Hidden, there is no view to keep: the next showing relays out.
+      if (!scroller || hidden()) return;
+      const desired = desiredAfterChange();
+      if (busy()) setShift(desired - untrack(p));
+      else commit(desired);
+      captureAnchors();
+    });
     void checkOlder();
   };
 
   function settled(): void {
-    if (!scroller) return;
+    if (!scroller || !alive) return;
     let L = untrack(logical);
     if (followPending && untrack(following)) L = 0;
     followPending = false;
+    // A navigation still refining gets this one last placement.
     const nav = pendingNav ?? (untrack(heldKey) !== null ? { key: untrack(heldKey)!, align: 'center' as const } : null);
+    pendingNav = null;
     if (nav) L = alignedOffset(layout, nav.key, nav.align, L, untrack(viewH), untrack(endPadding)) ?? L;
     commit(L);
     captureAnchors();
@@ -234,18 +254,22 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const elKey = new Map<Element, string>();
   const measureOne = (el: Element, h: number): boolean => {
     const key = elKey.get(el);
-    return key !== undefined && layout.setSize(key, toDevicePx(h));
+    // Hidden, every row reads 0: kept sizes stay until it shows again.
+    return key !== undefined && !hidden() && layout.setSize(key, toDevicePx(h));
   };
+  /** A navigation refines until its row is measured, even at exactly its estimate (no size change to relayout on). */
+  const navMeasured = (): boolean => pendingNav !== null && layout.measured(pendingNav.key);
   let mounted = new Set<HTMLElement>();
   let flushQueued = false;
   // Rows drawn in a resize observer callback are observed only next frame; measured here, before paint.
   const flushMounted = (): void => {
     flushQueued = false;
+    if (!alive) return;
     const els = mounted;
     mounted = new Set();
     let changed = false;
     for (const el of els) if (el.isConnected) changed = measureOne(el, el.getBoundingClientRect().height) || changed;
-    if (changed) relayout();
+    if (changed || navMeasured()) relayout();
   };
   // Created with the log, not a row: its cleanup belongs to the log's owner.
   const ro = safeResizeObserver((entries) => {
@@ -254,25 +278,30 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       if (e.target === scroller) viewport();
       else changed = measureOne(e.target, blockSize(e)) || changed;
     }
-    if (changed) relayout();
+    if (changed || navMeasured()) relayout();
   });
 
   const viewport = (): void => {
-    if (!scroller) return;
+    // Hidden: keep the last view; the browser restores the offset when it shows again.
+    if (!scroller || hidden()) return;
     const w = scroller.clientWidth;
-    if (w > 0 && width > 0 && w !== width) layout.invalidate();
-    if (w > 0) width = w;
-    setViewH(scroller.clientHeight);
-    // A column-reverse scroller keeps its bottom edge as it resizes (a keyboard opening): nothing to correct.
-    setP(native());
-    captureAnchors();
-    void checkOlder();
+    if (width > 0 && w !== width) layout.invalidate();
+    width = w;
+    batch(() => {
+      setViewH(scroller!.clientHeight);
+      // A column-reverse scroller keeps its bottom edge as it resizes (a keyboard opening): nothing to correct.
+      setP(native());
+      captureAnchors();
+    });
+    // The runway is sized by the viewport, and rows may have changed while hidden: recommit at rest.
+    if (!busy()) relayout();
+    else void checkOlder();
   };
 
   let inflight: Promise<void> | null = null;
   const checkOlder = (): Promise<void> => {
     if (inflight) return inflight;
-    if (!o.loadOlder || !scroller || layout.count === 0 || (o.hasOlder && !o.hasOlder())) return Promise.resolve();
+    if (!alive || !o.loadOlder || !scroller || hidden() || layout.count === 0 || (o.hasOlder && !o.hasOlder())) return Promise.resolve();
     const topEdge = untrack(logical) + untrack(viewH);
     const near = layout.indexAt(topEdge) <= threshold || layout.total() - topEdge < 2 * untrack(viewH);
     if (!near) return Promise.resolve();
@@ -305,8 +334,13 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     const n = native();
     ownWrites = ownWrites.filter((w) => now - w.at < OWN_WRITE_MS);
     const own = ownWrites.findIndex((w) => Math.abs(w.p - n) < OWN_WRITE_PX);
-    if (own >= 0) ownWrites.splice(own, 1);
-    else settle?.activity();
+    if (own >= 0) {
+      ownWrites.splice(own, 1);
+      lastDelta = 0;
+    } else {
+      settle?.activity();
+      lastDelta = n - untrack(p);
+    }
     setP(n);
     captureAnchors();
     void checkOlder();
@@ -318,7 +352,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const watchTouchTarget = (t: EventTarget | null): void => {
     if (!t || t === scroller || watched.has(t)) return;
     watched.add(t);
-    const move = (): void => settle?.activity();
+    const move = (e: Event): void => touchCount(e as TouchEvent);
     const end = (e: Event): void => {
       touchCount(e as TouchEvent);
       if ((e as TouchEvent).touches.length === 0) {
@@ -349,7 +383,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
         touchCount(e as TouchEvent);
         watchTouchTarget(e.target);
       }, passive);
-      safeAddEventListener(el, 'touchmove', () => settle?.activity(), passive);
+      safeAddEventListener(el, 'touchmove', (e) => touchCount(e as TouchEvent), passive);
       safeAddEventListener(el, 'touchend', (e) => touchCount(e as TouchEvent), passive);
       safeAddEventListener(el, 'touchcancel', (e) => touchCount(e as TouchEvent), passive);
       safeAddEventListener(el, 'pointerdown', (e) => {
@@ -363,12 +397,22 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
         safeAddEventListener(window, 'pointerup', up, passive);
         safeAddEventListener(window, 'pointercancel', up, passive);
         safeAddEventListener(window, 'blur', up);
+        // Backgrounded mid-touch: its end may never come.
+        safeAddEventListener(document, 'visibilitychange', () => {
+          if (document.visibilityState !== 'hidden') return;
+          settle?.pointer(false);
+          settle?.touches(0);
+        });
       }
       safeAddEventListener(el, 'keydown', (e) => {
         const ke = e as KeyboardEvent;
         releaseHold();
         const t = ke.target as HTMLElement | null;
-        if (NAV_KEYS.has(ke.key) && !(t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName ?? ''))) settle?.activity();
+        if (NAV_KEYS.has(ke.key) && !(t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName ?? ''))) {
+          // The keyboard scrolls on its own (row arrows navigate again after this, in VirtualLog).
+          cancelNav();
+          settle?.activity();
+        }
       });
       ro?.observe(el);
       width = el.clientWidth;
@@ -404,10 +448,11 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     shift,
     distanceFromBottom: () => logical(),
     distanceFromTop: () => {
-      version();
-      const d = layout.total() + runway() - viewH() - logical();
-      return o.hasOlder?.() ? Math.max(1, d) : d;
+      // The committed extent, not the rows' total: a runway stays drawn until the scroller rests.
+      const d = extent() - viewH() - p();
+      return o.hasOlder?.() || committedRunway > 0 ? Math.max(1, d) : d;
     },
+    lastScrollDelta: () => lastDelta,
     inViewKey: () => {
       version();
       if (layout.count === 0) return null;

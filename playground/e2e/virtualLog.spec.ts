@@ -81,12 +81,12 @@ async function wheelOver(page: Page, dy: number): Promise<void> {
   await page.mouse.wheel(0, dy);
 }
 
-/** Scroll writes made while the user was scrolling: between a wheel or scroll event and 50ms after the last. */
+/**
+ * Scroll writes made while anything was scrolling, judged independently of the log's own busy flag: a write with a
+ * wheel or scroll event in the 100ms before it. (A write's own scroll event comes after it.)
+ */
 async function writesDuringScrolling(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const act = window.__activity;
-    return window.__writes.filter((w) => act.some((a) => a.kind === 'wheel' && a.t <= w.t) && act.some((a) => a.t <= w.t && w.t - a.t < 50 && a.kind === 'wheel')).length;
-  });
+  return page.evaluate(() => window.__writes.filter((w) => window.__activity.some((a) => a.t <= w.t && w.t - a.t < 100)).length);
 }
 
 test('wheeling up through paging and loading media: the rows read move only by the wheel', async ({ page }) => {
@@ -168,4 +168,16 @@ test('arrow keys move focus between rows', async ({ page }) => {
   await page.keyboard.press('ArrowUp');
   await expect(page.locator(`${SCROLLER} [data-row-key="m1998"]`)).toBeFocused();
   await expect(page.locator(`${SCROLLER} [data-row-key="m1998"]`)).toHaveAttribute('tabindex', '0');
+});
+
+test('hiding the log (a tab switch, a folded panel) and showing it again keeps the reading position', async ({ page }) => {
+  await page.evaluate(() => window.__vlogCtl.following(false));
+  await wheelOver(page, -1500);
+  await settled(page, 300);
+  const ref = await reference(page);
+  await page.evaluate((sel) => ((document.querySelector(sel) as HTMLElement).style.display = 'none'), SCROLLER);
+  await page.waitForTimeout(400);
+  await page.evaluate((sel) => ((document.querySelector(sel) as HTMLElement).style.display = 'flex'), SCROLLER);
+  await settled(page, 300);
+  expect(Math.abs((await topOf(page, ref.n))! - ref.top)).toBeLessThanOrEqual(1);
 });

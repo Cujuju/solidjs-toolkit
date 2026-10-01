@@ -15,14 +15,12 @@ export interface SettleOptions {
   onSettle: () => void;
   quietMs?: number;
   quietFrames?: number;
-  /** A touch with no move or scroll for this long is treated as lost (its end went to a removed node). */
-  touchWatchdogMs?: number;
 }
 
 export interface Settle {
   /** Scroll, wheel, navigation key or touch move. */
   activity(): void;
-  /** Touch points now down (from touchstart / touchend / touchcancel). */
+  /** Touch points now down (from touchstart / touchmove / touchend / touchcancel). A finger resting holds it busy. */
   touches(count: number): void;
   /** A mouse or pen button down on the scroller (scrollbar drag), or released anywhere. */
   pointer(down: boolean): void;
@@ -32,12 +30,10 @@ export interface Settle {
 
 export const QUIET_MS = 150;
 export const QUIET_FRAMES = 3;
-export const TOUCH_WATCHDOG_MS = 1000;
 
 export function createSettle(o: SettleOptions): Settle {
   const quietMs = o.quietMs ?? QUIET_MS;
   const quietFrames = o.quietFrames ?? QUIET_FRAMES;
-  const watchdogMs = o.touchWatchdogMs ?? TOUCH_WATCHDOG_MS;
   let touchCount = 0;
   let pointerDown = false;
   let lastActivity = -Infinity;
@@ -56,7 +52,6 @@ export function createSettle(o: SettleOptions): Settle {
       lastActivity = t;
       quiet = 0;
     }
-    if (touchCount > 0 && t - lastActivity >= watchdogMs) touchCount = 0;
     const held = touchCount > 0 || pointerDown || !o.inBounds();
     if (held || t - lastActivity < quietMs) quiet = 0;
     else quiet++;
