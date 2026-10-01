@@ -441,7 +441,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       lastDelta = n - prev;
       // A correction held while scrolling (posts that arrived, rows below that grew) puts the newest rows past the
       // native bottom. Nearing it, fold the correction away in step with the scroll, so the newest row arrives exactly
-      // at the bottom: content runs up to 1.5x the scroll there, never jumps, and there is no false bottom to stop at.
+      // at the bottom: content runs up to 2x the scroll there, never jumps, and there is no false bottom to stop at.
       const zone = untrack(viewH) + 2 * Math.abs(s);
       if (s !== 0 && n < prev && n < zone) {
         const folded = (s * Math.max(0, n)) / Math.min(prev, zone);
