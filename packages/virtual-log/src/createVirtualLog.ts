@@ -337,14 +337,24 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     const n = native();
     ownWrites = ownWrites.filter((w) => now - w.at < OWN_WRITE_MS);
     const own = ownWrites.findIndex((w) => Math.abs(w.p - n) < OWN_WRITE_PX);
+    const prev = untrack(p);
+    let s = untrack(shift);
     if (own >= 0) {
       ownWrites.splice(own, 1);
       lastDelta = 0;
     } else {
       settle?.activity();
-      lastDelta = n - untrack(p);
+      lastDelta = n - prev;
+      // A correction held while scrolling (posts that arrived, rows below that grew) puts the newest rows past the
+      // native bottom. Nearing it, fold the correction away in step with the scroll, so the newest row arrives exactly
+      // at the bottom: content runs up to 1.5x the scroll there, never jumps, and there is no false bottom to stop at.
+      const zone = untrack(viewH) + 2 * Math.abs(s);
+      if (s !== 0 && n < prev && n < zone) s = (s * Math.max(0, n)) / Math.min(prev, zone);
     }
-    setP(n);
+    batch(() => {
+      setP(n);
+      setShift(s);
+    });
     captureAnchors();
     void checkOlder();
   };
