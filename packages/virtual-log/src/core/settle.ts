@@ -13,6 +13,8 @@ export interface SettleOptions {
   /** False during an overscroll bounce. */
   inBounds: () => boolean;
   onSettle: () => void;
+  /** True when no momentum can be running (the view resting against an end): settle on quiet frames alone. */
+  restingAtEnd?: () => boolean;
   quietMs?: number;
   quietFrames?: number;
 }
@@ -53,7 +55,7 @@ export function createSettle(o: SettleOptions): Settle {
       quiet = 0;
     }
     const held = touchCount > 0 || pointerDown || !o.inBounds();
-    if (held || t - lastActivity < quietMs) quiet = 0;
+    if (held || (t - lastActivity < quietMs && !o.restingAtEnd?.())) quiet = 0;
     else quiet++;
     if (!held && quiet >= quietFrames) {
       looping = false;

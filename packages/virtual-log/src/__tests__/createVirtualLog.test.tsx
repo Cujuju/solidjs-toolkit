@@ -174,13 +174,16 @@ describe('createVirtualLog', () => {
       await h.settle();
       const onScreen = ['r70', 'r71', 'r72', 'r73', 'r74'];
       const before = onScreen.map((k) => h.rowEl(k));
+      const at = () => h.log().startOf('r72') - h.log().distanceFromBottom();
+      const was = at();
       h.touch('touchstart', 1);
       h.resize({ r80: 320, r81: 320, r82: 320, r83: 320 });
       expect(h.log().shift()).toBe(1200);
       h.touch('touchend', 0);
       await h.settle();
       expect(h.log().shift()).toBe(0);
-      expect(h.native()).toBe(1700);
+      // Settling also rescales estimates (measured rows ran large): the offset differs, the view does not.
+      expect(at()).toBeCloseTo(was, 6);
       // The same nodes, not equal ones: a recreated row reloads its media.
       expect(onScreen.map((k, i) => h.rowEl(k) === before[i])).toEqual([true, true, true, true, true]);
     });
@@ -267,5 +270,50 @@ describe('createVirtualLog', () => {
       await h.flush();
       expect(h.native()).toBe(0);
     });
+  });
+
+  it('loads newer rows as the bottom nears while hasNewer, once at a time', async () => {
+    let calls = 0;
+    const h = mount(rowsOf(100, 20), { hasNewer: () => true, loadNewer: () => (calls++, new Promise<void>(() => {})) });
+    await h.flush();
+    // At the bottom of the loaded rows: near.
+    expect(calls).toBe(1);
+    h.userScrollTo(10);
+    h.userScrollTo(20);
+    expect(calls).toBe(1);
+  });
+
+  it('does not load newer rows far from the bottom, or without hasNewer', async () => {
+    let calls = 0;
+    const [hasNewer, setHasNewer] = createSignal(false);
+    const h = mount(rowsOf(100, 20), { hasNewer, loadNewer: async () => void calls++ });
+    await h.flush();
+    h.userScrollTo(1500);
+    setHasNewer(true);
+    h.userScrollTo(1490);
+    expect(calls).toBe(0);
+    h.userScrollTo(100);
+    expect(calls).toBe(1);
+  });
+
+  it('while newer rows remain, rows added below mid-scroll take the bottom runway: no shift, and an invisible refill at rest', async () => {
+    const h = mount(rowsOf(50, 20), { hasNewer: () => true, loadNewer: () => new Promise<void>(() => {}), runwayPx: 300 });
+    await h.flush();
+    h.log().scrollToBottom();
+    expect(h.native()).toBe(300);
+    h.userScrollTo(600);
+    await h.settle();
+    const top = h.log().startOf('r20') - h.log().distanceFromBottom();
+    h.touch('touchstart', 1);
+    h.setRows([...h.rows(), ...rowsOf(10, 20, 'n')]);
+    await h.flush();
+    expect(h.log().shift()).toBe(0);
+    expect(h.log().startOf('r20') - h.log().distanceFromBottom()).toBe(top);
+    h.touch('touchend', 0);
+    h.writes.length = 0;
+    await h.settle();
+    // Refilled: rows below grew the content by 200, so one write keeps the view where it was.
+    expect(h.writes).toEqual([800]);
+    expect(h.log().startOf('r20') - h.log().distanceFromBottom()).toBe(top);
   });
 });

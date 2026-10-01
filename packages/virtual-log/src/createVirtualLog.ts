@@ -25,7 +25,12 @@ export interface VirtualLogOptions<R> {
   loadOlder?: () => Promise<unknown>;
   /** Load older rows when the top edge is within this many rows of the oldest, or two viewports; default 10. */
   olderThreshold?: number;
-  /** Blank space above the oldest row while `hasOlder`, so a fling isn't stopped at the loaded top; default 3 viewports. */
+  /** Newer rows exist beyond the newest loaded (a log opened around an older row). */
+  hasNewer?: Accessor<boolean>;
+  /** Appends newer rows; called as the bottom edge nears the newest loaded row, as loadOlder is at the top. */
+  loadNewer?: () => Promise<unknown>;
+  /** Blank space above the oldest row while `hasOlder` (and below the newest while `hasNewer`), so a fling isn't stopped
+   * at the loaded edge while more loads; default 3 viewports. */
   runwayPx?: number;
   /** Changing it (density, font size) marks every measurement stale. */
   layoutKey?: Accessor<unknown>;
@@ -64,6 +69,8 @@ export interface VirtualLogController<R> {
   isScrolling: () => boolean;
   /** Loads older rows if the top is near; coalesced. */
   checkOlder: () => Promise<void>;
+  /** Loads newer rows if the bottom is near and `hasNewer()`; coalesced. */
+  checkNewer: () => Promise<void>;
   /** @internal VirtualLog's canvas. */
   attachCanvas: (el: HTMLElement) => void;
   /** @internal VirtualLog's rows. */
@@ -75,6 +82,16 @@ export interface VirtualLogController<R> {
 const DEFAULT_OLDER_THRESHOLD = 10;
 const DEFAULT_OVERSCAN = 4;
 const DEFAULT_RUNWAY_VIEWPORTS = 3;
+/** Newer rows load when the newest loaded is within this many viewports below the view. */
+const NEWER_LOOKAHEAD_VIEWPORTS = 4;
+/** Folding a held correction moves content at most this much faster than the scroll. */
+const MAX_FOLD = 0.5;
+/** An offset this close past an end is at the end (engines round; WebKit rests 1px past the bottom). */
+const END_SLOP_PX = 2;
+const MIN_ESTIMATE_SCALE = 0.5;
+const MAX_ESTIMATE_SCALE = 4;
+/** Estimates are rescaled at rest only when the measured ratio moved by more than this. */
+const ESTIMATE_SCALE_STEP = 0.05;
 /** A scroll event this close to a position we wrote, this soon after, is our own. */
 const OWN_WRITE_PX = 1;
 const OWN_WRITE_MS = 250;
@@ -114,6 +131,18 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   let width = 0;
   /** The runway in the committed extent: the top is only real once it is gone. */
   let committedRunway = 0;
+  /**
+   * Blank space under the newest row while newer rows remain (`hasNewer`). Bottom-anchored, every row added or grown below
+   * the view would otherwise move the view up; mid-scroll that is a correction held in shift, and a whole page of
+   * newer rows held there leaves them past a false bottom. Instead they take this space, and nothing moves. Refilled at rest.
+   */
+  let bottomRunway = 0;
+  const bottomRunwayTarget = (): number => (o.hasNewer?.() ? (o.runwayPx ?? 2 * DEFAULT_RUNWAY_VIEWPORTS * untrack(viewH)) : 0);
+  /** Sets the bottom runway; the layout's end padding is the caller's plus it. */
+  const setBottomRunway = (px: number): void => {
+    bottomRunway = px;
+    layout.setEndPadding(untrack(endPadding) + px);
+  };
   let lastDelta = 0;
   let alive = true;
   onCleanup(() => (alive = false));
@@ -130,11 +159,14 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
         now: () => performance.now(),
         frame: nextFrame,
         offset: native,
+        // A bounce goes far past an end; WebKit also rests a pixel past the bottom of a column-reverse scroller.
         inBounds: () => {
           const n = native();
-          return n >= -0.5 && n <= maxNative() + 0.5;
+          return n >= -END_SLOP_PX && n <= maxNative() + END_SLOP_PX;
         },
         onSettle: () => settled(),
+        // Stopped against the bottom holding a correction (a false bottom): no momentum to wait out, so commit now.
+        restingAtEnd: () => native() <= END_SLOP_PX && Math.abs(untrack(shift)) >= 1,
       })
     : null;
   onCleanup(() => settle?.dispose());
@@ -209,17 +241,53 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       setVersion(0);
       // Hidden, there is no view to keep: the next showing relays out.
       if (!scroller || hidden()) return;
-      const desired = desiredAfterChange();
-      if (busy()) setShift(desired - untrack(p));
-      else commit(desired);
+      // At rest the runway is refilled (or removed); the anchors captured before keep the view where it was.
+      if (!busy() && bottomRunway !== bottomRunwayTarget()) setBottomRunway(bottomRunwayTarget());
+      let desired = desiredAfterChange();
+      if (busy()) {
+        // Rows added or grown below the view take the bottom runway instead of moving the view.
+        const delta = desired - untrack(logical);
+        const reading = untrack(heldKey) === null && !pendingNav && !untrack(following);
+        if (reading && (bottomRunway > 0 || (delta < 0 && untrack(o.hasNewer ?? (() => false))))) {
+          const left = Math.max(0, bottomRunway - delta);
+          desired -= bottomRunway - left;
+          setBottomRunway(left);
+        }
+        setShift(desired - untrack(p));
+      } else commit(desired);
       captureAnchors();
     });
-    void checkOlder();
+    void checkEdges();
   };
 
   function settled(): void {
     if (!scroller || !alive) return;
+    // One batch: the drawn range must see the relaid rows and the committed offset together.
+    batch(settleNow);
+    void checkEdges();
+  }
+
+  function settleNow(): void {
     let L = untrack(logical);
+    // At rest: refill the bottom runway, and scale estimates by how measured rows compared with theirs (after a jump,
+    // rows not yet measured below the view otherwise grow into it as they are drawn). The view keeps its place.
+    let relaid = false;
+    if (bottomRunway !== bottomRunwayTarget()) {
+      setBottomRunway(bottomRunwayTarget());
+      relaid = true;
+    }
+    const ratio = layout.measuredRatio();
+    if (ratio !== null) {
+      const f = clamp(ratio, MIN_ESTIMATE_SCALE, MAX_ESTIMATE_SCALE);
+      if (Math.abs(f - layout.estimateScale) > ESTIMATE_SCALE_STEP) {
+        layout.setEstimateScale(f);
+        relaid = true;
+      }
+    }
+    if (relaid) {
+      setVersion(0);
+      L = (topSnap && anchoredOffset(layout, topSnap)) ?? L;
+    }
     if (followPending && untrack(following)) L = 0;
     followPending = false;
     // A navigation still refining gets this one last placement.
@@ -228,7 +296,6 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     if (nav) L = alignedOffset(layout, nav.key, nav.align, L, untrack(viewH), untrack(endPadding)) ?? L;
     commit(L);
     captureAnchors();
-    void checkOlder();
   }
 
   // Rows: sizes stay with their keys; the anchors captured before the change say where the view goes.
@@ -245,13 +312,14 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   );
   createEffect(
     on(endPadding, (pad) => {
-      layout.setEndPadding(pad);
+      layout.setEndPadding(pad + bottomRunway);
       relayout();
     }, { defer: true }),
   );
   if (o.layoutKey) createEffect(on(o.layoutKey, () => layout.invalidate(), { defer: true }));
   // Keeps the runway in step with hasOlder once at rest.
   if (o.hasOlder) createEffect(on(o.hasOlder, () => !busy() && relayout(), { defer: true }));
+  if (o.hasNewer) createEffect(on(o.hasNewer, () => !busy() && relayout(), { defer: true }));
 
   // Measurement: rows report their border-box height; one batch, one relayout.
   const elKey = new Map<Element, string>();
@@ -298,7 +366,29 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     });
     // The runway is sized by the viewport, and rows may have changed while hidden: recommit at rest.
     if (!busy()) relayout();
-    else void checkOlder();
+    else void checkEdges();
+  };
+
+  let inflightNewer: Promise<void> | null = null;
+  const checkNewer = (): Promise<void> => {
+    if (inflightNewer) return inflightNewer;
+    if (!alive || !o.loadNewer || !o.hasNewer?.() || !scroller || hidden() || layout.count === 0) return Promise.resolve();
+    const L = untrack(logical);
+    const near = layout.count - 1 - layout.indexAt(L) <= threshold || L - bottomRunway < NEWER_LOOKAHEAD_VIEWPORTS * untrack(viewH);
+    if (!near) return Promise.resolve();
+    const before = layout.count;
+    inflightNewer = o.loadNewer().then(
+      () => {
+        inflightNewer = null;
+        if (layout.count !== before) queueMicrotask(() => void checkNewer());
+      },
+      () => void (inflightNewer = null),
+    );
+    return inflightNewer;
+  };
+  const checkEdges = (): void => {
+    void checkOlder();
+    void checkNewer();
   };
 
   let inflight: Promise<void> | null = null;
@@ -349,14 +439,19 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       // native bottom. Nearing it, fold the correction away in step with the scroll, so the newest row arrives exactly
       // at the bottom: content runs up to 1.5x the scroll there, never jumps, and there is no false bottom to stop at.
       const zone = untrack(viewH) + 2 * Math.abs(s);
-      if (s !== 0 && n < prev && n < zone) s = (s * Math.max(0, n)) / Math.min(prev, zone);
+      if (s !== 0 && n < prev && n < zone) {
+        const folded = (s * Math.max(0, n)) / Math.min(prev, zone);
+        // Never faster than 1.5x the scroll, even when a correction lands near the bottom.
+        const most = MAX_FOLD * (prev - n);
+        s = Math.abs(s - folded) <= most ? folded : s - Math.sign(s) * most;
+      }
     }
     batch(() => {
       setP(n);
       setShift(s);
     });
     captureAnchors();
-    void checkOlder();
+    void checkEdges();
   };
 
   const touchCount = (e: TouchEvent): void => settle?.touches(e.touches.length);
@@ -502,11 +597,12 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       setHeldKey(null);
       pendingNav = null;
       followPending = false;
-      commit(0);
+      commit(bottomRunway);
       captureAnchors();
     },
     isScrolling: busy,
     checkOlder,
+    checkNewer,
     attachCanvas: (el) => {
       canvas = el;
     },

@@ -34,6 +34,8 @@ declare global {
       /** Rewrites a message to this many words (an edit, a reaction row, an unfurled embed: its height changes). */
       edit: (n: number, words: number) => void;
       remove: (n: number) => void;
+      /** Opens a window of PAGE rows around message n, short of the newest, as a jump does. */
+      openAround: (n: number) => void;
       /** Loads the next older page now. */
       loadOlder: () => Promise<void>;
     };
@@ -44,16 +46,27 @@ export function VirtualLogPage(): JSX.Element {
   // The newest page, as a chat opens.
   const [oldest, setOldest] = createSignal(TOTAL - PAGE);
   const [newest, setNewest] = createSignal(TOTAL);
+  /** The newest message that exists; ahead of `newest` after a jump into history (openAround). */
+  const [live, setLive] = createSignal(TOTAL);
+  let newerDelay = 200;
   // Edits and deletions, as other people make them.
   const [edits, setEdits] = createSignal<Record<number, number>>({});
   const [removed, setRemoved] = createSignal<Record<number, true>>({});
+  // One object per message while it is unchanged, as a real store keeps them: a row isn't redrawn when others arrive.
+  const cache = new Map<string, Msg>();
   const rows = createMemo(() =>
     Array.from({ length: newest() - oldest() }, (_, i) => oldest() + i)
       .filter((n) => !removed()[n])
       .map((n) => {
-        const m = msg(n);
         const words = edits()[n];
-        return words === undefined ? m : { ...m, text: Array.from({ length: words }, (_, i) => WORDS[(n + i) % WORDS.length]).join(' ') };
+        const id = `${n}:${words ?? ''}`;
+        let m = cache.get(id);
+        if (!m) {
+          m = msg(n);
+          if (words !== undefined) m = { ...m, text: Array.from({ length: words }, (_, i) => WORDS[(n + i) % WORDS.length]).join(' ') };
+          cache.set(id, m);
+        }
+        return m;
       }),
   );
   let olderDelay = 300;
@@ -68,18 +81,34 @@ export function VirtualLogPage(): JSX.Element {
     await new Promise((r) => setTimeout(r, olderDelay));
     setOldest((o) => Math.max(0, o - PAGE));
   };
+  const loadNewer = async (): Promise<void> => {
+    if (newest() >= live()) return;
+    await new Promise((r) => setTimeout(r, newerDelay));
+    setNewest((n) => Math.min(live(), n + PAGE));
+  };
   const log = createVirtualLog<Msg>({
     rows,
     estimateSize: 44,
     endPadding: 12,
     hasOlder: () => oldest() > 0,
     loadOlder,
+    hasNewer: () => newest() < live(),
+    loadNewer,
     following,
   });
   createEffect(() => setAtNewest(log.distanceFromBottom() < 2));
   window.__vlog = log;
   window.__vlogCtl = {
-    append: () => setNewest((n) => n + 1),
+    // A post: shown at once while the window reaches the newest; otherwise it waits to be paged in.
+    append: () => {
+      if (newest() >= live()) setNewest((n) => n + 1);
+      setLive((n) => n + 1);
+    },
+    openAround: (n) => {
+      setOldest(n - PAGE / 2);
+      setNewest(n + PAGE / 2);
+      queueMicrotask(() => log.holdRow(`m${n}`));
+    },
     olderDelayMs: (ms) => (olderDelay = ms),
     mediaDelayMs: (ms) => (mediaDelay = ms),
     following: setFollowAllowed,

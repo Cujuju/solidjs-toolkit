@@ -18,6 +18,7 @@ declare global {
       loadOlder(): Promise<void>;
       mediaDelayMs(ms: number): void;
       olderDelayMs(ms: number): void;
+      openAround(n: number): void;
     };
     __chaos?: number;
   }
@@ -253,5 +254,32 @@ for (const [speed, px] of [['slowly', 3], ['quickly', 30]] as const) {
     expect(reachedWhileScrolling, 'the newest post reached the bottom while still scrolling').toBe(true);
     // Folding the held correction speeds the content up to 1.5x the scroll near the bottom, never more, never back.
     expectRigid(fs, 'newer', px * 2 * 1.5 + 1, `posts then down ${speed}`);
+  });
+}
+
+for (const [speed, px] of [['slowly', 8], ['quickly', 30]] as const) {
+  test(`after a jump into history, scrolling down ${speed} pages newer messages in up to the latest, posts included`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.evaluate(() => window.__vlogCtl.following(false));
+    await page.evaluate(() => window.__vlogCtl.openAround(1820));
+    await atRest(page, 800);
+    const box = (await page.locator(SCROLLER).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await startRecording(page);
+    let reached = false;
+    for (let i = 0; i < Math.ceil(20_000 / px) && !reached; i++) {
+      if (i === 30 || i === 60) await page.evaluate(() => window.__vlogCtl.append());
+      await page.mouse.wheel(0, px);
+      await page.waitForTimeout(16);
+      if (i % 10 === 0)
+        reached = await page.evaluate((sel) => {
+          const s = document.querySelector(sel)!.getBoundingClientRect();
+          const newest = document.querySelector(`${sel} [data-msg="2001"]`)?.getBoundingClientRect();
+          return !!newest && s.bottom - newest.bottom > 8 && s.bottom - newest.bottom < 16;
+        }, SCROLLER);
+    }
+    const fs = await stopRecording(page);
+    expect(reached, 'scrolled all the way to the latest post').toBe(true);
+    expectRigid(fs, 'newer', px * 2 * 1.5 + 1, `jump then down ${speed}`);
   });
 }

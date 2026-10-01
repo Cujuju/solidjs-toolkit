@@ -17,6 +17,11 @@ export interface Layout {
   setSize(key: string, px: number): boolean;
   /** Marks every measurement as stale (width changed): kept as the estimate until measured again. */
   invalidate(): void;
+  /** How measured rows compare with their estimates (measured total / estimated total), or null with none measured. */
+  measuredRatio(): number | null;
+  /** Scales the estimate of every row not yet measured. */
+  setEstimateScale(f: number): void;
+  readonly estimateScale: number;
   setEndPadding(px: number): void;
   readonly count: number;
   keyAt(index: number): string;
@@ -43,10 +48,11 @@ export function createLayout(estimate: (key: string, index: number) => number, e
   let totalPx = endPadding;
   let pad = endPadding;
   let dirty = true;
+  let scale = 1;
 
   const sizeAt = (i: number): number => {
     const key = keys[i]!;
-    return sizes.get(key) ?? estimate(key, i);
+    return sizes.get(key) ?? estimate(key, i) * scale;
   };
 
   const rebuild = (): void => {
@@ -96,6 +102,26 @@ export function createLayout(estimate: (key: string, index: number) => number, e
     },
     invalidate() {
       fresh = new Set();
+    },
+    measuredRatio() {
+      let got = 0;
+      let guessed = 0;
+      for (const key of fresh) {
+        const i = indexByKey.get(key);
+        const size = sizes.get(key);
+        if (i === undefined || size === undefined) continue;
+        got += size;
+        guessed += estimate(key, i);
+      }
+      return guessed > 0 ? got / guessed : null;
+    },
+    setEstimateScale(f) {
+      if (f === scale) return;
+      scale = f;
+      dirty = true;
+    },
+    get estimateScale() {
+      return scale;
     },
     setEndPadding(px) {
       if (px === pad) return;
