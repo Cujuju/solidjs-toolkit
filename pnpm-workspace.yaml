@@ -4,3 +4,7 @@ packages:
   # Live dev harness. Private, never published — consumes the packages from source
   # via workspace:* so an edit in packages/*/src hot-reloads without a build.
   - 'playground'
+
+allowBuilds:
+  # Its postinstall checks the platform binary Vite runs.
+  esbuild: true
