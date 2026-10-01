@@ -55,4 +55,6 @@ move between rows; the ContextMenu key or Shift+F10 calls `onRowMenu(rowEl)`.
 
 - A correction taken mid-scroll can leave up to `shift` px at the newest end out of reach until the scroller rests.
 - A fling longer than the runway still stops at the loaded top.
+- Media without a reserved size grows after it loads, and the rows around it move by that growth (above it while
+  following the newest row, below it otherwise). Reserve media boxes where the size is known.
 - Playwright's WebKit is not iOS: check momentum and rubber-banding on a device.

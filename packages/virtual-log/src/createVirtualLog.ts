@@ -166,9 +166,12 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       setExtent(total);
       // Written now, not when the signal reaches the DOM: the offset below is clamped against it.
       if (canvas) canvas.style.height = `${total}px`;
-      writeNative(clamp(L, 0, maxNative()));
-      // A remainder past either end is dropped: a gap kept in shift would never close.
-      setShift(0);
+      const target = clamp(L, 0, maxNative());
+      writeNative(target);
+      // A remainder past either end is dropped (a gap kept in shift would never close); a sub-pixel one, from an engine
+      // that keeps whole-pixel offsets, stays in shift so nothing moves by it.
+      const rest = target - native();
+      setShift(Math.abs(rest) < 1 ? rest : 0);
     });
   };
 

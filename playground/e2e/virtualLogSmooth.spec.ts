@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { SCROLLER, startRecording, steps, stopRecording, untiled, type Frame } from './frameRecorder';
 
 /**
  * Smoothness, frame by frame. A recorder samples every on-screen row's bottom edge each animation frame (rows are bottom-anchored: one growing
@@ -8,14 +9,8 @@ import { test, expect, type Page } from '@playwright/test';
  * scroll's own, motion against the scroll, or any motion once the user has stopped (the log committing its correction).
  */
 
-const SCROLLER = '[data-testid="vlog-scroller"]';
-
-type Frame = { t: number; rows: Record<number, number>; tops: Record<number, number>; shift: number; busy: boolean };
-
 declare global {
   interface Window {
-    __frames: Frame[];
-    __recording: boolean;
     __vlog: { isScrolling(): boolean; shift(): number; distanceFromBottom(): number };
     __vlogCtl: { olderDelayMs(ms: number): void; mediaDelayMs(ms: number): void };
   }
@@ -27,73 +22,10 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/#/virtual-log');
   await expect(page.locator(`${SCROLLER} [data-msg]`).first()).toBeVisible();
   await page.waitForTimeout(500);
-  await page.evaluate((sel) => {
-    window.__frames = [];
-    window.__recording = true;
-    const scroller = document.querySelector(sel)!;
-    const sample = (): Frame => {
-      const s = scroller.getBoundingClientRect();
-      const rows: Record<number, number> = {};
-      const tops: Record<number, number> = {};
-      for (const el of scroller.querySelectorAll<HTMLElement>('[data-msg]')) {
-        const b = el.getBoundingClientRect();
-        // On screen only: rows in the overscan can't pop where anyone sees them.
-        if (b.bottom > s.top + 1 && b.top < s.bottom - 1) {
-          rows[Number(el.dataset['msg'])] = b.bottom - s.top;
-          tops[Number(el.dataset['msg'])] = b.top - s.top;
-        }
-      }
-      return { t: performance.now(), rows, tops, shift: window.__vlog.shift(), busy: window.__vlog.isScrolling() };
-    };
-    // Frame callbacks run before resize observers, so a size change seen there may not be corrected yet; this observer,
-    // made after the log's, samples again after its correction: the state that is painted.
-    let painted: Frame | null = null;
-    const ro = new ResizeObserver(() => void (painted = sample()));
-    const watch = (): void => scroller.querySelectorAll('[data-row-key]').forEach((e) => ro.observe(e));
-    new MutationObserver(watch).observe(scroller, { childList: true, subtree: true });
-    watch();
-    const tick = (): void => {
-      if (painted) window.__frames.push(painted);
-      if (!window.__recording) return;
-      painted = sample();
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }, SCROLLER);
+  await startRecording(page);
 });
 
-async function frames(page: Page): Promise<Frame[]> {
-  return page.evaluate(() => {
-    window.__recording = false;
-    return window.__frames;
-  });
-}
-
-/**
- * Per frame, how far the content moved: the median step of rows on screen in both frames (rows growing in view move
- * their neighbours below them, which the median ignores), and the step of the row at the view's top edge, the one read.
- */
-function steps(fs: Frame[]): { i: number; median: number; top: number; spread: number }[] {
-  const out = [];
-  for (let i = 1; i < fs.length; i++) {
-    const a = fs[i - 1]!.rows;
-    const b = fs[i]!.rows;
-    const common = Object.keys(a).filter((k) => k in b);
-    if (common.length === 0) continue;
-    const d = common.map((k) => b[Number(k)]! - a[Number(k)]!).sort((x, y) => x - y);
-    const topKey = common.reduce((m, k) => (a[Number(k)]! < a[Number(m)]! ? k : m));
-    out.push({ i, median: d[d.length >> 1]!, top: b[Number(topKey)]! - a[Number(topKey)]!, spread: d[d.length - 1]! - d[0]! });
-  }
-  return out;
-}
-
-/** Rows on screen tile it: each meets the next with no gap or overlap, none missing. Returns the frames that don't. */
-function untiled(fs: Frame[]): number[] {
-  return fs.flatMap((f, i) => {
-    const ns = Object.keys(f.rows).map(Number).sort((a, b) => a - b);
-    return ns.some((n, j) => j > 0 && (n !== ns[j - 1]! + 1 || Math.abs(f.tops[n]! - f.rows[ns[j - 1]!]!) > 1)) ? [i] : [];
-  });
-}
+const frames = stopRecording;
 
 /** Fails on a jump: a step more than `maxStep`, content moving down while scrolling toward older rows, or a torn frame. */
 function expectSmooth(fs: Frame[], dir: 'older' | 'newer', maxStep: number, label: string): void {

@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onMount, type JSX } from 'solid-js';
+import { createEffect, createMemo, createSignal, onMount, type JSX } from 'solid-js';
 import { createVirtualLog, VirtualLog } from '@cujuju/solidjs-virtual-log';
 import { Code } from '../ui';
 
@@ -26,7 +26,17 @@ function Media(props: { px: number; delayMs: number }): JSX.Element {
 declare global {
   interface Window {
     __vlog?: ReturnType<typeof createVirtualLog<Msg>>;
-    __vlogCtl?: { append: () => void; olderDelayMs: (ms: number) => void; mediaDelayMs: (ms: number) => void; following: (v: boolean) => void };
+    __vlogCtl?: {
+      append: () => void;
+      olderDelayMs: (ms: number) => void;
+      mediaDelayMs: (ms: number) => void;
+      following: (v: boolean) => void;
+      /** Rewrites a message to this many words (an edit, a reaction row, an unfurled embed: its height changes). */
+      edit: (n: number, words: number) => void;
+      remove: (n: number) => void;
+      /** Loads the next older page now. */
+      loadOlder: () => Promise<void>;
+    };
   }
 }
 
@@ -34,7 +44,18 @@ export function VirtualLogPage(): JSX.Element {
   // The newest page, as a chat opens.
   const [oldest, setOldest] = createSignal(TOTAL - PAGE);
   const [newest, setNewest] = createSignal(TOTAL);
-  const rows = () => Array.from({ length: newest() - oldest() }, (_, i) => msg(oldest() + i));
+  // Edits and deletions, as other people make them.
+  const [edits, setEdits] = createSignal<Record<number, number>>({});
+  const [removed, setRemoved] = createSignal<Record<number, true>>({});
+  const rows = createMemo(() =>
+    Array.from({ length: newest() - oldest() }, (_, i) => oldest() + i)
+      .filter((n) => !removed()[n])
+      .map((n) => {
+        const m = msg(n);
+        const words = edits()[n];
+        return words === undefined ? m : { ...m, text: Array.from({ length: words }, (_, i) => WORDS[(n + i) % WORDS.length]).join(' ') };
+      }),
+  );
   let olderDelay = 300;
   let mediaDelay = 250;
   // Follows the newest row while the view is at it; a test can turn following off outright.
@@ -62,6 +83,9 @@ export function VirtualLogPage(): JSX.Element {
     olderDelayMs: (ms) => (olderDelay = ms),
     mediaDelayMs: (ms) => (mediaDelay = ms),
     following: setFollowAllowed,
+    edit: (n, words) => setEdits((e) => ({ ...e, [n]: words })),
+    remove: (n) => setRemoved((r) => ({ ...r, [n]: true })),
+    loadOlder,
   };
 
   return (
