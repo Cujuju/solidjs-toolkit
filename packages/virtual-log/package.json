@@ -1,0 +1,59 @@
+{
+  "name": "@cujuju/solidjs-virtual-log",
+  "version": "0.1.0",
+  "description": "Bottom-anchored virtual log for SolidJS (chat, logs, feeds): measured rows, no scroll writes while the user scrolls or flings (iOS-safe), older-row paging with a runway, keyboard row navigation.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "solid": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "author": "Cujuju",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cujuju/solidjs-toolkit.git",
+    "directory": "packages/virtual-log"
+  },
+  "homepage": "https://github.com/Cujuju/solidjs-toolkit/tree/main/packages/virtual-log",
+  "bugs": "https://github.com/Cujuju/solidjs-toolkit/issues",
+  "keywords": [
+    "solidjs",
+    "virtual",
+    "virtualization",
+    "virtual-scroll",
+    "chat",
+    "log",
+    "bottom-anchored",
+    "ios"
+  ],
+  "peerDependencies": {
+    "solid-js": ">=1.7.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build",
+    "prepublishOnly": "vite build"
+  },
+  "devDependencies": {
+    "@solidjs/testing-library": "^0.8.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "jsdom": "^24.0.0",
+    "vite-plugin-solid": "^2.11.12",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -31,6 +31,7 @@
     "@cujuju/solidjs-seg-buttons": "workspace:*",
     "@cujuju/solidjs-select-flyout": "workspace:*",
     "@cujuju/solidjs-tri-state-chip": "workspace:*",
+    "@cujuju/solidjs-virtual-log": "workspace:*",
     "solid-js": "^1.9.5"
   },
   "devDependencies": {

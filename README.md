@@ -24,6 +24,7 @@ Monorepo for Cujuju's SolidJS UI primitives. Each package publishes to npm under
 | [`@cujuju/solidjs-collapsible`](packages/collapsible) | Animated collapse/expand — `Collapsible`. |
 | [`@cujuju/solidjs-accordion-dock`](packages/accordion-dock) | Accordion + dock — vertical disclosure or a horizontal VS-style column dock with a rail, splitters, auto-hide flyouts, pin-to-dock, chained leaves and tear-off windows — `AccordionGroup`, `AccordionPanel`, `AccordionLeaf`. |
 | [`@cujuju/solidjs-tri-state-chip`](packages/tri-state-chip) | Tri-state filter chip — include/exclude/neutral cycling + pure state helpers (`TriStateChip`, `cycleTriState`, `applyTriState`, `tristateOf`, `EMPTY_TRI_STATE`). |
+| [`@cujuju/solidjs-virtual-log`](packages/virtual-log) | Bottom-anchored virtual log (chat, feeds) — `createVirtualLog`, `VirtualLog`. Never writes the scroll offset mid-scroll (iOS-safe); older-row paging with a runway. |
 
 ## Install (consumer)
 

@@ -26,6 +26,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: /virtualLog/,
       use: {
         ...devices['Desktop Chrome'],
         // The system Chrome, because this machine already has one and the
@@ -34,6 +35,9 @@ export default defineConfig({
         channel: 'chrome',
       },
     },
+    // The virtual log in both engines it ships in: Chromium (Electron) and WebKit (iOS WKWebView, Safari).
+    { name: 'vlog-chromium', testMatch: /virtualLog/, use: { ...devices['Desktop Chrome'] } },
+    { name: 'vlog-webkit', testMatch: /virtualLog/, use: { ...devices['Desktop Safari'] } },
   ],
   webServer: {
     // Playwright owns this server for the duration of the run and tears it down

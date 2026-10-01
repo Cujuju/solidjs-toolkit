@@ -1,6 +1,6 @@
 # solidjs-toolkit
 
-pnpm monorepo of `@cujuju/solidjs-*` SolidJS UI primitives. 18 published packages under
+pnpm monorepo of `@cujuju/solidjs-*` SolidJS UI primitives. 19 published packages under
 `packages/*`, a demo app in `playground/`, shared build/test config in `packages/_shared`
 (build-time only — not a workspace package). Per-package conventions:
 `packages/_shared/CONTRIBUTING.md`.
