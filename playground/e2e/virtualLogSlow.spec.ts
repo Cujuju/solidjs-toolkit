@@ -252,7 +252,7 @@ for (const [speed, px] of [['slowly', 3], ['quickly', 30]] as const) {
     }
     const fs = await stopRecording(page);
     expect(reachedWhileScrolling, 'the newest post reached the bottom while still scrolling').toBe(true);
-    // Folding the held correction speeds the content up to 1.5x the scroll near the bottom, never more, never back.
+    // Folding the held correction speeds the content up to 2x the scroll near the bottom, never more, never back.
     expectRigid(fs, 'newer', px * 2 * 1.5 + 1, `posts then down ${speed}`);
   });
 }

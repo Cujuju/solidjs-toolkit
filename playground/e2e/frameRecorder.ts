@@ -82,10 +82,11 @@ export function steps(fs: Frame[]): { i: number; median: number; top: number; sp
   return out;
 }
 
-/** Frames whose on-screen rows don't tile the view: a gap, an overlap or a missing row. */
+/** Frames whose on-screen rows don't tile the view: none at all, a gap, an overlap or a missing row. */
 export function untiled(fs: Frame[]): number[] {
   return fs.flatMap((f, i) => {
     const ns = Object.keys(f.rows).map(Number).sort((a, b) => a - b);
+    if (ns.length === 0) return [i];
     return ns.some((n, j) => j > 0 && (n !== ns[j - 1]! + 1 || Math.abs(f.tops[n]! - f.rows[ns[j - 1]!]!) > 1)) ? [i] : [];
   });
 }

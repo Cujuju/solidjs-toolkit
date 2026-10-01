@@ -84,8 +84,8 @@ const DEFAULT_OVERSCAN = 4;
 const DEFAULT_RUNWAY_VIEWPORTS = 3;
 /** Newer rows load when the newest loaded is within this many viewports below the view. */
 const NEWER_LOOKAHEAD_VIEWPORTS = 4;
-/** Folding a held correction moves content at most this much faster than the scroll. */
-const MAX_FOLD = 0.5;
+/** Folding a held correction adds at most this much of the scroll's own step (content at most 2x the scroll). */
+const MAX_FOLD = 1;
 /** An offset this close past an end is at the end (engines round; WebKit rests 1px past the bottom). */
 const END_SLOP_PX = 2;
 const MIN_ESTIMATE_SCALE = 0.5;
@@ -124,9 +124,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const [extent, setExtent] = createSignal(0);
   const [heldKey, setHeldKey] = createSignal<string | null>(null);
   let pendingNav: { key: string; align: Align } | null = null;
-  let followPending = false;
   let topSnap: AnchorSnap | null = null;
-  let bottomSnap: AnchorSnap | null = null;
   let ownWrites: { p: number; at: number }[] = [];
   let width = 0;
   /** The runway in the committed extent: the top is only real once it is gone. */
@@ -145,6 +143,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   };
   let lastDelta = 0;
   let alive = true;
+  let wasHidden = false;
   onCleanup(() => (alive = false));
 
   const native = (): number => (scroller ? -scroller.scrollTop : 0);
@@ -175,8 +174,6 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const captureAnchors = (): void => {
     const L = untrack(logical);
     topSnap = captureAnchor(layout, L + untrack(viewH), L, 'bottom');
-    // Following, the view's bottom edge holds: the row it cuts keeps its top, growing down past the edge.
-    bottomSnap = captureAnchor(layout, L, L, 'top');
   };
 
   const writeNative = (to: number): void => {
@@ -225,11 +222,9 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       }
     }
     if (untrack(following)) {
-      if (!busy()) return 0;
-      // At the very bottom a column-reverse scroller already holds the newest row; above it, keep the bottom edge.
-      if (L <= 0.5) return L;
-      followPending = true;
-      return (bottomSnap && anchoredOffset(layout, bottomSnap)) ?? 0;
+      // At rest, on the newest row. Mid-scroll the newest row's end holds where it is, as a column-reverse scroller
+      // keeps it natively: posts arriving push the content up then, rather than a held correction snapping it at rest.
+      return busy() ? L : bottomRunway;
     }
     // No row the view held survives (every row replaced): a new log opens at its newest row.
     return topSnap ? (anchoredOffset(layout, topSnap) ?? 0) : L;
@@ -240,7 +235,10 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     batch(() => {
       setVersion(0);
       // Hidden, there is no view to keep: the next showing relays out.
-      if (!scroller || hidden()) return;
+      if (!scroller || hidden()) {
+        wasHidden = !!scroller;
+        return;
+      }
       // At rest the runway is refilled (or removed); the anchors captured before keep the view where it was.
       if (!busy() && bottomRunway !== bottomRunwayTarget()) setBottomRunway(bottomRunwayTarget());
       let desired = desiredAfterChange();
@@ -288,8 +286,6 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       setVersion(0);
       L = (topSnap && anchoredOffset(layout, topSnap)) ?? L;
     }
-    if (followPending && untrack(following)) L = 0;
-    followPending = false;
     // A navigation still refining gets this one last placement.
     const nav = pendingNav ?? (untrack(heldKey) !== null ? { key: untrack(heldKey)!, align: 'center' as const } : null);
     pendingNav = null;
@@ -353,16 +349,23 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   });
 
   const viewport = (): void => {
-    // Hidden: keep the last view; the browser restores the offset when it shows again.
-    if (!scroller || hidden()) return;
+    // Hidden: keep the last view (and its anchors); the browser restores the offset when it shows again.
+    if (!scroller) return;
+    if (hidden()) {
+      wasHidden = true;
+      return;
+    }
     const w = scroller.clientWidth;
     if (width > 0 && w !== width) layout.invalidate();
     width = w;
+    const shown = wasHidden;
+    wasHidden = false;
     batch(() => {
       setViewH(scroller!.clientHeight);
       // A column-reverse scroller keeps its bottom edge as it resizes (a keyboard opening): nothing to correct.
       setP(native());
-      captureAnchors();
+      // Shown again: rows that came or grew while hidden are placed by the anchors from before it hid.
+      if (!shown) captureAnchors();
     });
     // The runway is sized by the viewport, and rows may have changed while hidden: recommit at rest.
     if (!busy()) relayout();
@@ -380,7 +383,8 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     inflightNewer = o.loadNewer().then(
       () => {
         inflightNewer = null;
-        if (layout.count !== before) queueMicrotask(() => void checkNewer());
+        // Rows came: check both ends again. None: this end waits for the next scroll; the other may be due.
+        queueMicrotask(() => (layout.count !== before ? checkEdges() : void checkOlder()));
       },
       () => void (inflightNewer = null),
     );
@@ -406,7 +410,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       () => {
         done();
         // Rows arrived: maybe still near the top (a short page). None: stop until the next scroll.
-        if (layout.count !== before) queueMicrotask(() => void checkOlder());
+        queueMicrotask(() => (layout.count !== before ? checkEdges() : void checkNewer()));
       },
       done,
     );
@@ -441,7 +445,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       const zone = untrack(viewH) + 2 * Math.abs(s);
       if (s !== 0 && n < prev && n < zone) {
         const folded = (s * Math.max(0, n)) / Math.min(prev, zone);
-        // Never faster than 1.5x the scroll, even when a correction lands near the bottom.
+        // Never faster than 2x the scroll, even when a correction lands near the bottom (a false bottom then: it settles at once).
         const most = MAX_FOLD * (prev - n);
         s = Math.abs(s - folded) <= most ? folded : s - Math.sign(s) * most;
       }
@@ -554,7 +558,8 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     },
     extent,
     shift,
-    distanceFromBottom: () => logical(),
+    // To the newest loaded row's end, above any bottom runway.
+    distanceFromBottom: () => (version(), logical() - bottomRunway),
     distanceFromTop: () => {
       // The committed extent, not the rows' total: a runway stays drawn until the scroller rests.
       const d = extent() - viewH() - p();
@@ -596,7 +601,6 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     scrollToBottom: () => {
       setHeldKey(null);
       pendingNav = null;
-      followPending = false;
       commit(bottomRunway);
       captureAnchors();
     },

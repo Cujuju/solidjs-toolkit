@@ -55,7 +55,7 @@ move between rows; the ContextMenu key or Shift+F10 calls `onRowMenu(rowEl)`.
 ## Limits
 
 - A correction held mid-scroll (posts arriving, rows below growing) is folded away as the view nears the newest row:
-  content runs up to 1.5x the scroll over that stretch, so the newest row arrives exactly at the bottom.
+  content runs up to 2x the scroll over that stretch, so the newest row arrives exactly at the bottom.
 - A fling longer than the runway still stops at the loaded top.
 - Media without a reserved size grows after it loads, and the rows around it move by that growth (above it while
   following the newest row, below it otherwise). Reserve media boxes where the size is known.

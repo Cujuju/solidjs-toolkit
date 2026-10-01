@@ -240,14 +240,20 @@ describe('createVirtualLog', () => {
       expect(h.native()).toBe(900);
     });
 
-    it('following above the bottom, the row cut by the bottom edge grows downward out of view', async () => {
+    it('following, mid-scroll the newest row holds its place: growth pushes content up, with no correction to snap later', async () => {
       const h = mount(rowsOf(100, 20), { following: () => true });
       await h.flush();
       h.touch('touchstart', 1);
-      // Bottom edge at 50, inside r97 (40-60).
       h.userScrollTo(50);
       h.resize({ r97: 50 });
-      expect(h.log().distanceFromBottom()).toBe(80);
+      expect(h.log().shift()).toBe(0);
+      expect(h.log().distanceFromBottom()).toBe(50);
+      h.touch('touchend', 0);
+      h.writes.length = 0;
+      await h.settle();
+      // Nothing was held, so nothing moves at rest: the view stays where the user left it.
+      expect(h.writes).toEqual([]);
+      expect(h.native()).toBe(50);
     });
 
     it('reports the user scroll delta, and 0 for its own writes', async () => {
@@ -303,17 +309,58 @@ describe('createVirtualLog', () => {
     expect(h.native()).toBe(300);
     h.userScrollTo(600);
     await h.settle();
-    const top = h.log().startOf('r20') - h.log().distanceFromBottom();
+    const view = () => h.log().startOf('r20') - (h.native() + h.log().shift());
+    const top = view();
     h.touch('touchstart', 1);
     h.setRows([...h.rows(), ...rowsOf(10, 20, 'n')]);
     await h.flush();
     expect(h.log().shift()).toBe(0);
-    expect(h.log().startOf('r20') - h.log().distanceFromBottom()).toBe(top);
+    expect(view()).toBe(top);
     h.touch('touchend', 0);
     h.writes.length = 0;
     await h.settle();
     // Refilled: rows below grew the content by 200, so one write keeps the view where it was.
     expect(h.writes).toEqual([800]);
-    expect(h.log().startOf('r20') - h.log().distanceFromBottom()).toBe(top);
+    expect(view()).toBe(top);
+  });
+
+  it('with a bottom runway, the newest loaded row is the bottom: following and distance agree', async () => {
+    const h = mount(rowsOf(50, 20), { hasNewer: () => true, loadNewer: () => new Promise<void>(() => {}), runwayPx: 300, following: () => true });
+    await h.flush();
+    expect(h.native()).toBe(300);
+    expect(h.log().distanceFromBottom()).toBe(0);
+    h.resizeView(120);
+    await h.flush();
+    expect(h.log().distanceFromBottom()).toBe(0);
+  });
+
+  it('rows that arrive while hidden are placed by the anchor from before it hid', async () => {
+    const h = mount(rowsOf(100, 20));
+    await h.flush();
+    h.userScrollTo(500);
+    await h.settle();
+    const view = () => h.log().startOf('r72') - (h.native() + h.log().shift());
+    const was = view();
+    h.resizeView(0, 0);
+    h.setRows([...h.rows(), ...rowsOf(10, 20, 'n')]);
+    await h.flush();
+    h.resizeView(100, 300);
+    await h.flush();
+    expect(view()).toBe(was);
+  });
+
+  it('when one end finishes loading, the other end is checked again', async () => {
+    let newerCalls = 0;
+    let resolveOlder!: () => void;
+    const h = mount(rowsOf(8, 20), {
+      loadOlder: () => new Promise<void>((r) => (resolveOlder = r)),
+      hasNewer: () => true,
+      loadNewer: () => (newerCalls++, Promise.reject(new Error('busy'))),
+    });
+    await h.flush();
+    const before = newerCalls;
+    resolveOlder();
+    await h.flush();
+    expect(newerCalls).toBeGreaterThan(before);
   });
 });
