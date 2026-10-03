@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-hooks",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Generic SolidJS hooks — click-outside, escape-key, hotkeys, localStorage-backed signals, media queries, observers, debounce, async status, after-paint scheduling, outside-scroll dismiss. Zero deps.",
   "type": "module",
   "main": "./dist/index.js",
