@@ -3087,7 +3087,7 @@ HEAD `src/styles.css:1261` — 134 words. Attached to: `@media (prefers-reduced-
 ```text
 /* ── What this section could NOT do from CSS alone ──
    Both gaps above want the same one-line change in
-   /mnt/e/Development/Projects/solidjs-toolkit/playground/src/mock/accordion-dock/AccordionPanel.tsx,
+   playground/src/mock/accordion-dock/AccordionPanel.tsx,
    and neither is made here because that file is owned elsewhere:
      1. Wrap `.acc-content` in a `<div class="acc-content-wrapper">` (exactly the
         element @cujuju/solidjs-collapsible has) and move `hidden` onto the

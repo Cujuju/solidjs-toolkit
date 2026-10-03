@@ -14,15 +14,10 @@
 ## Pending
 - **F005, user call**: accordion-dock devDeps `@cujuju/solid-reorder-list >=0.3.0-rc.4`, which is UNPUBLISHED (npm 404) — no npm consumer can install the package. Publish rc.4, or switch to `github:Cujuju/solid-reorder-list#v0.3.0-rc.4` and re-lock.
 - **GitHub Issues, user call**: the register was never filed (public repo + then-unpatched packages). Fixes are now pushed, so that objection is gone.
-- **Splits stopped after batch 1** on the 7-day usage budget (88%). 51 files still >300 lines: 16 source, 5 CSS, 6 playground pages, ~28 tests.
+- **Splits stopped after batch 1.** 51 files still >300 lines: 16 source, 5 CSS, 6 playground pages, ~28 tests.
 - Follow-ups recorded in the reports, none blocking: `persistence.ts` extraction (cut from the batch-1 plan), `toCssSize` deduped into hooks (5 identical copies), the 60–99-word DESIGN_NOTES tier, 4 pre-existing tsc errors (hooks TS2554, glass-menu jest-dom types, glass `@types/node`), jsdom `@layer` parse warnings (36, harmless).
 
 ## Resume path
 1. `git log --oneline 94e70f9..968ba91` is this session. Every agent report is in `.audit/reports/` (~40 files) and the running board in `.audit/HANDOFF.md`; the register itself is `.audit/inventory_final.json`. **`.audit/` is git-excluded (`.git/info/exclude`) — local only, never pushed.**
 2. Verify before touching anything: `COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm -r --workspace-concurrency=1 test` → 19 projects, 1362 tests, exit 0. The PATH `pnpm` on this box is a Windows binary; under WSL always go through `corepack`.
-3. To continue splitting: `Workflow({scriptPath: '<session>/workflows/scripts/shrink-large-files-wf_ea8ed754-387.js', resumeFromRunId: 'wf_ea8ed754-387', args: {applyMode: 'apply', files: [...]}})` — `args` MUST be a JSON object; a string is silently ignored and the run replays from cache. Batch 1 cost ~2.3M subagent tokens for 4 files.
-4. Then F005 and the Issues call above.
-
-## Cross-refs
-- Prior session (audit only, 153 findings + 47 refuted): `E:/Development/.claude-memory/project_session_handoff_2026_09_08_solidjs-toolkit-defect-register.md`
-- Register as a filterable page: https://claude.ai/code/artifact/859ebc96-bbc3-47e4-b5d5-298502a81a45
+3. To continue splitting, rerun the file-shrinking workflow on the remaining files, then F005 and the Issues call above.

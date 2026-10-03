@@ -2,10 +2,11 @@
  * Hand-run: drive the playground (dev server up, PORT=5201) to prove the row states behave, not
  * just compile — including that the disabled row is inert against a real click.
  */
-// Playwright is not a dependency — the toolkit ships no browser tests. Resolved from a sibling
-// checkout (override with PLAYWRIGHT_FROM) so this stays hand-run.
+// Playwright is not a dependency — the toolkit ships no browser tests. Resolved from a checkout that has it
+// (PLAYWRIGHT_FROM, a folder path ending in /) so this stays hand-run.
 import { createRequire } from 'node:module';
-const from = process.env.PLAYWRIGHT_FROM || 'E:/Development/Projects/StockApp/client-solid/';
+const from = process.env.PLAYWRIGHT_FROM;
+if (!from) throw new Error('Set PLAYWRIGHT_FROM to a folder (ending in /) whose node_modules has playwright.');
 const { chromium } = createRequire(from)('playwright');
 
 const PORT = process.env.PORT || '5201';
