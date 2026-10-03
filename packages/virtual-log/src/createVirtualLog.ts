@@ -144,6 +144,12 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   let lastDelta = 0;
   let alive = true;
   let wasHidden = false;
+  /**
+   * The view was on the newest row when the viewport or the end padding changed mid-scroll (a keyboard closing under a
+   * touch): the engine may leave the offset short of the bottom then, and mid-scroll nothing corrects it. At rest the view
+   * goes back to the newest row, unless the user took over meanwhile (a pointer, a key, or following let go).
+   */
+  let endAfterResize = false;
   onCleanup(() => (alive = false));
 
   const native = (): number => (scroller ? -scroller.scrollTop : 0);
@@ -170,6 +176,10 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     : null;
   onCleanup(() => settle?.dispose());
   const busy = (): boolean => settle?.busy() ?? false;
+  /** Before the viewport or the end padding changes: notes a view following at the newest row mid-scroll. */
+  const noteEndBeforeChange = (): void => {
+    if (busy() && untrack(following) && untrack(logical) - bottomRunway <= END_SLOP_PX) endAfterResize = true;
+  };
 
   const captureAnchors = (): void => {
     const L = untrack(logical);
@@ -290,6 +300,11 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     const nav = pendingNav ?? (untrack(heldKey) !== null ? { key: untrack(heldKey)!, align: 'center' as const } : null);
     pendingNav = null;
     if (nav) L = alignedOffset(layout, nav.key, nav.align, L, untrack(viewH), untrack(endPadding)) ?? L;
+    // Back on the newest row after a mid-scroll resize left the view short of it.
+    if (endAfterResize) {
+      endAfterResize = false;
+      if (!nav && untrack(following)) L = bottomRunway;
+    }
     commit(L);
     captureAnchors();
   }
@@ -308,6 +323,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   );
   createEffect(
     on(endPadding, (pad) => {
+      noteEndBeforeChange();
       layout.setEndPadding(pad + bottomRunway);
       relayout();
     }, { defer: true }),
@@ -360,9 +376,11 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     width = w;
     const shown = wasHidden;
     wasHidden = false;
+    noteEndBeforeChange();
     batch(() => {
       setViewH(scroller!.clientHeight);
-      // A column-reverse scroller keeps its bottom edge as it resizes (a keyboard opening): nothing to correct.
+      // A column-reverse scroller keeps its bottom edge as it resizes (a keyboard opening): nothing to correct at rest;
+      // mid-scroll the offset it lands on is adopted, and a view that was on the newest row goes back there at rest.
       setP(native());
       // Shown again: rows that came or grew while hidden are placed by the anchors from before it hid.
       if (!shown) captureAnchors();
@@ -424,6 +442,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const userPointer = (): void => {
     releaseHold();
     cancelNav();
+    endAfterResize = false;
   };
 
   const onScroll = (): void => {
@@ -523,6 +542,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
         if (NAV_KEYS.has(ke.key) && !(t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName ?? ''))) {
           // The keyboard scrolls on its own (row arrows navigate again after this, in VirtualLog).
           cancelNav();
+          endAfterResize = false;
           settle?.activity();
         }
       });

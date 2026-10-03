@@ -95,6 +95,47 @@ describe('createVirtualLog', () => {
     expect(h.drawn().at(-1)).toBe('new');
   });
 
+  it('following at the bottom, a viewport resize mid-touch that leaves the offset short goes back to the bottom at rest', async () => {
+    const h = mount(rowsOf(100, 20), { following: () => true });
+    await h.flush();
+    h.touch('touchstart', 1);
+    // The keyboard closing: the scroller grows and the engine lands the offset above the bottom.
+    h.scroller().scrollTop = -30;
+    h.resizeView(140);
+    expect(h.log().distanceFromBottom()).toBe(30);
+    expect(h.native()).toBe(30);
+    h.touch('touchend', 0);
+    await h.settle();
+    expect(h.log().distanceFromBottom()).toBe(0);
+    expect(h.native()).toBe(0);
+  });
+
+  it('a touch after such a resize keeps the view where the user left it', async () => {
+    const h = mount(rowsOf(100, 20), { following: () => true });
+    await h.flush();
+    h.touch('touchstart', 1);
+    h.scroller().scrollTop = -30;
+    h.resizeView(140);
+    h.touch('touchend', 0);
+    h.touch('touchstart', 1);
+    h.touch('touchend', 0);
+    await h.settle();
+    expect(h.log().distanceFromBottom()).toBe(30);
+  });
+
+  it('a resize mid-touch away from the bottom keeps the view', async () => {
+    const h = mount(rowsOf(100, 20), { following: () => false });
+    await h.flush();
+    h.userScrollTo(500);
+    await h.settle();
+    h.touch('touchstart', 1);
+    h.scroller().scrollTop = -530;
+    h.resizeView(140);
+    h.touch('touchend', 0);
+    await h.settle();
+    expect(h.log().distanceFromBottom()).toBe(530);
+  });
+
   it('holdRow centers a row and keeps it centered as it is measured, until the user scrolls', async () => {
     const h = mount(rowsOf(100, 20));
     await h.flush();
