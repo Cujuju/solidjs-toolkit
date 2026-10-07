@@ -46,8 +46,9 @@ const log = createVirtualLog({ rows, estimateSize: 44, hasOlder, loadOlder, foll
 | `layoutKey` | changing it (density, font) marks measurements stale |
 
 Returns `ref`, `keys`, `allKeys`, `rowByKey`, `startOf`, `extent`, `shift`, `distanceFromBottom`, `distanceFromTop`,
-`inViewKey`, `scrollToKey(key, { align: 'auto' | 'center' })`, `holdRow(key | null)`, `holding`, `scrollToBottom`,
-`isScrolling`, `checkOlder`.
+`inViewKey`, `bottomOf(key)`, `scrollToKey(key, { align })`, `holdRow(key | null, align?)`, `holding`, `scrollToBottom`,
+`isScrolling`, `checkOlder`. `align` is `'auto'`, `'center'` (holdRow's default) or `{ bottom }`: the row's bottom edge
+that many pixels above the view's bottom, as `bottomOf` reads it, so a saved place can be restored.
 
 `<VirtualLog log class? onRowMenu?>`: one Tab stop (the last focused row, else the newest in view); ArrowUp/ArrowDown
 move between rows; the ContextMenu key or Shift+F10 calls `onRowMenu(rowEl)`.

@@ -71,6 +71,12 @@ describe('alignedOffset', () => {
     expect(alignedOffset(make(), 'k10', 'center', 0, 40, 0)).toBe(75);
   });
 
+  it('places a row its bottom a set distance above the view bottom', () => {
+    // k10 spans 90-100: its bottom 15 above the view's bottom.
+    expect(alignedOffset(make(), 'k10', { bottom: 15 }, 0, 40, 0)).toBe(75);
+    expect(alignedOffset(make(), 'k10', { bottom: -5 }, 0, 40, 0)).toBe(95);
+  });
+
   it('auto: leaves a visible row alone, else moves the least', () => {
     const l = make();
     expect(alignedOffset(l, 'k17', 'auto', 15, 30, 0)).toBe(15);
