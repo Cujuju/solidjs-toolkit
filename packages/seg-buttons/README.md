@@ -131,6 +131,38 @@ Override any of these CSS custom properties at any ancestor level:
   --seg-focus-ring: 1px solid var(--seg-focus-ring-color);
   --seg-focus-ring-offset: -1px;
   --seg-radius: 4px;
+
+  /* Group shape (defaults: one joined, bordered strip) */
+  --seg-track-bg: transparent;      /* group background */
+  --seg-track-radius: 0px;
+  --seg-border-width: 1px;
+  --seg-bg-clip: border-box;        /* padding-box insets the fill inside the border */
+  --seg-join-overlap: -1px;         /* margin between adjacent buttons */
+  --seg-inner-radius: 0px;          /* corners where two buttons meet */
+  --seg-active-ring-width: 0px;     /* inset ring on the active button */
+  --seg-active-ring-color: transparent;
+}
+```
+
+### Track style
+
+A filled track with inset, separately rounded segments. Each button keeps its full height:
+its transparent border is the inset, and the fill is clipped inside it.
+
+```css
+:root {
+  --seg-track-bg: #1e293b;
+  --seg-track-radius: 6px;
+  --seg-inactive-bg: transparent;
+  --seg-inactive-border: transparent;
+  --seg-active-border: transparent;
+  --seg-border-width: 2px;
+  --seg-bg-clip: padding-box;
+  --seg-join-overlap: -2px;
+  --seg-radius: 6px;
+  --seg-inner-radius: 6px;
+  --seg-active-ring-width: 1px;
+  --seg-active-ring-color: #818cf8;
 }
 ```
 

@@ -21,22 +21,34 @@
     --seg-radius: 4px;
     --seg-hover-bg: rgba(255, 255, 255, 0.04);
     --seg-hover-text: #e2e8f0;
+    /* Group shape. Defaults: one joined, bordered strip. A track spends each border as
+       transparent inset, so fills sit inside it at full button height. */
+    --seg-track-bg: transparent;
+    --seg-track-radius: 0px;
+    --seg-border-width: 1px;
+    --seg-bg-clip: border-box;
+    --seg-join-overlap: -1px;
+    --seg-inner-radius: 0px;
+    --seg-active-ring-width: 0px;
+    --seg-active-ring-color: transparent;
   }
 }
 
 /* Group container — connects adjacent buttons into one visual control. */
 .csb-group {
   display: inline-flex;
+  background: var(--seg-track-bg);
+  border-radius: var(--seg-track-radius);
 }
 
 /* Buttons may sit inside a `display: contents` tooltip host, which `>` doesn't see past.
    Explicit pairs, not descendants, so nested groups stay untouched. */
 .csb-group > .csb-btn,
 .csb-group > * > .csb-btn {
-  /* Inner buttons: square corners, overlap borders by -1px. CSS logical
+  /* Inner buttons: square corners, borders overlapped (by default). CSS logical
      properties so RTL layouts flip correctly. */
-  border-radius: 0;
-  margin-inline-start: -1px;
+  border-radius: var(--seg-inner-radius);
+  margin-inline-start: var(--seg-join-overlap);
   position: relative;
 }
 
@@ -72,7 +84,8 @@
   cursor: pointer;
   white-space: nowrap;
   box-sizing: border-box;
-  border: 1px solid;
+  border: var(--seg-border-width) solid;
+  background-clip: var(--seg-bg-clip);
   padding: 0;
   font-family: inherit;
   line-height: 1;
@@ -87,6 +100,7 @@
 .csb-btn[aria-checked="true"] {
   background: var(--seg-active-bg);
   border-color: var(--seg-active-border);
+  box-shadow: inset 0 0 0 var(--seg-active-ring-width) var(--seg-active-ring-color);
   color: var(--seg-active-text);
   font-weight: var(--seg-active-weight);
 }
