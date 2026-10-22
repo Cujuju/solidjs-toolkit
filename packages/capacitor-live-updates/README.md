@@ -23,6 +23,15 @@ void startLiveUpdates({
 });
 ```
 
+When a reload would interrupt the app's startup (e.g. a token refresh), split the call:
+
+```ts
+const live = await prepareLiveUpdates(options);   // may reset() or switch bundles: the page reloads
+if (live.restarting) return;                      // start nothing
+startEngine();
+void live.confirm(engineStarted);                 // confirm once it works, then check for updates
+```
+
 - **immediate**: a newer bundle is downloaded and switched to at once (the page reloads).
 - **next-launch**: download only; the next cold start switches to it before awaiting `ready`. Not
   Capgo's `next()`, which also installs when the app goes to the background.

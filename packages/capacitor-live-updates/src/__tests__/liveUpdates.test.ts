@@ -12,7 +12,7 @@ const updater = vi.hoisted(() => ({
 }));
 vi.mock('@capgo/capacitor-updater', () => ({ CapacitorUpdater: updater }));
 
-import { startLiveUpdates, type LiveUpdatesOptions } from '../liveUpdates';
+import { prepareLiveUpdates, startLiveUpdates, type LiveUpdatesOptions } from '../liveUpdates';
 
 const FINGERPRINT = '1a2b3c4d5e6f';
 const MANIFEST_URL = 'https://example.test/manifest.json';
@@ -175,5 +175,53 @@ describe("apply: 'next-launch'", () => {
     await startLiveUpdates(options({ apply: 'next-launch', checkForUpdates: false }));
     expect(updater.set).not.toHaveBeenCalled();
     expect(updater.notifyAppReady).toHaveBeenCalled();
+  });
+});
+
+describe('prepareLiveUpdates', () => {
+  const pendingNewer = () => {
+    localStorage.setItem(`${KEY}.pending`, '3.0.0-r11');
+    updater.list.mockResolvedValue({ bundles: [{ id: 'p', version: '3.0.0-r11', status: 'pending' }] });
+  };
+
+  it.each([
+    ['a relabelled bundle is reset', () => updater.current.mockResolvedValue({ bundle: { id: 'b', version: '3.0.0-r50' } }), 'immediate'],
+    [
+      'a bundle for other native code is reset',
+      () => {
+        updater.current.mockResolvedValue({ bundle: { id: 'b', version: '3.0.0-r10' } });
+        updater.getBuiltinVersion.mockResolvedValue({ version: '3.0.0-r10-ffffffffffff' });
+      },
+      'immediate',
+    ],
+    ['the pending bundle is switched to', pendingNewer, 'next-launch'],
+  ] as const)('restarts, and never confirms, when %s', async (_, arrange, apply) => {
+    arrange();
+    const live = await prepareLiveUpdates(options({ apply }));
+    expect(live.restarting).toBe(true);
+    expect(updater.reset.mock.calls.length + updater.set.mock.calls.length).toBe(1);
+    await live.confirm(Promise.resolve());
+    expect(updater.notifyAppReady).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('decides without confirming; confirm waits for ready, once', async () => {
+    const live = await prepareLiveUpdates(options());
+    expect(live.restarting).toBe(false);
+    expect(updater.reset).not.toHaveBeenCalled();
+    expect(updater.set).not.toHaveBeenCalled();
+    await settle();
+    expect(updater.notifyAppReady).not.toHaveBeenCalled();
+
+    let done!: () => void;
+    const ready = new Promise<void>((r) => (done = r));
+    const first = live.confirm(ready);
+    const second = live.confirm(Promise.resolve());
+    await settle();
+    expect(updater.notifyAppReady).not.toHaveBeenCalled();
+    done();
+    await Promise.all([first, second]);
+    expect(updater.notifyAppReady).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledOnce();
   });
 });

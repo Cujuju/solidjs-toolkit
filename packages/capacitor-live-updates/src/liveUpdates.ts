@@ -93,14 +93,23 @@ async function applyPending(state: State, bundleRev: number): Promise<boolean> {
   return true;
 }
 
+/** The outcome of prepareLiveUpdates. */
+export interface LiveUpdates {
+  /** True: the page is reloading into another bundle (or the app's own); start nothing. */
+  restarting: boolean;
+  /** Once `ready` resolves, confirms this bundle and starts checking for updates. A no-op when restarting. */
+  confirm(ready?: Promise<unknown>): Promise<void>;
+}
+
 /**
- * Confirms this bundle once `ready` resolves (else the plugin rolls it back), then keeps the app up to
- * date from `manifestUrl`: on start and on each return to the app. A bundle that failed to start is
- * never downloaded again.
+ * Settles which bundle runs, before the app starts anything a reload would interrupt: records the last
+ * failure, resets a bundle that doesn't belong here, and (next-launch) switches to the one downloaded
+ * last session. Then `confirm` once the app works.
  */
-export async function startLiveUpdates(options: LiveUpdatesOptions): Promise<void> {
-  const { manifestUrl, bundleRev, bundleFingerprint, apply, ready, checkForUpdates = true } = options;
+export async function prepareLiveUpdates(options: Omit<LiveUpdatesOptions, 'ready'>): Promise<LiveUpdates> {
+  const { manifestUrl, bundleRev, bundleFingerprint, apply, checkForUpdates = true } = options;
   const state = createState(options.storageKey);
+  const restarting: LiveUpdates = { restarting: true, confirm: async () => {} };
   // The plugin reports each failure only once.
   const failed = await CapacitorUpdater.getFailedUpdate().catch(() => null);
   if (failed) state.addFailed(failed.bundle.version);
@@ -117,29 +126,25 @@ export async function startLiveUpdates(options: LiveUpdatesOptions): Promise<voi
       if (bundleLabelRev(current.bundle.version) !== bundleRev) {
         state.addFailed(current.bundle.version);
         await CapacitorUpdater.reset();
-        return;
+        return restarting;
       }
       // Not for the native app it now runs in (a newer build, or other native code, installed over it).
       if (bundleRev < native.rev || bundleFingerprint !== native.fingerprint) {
         await CapacitorUpdater.reset();
-        return;
+        return restarting;
       }
     }
-    if (apply === 'next-launch' && (await applyPending(state, bundleRev).catch(() => false))) return;
+    if (apply === 'next-launch' && (await applyPending(state, bundleRev).catch(() => false))) return restarting;
   }
 
-  await ready;
-  await CapacitorUpdater.notifyAppReady();
-  if (!native || !checkForUpdates) return;
-
   let checking = false;
-  const check = async () => {
+  const check = async (fingerprint: string) => {
     if (checking) return;
     checking = true;
     try {
       const res = await fetch(manifestUrl, { cache: 'no-store' });
       if (!res.ok) return;
-      const entry = ((await res.json()) as Manifest).bundles?.[native.fingerprint];
+      const entry = ((await res.json()) as Manifest).bundles?.[fingerprint];
       if (!entry || !(entry.rev > bundleRev) || bundleLabelRev(entry.version) !== entry.rev) return;
       if (state.failed().includes(entry.version)) return;
       const bundle =
@@ -153,8 +158,27 @@ export async function startLiveUpdates(options: LiveUpdatesOptions): Promise<voi
       checking = false;
     }
   };
-  void check();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void check();
-  });
+
+  let confirmed: Promise<void> | null = null;
+  const confirm = async (ready?: Promise<unknown>) => {
+    await ready;
+    await CapacitorUpdater.notifyAppReady();
+    if (!native || !checkForUpdates) return;
+    void check(native.fingerprint);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void check(native.fingerprint);
+    });
+  };
+  // Once only: a second call shares the first.
+  return { restarting: false, confirm: (ready) => (confirmed ??= confirm(ready)) };
+}
+
+/**
+ * prepareLiveUpdates, then confirm once `ready` resolves (else the plugin rolls this bundle back). Keeps
+ * the app up to date from `manifestUrl`, on start and on each return to it. A bundle that failed to
+ * start is never downloaded again.
+ */
+export async function startLiveUpdates(options: LiveUpdatesOptions): Promise<void> {
+  const live = await prepareLiveUpdates(options);
+  await live.confirm(options.ready);
 }
