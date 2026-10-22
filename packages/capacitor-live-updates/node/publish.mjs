@@ -4,12 +4,12 @@
  * Needs `gh` signed in with push access to the repo. Each release also carries entry.json, its manifest
  * entry: if a publish stops between releasing and listing, publishing the same source again finishes it.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { cspAllows } from './csp.mjs';
-import { buildRev, nativeFingerprint } from './fingerprint.mjs';
+import { buildRev, nativeFingerprint, normalizedBytes } from './fingerprint.mjs';
 
 /** Capgo's CLI, pinned: its zip and encryption must match what the plugin accepts. */
 export const CAPGO_CLI = '@capgo/cli@8.83.1';
@@ -22,7 +22,23 @@ export class PublishError extends Error {}
 const fail = (msg) => {
   throw new PublishError(msg);
 };
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...opts });
+/** Windows runs these (.cmd shims) only through cmd.exe. */
+const WINDOWS_SHIMS = new Set(['npm', 'npx', 'pnpm']);
+/** Arguments cmd.exe passes through unchanged when quoted: no quotes, no %VAR% expansion. */
+const CMD_SAFE = /^[^"%]*$/;
+
+/** One cmd.exe argument. */
+export function cmdArg(arg) {
+  if (!CMD_SAFE.test(arg)) fail(`can't pass ${JSON.stringify(arg)} through cmd.exe (it has " or %)`);
+  // Trailing backslashes doubled, else the last one escapes the closing quote.
+  return /^[\w\-.,:\\/@=+]+$/.test(arg) ? arg : `"${arg.replace(/(\\+)$/, '$1$1')}"`;
+}
+
+function run(cmd, args, opts = {}) {
+  const options = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...opts };
+  if (process.platform === 'win32' && WINDOWS_SHIMS.has(cmd)) return execSync([cmd, ...args].map(cmdArg).join(' '), options);
+  return execFileSync(cmd, args, options);
+}
 const step = (msg) => console.log(`\n▸ ${msg}`);
 const errText = (e) => String(e.stderr ?? e.message).trim();
 
@@ -214,12 +230,14 @@ export function snapshotBuild({ root, commit, command = ['npm', 'run', 'build'],
     step(`snapshot of ${commit.slice(0, 12)}`);
     const src = path.join(work, 'src');
     fs.mkdirSync(src);
-    run('git', ['-C', root, 'archive', '--format=tar', '-o', `${src}.tar`, commit]);
-    run('tar', ['-xf', `${src}.tar`, '-C', src]);
-    if (fs.readFileSync(path.join(src, lockfile), 'utf8') !== fs.readFileSync(path.join(root, lockfile), 'utf8')) {
+    // Git writes the commit's files with a scratch index: no tar, and the checkout's own index and HEAD stay as they are.
+    run('git', ['-C', root, `--work-tree=${src}`, 'checkout', commit, '--', '.'], { env: { ...process.env, GIT_INDEX_FILE: path.join(work, 'index') } });
+    // Line endings aside: a Windows checkout writes CRLF.
+    if (!normalizedBytes(path.join(src, lockfile)).equals(normalizedBytes(path.join(root, lockfile)))) {
       fail(`${commit.slice(0, 12)}'s ${lockfile} differs from the installed one; publish it from a checkout of it, after a clean install`);
     }
-    fs.symlinkSync(path.join(root, 'node_modules'), path.join(src, 'node_modules'));
+    // A junction on Windows: no admin rights or developer mode needed.
+    fs.symlinkSync(path.join(root, 'node_modules'), path.join(src, 'node_modules'), 'junction');
     const native = fingerprint(src);
     step(`building for native ${native}`);
     run(command[0], command.slice(1), { cwd: src, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, ...env } });

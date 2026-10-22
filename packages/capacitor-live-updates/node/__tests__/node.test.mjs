@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkMonotonic, cspAllows, nativeFingerprint, pnpmPackages, PublishError } from '../index.mjs';
+import { cmdArg } from '../publish.mjs';
 
 const dirs = [];
 afterEach(() => {
@@ -144,5 +145,19 @@ describe('checkMonotonic', () => {
   it('refuses a rev that is not newer', () => {
     expect(() => checkMonotonic({ bundles: { fp: entry(2) } }, 'fp', entry(2, 'other'))).toThrow(PublishError);
     expect(() => checkMonotonic({ bundles: { fp: entry(3) } }, 'fp', entry(2))).toThrow(PublishError);
+  });
+});
+
+describe('cmdArg', () => {
+  it('passes plain arguments as they are and quotes the rest', () => {
+    expect(cmdArg('--path')).toBe('--path');
+    expect(cmdArg('C:\\Users\\a\\dist')).toBe('C:\\Users\\a\\dist');
+    expect(cmdArg('C:\\Program Files\\x')).toBe('"C:\\Program Files\\x"');
+    expect(cmdArg('C:\\Program Files\\')).toBe('"C:\\Program Files\\\\"');
+  });
+
+  it('refuses what cmd.exe would change', () => {
+    expect(() => cmdArg('a"b')).toThrow(PublishError);
+    expect(() => cmdArg('%PATH%')).toThrow(PublishError);
   });
 });

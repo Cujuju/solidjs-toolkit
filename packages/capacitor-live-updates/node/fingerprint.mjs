@@ -74,7 +74,7 @@ function lockedPackages(file) {
 }
 
 /** A file's bytes; text with CRLF as LF, so a Windows checkout (core.autocrlf) hashes like macOS. Binary (has NUL) as is. */
-function normalizedBytes(file) {
+export function normalizedBytes(file) {
   const bytes = fs.readFileSync(file);
   return bytes.includes(0) ? bytes : Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1');
 }

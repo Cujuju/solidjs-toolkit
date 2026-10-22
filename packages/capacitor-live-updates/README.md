@@ -67,8 +67,8 @@ await publishLiveUpdate({
 
 `build(workDir)` may be any function returning `{ appDir, distDir, fingerprint }`; `appDir` is only
 read. Before releasing, the bundle must have an `index.html`, no source maps, a CSP that lets it fetch
-the manifest, and code that does. Needs `gh` with push access to `repo`, and macOS, Linux or WSL: it
-runs `npx`, `npm` and `tar` directly.
+the manifest, and code that does. Needs `gh` with push access to `repo`. Runs on macOS, Linux and Windows
+(npm's `.cmd` shims go through cmd.exe, so their arguments can't hold `"` or `%`).
 
 ## Security
 
