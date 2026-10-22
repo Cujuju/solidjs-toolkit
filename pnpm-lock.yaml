@@ -22,10 +22,10 @@ importers:
         version: 5.4.21
       vite-plugin-dts:
         specifier: ^4.2.0
-        version: 4.5.4(rollup@4.60.2)(typescript@5.9.3)(vite@5.4.21)
+        version: 4.5.4(rollup@4.60.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@5.4.21)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
 
   packages/accordion-dock:
     dependencies:
@@ -53,13 +53,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/anchored-popover:
     dependencies:
@@ -78,13 +78,28 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
+
+  packages/capacitor-live-updates:
+    devDependencies:
+      '@capacitor/core':
+        specifier: ^8.5.2
+        version: 8.5.3
+      '@capgo/capacitor-updater':
+        specifier: 8.53.0
+        version: 8.53.0(@capacitor/core@8.5.3)
+      jsdom:
+        specifier: ^24.0.0
+        version: 24.1.3(supports-color@8.1.1)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/chip-flyout:
     dependencies:
@@ -109,13 +124,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/collapsible:
     dependencies:
@@ -128,13 +143,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/context-menu:
     dependencies:
@@ -156,13 +171,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/editable-list-flyout:
     dependencies:
@@ -187,13 +202,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/editable-list-row:
     dependencies:
@@ -212,13 +227,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/glass:
     dependencies:
@@ -234,13 +249,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/glass-menu:
     dependencies:
@@ -259,13 +274,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/hold-action:
     dependencies:
@@ -278,13 +293,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/hooks:
     dependencies:
@@ -297,10 +312,10 @@ importers:
         version: 0.8.10(solid-js@1.9.12)
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/kv-tooltip:
     dependencies:
@@ -316,13 +331,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.1.3
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/pill-date-picker:
     dependencies:
@@ -341,13 +356,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/pill-number-picker:
     dependencies:
@@ -363,13 +378,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/pill-toggle:
     dependencies:
@@ -385,10 +400,10 @@ importers:
         version: 29.1.0
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@29.1.0)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@29.1.0)(supports-color@8.1.1)
 
   packages/seg-buttons:
     dependencies:
@@ -401,13 +416,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/select-flyout:
     dependencies:
@@ -432,10 +447,10 @@ importers:
         version: 15.11.7
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/tri-state-chip:
     dependencies:
@@ -451,13 +466,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   packages/virtual-log:
     dependencies:
@@ -473,13 +488,13 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
   playground:
     dependencies:
@@ -549,16 +564,16 @@ importers:
         version: 6.9.1
       jsdom:
         specifier: ^24.0.0
-        version: 24.1.3
+        version: 24.1.3(supports-color@8.1.1)
       vite:
         specifier: ^5.4.0
         version: 5.4.21
       vite-plugin-solid:
         specifier: ^2.11.12
-        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21)
+        version: 2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3)
+        version: 3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1)
 
 packages:
 
@@ -671,6 +686,14 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
+
+  '@capacitor/core@8.5.3':
+    resolution: {integrity: sha512-oBE1oGuYE4ZzYYrulC75OuHdSsD6zLUy7d5o1tFwDLG4govGoubY15cxpiI5l0+q87Lm5p0bhbehMdzJg4aFag==}
+
+  '@capgo/capacitor-updater@8.53.0':
+    resolution: {integrity: sha512-fJfHi/h6AwZLvLrRlztxFUhKt+CDCHiMsRLzuOT0wFUvqP2qIK/B39nMr8xNXuRLzQoQWBkriQJO1ZWzhq3Afg==}
+    peerDependencies:
+      '@capacitor/core': ^8.0.0
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -1895,6 +1918,9 @@ packages:
     resolution: {integrity: sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw==}
     engines: {node: '>=20'}
 
+  tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
@@ -2122,20 +2148,20 @@ snapshots:
 
   '@babel/compat-data@7.29.0': {}
 
-  '@babel/core@7.29.0':
+  '@babel/core@7.29.0(supports-color@8.1.1)':
     dependencies:
       '@babel/code-frame': 7.29.0
       '@babel/generator': 7.29.1
       '@babel/helper-compilation-targets': 7.28.6
-      '@babel/helper-module-transforms': 7.28.6(@babel/core@7.29.0)
+      '@babel/helper-module-transforms': 7.28.6(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1)
       '@babel/helpers': 7.29.2
       '@babel/parser': 7.29.2
       '@babel/template': 7.28.6
-      '@babel/traverse': 7.29.0
+      '@babel/traverse': 7.29.0(supports-color@8.1.1)
       '@babel/types': 7.29.0
       '@jridgewell/remapping': 2.3.5
       convert-source-map: 2.0.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -2164,19 +2190,19 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.0
 
-  '@babel/helper-module-imports@7.28.6':
+  '@babel/helper-module-imports@7.28.6(supports-color@8.1.1)':
     dependencies:
-      '@babel/traverse': 7.29.0
+      '@babel/traverse': 7.29.0(supports-color@8.1.1)
       '@babel/types': 7.29.0
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/helper-module-transforms@7.28.6(@babel/core@7.29.0)':
+  '@babel/helper-module-transforms@7.28.6(@babel/core@7.29.0(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
-      '@babel/core': 7.29.0
-      '@babel/helper-module-imports': 7.28.6
+      '@babel/core': 7.29.0(supports-color@8.1.1)
+      '@babel/helper-module-imports': 7.28.6(supports-color@8.1.1)
       '@babel/helper-validator-identifier': 7.28.5
-      '@babel/traverse': 7.29.0
+      '@babel/traverse': 7.29.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -2197,9 +2223,9 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.0
 
-  '@babel/plugin-syntax-jsx@7.28.6(@babel/core@7.29.0)':
+  '@babel/plugin-syntax-jsx@7.28.6(@babel/core@7.29.0(supports-color@8.1.1))':
     dependencies:
-      '@babel/core': 7.29.0
+      '@babel/core': 7.29.0(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.28.6
 
   '@babel/runtime@7.29.2': {}
@@ -2210,7 +2236,7 @@ snapshots:
       '@babel/parser': 7.29.2
       '@babel/types': 7.29.0
 
-  '@babel/traverse@7.29.0':
+  '@babel/traverse@7.29.0(supports-color@8.1.1)':
     dependencies:
       '@babel/code-frame': 7.29.0
       '@babel/generator': 7.29.1
@@ -2218,7 +2244,7 @@ snapshots:
       '@babel/parser': 7.29.2
       '@babel/template': 7.28.6
       '@babel/types': 7.29.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -2230,6 +2256,14 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
+
+  '@capacitor/core@8.5.3':
+    dependencies:
+      tslib: 2.8.1
+
+  '@capgo/capacitor-updater@8.53.0(@capacitor/core@8.5.3)':
+    dependencies:
+      '@capacitor/core': 8.5.3
 
   '@csstools/color-helpers@5.1.0': {}
 
@@ -2705,19 +2739,19 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  babel-plugin-jsx-dom-expressions@0.40.6(@babel/core@7.29.0):
+  babel-plugin-jsx-dom-expressions@0.40.6(@babel/core@7.29.0(supports-color@8.1.1)):
     dependencies:
-      '@babel/core': 7.29.0
+      '@babel/core': 7.29.0(supports-color@8.1.1)
       '@babel/helper-module-imports': 7.18.6
-      '@babel/plugin-syntax-jsx': 7.28.6(@babel/core@7.29.0)
+      '@babel/plugin-syntax-jsx': 7.28.6(@babel/core@7.29.0(supports-color@8.1.1))
       '@babel/types': 7.29.0
       html-entities: 2.3.3
       parse5: 7.3.0
 
-  babel-preset-solid@1.9.12(@babel/core@7.29.0)(solid-js@1.9.12):
+  babel-preset-solid@1.9.12(@babel/core@7.29.0(supports-color@8.1.1))(solid-js@1.9.12):
     dependencies:
-      '@babel/core': 7.29.0
-      babel-plugin-jsx-dom-expressions: 0.40.6(@babel/core@7.29.0)
+      '@babel/core': 7.29.0(supports-color@8.1.1)
+      babel-plugin-jsx-dom-expressions: 0.40.6(@babel/core@7.29.0(supports-color@8.1.1))
     optionalDependencies:
       solid-js: 1.9.12
 
@@ -2806,9 +2840,11 @@ snapshots:
 
   de-indent@1.0.2: {}
 
-  debug@4.4.3:
+  debug@4.4.3(supports-color@8.1.1):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 8.1.1
 
   decimal.js@10.6.0: {}
 
@@ -2981,17 +3017,17 @@ snapshots:
 
   html-entities@2.3.3: {}
 
-  http-proxy-agent@7.0.2:
+  http-proxy-agent@7.0.2(supports-color@8.1.1):
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
-  https-proxy-agent@7.0.6:
+  https-proxy-agent@7.0.6(supports-color@8.1.1):
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -3017,15 +3053,15 @@ snapshots:
 
   js-tokens@9.0.1: {}
 
-  jsdom@24.1.3:
+  jsdom@24.1.3(supports-color@8.1.1):
     dependencies:
       cssstyle: 4.6.0
       data-urls: 5.0.0
       decimal.js: 10.6.0
       form-data: 4.0.5
       html-encoding-sniffer: 4.0.0
-      http-proxy-agent: 7.0.2
-      https-proxy-agent: 7.0.6
+      http-proxy-agent: 7.0.2(supports-color@8.1.1)
+      https-proxy-agent: 7.0.6(supports-color@8.1.1)
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.23
       parse5: 7.3.0
@@ -3287,10 +3323,10 @@ snapshots:
       seroval: 1.5.2
       seroval-plugins: 1.5.2(seroval@1.5.2)
 
-  solid-refresh@0.6.3(solid-js@1.9.12):
+  solid-refresh@0.6.3(solid-js@1.9.12)(supports-color@8.1.1):
     dependencies:
       '@babel/generator': 7.29.1
-      '@babel/helper-module-imports': 7.28.6
+      '@babel/helper-module-imports': 7.28.6(supports-color@8.1.1)
       '@babel/types': 7.29.0
       solid-js: 1.9.12
     transitivePeerDependencies:
@@ -3364,6 +3400,8 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
+  tslib@2.8.1: {}
+
   typescript@5.9.3: {}
 
   ufo@1.6.3: {}
@@ -3385,10 +3423,10 @@ snapshots:
       querystringify: 2.2.0
       requires-port: 1.0.0
 
-  vite-node@3.2.4:
+  vite-node@3.2.4(supports-color@8.1.1):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
       vite: 5.4.21
@@ -3403,14 +3441,14 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-dts@4.5.4(rollup@4.60.2)(typescript@5.9.3)(vite@5.4.21):
+  vite-plugin-dts@4.5.4(rollup@4.60.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@5.4.21):
     dependencies:
       '@microsoft/api-extractor': 7.58.7
       '@rollup/pluginutils': 5.3.0(rollup@4.60.2)
       '@volar/typescript': 2.4.28
       '@vue/language-core': 2.2.0(typescript@5.9.3)
       compare-versions: 6.1.1
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       kolorist: 1.8.0
       local-pkg: 1.1.2
       magic-string: 0.30.21
@@ -3422,14 +3460,14 @@ snapshots:
       - rollup
       - supports-color
 
-  vite-plugin-solid@2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(vite@5.4.21):
+  vite-plugin-solid@2.11.12(@testing-library/jest-dom@6.9.1)(solid-js@1.9.12)(supports-color@8.1.1)(vite@5.4.21):
     dependencies:
-      '@babel/core': 7.29.0
+      '@babel/core': 7.29.0(supports-color@8.1.1)
       '@types/babel__core': 7.20.5
-      babel-preset-solid: 1.9.12(@babel/core@7.29.0)(solid-js@1.9.12)
+      babel-preset-solid: 1.9.12(@babel/core@7.29.0(supports-color@8.1.1))(solid-js@1.9.12)
       merge-anything: 5.1.7
       solid-js: 1.9.12
-      solid-refresh: 0.6.3(solid-js@1.9.12)
+      solid-refresh: 0.6.3(solid-js@1.9.12)(supports-color@8.1.1)
       vite: 5.4.21
       vitefu: 1.1.3(vite@5.4.21)
     optionalDependencies:
@@ -3449,7 +3487,7 @@ snapshots:
     optionalDependencies:
       vite: 5.4.21
 
-  vitest@3.2.4(happy-dom@15.11.7)(jsdom@24.1.3):
+  vitest@3.2.4(happy-dom@15.11.7)(jsdom@24.1.3(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.4
@@ -3460,7 +3498,7 @@ snapshots:
       '@vitest/spy': 3.2.4
       '@vitest/utils': 3.2.4
       chai: 5.3.3
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       expect-type: 1.3.0
       magic-string: 0.30.21
       pathe: 2.0.3
@@ -3472,11 +3510,11 @@ snapshots:
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
       vite: 5.4.21
-      vite-node: 3.2.4
+      vite-node: 3.2.4(supports-color@8.1.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       happy-dom: 15.11.7
-      jsdom: 24.1.3
+      jsdom: 24.1.3(supports-color@8.1.1)
     transitivePeerDependencies:
       - less
       - lightningcss
@@ -3488,7 +3526,7 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@3.2.4(happy-dom@15.11.7)(jsdom@29.1.0):
+  vitest@3.2.4(happy-dom@15.11.7)(jsdom@29.1.0)(supports-color@8.1.1):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.4
@@ -3499,7 +3537,7 @@ snapshots:
       '@vitest/spy': 3.2.4
       '@vitest/utils': 3.2.4
       chai: 5.3.3
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       expect-type: 1.3.0
       magic-string: 0.30.21
       pathe: 2.0.3
@@ -3511,7 +3549,7 @@ snapshots:
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
       vite: 5.4.21
-      vite-node: 3.2.4
+      vite-node: 3.2.4(supports-color@8.1.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       happy-dom: 15.11.7

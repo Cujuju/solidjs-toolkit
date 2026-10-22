@@ -1,0 +1,59 @@
+{
+  "name": "@cujuju/capacitor-live-updates",
+  "version": "0.1.0",
+  "description": "Self-hosted, signed live updates for Capacitor apps on Capgo's updater: bundles matched to the native app by fingerprint, rollback, publishing to GitHub releases.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./node/index.d.mts",
+      "default": "./node/index.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "dist",
+    "node",
+    "!node/__tests__"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "author": "Cujuju",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cujuju/solidjs-toolkit.git",
+    "directory": "packages/capacitor-live-updates"
+  },
+  "homepage": "https://github.com/Cujuju/solidjs-toolkit/tree/main/packages/capacitor-live-updates",
+  "bugs": "https://github.com/Cujuju/solidjs-toolkit/issues",
+  "keywords": [
+    "capacitor",
+    "capgo",
+    "live-update",
+    "ota"
+  ],
+  "peerDependencies": {
+    "@capgo/capacitor-updater": ">=8.53.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build",
+    "prepublishOnly": "vite build"
+  },
+  "devDependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capgo/capacitor-updater": "8.53.0",
+    "jsdom": "^24.0.0",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
