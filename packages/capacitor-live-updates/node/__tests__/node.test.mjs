@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -75,6 +76,25 @@ describe('nativeFingerprint', () => {
     const a = app({ ...listed, 'package-lock.json': lock });
     const b = app({ ...listed, 'package-lock.json': lock.replace('1.0.0', '1.0.1') });
     expect(nativeFingerprint(a)).not.toBe(nativeFingerprint(b));
+  });
+
+  it('hashes paths with / on every OS', () => {
+    const root = app(base);
+    const hash = createHash('sha256');
+    hash.update(JSON.stringify([['@capacitor/core', '8.5.2']]));
+    for (const file of ['capacitor.config.ts', 'ios/App/App/AppDelegate.swift']) {
+      hash.update(`\0${file}\0`);
+      hash.update(fs.readFileSync(path.join(root, file)));
+    }
+    expect(nativeFingerprint(root)).toBe(hash.digest('hex').slice(0, 12));
+  });
+
+  it('hashes CRLF text like LF, and binary files as they are', () => {
+    const lf = { 'capacitor.config.ts': 'export default {\n}\n', 'ios/App/App/A.plist': 'bplist00\0\r\n' };
+    const crlf = { ...lf, 'capacitor.config.ts': 'export default {\r\n}\r\n' };
+    expect(nativeFingerprint(app({ ...base, ...crlf }))).toBe(nativeFingerprint(app({ ...base, ...lf })));
+    const binaryLf = { ...lf, 'ios/App/App/A.plist': 'bplist00\0\n' };
+    expect(nativeFingerprint(app({ ...base, ...binaryLf }))).not.toBe(nativeFingerprint(app({ ...base, ...lf })));
   });
 
   it('ignores the web bundle cap sync copies into the native app', () => {

@@ -73,6 +73,12 @@ function lockedPackages(file) {
   throw new Error(`unsupported lockfile ${file} (package-lock.json or pnpm-lock.yaml)`);
 }
 
+/** A file's bytes; text with CRLF as LF, so a Windows checkout (core.autocrlf) hashes like macOS. Binary (has NUL) as is. */
+function normalizedBytes(file) {
+  const bytes = fs.readFileSync(file);
+  return bytes.includes(0) ? bytes : Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1');
+}
+
 function filesUnder(dir, pattern) {
   if (!fs.existsSync(dir)) return [];
   return fs
@@ -102,8 +108,9 @@ export function nativeFingerprint(
   // The plugin lists themselves aren't hashed: they hold paths, which depend on where cap sync ran.
   const files = [...configFiles.map((f) => path.join(appRoot, f)), ...nativeDirs.flatMap(([dir, re]) => filesUnder(path.join(appRoot, dir), re))];
   for (const file of files) {
-    hash.update(`\0${path.relative(appRoot, file)}\0`);
-    hash.update(fs.readFileSync(file));
+    // '/' on every OS, so Windows and macOS agree.
+    hash.update(`\0${path.relative(appRoot, file).split(path.sep).join('/')}\0`);
+    hash.update(normalizedBytes(file));
   }
   return hash.digest('hex').slice(0, 12);
 }

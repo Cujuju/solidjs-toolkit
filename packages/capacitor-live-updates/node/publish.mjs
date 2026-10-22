@@ -140,7 +140,14 @@ export async function publishLiveUpdate({ appId, title, assetPrefix, repo, keyPa
   fs.mkdirSync(stage);
   const capConfig = JSON.parse(run('npx', ['cap', 'config', '--json'], { cwd: appDir, stdio: ['ignore', 'pipe', 'ignore'] }));
   fs.writeFileSync(path.join(stage, 'capacitor.config.json'), JSON.stringify(capConfig.app.extConfig, null, 2));
-  const zipped = capgo(capgoCli, stage, ['bundle', 'zip', appId, '--path', path.resolve(distDir), '--bundle', version, '--name', `${tag}.zip`, '--key-v2']);
+  const zipped = capgo(capgoCli, stage, [
+    'bundle', 'zip', appId,
+    '--path', path.resolve(distDir),
+    '--package-json', path.resolve(appDir, 'package.json'),
+    '--bundle', version,
+    '--name', `${tag}.zip`,
+    '--key-v2',
+  ]);
   const signed = capgo(capgoCli, stage, ['bundle', 'encrypt', path.resolve(stage, zipped.filename), zipped.checksum, '--key', keyPath]);
   const asset = path.join(work, `${assetPrefix}-${tag}.zip`);
   fs.renameSync(path.resolve(stage, signed.filename), asset);

@@ -43,7 +43,8 @@ nativeVersion(pkg.version, rev, fingerprint);                        // the nati
 ```
 
 `nativeFingerprint` reads `package-lock.json` or `pnpm-lock.yaml` (v6+), at any path relative to the
-app root. Defaults hash `capacitor.config.ts`, `ios/App/App` and `android/app/src/main`.
+app root. Defaults hash `capacitor.config.ts`, `ios/App/App` and `android/app/src/main`. Paths hash
+with `/` and text with LF, so a Windows checkout agrees with the Mac that builds the native app.
 
 ## Publish
 
@@ -57,7 +58,8 @@ await publishLiveUpdate({
 
 `build(workDir)` may be any function returning `{ appDir, distDir, fingerprint }`; `appDir` is only
 read. Before releasing, the bundle must have an `index.html`, no source maps, a CSP that lets it fetch
-the manifest, and code that does. Needs `gh` with push access to `repo`.
+the manifest, and code that does. Needs `gh` with push access to `repo`, and macOS, Linux or WSL: it
+runs `npx`, `npm` and `tar` directly.
 
 ## Security
 
