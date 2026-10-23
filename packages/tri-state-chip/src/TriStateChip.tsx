@@ -39,6 +39,9 @@ export interface TriStateChipProps {
   hatchStripeWidth?: string;
   /** Space between bars, e.g. `'6px'`. See {@link TriStateChipProps.hatchAngle}. */
   hatchGapWidth?: string;
+  /** Words announced for the non-neutral states; ria-pressed alone cannot tell them apart.
+   *  Default { included: 'included', excluded: 'excluded' }. */
+  stateText?: Partial<Record<Exclude<TriState, 'unselected'>, string>>;
   /** ARIA label override. When omitted the chip relies on its visible text. */
   ariaLabel?: string;
   /** Extra class appended to the root. */
@@ -60,6 +63,21 @@ const DEFAULT_NEUTRAL_PREFIX = '';
 /** `hatch` marks the control, not the word: no reserved glyph column, width equals the
  *  label, and the label is never defaced. */
 const DEFAULT_INDICATOR = 'hatch' as const;
+
+const DEFAULT_STATE_TEXT = { included: 'included', excluded: 'excluded' } as const;
+
+/** Visually hidden, still in the accessible name. */
+const SR_ONLY_STYLE: JSX.CSSProperties = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  padding: '0',
+  margin: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  'white-space': 'nowrap',
+  border: '0',
+};
 
 /**
  * One tri-state filter chip cycling unselected → included → excluded on click. Themed via
@@ -108,9 +126,20 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
     (includePrefix() !== '' || excludePrefix() !== '' || neutralPrefix() !== '');
 
   // aria-pressed is true for any non-neutral state; 'mixed' is spec-reserved for
-  // partially-selected groups. Include vs exclude is carried by data-state.
+  // partially-selected groups. Include vs exclude is carried by `stateLabel` in the name.
   const ariaPressed = (): 'true' | 'false' =>
     props.value === 'unselected' ? 'false' : 'true';
+
+  const stateLabel = (): string =>
+    props.value === 'unselected'
+      ? ''
+      : (props.stateText?.[props.value] ?? DEFAULT_STATE_TEXT[props.value]);
+
+  /** An override replaces content in the name, so the state is appended to it too. */
+  const ariaLabel = (): string | undefined =>
+    props.ariaLabel !== undefined && stateLabel() !== ''
+      ? `${props.ariaLabel}, ${stateLabel()}`
+      : props.ariaLabel;
 
   return (
     <button
@@ -122,7 +151,7 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
       // data-state: prefixes can be custom. Needs hasPrefix(): no column, no shift.
       data-glyph-empty={hasPrefix() && prefixGlyph() === '' ? '' : undefined}
       aria-pressed={ariaPressed()}
-      aria-label={props.ariaLabel}
+      aria-label={ariaLabel()}
       disabled={props.disabled}
       // `style` first: the named hatch props are the more specific statement,
       // so if a caller sets both, the prop wins over a raw custom property in
@@ -139,6 +168,9 @@ export function TriStateChip(props: TriStateChipProps): JSX.Element {
         </span>
       </Show>
       <span class="ctc-chip-label">{props.label}</span>
+      <Show when={stateLabel()}>
+        <span class="ctc-chip-state" style={SR_ONLY_STYLE}>, {stateLabel()}</span>
+      </Show>
     </button>
   );
 }

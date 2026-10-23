@@ -16,13 +16,20 @@ function findChip(): HTMLButtonElement {
   return el;
 }
 
+/** What is painted: textContent minus the visually hidden state words. */
+function visibleText(): string {
+  const clone = findChip().cloneNode(true) as HTMLElement;
+  clone.querySelector('.ctc-chip-state')?.remove();
+  return clone.textContent ?? '';
+}
+
 describe('TriStateChip rendering', () => {
   it('renders label text', () => {
     dispose = render(
       () => <TriStateChip label="Action" value="unselected" onCycle={() => {}} />,
       document.body,
     );
-    expect(findChip().textContent).toBe('Action');
+    expect(visibleText()).toBe('Action');
   });
 
   it('reflects state in data-state attribute', () => {
@@ -62,7 +69,7 @@ describe('TriStateChip rendering', () => {
       () => <TriStateChip label="X" value="included" indicator="glyph" onCycle={() => {}} />,
       document.body,
     );
-    expect(findChip().textContent).toBe('✓ X');
+    expect(visibleText()).toBe('✓ X');
   });
 
   it('renders default exclude prefix when indicator=glyph, state=excluded', () => {
@@ -70,7 +77,7 @@ describe('TriStateChip rendering', () => {
       () => <TriStateChip label="X" value="excluded" indicator="glyph" onCycle={() => {}} />,
       document.body,
     );
-    expect(findChip().textContent).toBe('✗ X');
+    expect(visibleText()).toBe('✗ X');
   });
 
   it('omits prefix when prefix prop is empty string (glyph mode)', () => {
@@ -86,7 +93,7 @@ describe('TriStateChip rendering', () => {
       ),
       document.body,
     );
-    expect(findChip().textContent).toBe('X');
+    expect(visibleText()).toBe('X');
   });
 
   it('custom prefix is rendered verbatim (glyph mode)', () => {
@@ -102,7 +109,7 @@ describe('TriStateChip rendering', () => {
       ),
       document.body,
     );
-    expect(findChip().textContent).toBe('(NO) X');
+    expect(visibleText()).toBe('(NO) X');
   });
 
   it('glyph-free indicators render no prefix and no glyph in textContent', () => {
@@ -124,7 +131,7 @@ describe('TriStateChip rendering', () => {
         ),
         document.body,
       );
-      expect(findChip().textContent).toBe('X');
+      expect(visibleText()).toBe('X');
       expect(findChip().getAttribute('data-indicator')).toBe(indicator);
       expect(findChip().querySelector('.ctc-chip-prefix')).toBeNull();
     }
@@ -137,7 +144,7 @@ describe('TriStateChip rendering', () => {
     );
     expect(findChip().getAttribute('data-indicator')).toBe('hatch');
     expect(findChip().querySelector('.ctc-chip-prefix')).toBeNull();
-    expect(findChip().textContent).toBe('X');
+    expect(visibleText()).toBe('X');
   });
 
   it('hatch geometry props write the matching custom properties', () => {
@@ -340,5 +347,40 @@ describe('TriStateChip click event handling', () => {
     findChip().dispatchEvent(evt);
     expect(stopSpy).toHaveBeenCalled();
     expect(onCycle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TriStateChip accessible state', () => {
+  const stateWords = (): string | null =>
+    findChip().querySelector('.ctc-chip-state')?.textContent ?? null;
+
+  it('names included and excluded distinctly; aria-pressed alone cannot', () => {
+    dispose = render(() => <TriStateChip label="Calls" value="included" onCycle={() => {}} />, document.body);
+    expect(stateWords()).toBe(', included');
+    dispose();
+    dispose = render(() => <TriStateChip label="Calls" value="excluded" onCycle={() => {}} />, document.body);
+    expect(stateWords()).toBe(', excluded');
+    expect(findChip().getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('adds no state words when unselected', () => {
+    dispose = render(() => <TriStateChip label="Calls" value="unselected" onCycle={() => {}} />, document.body);
+    expect(stateWords()).toBeNull();
+  });
+
+  it('appends the state to an aria-label override, which replaces content in the name', () => {
+    dispose = render(
+      () => <TriStateChip label="X" value="excluded" ariaLabel="Genre X" onCycle={() => {}} />,
+      document.body,
+    );
+    expect(findChip().getAttribute('aria-label')).toBe('Genre X, excluded');
+  });
+
+  it('honours stateText overrides', () => {
+    dispose = render(
+      () => <TriStateChip label="X" value="excluded" stateText={{ excluded: 'ausgeschlossen' }} onCycle={() => {}} />,
+      document.body,
+    );
+    expect(stateWords()).toBe(', ausgeschlossen');
   });
 });
