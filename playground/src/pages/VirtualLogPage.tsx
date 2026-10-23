@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, onMount, type JSX } from 'solid-js';
+import { createEffect, createMemo, createSignal, onCleanup, onMount, type JSX } from 'solid-js';
 import { createVirtualLog, VirtualLog } from '@cujuju/solidjs-virtual-log';
 import { Code } from '../ui';
 
@@ -19,7 +19,11 @@ function msg(n: number): Msg {
 /** Media that has no size until it "loads", MEDIA_MS after it is drawn. */
 function Media(props: { px: number; delayMs: number }): JSX.Element {
   const [loaded, setLoaded] = createSignal(false);
-  onMount(() => setTimeout(() => setLoaded(true), props.delayMs));
+  onMount(() => {
+    // A row scrolled out before it "loads" is disposed; its timer must not outlive it.
+    const timer = setTimeout(() => setLoaded(true), props.delayMs);
+    onCleanup(() => clearTimeout(timer));
+  });
   return <div data-media style={{ height: `${loaded() ? props.px : 0}px`, background: '#3a4a6a', 'border-radius': '6px', 'margin-top': '4px' }} />;
 }
 
@@ -116,6 +120,12 @@ export function VirtualLogPage(): JSX.Element {
     remove: (n) => setRemoved((r) => ({ ...r, [n]: true })),
     loadOlder,
   };
+  const ctl = window.__vlogCtl;
+  // Leaving the page must not keep this instance reachable; a newer mount's globals stay.
+  onCleanup(() => {
+    if (window.__vlog === log) delete window.__vlog;
+    if (window.__vlogCtl === ctl) delete window.__vlogCtl;
+  });
 
   return (
     <>

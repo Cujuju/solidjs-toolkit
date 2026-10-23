@@ -1,6 +1,8 @@
 import { render } from 'solid-js/web';
 import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
 import { setSegTooltipHost } from '@cujuju/solidjs-seg-buttons';
+import { bootstrapMenuTintFromStorage } from '@cujuju/solidjs-glass';
+import { MENU_TINT_STORAGE_KEY } from './pages/GlassPage';
 
 /**
  * Every package's stylesheet, imported the way a consumer would. Mostly redundant (each index
@@ -34,6 +36,9 @@ import { App } from './App';
  * import an optional peer (see its `tooltipHost.ts`), so the consumer hands it in.
  */
 setSegTooltipHost(KvTooltip);
+
+// MenuTintSection only restores its controls; menus read the saved tint from `:root`.
+bootstrapMenuTintFromStorage(MENU_TINT_STORAGE_KEY);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root missing from index.html');

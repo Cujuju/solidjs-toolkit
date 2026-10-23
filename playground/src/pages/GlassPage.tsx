@@ -2,7 +2,8 @@ import type { JSX } from 'solid-js';
 import { MenuTintSection } from '@cujuju/solidjs-glass';
 import { Code, Card } from '../ui';
 
-const STORAGE_KEY = 'playground:menuTint';
+/** Shared with `main.tsx`, which bootstraps the saved tint before first render. */
+export const MENU_TINT_STORAGE_KEY = 'playground:menuTint';
 
 export function GlassPage(): JSX.Element {
   return (
@@ -51,7 +52,7 @@ import '@cujuju/solidjs-glass/glass.css';
       <div class="row">
         <Card cap="MenuTintSection">
           <div style={{ width: '420px' }}>
-            <MenuTintSection storageKey={STORAGE_KEY} />
+            <MenuTintSection storageKey={MENU_TINT_STORAGE_KEY} />
           </div>
         </Card>
       </div>
