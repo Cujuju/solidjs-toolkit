@@ -97,7 +97,10 @@ export function VirtualLog<R>(props: VirtualLogProps<R>): JSX.Element {
                 onContextMenu={onContextMenu}
                 style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', transform: `translateY(${-toDevicePx(log.startOf(key))}px)` }}
               >
-                <Show when={log.rowByKey(key)}>{(row) => props.children(row)}</Show>
+                {/* Absence is `undefined` only: `0`, `false` and `''` are valid rows. */}
+                <Show when={log.rowByKey(key) !== undefined}>
+                  {props.children(() => log.rowByKey(key) as R)}
+                </Show>
               </div>
             );
           }}

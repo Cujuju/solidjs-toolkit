@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup } from '@solidjs/testing-library';
+import { cleanup, render } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
 import { installFakes, mount, rowsOf } from './harness';
+import { createVirtualLog } from '../createVirtualLog';
+import { VirtualLog } from '../VirtualLog';
 
 beforeEach(installFakes);
 afterEach(() => {
@@ -417,5 +419,34 @@ describe('createVirtualLog', () => {
     resolveOlder();
     await h.flush();
     expect(newerCalls).toBeGreaterThan(before);
+  });
+});
+
+describe('VirtualLog row contract', () => {
+  it('draws falsy rows: `0` is a row, only `undefined` is absence', async () => {
+    const VIEW_PX = 100;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      height: 20, width: 300, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON() {},
+    } as DOMRect);
+    const result = render(() => {
+      const log = createVirtualLog<number>({ rows: () => [0, 1], getKey: String, estimateSize: 20 });
+      return (
+        <div
+          ref={(el) => {
+            Object.defineProperties(el, {
+              clientHeight: { get: () => VIEW_PX, configurable: true },
+              clientWidth: { get: () => 300, configurable: true },
+              getClientRects: { value: () => [{}], configurable: true },
+            });
+            log.ref(el);
+          }}
+        >
+          <VirtualLog log={log}>{(row) => <span data-value>{String(row())}</span>}</VirtualLog>
+        </div>
+      );
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const values = [...result.container.querySelectorAll('[data-value]')].map((e) => e.textContent);
+    expect(values.sort()).toEqual(['0', '1']);
   });
 });
