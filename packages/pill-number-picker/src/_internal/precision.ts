@@ -31,12 +31,18 @@ export function effectivePrecision(stepProp: number, precisionProp: number | und
 
 /**
  * Clamp to `[min, max]`, then round to `precision`. The rounding is what stops accumulated
- * step arithmetic drifting into `0.10000000000000003`.
+ * step arithmetic drifting into `0.10000000000000003`. Bounds win over rounding: a value rounded
+ * past one steps back one unit, and with no representable value in range the clamp is returned.
  */
 export function clampAndRound(v: number, min: number, max: number, precision: number): number {
   const clamped = Math.max(min, Math.min(max, v));
   if (precision <= 0) return clamped;
-  return Number(clamped.toFixed(precision));
+  const unit = 10 ** -precision;
+  let rounded = Number(clamped.toFixed(precision));
+  // Rounding moves at most half a unit, so one unit back is the nearest in-range candidate.
+  if (rounded > max) rounded = Number((rounded - unit).toFixed(precision));
+  else if (rounded < min) rounded = Number((rounded + unit).toFixed(precision));
+  return rounded >= min && rounded <= max ? rounded : clamped;
 }
 
 /**

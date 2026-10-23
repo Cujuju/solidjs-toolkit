@@ -586,6 +586,12 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
                 openEditor();
                 return;
               }
+              // The click path's keyboard twin: enter typing mode (F2 is the spreadsheet convention).
+              if (!collapsedCell && editable() && (e.key === 'Enter' || e.key === ' ' || e.key === 'F2')) {
+                e.preventDefault();
+                beginEditing();
+                return;
+              }
               onKeyDown(e);
             }}
           >
@@ -598,6 +604,7 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
           data-pos="value"
           class="cpnp-input"
           type="text"
+          aria-label={props.ariaLabel}
           inputMode="numeric"
           value={draft()}
           style={commonStyle()}

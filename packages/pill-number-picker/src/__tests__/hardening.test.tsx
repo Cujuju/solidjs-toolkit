@@ -645,3 +645,24 @@ describe('page keys — the multi-step path skips zero too', () => {
     expect(changes).toEqual([-1]);
   });
 });
+
+describe('keyboard entry to text editing (#8)', () => {
+  it.each(['Enter', ' ', 'F2'])('"%s" on a focused, non-collapsible value cell opens the input', (k) => {
+    const { host } = plain({ initial: 5 });
+    expect(inputEl()).toBeNull();
+    key(valueCell(host), k);
+    expect(inputEl()).not.toBeNull();
+  });
+
+  it('a non-editable value cell stays a spinbutton', () => {
+    const host = mount(() => <PillNumberPicker value={5} onChange={() => {}} editable={false} />);
+    key(valueCell(host), 'Enter');
+    expect(inputEl()).toBeNull();
+  });
+
+  it('the editing input carries the picker label', () => {
+    const host = mount(() => <PillNumberPicker value={5} onChange={() => {}} ariaLabel="Quantity" />);
+    click(valueCell(host));
+    expect(inputEl()!.getAttribute('aria-label')).toBe('Quantity');
+  });
+});

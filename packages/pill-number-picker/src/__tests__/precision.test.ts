@@ -87,6 +87,17 @@ describe('clampAndRound', () => {
     expect(clampAndRound(-1.234, -10, 0, 2)).toBe(-1.23);
     expect(clampAndRound(-15, -10, 0, 0)).toBe(-10);
   });
+
+  it('never rounds past a bound: one unit back inside instead', () => {
+    // max 0.25 at precision 1: the clamp gives 0.25, which toFixed rounds UP to 0.3.
+    expect(clampAndRound(0.3, 0, 0.25, 1)).toBe(0.2);
+    // min 0.24: the clamp gives 0.24, which rounds DOWN to 0.2.
+    expect(clampAndRound(0.1, 0.24, 1, 1)).toBe(0.3);
+  });
+
+  it('returns the clamp when no value at this precision fits the range', () => {
+    expect(clampAndRound(0.5, 0.24, 0.26, 1)).toBe(0.26);
+  });
 });
 
 describe('parseValue', () => {
