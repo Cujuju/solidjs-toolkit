@@ -31,6 +31,16 @@ describe('PillToggle aria-checked contract', () => {
     expect(r2.toggle().getAttribute('aria-checked')).toBe('mixed');
     r2.dispose();
   });
+
+  it('is a checkbox while mixed (a switch is binary) and a switch otherwise', () => {
+    const mixed = renderToggle({ enabled: false, indeterminate: true, onToggle: () => {} });
+    expect(mixed.toggle().getAttribute('role')).toBe('checkbox');
+    mixed.dispose();
+
+    const binary = renderToggle({ enabled: true, onToggle: () => {} });
+    expect(binary.toggle().getAttribute('role')).toBe('switch');
+    binary.dispose();
+  });
 });
 
 describe('PillToggle indeterminate behavior', () => {

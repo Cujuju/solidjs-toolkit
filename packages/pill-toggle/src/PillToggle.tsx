@@ -6,7 +6,8 @@ export interface PillToggleProps {
   onToggle: () => void;
 
   /**
-   * Renders a "mixed" state — centered dot, dimmed fill — and emits `aria-checked="mixed"`.
+   * Renders a "mixed" state — centered dot, dimmed fill — and emits `role="checkbox"` with
+   * `aria-checked="mixed"` (a switch cannot be mixed).
    * For bulk toggles over a heterogeneous group. Loading takes precedence. Default false.
    */
   indeterminate?: boolean;
@@ -169,7 +170,8 @@ export function PillToggle(props: PillToggleProps): JSX.Element {
   return (
     <button
       type="button"
-      role="switch"
+      // `switch` is binary (WAI-ARIA 1.2); only `checkbox` can expose `aria-checked="mixed"`.
+      role={props.indeterminate ? 'checkbox' : 'switch'}
       class={`ctp-root ${props.class ?? ''}`.trim()}
       style={rootStyle()}
       aria-checked={props.indeterminate ? 'mixed' : props.enabled}

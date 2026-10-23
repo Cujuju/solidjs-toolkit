@@ -97,7 +97,7 @@ documented value) opts that element out of the derivation permanently:
 
 ## A11y
 
-Emits `role="switch"` with `aria-checked` (`"true"` / `"false"` / `"mixed"`). Space toggles; Enter is deliberately inert — the WAI-ARIA APG lists Enter as *optional* for `role="switch"`, and the native button activation is cancelled to keep the behaviour consistent. Full `:focus-visible` ring.
+Emits `role="switch"` with `aria-checked` (`"true"` / `"false"`); while `indeterminate`, `role="checkbox"` with `aria-checked="mixed"`, since a switch has no mixed state. Space toggles; Enter is deliberately inert — the WAI-ARIA APG lists Enter as *optional* for `role="switch"`, and the native button activation is cancelled to keep the behaviour consistent. Full `:focus-visible` ring.
 
 ## License
 
