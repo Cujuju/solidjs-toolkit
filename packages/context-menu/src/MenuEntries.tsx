@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, onCleanup, For, Show } from 'solid-js';
+import { createSignal, createEffect, createUniqueId, on, onCleanup, For, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
@@ -24,6 +24,9 @@ import { POPOVER_STACK_ATTR } from './_internal/popoverStack';
 const UNHURRIED_POINTER_PX_PER_S = 200;
 const MS_PER_S = 1000;
 
+/** First control a keyboard-opened submenu focuses: an enabled row button or slider. */
+const FLYOUT_FOCUS_SELECTOR = 'button:not(:disabled), input';
+
 /** Close grace after a hover elsewhere in the parent: diagonal path (the parent's measured width) ÷ pointer speed.
  *  Residual: slower pointers still lose it mid-path. */
 export function submenuCloseDelayMs(parentWidthPx: number): number {
@@ -34,6 +37,7 @@ export function submenuCloseDelayMs(parentWidthPx: number): number {
  *  arrow keys adjust it without a click. */
 function SliderRow(props: { item: ContextMenuSlider }) {
   let inputRef: HTMLInputElement | undefined;
+  const labelId = createUniqueId();
   return (
     <div
       class="cujuju-context-menu-slider-row"
@@ -41,7 +45,7 @@ function SliderRow(props: { item: ContextMenuSlider }) {
       onMouseLeave={() => inputRef?.blur()}
     >
       <div class="cujuju-context-menu-slider-header">
-        <span class="cujuju-context-menu-slider-label">{props.item.label}</span>
+        <span id={labelId} class="cujuju-context-menu-slider-label">{props.item.label}</span>
         <span class="cujuju-context-menu-slider-value">
           {props.item.value()}{props.item.unit ?? ''}
         </span>
@@ -49,6 +53,7 @@ function SliderRow(props: { item: ContextMenuSlider }) {
       <input
         ref={inputRef}
         type="range"
+        aria-labelledby={labelId}
         min={props.item.min}
         max={props.item.max}
         step={props.item.step ?? 1}
@@ -86,6 +91,9 @@ function SubmenuItem(props: {
   let wrapperRef: HTMLDivElement | undefined;
   let flyoutRef: HTMLDivElement | undefined;
   let searchRef: HTMLInputElement | undefined;
+  let triggerRef: HTMLButtonElement | undefined;
+  /** Set by a keyboard open; the opening frame then moves focus into the flyout. */
+  let focusOnOpen = false;
   let resizeObserver: ResizeObserver | undefined;
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
   let hoverScope: HTMLElement | null = null;
@@ -115,6 +123,32 @@ function SubmenuItem(props: {
 
   function enter() {
     props.setActiveSubmenu(props.index);
+  }
+
+  function openFromKeyboard() {
+    focusOnOpen = true;
+    enter();
+  }
+
+  function onTriggerClick(e: MouseEvent) {
+    // `detail === 0`: Enter/Space synthesised this click. A pointer already opened it on hover.
+    if (e.detail === 0) openFromKeyboard();
+    else enter();
+  }
+
+  function onTriggerKeyDown(e: KeyboardEvent) {
+    if (e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    openFromKeyboard();
+  }
+
+  // ArrowLeft closes this level and returns focus; stopped so an enclosing flyout keeps its own.
+  function onFlyoutKeyDown(e: KeyboardEvent) {
+    if (e.key !== 'ArrowLeft' || e.target instanceof HTMLInputElement) return;
+    e.preventDefault();
+    e.stopPropagation();
+    props.setActiveSubmenu(-1);
+    triggerRef?.focus();
   }
 
   function cancelClose() {
@@ -151,6 +185,8 @@ function SubmenuItem(props: {
     cancelClose();
   }
   onCleanup(detachHoverScope);
+  // Effect transitions disconnect only on close; an open submenu unmounting must too.
+  onCleanup(() => resizeObserver?.disconnect());
 
   // Top-layer order is document-wide LIFO, so lifting only the parent would put it
   // above the grandparent too; lift the whole chain, nearest first.
@@ -194,6 +230,8 @@ function SubmenuItem(props: {
           hoverScope?.addEventListener('scroll', onParentScroll, true);
         }
         if (props.item.scrollable) searchRef?.focus();
+        else if (focusOnOpen) flyoutRef?.querySelector<HTMLElement>(FLYOUT_FOCUS_SELECTOR)?.focus();
+        focusOnOpen = false;
       });
     } else {
       resizeObserver?.disconnect();
@@ -254,17 +292,25 @@ function SubmenuItem(props: {
       class="cujuju-context-menu-submenu-wrapper"
       onMouseEnter={enter}
     >
-      <div class="cujuju-context-menu-item cujuju-context-menu-item-has-submenu">
+      <button
+        ref={triggerRef}
+        type="button"
+        class="cujuju-context-menu-item cujuju-context-menu-item-has-submenu"
+        aria-haspopup="menu"
+        aria-expanded={isOpen()}
+        onClick={onTriggerClick}
+        onKeyDown={onTriggerKeyDown}
+      >
         <Show when={props.item.icon}>
           <span class="cujuju-context-menu-icon">{props.item.icon}</span>
         </Show>
         <span class="cujuju-context-menu-label">{props.item.label}</span>
         {/* Arrow glyph differs by surface: solid mirrors the host's ▶
             right-pointing context-menu arrow; glass keeps the lighter › . */}
-        <span class="cujuju-context-menu-chevron">
+        <span class="cujuju-context-menu-chevron" aria-hidden="true">
           {props.surface === 'solid' ? '▶' : '›'}
         </span>
-      </div>
+      </button>
       <Show when={isOpen()}>
         {/* Portal out of the parent's DOM tree: sidesteps the `backdrop-filter`
             containing-block trap (a glass ancestor re-anchors fixed descendants).
@@ -277,6 +323,7 @@ function SubmenuItem(props: {
               {...{ [POPOVER_STACK_ATTR]: '' }}
               style={flyoutStyle()}
               onMouseEnter={cancelClose}
+              onKeyDown={onFlyoutKeyDown}
             >
               {renderFlyoutBody()}
             </div>
@@ -288,6 +335,7 @@ function SubmenuItem(props: {
               {...{ [POPOVER_STACK_ATTR]: '' }}
               style={flyoutStyle()}
               onMouseEnter={cancelClose}
+              onKeyDown={onFlyoutKeyDown}
             >
               {renderFlyoutBody()}
             </GlassMenu>

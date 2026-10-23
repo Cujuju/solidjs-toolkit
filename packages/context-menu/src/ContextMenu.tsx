@@ -1,6 +1,6 @@
 import { createSignal, createMemo, createEffect, on, onMount, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { createAfterPaint } from '@cujuju/solidjs-hooks';
+import { createAfterPaint, createEscapeOwner } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import type { ContextMenuEntry } from './types';
 import { MenuEntries, type ContextMenuSurface } from './MenuEntries';
@@ -39,9 +39,12 @@ export function ContextMenu(props: ContextMenuProps) {
   const [pos, setPos] = createSignal({ x: props.x, y: props.y });
   const afterPaint = createAfterPaint();
 
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Escape') props.onClose();
-  }
+  // The shared Escape stack, so a menu opened over another surface closes first, alone.
+  createEscapeOwner({
+    open: () => true,
+    onDismiss: () => props.onClose(),
+    owns: () => [menuRef],
+  });
 
   function onMouseDown(e: MouseEvent) {
     if (!menuRef) return;
@@ -57,7 +60,6 @@ export function ContextMenu(props: ContextMenuProps) {
     props.onClose();
   }
 
-  createDocumentListener('keydown', onKeyDown);
   createDocumentListener('mousedown', onMouseDown);
 
   function clampToViewport() {

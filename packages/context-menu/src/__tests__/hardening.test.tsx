@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
-import { createSignal, Show } from 'solid-js';
+import { createRoot, createSignal, Show } from 'solid-js';
+import { createEscapeOwner } from '@cujuju/solidjs-hooks';
 import { ContextMenu } from '../ContextMenu';
 import { submenuCloseDelayMs, type ContextMenuSurface } from '../MenuEntries';
 import { POPOVER_PARENT_UNDER_OVERLAP_PX } from '../submenuPosition';
@@ -378,5 +379,79 @@ describe('ContextMenu — submenu top layer', () => {
 
     expect(topLayer.indexOf(flyoutB)).toBeLessThan(topLayer.indexOf(flyoutA));
     expect(topLayer.indexOf(flyoutA)).toBeLessThan(topLayer.indexOf(rootMenu()));
+  });
+});
+
+describe('ContextMenu — shared Escape stack', () => {
+  it('Escape closes the menu alone when it opened over another Escape owner', () => {
+    const below = vi.fn();
+    const disposeBelow = createRoot((d) => {
+      createEscapeOwner({ open: () => true, onDismiss: below });
+      return d;
+    });
+    const onClose = vi.fn();
+    dispose = render(() => <ContextMenu x={10} y={10} onClose={onClose} items={[{ label: 'A', onClick: () => {} }]} />, document.body);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(below).not.toHaveBeenCalled();
+    disposeBelow();
+  });
+});
+
+describe('ContextMenu — submenu keyboard path', () => {
+  const items: ContextMenuEntry[] = [
+    { submenu: true, label: 'More', children: [{ label: 'Child', onClick: () => {} }] },
+  ];
+  const trigger = () => document.querySelector<HTMLButtonElement>('.cujuju-context-menu-item-has-submenu')!;
+
+  it('the trigger is a focusable button announcing its menu', () => {
+    renderMenu(items);
+    expect(trigger().tagName).toBe('BUTTON');
+    expect(trigger().getAttribute('aria-haspopup')).toBe('menu');
+    expect(trigger().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('a keyboard click (Enter/Space) opens the submenu and focuses its first row', async () => {
+    renderMenu(items);
+    trigger().dispatchEvent(new MouseEvent('click', { bubbles: true })); // detail 0: keyboard-synthesised
+    await nextFrame();
+    expect(trigger().getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement?.textContent).toContain('Child');
+  });
+
+  it('ArrowRight opens it; ArrowLeft closes it and returns focus to the trigger', async () => {
+    renderMenu(items);
+    trigger().focus();
+    trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await nextFrame();
+    expect(flyouts()).toHaveLength(1);
+    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(flyouts()).toHaveLength(0);
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('an open submenu disconnects its ResizeObserver when the menu unmounts', async () => {
+    const disconnect = vi.fn();
+    vi.stubGlobal('ResizeObserver', class extends ResizeObserverStub {
+      disconnect(): void {
+        disconnect();
+      }
+    });
+    renderMenu(items);
+    hover(wrappers()[0]!);
+    await nextFrame();
+    disconnect.mockClear();
+    dispose!();
+    dispose = null;
+    expect(disconnect).toHaveBeenCalled();
+  });
+});
+
+describe('ContextMenu — slider name', () => {
+  it('labels the range input with its visible label', () => {
+    renderMenu([{ slider: true, label: 'Opacity', min: 0, max: 100, value: () => 50, onChange: () => {} }]);
+    const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
+    const labelId = input.getAttribute('aria-labelledby')!;
+    expect(document.getElementById(labelId)?.textContent).toBe('Opacity');
   });
 });
