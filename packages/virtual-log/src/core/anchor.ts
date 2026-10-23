@@ -42,11 +42,12 @@ export function anchoredOffset(layout: Layout, snap: AnchorSnap): number | null 
   return null;
 }
 
-export type Align = 'auto' | 'center';
+/** `{ bottom }`: the row's bottom edge that many pixels above the view's bottom edge (negative: below it), as bottomOf reads it. */
+export type Align = 'auto' | 'center' | { bottom: number };
 
 /**
- * The L that brings a row into a viewport of height `h`: centered, or (auto) the least movement that shows it, its
- * bottom clearing `endPadding` so the newest row keeps its space. Null for an unknown key.
+ * The L that brings a row into a viewport of height `h`: centered, at a set place (`{ bottom }`), or (auto) the least
+ * movement that shows it, its bottom clearing `endPadding` so the newest row keeps its space. Null for an unknown key.
  */
 export function alignedOffset(layout: Layout, key: string, align: Align, L: number, h: number, endPadding: number): number | null {
   const i = layout.indexOf(key);
@@ -54,6 +55,7 @@ export function alignedOffset(layout: Layout, key: string, align: Align, L: numb
   const start = layout.startAt(i);
   const size = layout.sizeAt(i);
   if (align === 'center') return start + size / 2 - h / 2;
+  if (typeof align === 'object') return start - align.bottom;
   const bottom = start - endPadding;
   const top = start + size;
   // Taller than the viewport: show its top, where it starts reading.

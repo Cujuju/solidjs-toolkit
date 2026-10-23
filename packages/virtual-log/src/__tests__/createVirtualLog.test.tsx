@@ -150,6 +150,20 @@ describe('createVirtualLog', () => {
     expect(h.log().holdRow('nope')).toBe(false);
   });
 
+  it('holdRow at { bottom } puts a row back where bottomOf read it, and keeps it there as rows grow', async () => {
+    const h = mount(rowsOf(100, 20));
+    await h.flush();
+    expect(h.log().holdRow('r50', { bottom: 120 })).toBe(true);
+    // r50's bottom is 980 from the canvas bottom: L = 980 - 120.
+    expect(h.native()).toBe(860);
+    expect(h.log().bottomOf('r50')).toBe(120);
+    // r60, newer, grows by 20: r50 rises with it and the view follows.
+    h.resize({ r60: 40 });
+    expect(h.native()).toBe(880);
+    expect(h.log().bottomOf('r50')).toBe(120);
+    expect(h.log().bottomOf('nope')).toBeNull();
+  });
+
   it('scrollToKey brings a far row in and refines it once measured', async () => {
     const h = mount(rowsOf(100, 20));
     await h.flush();

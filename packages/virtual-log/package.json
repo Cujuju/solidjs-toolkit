@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-virtual-log",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Bottom-anchored virtual log for SolidJS (chat, logs, feeds): measured rows, no scroll writes while the user scrolls or flings (iOS-safe), older-row paging with a runway, keyboard row navigation.",
   "type": "module",
   "main": "./dist/index.js",

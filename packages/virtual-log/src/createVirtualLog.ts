@@ -59,10 +59,12 @@ export interface VirtualLogController<R> {
   lastScrollDelta: () => number;
   /** The newest row wholly or mostly in view. */
   inViewKey: () => string | null;
+  /** A row's bottom edge above the view's bottom edge, in pixels (negative: below it); null for an unknown key. holdRow's `{ bottom }` restores it. */
+  bottomOf: (key: string) => number | null;
   /** Brings a row into view; false when no row has the key. */
   scrollToKey: (key: string, opts?: { align?: Align }) => boolean;
-  /** Centers a row and keeps it centered as rows are measured, until the user scrolls. Null lets go. */
-  holdRow: (key: string | null) => boolean;
+  /** Keeps a row centered (or at `align`) as rows are measured, until the user scrolls. Null lets go. */
+  holdRow: (key: string | null, align?: Align) => boolean;
   holding: Accessor<boolean>;
   scrollToBottom: () => void;
   /** The user or a scroll animation is moving the view. */
@@ -123,6 +125,8 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const [viewH, setViewH] = createSignal(0);
   const [extent, setExtent] = createSignal(0);
   const [heldKey, setHeldKey] = createSignal<string | null>(null);
+  /** Where the held row is kept. */
+  let heldAlign: Align = 'center';
   let pendingNav: { key: string; align: Align } | null = null;
   let topSnap: AnchorSnap | null = null;
   let ownWrites: { p: number; at: number }[] = [];
@@ -219,7 +223,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     const L = untrack(logical);
     const held = untrack(heldKey);
     if (held !== null) {
-      const d = alignedOffset(layout, held, 'center', L, untrack(viewH), untrack(endPadding));
+      const d = alignedOffset(layout, held, heldAlign, L, untrack(viewH), untrack(endPadding));
       if (d !== null) return d;
       setHeldKey(null);
     }
@@ -297,7 +301,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       L = (topSnap && anchoredOffset(layout, topSnap)) ?? L;
     }
     // A navigation still refining gets this one last placement.
-    const nav = pendingNav ?? (untrack(heldKey) !== null ? { key: untrack(heldKey)!, align: 'center' as const } : null);
+    const nav = pendingNav ?? (untrack(heldKey) !== null ? { key: untrack(heldKey)!, align: heldAlign } : null);
     pendingNav = null;
     if (nav) L = alignedOffset(layout, nav.key, nav.align, L, untrack(viewH), untrack(endPadding)) ?? L;
     // Back on the newest row after a mid-scroll resize left the view short of it.
@@ -595,6 +599,11 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       if (layout.startAt(i) < L - 0.5 && i > 0 && layout.startAt(i - 1) < L + viewH()) i--;
       return layout.keyAt(i);
     },
+    bottomOf: (key) => {
+      version();
+      const i = layout.indexOf(key);
+      return i < 0 ? null : layout.startAt(i) - logical();
+    },
     scrollToKey: (key, opts) => {
       if (layout.indexOf(key) < 0) return false;
       setHeldKey(null);
@@ -605,14 +614,15 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       captureAnchors();
       return true;
     },
-    holdRow: (key) => {
+    holdRow: (key, align = 'center') => {
       pendingNav = null;
       if (key === null || layout.indexOf(key) < 0) {
         setHeldKey(null);
         return false;
       }
+      heldAlign = align;
       setHeldKey(key);
-      const d = alignedOffset(layout, key, 'center', untrack(logical), untrack(viewH), untrack(endPadding));
+      const d = alignedOffset(layout, key, align, untrack(logical), untrack(viewH), untrack(endPadding));
       if (d !== null) commit(d);
       captureAnchors();
       return true;
