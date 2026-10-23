@@ -1,6 +1,7 @@
 import {
   createSignal,
   createEffect,
+  createMemo,
   onCleanup,
   onMount,
   For,
@@ -76,7 +77,7 @@ interface TooltipContentProps extends KvTooltipAnchoringProps {
   ariaLabel?: string;
   /**
    * Hide from assistive tech when the wrapper's always-mounted description node already
-   * exposes the text; one copy, not two.
+   * exposes the text; one copy, not two. With `extraContent`, only the entry rows are hidden.
    */
   ariaHidden?: boolean;
   panelClass?: string;
@@ -139,6 +140,8 @@ function measureNaturalSize(el: HTMLElement): { w: number; h: number } {
 
 export function TooltipContent(props: TooltipContentProps): JSX.Element {
   let ref: HTMLDivElement | undefined;
+  // Controls in extraContent must stay reachable, so then only the duplicated rows are hidden.
+  const hasExtra = createMemo(() => props.extraContent != null);
   const [measured, setMeasured] = createSignal(false);
   const [size, setSize] = createSignal(
     { w: 0, h: 0 },
@@ -252,7 +255,7 @@ export function TooltipContent(props: TooltipContentProps): JSX.Element {
         data-ckv-tooltip-panel=""
         role={props.role}
         aria-label={props.ariaLabel}
-        aria-hidden={props.ariaHidden ? 'true' : undefined}
+        aria-hidden={props.ariaHidden && !hasExtra() ? 'true' : undefined}
         data-interactive={props.interactive ? 'true' : undefined}
         style={panelStyle()}
         onMouseEnter={props.onPanelMouseEnter}
@@ -260,7 +263,7 @@ export function TooltipContent(props: TooltipContentProps): JSX.Element {
       >
         <For each={props.entries}>
           {([key, value]) => (
-            <div class="ckv-row">
+            <div class="ckv-row" aria-hidden={props.ariaHidden ? 'true' : undefined}>
               <span class="ckv-key">{key}:</span>
               <span class="ckv-value">{value}</span>
             </div>

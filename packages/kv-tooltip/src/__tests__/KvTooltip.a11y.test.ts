@@ -421,3 +421,35 @@ describe('KvTooltip accessibility', () => {
     dispose();
   });
 });
+
+describe('KvTooltip a11y — interactive extraContent and nested triggers', () => {
+  it('keeps extraContent controls exposed, hiding only the duplicated entry rows', () => {
+    const copy = document.createElement('button');
+    copy.textContent = 'Copy';
+    const { dispose, container } = renderTooltip({
+      entries: { Delta: '0.42' },
+      interactive: true,
+      extraContent: copy,
+      children: 'text',
+    });
+    fireMouse(getWrapper(container), 'mouseenter');
+    const panel = getPanel()!;
+    expect(panel.getAttribute('aria-hidden')).toBeNull();
+    expect(panel.querySelector('.ckv-row')!.getAttribute('aria-hidden')).toBe('true');
+    expect(copy.closest('[aria-hidden="true"]')).toBeNull();
+    dispose();
+  });
+
+  it('describes a focusable control nested inside a non-focusable child', async () => {
+    const outer = document.createElement('span');
+    const go = document.createElement('button');
+    go.textContent = 'Go';
+    outer.appendChild(go);
+    const { dispose, container } = renderTooltip({ entries: { Delta: '0.42' }, children: outer });
+    await Promise.resolve();
+    const descriptionId = getWrapper(container).getAttribute('aria-describedby')!;
+    expect(go.getAttribute('aria-describedby')).toBe(descriptionId);
+    expect(outer.getAttribute('aria-describedby')).toBeNull();
+    dispose();
+  });
+});

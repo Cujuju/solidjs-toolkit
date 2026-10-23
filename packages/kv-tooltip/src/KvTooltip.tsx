@@ -291,7 +291,12 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
    */
   const triggerChild = createMemo<HTMLElement | null>(() => {
     triggerDomTick();
-    return (wrapperEl?.firstElementChild as HTMLElement | null) ?? null;
+    // The control users reach, even when nested (`<span><button>`); else the first child.
+    return (
+      wrapperEl?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ??
+      (wrapperEl?.firstElementChild as HTMLElement | null) ??
+      null
+    );
   });
 
   /**
