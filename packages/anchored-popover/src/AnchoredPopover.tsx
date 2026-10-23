@@ -1,12 +1,17 @@
 import {
   createEffect,
   createSignal,
-  onCleanup,
   type Accessor,
   type JSX,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { createAfterPaint, createEscapeOwner, createResizeObserver } from '@cujuju/solidjs-hooks';
+import {
+  createAfterPaint,
+  createEscapeOwner,
+  createResizeObserver,
+  getGlobalTarget,
+  safeAddEventListener,
+} from '@cujuju/solidjs-hooks';
 
 type HTMLDivAttrs = JSX.HTMLAttributes<HTMLDivElement>;
 
@@ -175,6 +180,8 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
     if (isOpen) {
       void props.anchor();
       void props.horizontalAnchor?.();
+      // Positioning inputs are read in an untracked frame callback; subscribe here so a change repositions.
+      void [props.placement, props.offsetPx, props.viewportMarginPx, props.centered];
       // An anchor swap while open only repositions; re-promote and onShown
       // belong to the open transition.
       if (!wasOpen) {
@@ -228,8 +235,7 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
     if (horizontalAnchor && horizontalAnchor.contains(target)) return;
     props.onDismiss();
   };
-  document.addEventListener('pointerdown', onPointerDown);
-  onCleanup(() => document.removeEventListener('pointerdown', onPointerDown));
+  safeAddEventListener(getGlobalTarget('document'), 'pointerdown', onPointerDown);
 
   // Escape dismiss, like the UA's auto popovers. Only the topmost open surface in the app
   // dismisses, and it consumes the key — pill pickers and chip flyouts share the same stack.
@@ -245,8 +251,19 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
   const onResize = (): void => {
     if (props.open()) computeAndClamp();
   };
-  window.addEventListener('resize', onResize);
-  onCleanup(() => window.removeEventListener('resize', onResize));
+  safeAddEventListener(getGlobalTarget('window'), 'resize', onResize);
+  // An ancestor scroller moves the anchor but not this fixed panel. Capture: `scroll` doesn't
+  // bubble. The panel's own scrolling moves nothing, so it is skipped.
+  const afterScroll = createAfterPaint();
+  const onScroll = (e: Event): void => {
+    if (!props.open()) return;
+    if (e.target instanceof Node && panelEl()?.contains(e.target)) return;
+    afterScroll(onResize);
+  };
+  safeAddEventListener(getGlobalTarget('window'), 'scroll', onScroll, {
+    capture: true,
+    passive: true,
+  });
   // Content-driven size changes (rows added, late data) invalidate the clamp too.
   createResizeObserver(panelEl, onResize);
 

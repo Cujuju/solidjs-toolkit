@@ -1162,3 +1162,50 @@ describe('UA [popover] inset override', () => {
     expect(el.style.bottom).toBe('auto');
   });
 });
+
+describe('AnchoredPopover — repositioning while open', () => {
+  const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+  it('a placement change repositions without a resize', async () => {
+    const [placement, setPlacement] = createSignal<'below-start' | 'above-start'>('below-start');
+    const anchor = makeAnchor({ top: 100, bottom: 130, left: 50, right: 150 });
+    dispose = render(
+      () => (
+        <AnchoredPopover open={() => true} anchor={() => anchor} placement={placement()} onDismiss={() => {}}>
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+    await frame();
+    expect(findPopoverElement().style.top).toBe('134px');
+    setPlacement('above-start');
+    await frame();
+    // above-start: anchor.top - panel height (0 in jsdom) - offset (4).
+    expect(findPopoverElement().style.top).toBe('96px');
+  });
+
+  it('follows its anchor when an ancestor scroller scrolls', async () => {
+    let anchorTop = 100;
+    const anchor = document.createElement('div');
+    anchor.getBoundingClientRect = () =>
+      ({ top: anchorTop, bottom: anchorTop + 30, left: 50, right: 150, width: 100, height: 30 }) as DOMRect;
+    const scroller = document.createElement('div');
+    scroller.appendChild(anchor);
+    document.body.appendChild(scroller);
+    dispose = render(
+      () => (
+        <AnchoredPopover open={() => true} anchor={() => anchor} onDismiss={() => {}}>
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+    await frame();
+    expect(findPopoverElement().style.top).toBe('134px');
+    anchorTop = 200;
+    scroller.dispatchEvent(new Event('scroll')); // non-bubbling: only a capture listener sees it
+    await frame();
+    expect(findPopoverElement().style.top).toBe('234px');
+  });
+});
