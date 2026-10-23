@@ -1,11 +1,11 @@
 // @vitest-environment node
-import { createHash } from 'node:crypto';
+import { constants, createHash, generateKeyPairSync, privateEncrypt } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkMonotonic, cspAllows, nativeFingerprint, pnpmPackages, PublishError } from '../index.mjs';
-import { cmdArg } from '../publish.mjs';
+import { checkSignedChecksum, cmdArg } from '../publish.mjs';
 
 const dirs = [];
 afterEach(() => {
@@ -159,5 +159,27 @@ describe('cmdArg', () => {
   it('refuses what cmd.exe would change', () => {
     expect(() => cmdArg('a"b')).toThrow(PublishError);
     expect(() => cmdArg('%PATH%')).toThrow(PublishError);
+  });
+});
+
+describe('checkSignedChecksum', () => {
+  const pem = (k) => k.export({ type: 'pkcs1', format: 'pem' });
+  const pair = () => generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const { publicKey, privateKey } = pair();
+  const zip = createHash('sha256').update('bundle').digest('hex');
+  const sign = (bytes, key = privateKey) => privateEncrypt({ key: pem(key), padding: constants.RSA_PKCS1_PADDING }, bytes);
+
+  it('accepts the raw SHA-256 signed and sent as hex, as updater 8.x reads it', () => {
+    expect(() => checkSignedChecksum(sign(Buffer.from(zip, 'hex')).toString('hex'), zip, pem(publicKey))).not.toThrow();
+  });
+
+  it('refuses the older format: the hex digest read as base64, sent as base64', () => {
+    expect(() => checkSignedChecksum(sign(Buffer.from(zip, 'base64')).toString('base64'), zip, pem(publicKey))).toThrow(PublishError);
+  });
+
+  it('refuses a checksum signed by another key, or for another zip', () => {
+    expect(() => checkSignedChecksum(sign(Buffer.from(zip, 'hex'), pair().privateKey).toString('hex'), zip, pem(publicKey))).toThrow(PublishError);
+    const other = createHash('sha256').update('other').digest('hex');
+    expect(() => checkSignedChecksum(sign(Buffer.from(other, 'hex')).toString('hex'), zip, pem(publicKey))).toThrow(PublishError);
   });
 });

@@ -5,6 +5,7 @@
  * entry: if a publish stops between releasing and listing, publishing the same source again finishes it.
  */
 import { execFileSync, execSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -49,6 +50,23 @@ export const manifestUrl = (repo) => `https://raw.githubusercontent.com/${repo}/
 function capgo(cli, cwd, args) {
   const out = run('npx', ['--yes', cli, ...args, '--json'], { cwd });
   return JSON.parse(out.slice(out.lastIndexOf('\n{') + 1));
+}
+
+/**
+ * Fails unless an app holding `publicKey` accepts `signedChecksum`. Capgo's updater 8.x decrypts it, as hex,
+ * to the SHA-256 of the decrypted zip; another format is rejected only on the device.
+ */
+export function checkSignedChecksum(signedChecksum, zipChecksum, publicKey) {
+  let decrypted = null;
+  try {
+    const signed = /^[0-9a-f]+$/i.test(signedChecksum) ? Buffer.from(signedChecksum, 'hex') : null;
+    if (signed) decrypted = crypto.publicDecrypt({ key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING }, signed).toString('hex');
+  } catch {
+    decrypted = null;
+  }
+  if (decrypted !== zipChecksum.toLowerCase()) {
+    fail(`the signed checksum doesn't decrypt to the zip's SHA-256 with the app's publicKey; apps would reject this bundle`);
+  }
 }
 
 /** The manifest and its blob sha, or an empty one if the repo has none yet. */
@@ -164,8 +182,15 @@ export async function publishLiveUpdate({ appId, title, assetPrefix, repo, keyPa
     '--name', `${tag}.zip`,
     '--key-v2',
   ]);
-  const signed = capgo(capgoCli, stage, ['bundle', 'encrypt', path.resolve(stage, zipped.filename), zipped.checksum, '--key', keyPath]);
-  const asset = path.join(work, `${assetPrefix}-${tag}.zip`);
+  // The app's package.json tells the CLI which updater reads the checksum; without it, it signs an older format.
+  const signed = capgo(capgoCli, stage, [
+    'bundle', 'encrypt', path.resolve(stage, zipped.filename), zipped.checksum,
+    '--key', keyPath,
+    '--package-json', path.resolve(appDir, 'package.json'),
+  ]);
+  const publicKey = capConfig.app.extConfig.plugins?.CapacitorUpdater?.publicKey;
+  if (!publicKey) fail(`${appDir}'s Capacitor config has no CapacitorUpdater.publicKey`);
+  checkSignedChecksum(signed.checksum, zipped.checksum, publicKey);  const asset = path.join(work, `${assetPrefix}-${tag}.zip`);
   fs.renameSync(path.resolve(stage, signed.filename), asset);
 
   const entry = {
