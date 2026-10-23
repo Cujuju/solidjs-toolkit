@@ -56,4 +56,17 @@ describe('createDebounce', () => {
       dispose();
     });
   });
-});
+  it('stores a function-valued source instead of invoking it as an updater', async () => {
+    await createRoot(async (dispose) => {
+      const first = (): number => 1;
+      const second = (): number => 42;
+      const [src, setSrc] = createSignal<() => number>(first);
+      const debounced = createDebounce(src, 100);
+      setSrc(() => second);
+      await flush();
+      vi.advanceTimersByTime(100);
+      await flush();
+      expect(debounced()).toBe(second);
+      dispose();
+    });
+  });});

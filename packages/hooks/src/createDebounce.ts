@@ -18,7 +18,8 @@ export function createDebounce<T>(source: Accessor<T>, ms: number): Accessor<T> 
     if (timerId !== undefined) clearTimeout(timerId);
     timerId = setTimeout(() => {
       timerId = undefined;
-      (setDebounced as unknown as (v: T) => void)(next);
+      // Updater form: a function-valued `T` would otherwise be invoked as a setter callback.
+      setDebounced(() => next);
     }, ms);
   });
 

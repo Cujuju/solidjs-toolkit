@@ -9,8 +9,9 @@ export function safeStorageRead<T>(
   deserialize: (raw: string) => T,
   fallback: T,
 ): T {
-  if (typeof localStorage === 'undefined') return fallback;
+  // The availability check sits inside `try`: a storage-denied context throws from the getter.
   try {
+    if (typeof localStorage === 'undefined') return fallback;
     const raw = localStorage.getItem(key);
     if (raw === null) return fallback;
     return deserialize(raw);
@@ -24,8 +25,8 @@ export function safeStorageRead<T>(
  * Does not throw.
  */
 export function safeStorageWrite(key: string, raw: string): void {
-  if (typeof localStorage === 'undefined') return;
   try {
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(key, raw);
   } catch {
     // quota or unavailable — silent
@@ -37,8 +38,8 @@ export function safeStorageWrite(key: string, raw: string): void {
  * Does not throw.
  */
 export function safeStorageRemove(key: string): void {
-  if (typeof localStorage === 'undefined') return;
   try {
+    if (typeof localStorage === 'undefined') return;
     localStorage.removeItem(key);
   } catch {
     // unavailable — silent

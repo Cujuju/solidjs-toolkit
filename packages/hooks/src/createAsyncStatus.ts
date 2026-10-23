@@ -30,6 +30,8 @@ export function createAsyncStatus<T, A extends unknown[] = unknown[]>(
   const [result, setResult] = createSignal<T | null>(null);
 
   let resetTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Bumped by every run, reset and disposal; a completion from an older generation is stale. */
+  let generation = 0;
 
   const clearResetTimer = (): void => {
     if (resetTimer !== undefined) {
@@ -49,31 +51,42 @@ export function createAsyncStatus<T, A extends unknown[] = unknown[]>(
   };
 
   const reset = (): void => {
+    generation += 1;
     clearResetTimer();
     setStatus('idle');
     setError(null);
     setResult(null);
   };
 
+  /** The caller still receives a stale run's outcome; only the shared state ignores it. */
   const run = async (...args: A): Promise<T | null> => {
+    const own = ++generation;
     clearResetTimer();
     setStatus('loading');
     setError(null);
     try {
       const value = await fn(...args);
-      (setResult as unknown as (v: T | null) => void)(value);
-      setStatus('done');
-      scheduleReset();
+      if (own === generation) {
+        // Updater form: a function-valued `T` would otherwise be invoked as a setter callback.
+        setResult(() => value);
+        setStatus('done');
+        scheduleReset();
+      }
       return value;
     } catch (e) {
-      setError(e instanceof Error ? e : new Error(String(e)));
-      setStatus('error');
-      if (resetOnError) scheduleReset();
+      if (own === generation) {
+        setError(e instanceof Error ? e : new Error(String(e)));
+        setStatus('error');
+        if (resetOnError) scheduleReset();
+      }
       return null;
     }
   };
 
-  onCleanup(clearResetTimer);
+  onCleanup(() => {
+    generation += 1;
+    clearResetTimer();
+  });
 
   return { status, error, result, run, reset };
 }

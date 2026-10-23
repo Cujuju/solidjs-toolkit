@@ -77,3 +77,75 @@ describe('createAsyncStatus', () => {
     });
   });
 });
+
+describe('createAsyncStatus — stale completions', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** An action whose calls resolve only when the test says so, in any order. */
+  function deferred<T>(): { fn: () => Promise<T>; resolve: (i: number, v: T) => void } {
+    const resolvers: Array<(v: T) => void> = [];
+    return {
+      fn: () => new Promise<T>((r) => resolvers.push(r)),
+      resolve: (i, v) => resolvers[i]!(v),
+    };
+  }
+
+  it('a slower earlier run does not overwrite a later result', async () => {
+    await createRoot(async (dispose) => {
+      const d = deferred<string>();
+      const { result, status, run } = createAsyncStatus(d.fn);
+      const first = run();
+      const second = run();
+      d.resolve(1, 'second');
+      await second;
+      d.resolve(0, 'first');
+      expect(await first).toBe('first'); // the caller still gets its own outcome
+      expect(result()).toBe('second');
+      expect(status()).toBe('done');
+      dispose();
+    });
+  });
+
+  it('a completion after reset() leaves the state idle', async () => {
+    await createRoot(async (dispose) => {
+      const d = deferred<string>();
+      const { result, status, run, reset } = createAsyncStatus(d.fn);
+      const p = run();
+      reset();
+      d.resolve(0, 'late');
+      await p;
+      expect(status()).toBe('idle');
+      expect(result()).toBeNull();
+      dispose();
+    });
+  });
+
+  it('a completion after disposal schedules no reset timer', async () => {
+    const d = deferred<string>();
+    let dispose!: () => void;
+    const api = createRoot((dispose_) => {
+      dispose = dispose_;
+      return createAsyncStatus(d.fn);
+    });
+    const p = api.run();
+    dispose();
+    d.resolve(0, 'late');
+    await p;
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('stores a function-valued result instead of invoking it as an updater', async () => {
+    await createRoot(async (dispose) => {
+      const callback = (): number => 42;
+      const { result, run } = createAsyncStatus(async () => callback);
+      await run();
+      expect(result()).toBe(callback);
+      dispose();
+    });
+  });
+});

@@ -287,6 +287,16 @@ let panelEl: HTMLDivElement | undefined;
 createOutsideScrollDismiss(open, () => panelEl, () => setOpen(false));
 ```
 
+### `safeAddEventListener(target, event, listener, options?)` / `getGlobalTarget(which)`
+
+The SSR-safe listener primitive every hook here uses. A no-op without `window` or a
+`target`; removal is registered with the owning scope's `onCleanup`. `getGlobalTarget`
+returns `document` or `window`, or `null` during SSR.
+
+```tsx
+safeAddEventListener(getGlobalTarget('window'), 'resize', onResize);
+```
+
 ## Convention: accessor style
 
 Element-tracking hooks (`createResizeObserver`, `createIntersectionObserver`, and the `contains()` helper for `createClickOutside`) take an **element accessor** (`() => HTMLElement | undefined`), not a returned ref. The accessor is re-read on every callback, so refs that mount later (e.g., portaled panels) are picked up automatically.

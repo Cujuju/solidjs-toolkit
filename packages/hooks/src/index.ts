@@ -34,3 +34,5 @@ export {
 } from './createAsyncStatus';
 export { createAfterPaint } from './createAfterPaint';
 export { createOutsideScrollDismiss } from './createOutsideScrollDismiss';
+// The CONTRIBUTING §1 listener primitive, public so sibling packages stop hand-rolling SSR guards.
+export { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';

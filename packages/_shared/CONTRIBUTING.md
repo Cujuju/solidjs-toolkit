@@ -9,7 +9,7 @@ Rules that apply to every `cujuju-solidjs-*` package. Keep them short; add a new
 **Rule:** No hook or component calls `document.*` / `window.*` / `localStorage.*` / `addEventListener` / observer constructors directly below the package's `_internal/` layer. Adding a new direct call is a bug.
 
 **Primitives:**
-- `safeAddEventListener(target, event, listener, options?)` — in `cujuju-solidjs-hooks/_internal/safeEvent.ts` and duplicated in `cujuju-solidjs-hold-action/_internal/safeEvent.ts`. SSR-safe, auto-cleanup.
+- `safeAddEventListener(target, event, listener, options?)` — in `cujuju-solidjs-hooks/_internal/safeEvent.ts`, exported from `@cujuju/solidjs-hooks` for packages that peer on it, and duplicated in `cujuju-solidjs-hold-action/_internal/safeEvent.ts`. SSR-safe, auto-cleanup.
 - `getGlobalTarget('document' | 'window')` — returns the global event target or `null` on SSR.
 - `safeStorageRead<T>(key, deserialize, fallback)` / `safeStorageWrite(key, raw)` — in `cujuju-solidjs-hooks/_internal/safeStorage.ts`. Swallows SSR / quota / parse errors.
 

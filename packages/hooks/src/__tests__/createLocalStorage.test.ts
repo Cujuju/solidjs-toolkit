@@ -98,3 +98,26 @@ describe('createLocalStorage', () => {
     });
   });
 });
+
+describe('createLocalStorage — storage-denied context', () => {
+  it('falls back, and writes are silent, when the localStorage getter itself throws', () => {
+    // An opaque-origin iframe throws SecurityError from the getter, before any `try` around a call.
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('denied', 'SecurityError');
+      },
+    });
+    try {
+      createRoot((dispose) => {
+        const [value, setValue] = createLocalStorage<string | undefined>(KEY, 'fallback');
+        expect(value()).toBe('fallback');
+        expect(() => setValue('next')).not.toThrow();
+        expect(() => setValue(undefined)).not.toThrow();
+        dispose();
+      });
+    } finally {
+      installLocalStorageMock();
+    }
+  });
+});
