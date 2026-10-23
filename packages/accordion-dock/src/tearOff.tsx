@@ -1,5 +1,6 @@
 import { createSignal, onCleanup, type Accessor, type JSX } from 'solid-js';
 import { DelegatedEvents, Portal, delegateEvents } from 'solid-js/web';
+import { getGlobalTarget, safeAddEventListener } from '@cujuju/solidjs-hooks';
 
 /**
  * TEAR-OFF — pop a docked panel into its own browser window. Only CONTENT is portalled;
@@ -263,6 +264,8 @@ function syncStyles(source: Document, target: Document): () => void {
   const paintRootAttributes = (): void => {
     mirrorAttributes(source.documentElement, target.documentElement);
     mirrorAttributes(source.body, target.body);
+    mirrorCustomProperties(source.documentElement, target.documentElement);
+    mirrorCustomProperties(source.body, target.body);
   };
 
   /**
@@ -330,6 +333,29 @@ function mirrorAttributes(from: Element, to: Element): void {
   for (const attr of Array.from(to.attributes)) {
     if (TARGET_OWNED_ATTRS.has(attr.name)) continue;
     if (!from.hasAttribute(attr.name)) to.removeAttribute(attr.name);
+  }
+}
+
+/** Custom properties are author-declared with this prefix (CSS Variables §2). */
+const CUSTOM_PROPERTY_PREFIX = '--';
+
+/**
+ * Mirror inline custom properties (theme variables set on `style`), which `TARGET_OWNED_ATTRS`
+ * skips. Only `--*` declarations move; the target's own layout declarations stay.
+ */
+function mirrorCustomProperties(from: HTMLElement, to: HTMLElement): void {
+  const names = (el: HTMLElement): string[] =>
+    Array.from(el.style).filter((name) => name.startsWith(CUSTOM_PROPERTY_PREFIX));
+  const fromNames = names(from);
+  for (const name of names(to)) {
+    if (!fromNames.includes(name)) to.style.removeProperty(name);
+  }
+  for (const name of fromNames) {
+    const value = from.style.getPropertyValue(name);
+    const priority = from.style.getPropertyPriority(name);
+    if (to.style.getPropertyValue(name) !== value || to.style.getPropertyPriority(name) !== priority) {
+      to.style.setProperty(name, value, priority);
+    }
   }
 }
 
@@ -502,12 +528,10 @@ export function createTearOff(options: TearOffOptions): TearOffController {
     // `tornOff` would come back as panels marked torn-off with no window behind them.
     setTornOff([]);
   };
-  window.addEventListener('beforeunload', onOpenerGone);
-  window.addEventListener('pagehide', onOpenerGone);
+  safeAddEventListener(getGlobalTarget('window'), 'beforeunload', onOpenerGone);
+  safeAddEventListener(getGlobalTarget('window'), 'pagehide', onOpenerGone);
 
   onCleanup(() => {
-    window.removeEventListener('beforeunload', onOpenerGone);
-    window.removeEventListener('pagehide', onOpenerGone);
     dockAll();
   });
 

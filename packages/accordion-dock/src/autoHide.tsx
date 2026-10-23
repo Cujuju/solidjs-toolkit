@@ -10,6 +10,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { AnchoredPopover, type AnchoredPlacement } from '@cujuju/solidjs-anchored-popover';
+import { getGlobalTarget, safeAddEventListener } from '@cujuju/solidjs-hooks';
 import { Close, Pin, PinOff } from './icons';
 import type {
   AccordionOrientation,
@@ -347,16 +348,18 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
     if (open.length === 0) return;
     const target = e.target;
     if (!(target instanceof Node)) return;
+    // The pointer path's exemption: a portalled child surface (a select's options) is still inside.
+    const targetEl = target instanceof Element ? target : target.parentElement;
+    if (targetEl?.closest(DISMISS_SUPPRESS_SELECTOR)) return;
     for (const id of open) {
       if (surfaceOf(id)?.contains(target) === true) continue;
       if (group.activatorElOf(id)?.contains(target) === true) continue;
       dismiss(id);
     }
   };
-  document.addEventListener('focusin', onFocusIn);
+  safeAddEventListener(getGlobalTarget('document'), 'focusin', onFocusIn as EventListener);
 
   onCleanup(() => {
-    document.removeEventListener('focusin', onFocusIn);
     cancelEnter();
     for (const handle of leaveTimers.values()) window.clearTimeout(handle);
     leaveTimers.clear();

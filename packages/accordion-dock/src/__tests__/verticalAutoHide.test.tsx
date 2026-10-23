@@ -227,3 +227,29 @@ describe('horizontal is unchanged', () => {
     g.unmount();
   });
 });
+
+describe('auto-hide — keyboard focus dismissal', () => {
+  it('focus entering a portalled child popover keeps the flyout; focus elsewhere dismisses it', () => {
+    const g = mountGroup({ orientation: 'vertical', panels: TWO });
+    g.api().setOpen('a', true);
+    expect(g.api().isFlyout('a')).toBe(true);
+
+    // A select's options, portalled outside the flyout, as the pointer path already exempts.
+    const childPopover = document.createElement('div');
+    childPopover.setAttribute('popover', 'manual');
+    const option = document.createElement('button');
+    childPopover.appendChild(option);
+    document.body.appendChild(childPopover);
+    option.focus();
+    expect(g.api().isOpen('a')).toBe(true);
+
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    expect(g.api().isOpen('a')).toBe(false);
+
+    childPopover.remove();
+    outside.remove();
+    g.unmount();
+  });
+});

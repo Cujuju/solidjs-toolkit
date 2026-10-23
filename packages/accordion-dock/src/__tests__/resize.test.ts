@@ -32,6 +32,8 @@ interface HarnessSpec {
   minSizes?: Record<string, number>;
   /** Ids that refuse to collapse (a leaf, or a consumer-controlled pane). */
   uncollapsible?: string[];
+  /** Visual px per layout px, as an ancestor `transform: scale()` applies. Default 1 (no `offset*`, as jsdom). */
+  scale?: number;
 }
 
 function harness(spec: HarnessSpec): Harness {
@@ -49,10 +51,17 @@ function harness(spec: HarnessSpec): Harness {
   for (const id of ids) {
     const el = document.createElement('div');
     const extent = spec.boxes[id];
+    const scale = spec.scale ?? 1;
     el.getBoundingClientRect = () => {
-      const size = applied[id] ?? extent;
+      const size = (applied[id] ?? extent) * scale;
       return { width: axis === 'x' ? size : 0, height: axis === 'y' ? size : 0 } as DOMRect;
     };
+    if (spec.scale !== undefined) {
+      // The layout box, unscaled and whole-pixel, as browsers report `offset*`.
+      const layout = (): number => Math.round(applied[id] ?? extent);
+      Object.defineProperty(el, 'offsetWidth', { get: () => (axis === 'x' ? layout() : 0) });
+      Object.defineProperty(el, 'offsetHeight', { get: () => (axis === 'y' ? layout() : 0) });
+    }
     els.set(id, el);
   }
 
@@ -560,6 +569,27 @@ describe('createResize — pointercancel abandons the drag', () => {
     expect(h.api.resizing()).toBe(true);
     up();
     expect(h.commits).toHaveLength(1);
+    h.dispose();
+  });
+});
+
+describe('createResize — layout box under a CSS transform', () => {
+  it('seeds layout sizes and converts pointer travel to layout px under scale(0.5)', () => {
+    const h = harness({ boxes: { a: 300, b: 300 }, scale: 0.5 });
+    down(h.api, 'a', 0);
+    // Seeding from the visual box would preview 150px panels before any movement.
+    expect(h.sizes()).toMatchObject({ a: 300, b: 300 });
+    move(50); // 50 visual px is 100 layout px
+    expect(h.sizes()).toMatchObject({ a: 400, b: 200 });
+    up();
+    h.dispose();
+  });
+
+  it('keeps the fractional rect when untransformed (offset* only rounds)', () => {
+    const h = harness({ boxes: { a: 300.4, b: 299.6 }, scale: 1 });
+    down(h.api, 'a', 0);
+    expect(h.sizes()).toMatchObject({ a: 300.4, b: 299.6 });
+    up();
     h.dispose();
   });
 });

@@ -129,6 +129,24 @@ export interface ResizeApi {
   collapseCandidate: Accessor<string | null>;
 }
 
+/** `offset*` rounds to whole px; a visual/layout gap under this is rounding, not a transform. */
+const OFFSET_ROUNDING_PX = 1;
+
+/**
+ * Layout extent on `axis` and visual px per layout px. Sizes written back are LAYOUT sizes
+ * (CONTRIBUTING §2), so an ancestor `transform: scale()` must not leak into them.
+ */
+function measureAxis(el: HTMLElement, axis: 'x' | 'y'): { layout: number; scale: number } {
+  const r = el.getBoundingClientRect();
+  const visual = axis === 'x' ? r.width : r.height;
+  const offset = axis === 'x' ? el.offsetWidth : el.offsetHeight;
+  // Untransformed (or unmeasurable): keep the fractional rect, which `offset*` would round.
+  if (offset === 0 || visual === 0 || Math.abs(visual - offset) < OFFSET_ROUNDING_PX) {
+    return { layout: visual, scale: 1 };
+  }
+  return { layout: offset, scale: visual / offset };
+}
+
 export function createResize(host: ResizeHost): ResizeApi {
   const [resizing, setResizing] = createSignal(false);
   const [collapseCandidate, setCollapseCandidate] = createSignal<string | null>(null);
@@ -149,8 +167,7 @@ export function createResize(host: ResizeHost): ResizeApi {
     for (const pid of ids) {
       const el = host.elementOf(pid);
       if (el === undefined) continue;
-      const r = el.getBoundingClientRect();
-      seeded[pid] = host.axis() === 'x' ? r.width : r.height;
+      seeded[pid] = measureAxis(el, host.axis()).layout;
     }
     return seeded;
   };
@@ -190,6 +207,9 @@ export function createResize(host: ResizeHost): ResizeApi {
     if (p === null) return;
 
     const startPointer = host.axis() === 'x' ? e.clientX : e.clientY;
+    // Pointer travel is in visual px; divide by the panel's scale to get layout px.
+    const grabbed = host.elementOf(id);
+    const scale = grabbed === undefined ? 1 : measureAxis(grabbed, host.axis()).scale;
     // Only the pressing pointer drives the drag; capture does not stop other touches reaching `window`.
     const pointerId = e.pointerId;
     const sizesBefore = host.sizes();
@@ -207,7 +227,7 @@ export function createResize(host: ResizeHost): ResizeApi {
                    * Applied from the first pixel — deliberately no activation threshold.
                    * See DESIGN_NOTES.md § src/resize.ts:348.
                    */
-      const raw = (now - startPointer) * host.direction();
+      const raw = ((now - startPointer) * host.direction()) / scale;
       const delta = clampDelta(raw, p);
       host.previewSizes({ ...host.sizes(), [id]: p.startA + delta, [p.nextId]: p.startB - delta });
 

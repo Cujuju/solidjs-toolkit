@@ -164,6 +164,35 @@ describe('createTearOff — opening', () => {
     }
   });
 
+  it('mirrors inline root theme variables, live, without touching the popup frame', async () => {
+    const root = document.documentElement;
+    root.style.setProperty('--probe-tint', 'red');
+    try {
+      const { api, dispose } = mountController();
+      api.tearOff('files');
+      const doc = opened[0].document;
+      expect(doc.documentElement.style.getPropertyValue('--probe-tint')).toBe('red');
+      // A detached test document has no window; the resync skips a window that went away.
+      Object.defineProperty(doc, 'defaultView', { value: opened[0], configurable: true });
+
+      root.style.setProperty('--probe-tint', 'blue');
+      root.style.setProperty('--probe-added', '1px');
+      await new Promise((r) => setTimeout(r)); // observer, then the coalescing microtask
+      expect(doc.documentElement.style.getPropertyValue('--probe-tint')).toBe('blue');
+      expect(doc.documentElement.style.getPropertyValue('--probe-added')).toBe('1px');
+
+      root.style.removeProperty('--probe-added');
+      await new Promise((r) => setTimeout(r));
+      expect(doc.documentElement.style.getPropertyValue('--probe-added')).toBe('');
+      // The frame `prepareDocument` builds in body inline styles survives.
+      expect(doc.body.style.display).toBe('flex');
+      dispose();
+    } finally {
+      root.style.removeProperty('--probe-tint');
+      root.style.removeProperty('--probe-added');
+    }
+  });
+
   it('hands back the popup body as the mount, and nothing while docked', () => {
     const { api, dispose } = mountController();
     expect(api.mountFor('files')).toBeUndefined();
