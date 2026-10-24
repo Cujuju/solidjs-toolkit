@@ -32,13 +32,13 @@
     "@cujuju/solidjs-select-flyout": "workspace:*",
     "@cujuju/solidjs-tri-state-chip": "workspace:*",
     "@cujuju/solidjs-virtual-log": "workspace:*",
-    "solid-js": "^1.9.5"
+    "solid-js": "^1.9.17"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "jsdom": "^24.0.0",
-    "vite": "^5.4.0",
+    "vite": "^7.3.7",
     "vite-plugin-solid": "^2.11.12",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.12"
   }
 }

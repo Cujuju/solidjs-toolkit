@@ -176,12 +176,16 @@ describe('the toggle handler (platform dismissal)', () => {
   });
 
   it('an engine that cannot parse :popover-open is treated as "not open"', () => {
-    // jsdom throws on the pseudo-class; such an engine has nothing in the top layer, so demoting is safe.
+    // Such an engine has nothing in the top layer, so demoting is safe. Simulated: newer jsdom parses it.
     const { panel, onPlatformDismiss, dispose } = mountPromotedPanel();
-    expect(() => panel.matches(':popover-open')).toThrow();
+    const matches = vi.spyOn(panel, 'matches').mockImplementation((selector: string) => {
+      if (selector === ':popover-open') throw new SyntaxError(`'${selector}' is not a valid selector`);
+      return false;
+    });
 
     panel.dispatchEvent(toggleEvent('closed'));
 
+    expect(matches).toHaveBeenCalledWith(':popover-open');
     expect(panel.hasAttribute('popover')).toBe(false);
     expect(onPlatformDismiss).toHaveBeenCalledTimes(1);
 

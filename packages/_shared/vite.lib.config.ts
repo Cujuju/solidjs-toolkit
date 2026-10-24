@@ -31,6 +31,8 @@ export function libConfig(packageDir: string): UserConfig {
         entry: resolve(packageDir, 'src/index.ts'),
         formats: ['es'],
         fileName: 'index',
+        // Vite 6+ names it after the package; the exports and injectCssImport expect style.css.
+        cssFileName: 'style',
       },
       rollupOptions: {
         // Solid + its sub-modules stay external. Anything else bundled.
