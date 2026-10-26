@@ -20,6 +20,7 @@ import '@cujuju/solidjs-glass-menu/styles.css';
 import '@cujuju/solidjs-kv-tooltip/styles.css';
 import '@cujuju/solidjs-pill-date-picker/styles.css';
 import '@cujuju/solidjs-pill-number-picker/styles.css';
+import '@cujuju/solidjs-tiling-window-manager/styles.css';
 import '@cujuju/solidjs-pill-toggle/styles.css';
 import '@cujuju/solidjs-seg-buttons/styles.css';
 import '@cujuju/solidjs-select-flyout/styles.css';

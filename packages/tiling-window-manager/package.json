@@ -1,0 +1,64 @@
+{
+  "name": "@cujuju/solidjs-tiling-window-manager",
+  "version": "0.1.0",
+  "description": "Tiling window manager for SolidJS: split panes with resizable dividers, drag-to-dock, and add-then-place tiles that never resize their neighbours.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "solid": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./src/styles.css",
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css",
+    "./src/index.ts",
+    "./dist/index.js"
+  ],
+  "license": "MIT",
+  "author": "Cujuju",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cujuju/solidjs-toolkit.git",
+    "directory": "packages/tiling-window-manager"
+  },
+  "homepage": "https://github.com/Cujuju/solidjs-toolkit/tree/main/packages/tiling-window-manager",
+  "bugs": "https://github.com/Cujuju/solidjs-toolkit/issues",
+  "keywords": [
+    "solidjs",
+    "tiling",
+    "window-manager",
+    "split-pane",
+    "splitter",
+    "dock",
+    "layout"
+  ],
+  "peerDependencies": {
+    "solid-js": ">=1.7.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build",
+    "prepublishOnly": "vite build"
+  },
+  "devDependencies": {
+    "@solidjs/testing-library": "^0.8.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "jsdom": "^24.0.0",
+    "vite-plugin-solid": "^2.11.12",
+    "vitest": "^4.1.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

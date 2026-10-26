@@ -1,0 +1,112 @@
+/*
+ * Tiling window manager. Theme with --twm-* custom properties; the fallbacks suit a dark surface.
+ * Tiles and previews are absolutely positioned in workspace pixels.
+ */
+.twm {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.twm[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
+.twm-tile {
+  position: absolute;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.twm-tile > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.twm-tile[data-dragging] {
+  opacity: 0.6;
+}
+
+.twm-handle {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+  border-radius: 2px;
+}
+.twm-handle[data-dir='row'] {
+  cursor: col-resize;
+}
+.twm-handle[data-dir='column'] {
+  cursor: row-resize;
+}
+.twm-handle:hover,
+.twm-handle:focus-visible {
+  background: var(--twm-accent, #8b5cf6);
+  outline: none;
+}
+
+/* Where a moved or new tile lands (solid), and what remains of its target (dashed). */
+.twm-preview,
+.twm-preview-target {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  pointer-events: none;
+  border-radius: var(--twm-radius, 8px);
+}
+.twm-preview {
+  border: 1px solid var(--twm-accent, #8b5cf6);
+  background: var(--twm-accent-soft, rgba(139, 92, 246, 0.18));
+}
+.twm-preview[data-blocked='true'] {
+  border-color: var(--twm-danger, #ef4444);
+  background: var(--twm-danger-soft, rgba(239, 68, 68, 0.14));
+}
+.twm-preview-target {
+  border: 1px dashed var(--twm-border-strong, rgba(255, 255, 255, 0.35));
+}
+
+.twm-placement {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  cursor: crosshair;
+}
+.twm-caption {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  cursor: default;
+  border: 1px solid var(--twm-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--twm-radius, 8px);
+  background: var(--twm-surface, #1e1e2e);
+  box-shadow: var(--twm-shadow, 0 8px 24px rgba(0, 0, 0, 0.4));
+  color: var(--twm-text, #e5e7eb);
+  font-size: 12px;
+}
+.twm-caption strong {
+  display: block;
+}
+.twm-caption-sub {
+  color: var(--twm-text-muted, #9ca3af);
+}
+.twm-caption-cancel {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  cursor: pointer;
+  border: 1px solid var(--twm-border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--twm-text-muted, #9ca3af);
+  font: inherit;
+}
+.twm-caption-cancel:hover {
+  color: var(--twm-text, #e5e7eb);
+}

@@ -16,6 +16,7 @@ import { PillNumberPickerPage } from './pages/PillNumberPickerPage';
 import { PillTogglePage } from './pages/PillTogglePage';
 import { SegButtonsPage } from './pages/SegButtonsPage';
 import { SelectFlyoutPage } from './pages/SelectFlyoutPage';
+import { TilingWindowManagerPage } from './pages/TilingWindowManagerPage';
 import { TriStateChipPage } from './pages/TriStateChipPage';
 import { AccordionDockPage } from './pages/AccordionDockPage';
 import { VirtualLogPage } from './pages/VirtualLogPage';
@@ -40,6 +41,7 @@ const PAGES: Page[] = [
   // Deliberately first: it is the thing currently being designed. Promoted from a
   // playground mock to packages/accordion-dock on 2026-07-26.
   { id: 'accordion-dock', blurb: 'pinnable dock', component: AccordionDockPage },
+  { id: 'tiling-window-manager', blurb: 'split-pane tiles', component: TilingWindowManagerPage },
   { id: 'pill-date-picker', blurb: 'expiration + DTE', component: PillDatePickerPage },
   { id: 'pill-number-picker', blurb: 'stepper', component: PillNumberPickerPage },
   { id: 'anchored-popover', blurb: 'placement primitive', component: AnchoredPopoverPage },
