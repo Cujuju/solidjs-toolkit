@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeTileLayout, equalisedShares, resizedShares, type LayoutRect } from '../layout';
-import { planInsertion, planMove, tileHitAt, TOO_SMALL } from '../plan';
+import { planInsertion, planMove, planReflow, tileHitAt, TOO_SMALL } from '../plan';
 import { insertTile } from '../tileTree';
 import type { TileNode, TileSplit } from '../tileTree';
 
@@ -67,6 +67,23 @@ describe('layout', () => {
       expectRect(after.get('e')!, plan.rect);
     }
     expect(valid).toBeGreaterThan(0);
+  });
+
+  it('reflows a placement the strict rule refuses, growing only when allowed', () => {
+    const root = col([1, 1], t('a'), t('b'));
+    const size = { width: 300, height: 210 };
+    const opts = options({ a: 100, b: 100, c: 100 });
+    expect(planInsertion(root, 'c', 'b', 'bottom', size, opts)).toMatchObject({ valid: false, reason: TOO_SMALL });
+    expect(planReflow(root, 'c', 'b', 'bottom', size, opts, false)).toMatchObject({ valid: false, reason: TOO_SMALL });
+    // Three 100px tiles and two gaps need 320px; the workspace grows to fit.
+    expect(planReflow(root, 'c', 'b', 'bottom', size, opts, true)).toMatchObject({ valid: true, rect: { y: 220, height: 100 } });
+  });
+
+  it('refuses a move that would squeeze a tile below its minimum', () => {
+    const root = row([1, 1], t('a'), t('b'));
+    const opts = options({ a: 150, b: 150 });
+    expect(planMove(root, 'a', 'b', 'top', { width: 400, height: 200 }, opts)).toBeNull();
+    expect(planMove(root, 'a', 'b', 'top', { width: 400, height: 200 }, opts, true)?.targetRect.y).toBe(160);
   });
 
   it('plans moves and finds the tile and zone under a point', () => {

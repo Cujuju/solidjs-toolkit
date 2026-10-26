@@ -1,4 +1,4 @@
-import { computeTileLayout, type LayoutRect, type TileLayout, type TileLayoutOptions, type TileSize } from './layout';
+import { computeTileLayout, minimumSize, type LayoutRect, type TileLayout, type TileLayoutOptions, type TileSize } from './layout';
 import {
   dock, dropZoneAt, EVEN_SPLIT_PARTS, findTile, insertTile, splitAxis, swapTiles, UNIT_SHARE,
   type DockSide, type DropZone, type InsertionShares, type TileNode,
@@ -13,7 +13,14 @@ const fits = (rect: LayoutRect, minimum: TileSize) =>
 
 export type InsertionPlan =
   | { valid: false; reason: string; rect: LayoutRect }
-  | { valid: true; rect: LayoutRect; targetRect: LayoutRect; shares: InsertionShares };
+  /** `shares` is unset for a reflow placement, which splits the target's share evenly. */
+  | { valid: true; rect: LayoutRect; targetRect: LayoutRect; shares?: InsertionShares };
+
+/**
+ * `preserve`: the new tile only splits its target; every other tile keeps its rect.
+ * `reflow`: the new tile takes half the target's share and others may move, all kept at their minimums.
+ */
+export type PlacementMode = 'preserve' | 'reflow';
 
 export const TOO_SMALL = 'Not enough room to split here; choose a larger tile';
 export const WOULD_RESIZE = 'This split would resize other tiles; choose another spot';
@@ -59,13 +66,35 @@ export function planInsertion(
   return { valid: true, rect: placed, targetRect: remaining, shares };
 }
 
+/**
+ * Plans a reflow placement: the target's share splits evenly, then the whole tree is laid out again.
+ * With `growHeight`, the workspace may grow taller to fit the minimums (its owner lets it).
+ */
+export function planReflow(
+  root: TileNode, insertedId: string, targetId: string, side: DockSide, size: TileSize, options: TileLayoutOptions, growHeight: boolean,
+): InsertionPlan {
+  const target = computeTileLayout(root, size, options).tiles.get(targetId);
+  const unavailable = (reason: string): InsertionPlan => ({ valid: false, reason, rect: target ?? { x: 0, y: 0, ...size } });
+  if (!target || findTile(root, insertedId)) return unavailable(UNAVAILABLE);
+  const next = insertTile(root, insertedId, targetId, side);
+  const minimum = minimumSize(next, options);
+  if (minimum.width > size.width + RECT_TOLERANCE_PX || (!growHeight && minimum.height > size.height + RECT_TOLERANCE_PX)) return unavailable(TOO_SMALL);
+  const after = computeTileLayout(next, { width: size.width, height: Math.max(size.height, minimum.height) }, options);
+  const rect = after.tiles.get(insertedId);
+  const targetRect = after.tiles.get(targetId);
+  return rect && targetRect ? { valid: true, rect, targetRect } : unavailable(UNAVAILABLE);
+}
+
 /** The rendered result of moving a tile: the real dock or swap, laid out. Null when the move changes nothing. */
 export function planMove(
-  root: TileNode, movedId: string, targetId: string, zone: DropZone, size: TileSize, options: TileLayoutOptions,
+  root: TileNode, movedId: string, targetId: string, zone: DropZone, size: TileSize, options: TileLayoutOptions, growHeight = false,
 ): { rect: LayoutRect; targetRect: LayoutRect; next: TileNode } | null {
   const next = zone === 'center' ? swapTiles(root, movedId, targetId) : dock(root, movedId, targetId, zone);
   if (next === root) return null;
-  const after = computeTileLayout(next, size, options);
+  // A move that would squeeze a tile below its minimum is no target.
+  const minimum = minimumSize(next, options);
+  if (minimum.width > size.width + RECT_TOLERANCE_PX || (!growHeight && minimum.height > size.height + RECT_TOLERANCE_PX)) return null;
+  const after = computeTileLayout(next, { width: size.width, height: Math.max(size.height, minimum.height) }, options);
   const rect = after.tiles.get(movedId);
   const targetRect = after.tiles.get(targetId);
   return rect && targetRect ? { rect, targetRect, next } : null;

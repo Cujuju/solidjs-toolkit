@@ -1,8 +1,8 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from 'solid-js';
 import { createDockGesture } from './createDockGesture';
-import { computeTileLayout, equalisedShares, resizedShares, type LayoutHandle, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
+import { computeTileLayout, equalisedShares, minimumSize, resizedShares, type LayoutHandle, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
 import { PlacementLayer, type Placing } from './PlacementLayer';
-import { planMove } from './plan';
+import { planMove, type PlacementMode } from './plan';
 import { ResizeHandle } from './ResizeHandle';
 import { insertTile, nodeAt, removeTile, resizeSplit, tileIds, type TileNode, type TileSplit } from './tileTree';
 
@@ -32,6 +32,10 @@ export interface TilingWorkspaceProps {
   gapPx?: number;
   /** A tile waiting for a spot: the workspace shows the placement layer until it is placed or cancelled. */
   placing?: Placing | null;
+  /** `preserve` (default): a new tile only splits its target. `reflow`: it halves the target and others may move. */
+  placement?: PlacementMode;
+  /** Grow taller than the given height when the tiles' minimums need it (set `min-height`); the owner scrolls. */
+  growHeight?: boolean;
   /** The layout with the placed tile added. Without it, `onLayoutChange` receives the new layout. */
   onPlace?: (id: string, next: TileNode) => void;
   onPlacingCancel?: () => void;
@@ -73,6 +77,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     return { gapPx: props.gapPx ?? DEFAULT_GAP_PX, minSizes };
   });
   const layout = createMemo(() => computeTileLayout(props.layout, size(), { ...baseOptions(), draft: draft() }));
+  const minHeight = () => (props.growHeight && props.layout ? minimumSize(props.layout, baseOptions()).height : 0);
 
   const cancelResize = () => { start = undefined; setDraft(null); };
   const startValid = () => !!start && !!props.layout && nodeAt(props.layout, start.path) === start.split;
@@ -85,9 +90,9 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   const dock = createDockGesture({
     container: () => container,
     tiles: () => layout().tiles,
-    plan: (movedId, targetId, zone) => (props.layout ? planMove(props.layout, movedId, targetId, zone, size(), baseOptions()) : null),
+    plan: (movedId, targetId, zone) => (props.layout ? planMove(props.layout, movedId, targetId, zone, size(), baseOptions(), !!props.growHeight) : null),
     onDrop: (movedId, targetId, zone) => {
-      const plan = props.layout && planMove(props.layout, movedId, targetId, zone, size(), baseOptions());
+      const plan = props.layout && planMove(props.layout, movedId, targetId, zone, size(), baseOptions(), !!props.growHeight);
       if (plan) props.onLayoutChange(plan.next);
     },
   });
@@ -103,7 +108,8 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     <div
       ref={container}
       class={`twm${props.class ? ` ${props.class}` : ''}`}
-      style={props.style}
+      style={{ ...props.style, ...(minHeight() ? { 'min-height': `${minHeight()}px` } : {}) }}
+      data-grow={props.growHeight || undefined}
       data-dragging={dock.dragging() !== null || undefined}
     >
       <For each={identities()}>
@@ -164,6 +170,8 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
             size={size()}
             options={baseOptions()}
             placing={placing()}
+            mode={props.placement ?? 'preserve'}
+            growHeight={!!props.growHeight}
             onPlace={(targetId, side, shares) => place(placing().id, insertTile(props.layout!, placing().id, targetId, side, shares))}
             onCancel={() => props.onPlacingCancel?.()}
           />

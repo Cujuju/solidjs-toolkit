@@ -8,6 +8,10 @@
   min-height: 0;
   overflow: hidden;
 }
+/* A growing workspace shows a preview that reaches below its current height. */
+.twm[data-grow] {
+  overflow: visible;
+}
 .twm[data-dragging] {
   cursor: grabbing;
   user-select: none;

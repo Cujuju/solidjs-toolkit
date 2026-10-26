@@ -81,6 +81,16 @@ describe('TilingWorkspace', () => {
     expect(next).toEqual({ kind: 'split', dir: 'column', sizes: [1, 1], children: [t('b'), t('a')] });
   });
 
+  it('grows to the minimum height of its tiles when allowed', () => {
+    const tall = { kind: 'split', dir: 'column', sizes: [1, 1, 1, 1], children: ['a', 'b', 'c', 'd'].map(t) } as TileNode;
+    const { container } = render(() => (
+      <TilingWorkspace layout={tall} onLayoutChange={() => {}} gapPx={GAP} minSize={() => ({ width: MIN, height: 100 })} growHeight>
+        {(tile) => <div>{tile.id}</div>}
+      </TilingWorkspace>
+    ));
+    expect((container.firstElementChild as HTMLElement).style.minHeight).toBe('430px');
+  });
+
   it('ignores a press on a control inside the grip', () => {
     const { getByText, onLayoutChange } = setup(pair);
     fireEvent.pointerDown(getByText('Remove a'), { button: 0, clientX: 100, clientY: 150 });

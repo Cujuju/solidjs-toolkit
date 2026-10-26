@@ -7,7 +7,7 @@ export {
   computeTileLayout, equalisedShares, minimumSize, resizedShares, RESIZE_KEY_STEPS, RESIZE_STEP_RATIO,
   type LayoutHandle, type LayoutRect, type ResizeSnap, type TileLayout, type TileLayoutOptions, type TileSize,
 } from './layout';
-export { planInsertion, planMove, tileHitAt, TOO_SMALL, UNAVAILABLE, WOULD_RESIZE, type InsertionPlan, type TileHit } from './plan';
+export { planInsertion, planMove, planReflow, tileHitAt, TOO_SMALL, UNAVAILABLE, WOULD_RESIZE, type InsertionPlan, type PlacementMode, type TileHit } from './plan';
 export {
   appendTile, canonicalize, dock, dropZoneAt, findTile, insertTile, normalize, removeTile, resizeSplit, swapTiles, tileIds,
   DOCK_EDGE_SHARE, MIN_SHARE_RATIO,

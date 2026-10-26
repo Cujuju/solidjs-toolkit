@@ -1,6 +1,6 @@
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { computeTileLayout, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
-import { planInsertion, tileHitAt, type InsertionPlan } from './plan';
+import { planInsertion, planReflow, tileHitAt, type InsertionPlan, type PlacementMode } from './plan';
 import type { DockSide, InsertionShares, TileNode } from './tileTree';
 
 /** A new tile only ever splits a tile; the centre is not a placement. */
@@ -20,7 +20,9 @@ export function PlacementLayer(props: {
   size: TileSize;
   options: TileLayoutOptions;
   placing: Placing;
-  onPlace: (targetId: string, side: DockSide, shares: InsertionShares) => void;
+  mode: PlacementMode;
+  growHeight: boolean;
+  onPlace: (targetId: string, side: DockSide, shares?: InsertionShares) => void;
   onCancel: () => void;
 }) {
   let layer!: HTMLDivElement;
@@ -32,7 +34,9 @@ export function PlacementLayer(props: {
     const before = computeTileLayout(props.root, props.size, props.options);
     const hit = tileHitAt(before.tiles, event.clientX - area.left, event.clientY - area.top, PLACE_ZONES);
     if (!hit || hit.zone === 'center') return null;
-    const plan = planInsertion(props.root, props.placing.id, hit.targetId, hit.zone, props.size, props.options, before);
+    const plan = props.mode === 'reflow'
+      ? planReflow(props.root, props.placing.id, hit.targetId, hit.zone, props.size, props.options, props.growHeight)
+      : planInsertion(props.root, props.placing.id, hit.targetId, hit.zone, props.size, props.options, before);
     return { targetId: hit.targetId, side: hit.zone, plan };
   };
 
