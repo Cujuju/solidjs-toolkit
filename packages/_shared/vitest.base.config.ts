@@ -12,7 +12,8 @@ export type LibTestConfig = UserConfig & { test?: { include?: string[]; [option:
 const DEFAULT_TEST_INCLUDE = ['src/__tests__/**/*.test.{ts,tsx}'];
 
 export function libTest(packageDir: string, overrides: LibTestConfig = {}): LibTestConfig {
-  const { plugins = [solid()], test = {}, ...rest } = overrides;
+  // No HMR: Vitest runs Vite as a dev server, and Vitest 4 cannot load the `/@solid-refresh` runtime HMR injects.
+  const { plugins = [solid({ hot: false })], test = {}, ...rest } = overrides;
   const { include = DEFAULT_TEST_INCLUDE, ...testOverrides } = test;
   const base: LibTestConfig = {
     root: packageDir,
