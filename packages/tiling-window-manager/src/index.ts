@@ -6,7 +6,7 @@ export { planTabFold, tabShowsName, FOLD_HYSTERESIS_PX, type TabFold, type TabFo
 export type { Placing } from './PlacementLayer';
 export { ResizeReadout, percentTenths, type ReadoutSide } from './ResizeReadout';
 export { GUIDE_SNAP_PX, handleCentre, nearestGuide, resizeGuides, type AlignLayout, type ResizeGuide } from './resizeGuides';
-export { DOCK_THRESHOLD_PX, MOVE_ZONES, TAB_TARGET_ATTR } from './createDockGesture';
+export { DOCK_THRESHOLD_PX, MOVE_ZONES, TAB_TARGET_ATTR, type DragPhase } from './createDockGesture';
 export {
   computeTileLayout, DEFAULT_COLLAPSED_PX, equalisedShares, minimumSize, resizedShares, slotRects, RESIZE_KEY_STEPS, RESIZE_STEP_RATIO,
   type LayoutHandle, type LayoutRect, type LayoutSlot, type ResizeSnap, type TileLayout, type TileLayoutOptions, type TileSize,

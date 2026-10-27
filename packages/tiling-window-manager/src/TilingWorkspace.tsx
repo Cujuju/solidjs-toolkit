@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from 'solid-js';
-import { createDockGesture, type CenterDrop } from './createDockGesture';
+import { createDockGesture, type CenterDrop, type DragPhase } from './createDockGesture';
 import { DockMenu } from './DockMenu';
 import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout';
 import { PlacementLayer, type Placing } from './PlacementLayer';
@@ -47,6 +47,10 @@ export interface TilingWorkspaceProps {
   /** The layout with the placed tile added. Without it, `onLayoutChange` receives the new layout. */
   onPlace?: (id: string, next: TileNode) => void;
   onPlacingCancel?: () => void;
+  /** Tiles may leave the window: a drag released outside it calls this instead of docking. A lone tile can then drag too. */
+  onDropOutside?: (id: string, event: PointerEvent) => void;
+  /** A drag began, left or re-entered the window, or ended; `end` comes before `onDropOutside`. */
+  onDragPhase?: (phase: DragPhase) => void;
   /** Shown while the layout has no tiles. */
   empty?: JSX.Element;
   class?: string;
@@ -100,6 +104,9 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     onDrop: (movedId, targetId, zone) => { const plan = planFor(movedId, targetId, zone); if (plan) change(plan.next); },
     onTab: (movedId, targetId) => props.tabs && props.layout && change(addToTabs(props.layout, movedId, targetId)),
     onCenterDrop: (drop) => props.tabs && setCenterDrop(drop),
+    // Getters: the gesture reads whether each hook is set at press time.
+    get onDropOutside() { return props.onDropOutside; },
+    get onDragPhase() { return props.onDragPhase; },
   });
 
   const place = (id: string, next: TileNode) => (props.onPlace ? props.onPlace(id, next) : change(next));

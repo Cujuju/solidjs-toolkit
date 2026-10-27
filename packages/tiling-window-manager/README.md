@@ -16,6 +16,7 @@ Opt-in features:
 - **Collapse** (`collapse`, or `collapse={{ barPx, stripPx }}`): `tile.collapse.set(edge)` folds a tile to a strip; the open neighbour on the other side shows its space, and reopening puts every tile back where it was. `expandAlone` / `collapseAlone` roll a split's siblings; each action has a `can…` check that gives a reason when it cannot run. `tile.collapse.peek()` tells a strip where its content could open and how far.
 - **Resize readout** (`readout`, or `readout={{ color }}`): while a gap is dragged, a panel shows every share and length in its split. Shift moves it to the other side.
 - **Guides** (`alignWith={[{ name, layout }]}`): a dragged gap snaps to the same-axis gaps of other layouts (sibling workspaces) laid out at this size, and the readout names the one it lined up with.
+- **Drop outside** (`onDropOutside`, `onDragPhase`): a drag released outside the browser window calls `onDropOutside(id, event)` instead of docking, so the host can hand the tile to another window. A lone tile can then be dragged too. `onDragPhase` reports `start`, `outside`, `inside` and `end` (before `onDropOutside`), for drawing where the tile would land.
 - **Keyboard placement** (`keyboardPlacement`, or `keyboardPlacement={{ label }}`): while placing, Tab moves between tiles, arrow keys pick a side (T picks the centre when tabs are on), Enter places and Esc cancels.
 
 ```tsx
@@ -65,5 +66,5 @@ Set the `--twm-*` custom properties: `accent`, `accent-soft`, `danger`, `danger-
 
 ## Not included
 
-- Popping a tile out to another window (StockApp's cross-window drag): it depends on the host app's windows.
+- Moving a tile between windows: `onDropOutside` reports the release, and opening or targeting the other window is left to you.
 - Hover peeks for collapsed tiles: `tile.collapse.peek()` gives the edge and reach, and drawing the peek is left to you.

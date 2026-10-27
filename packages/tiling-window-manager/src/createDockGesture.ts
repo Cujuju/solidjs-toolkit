@@ -23,6 +23,14 @@ export interface DockPreview extends TileHit {
 /** A centre drop waiting for Swap or Tab. */
 export interface CenterDrop { movedId: string; targetId: string; x: number; y: number }
 
+/** A drag began, left or re-entered the window, or ended (released or cancelled). */
+export type DragPhase = 'start' | 'outside' | 'inside' | 'end';
+
+/** A held-button drag keeps reporting beyond the window, with client coordinates outside the viewport. */
+function insideViewport(event: PointerEvent): boolean {
+  return event.clientX >= 0 && event.clientY >= 0 && event.clientX < window.innerWidth && event.clientY < window.innerHeight;
+}
+
 function tabTargetRect(container: HTMLElement, tileId: string, event: PointerEvent): LayoutRect | null {
   if (typeof document.elementsFromPoint !== 'function') return null;
   const area = container.getBoundingClientRect();
@@ -50,6 +58,10 @@ export function createDockGesture(deps: {
   onTab?: (movedId: string, targetId: string) => void;
   /** Set when tab groups are on: a centre drop asks Swap or Tab. */
   onCenterDrop?: (drop: CenterDrop) => void;
+  /** Set when tiles can leave the window: a release outside it hands the tile over instead of docking. */
+  onDropOutside?: (movedId: string, event: PointerEvent) => void;
+  /** Reports each drag phase; `end` comes before `onDropOutside`. */
+  onDragPhase?: (phase: DragPhase) => void;
 }) {
   const [preview, setPreview] = createSignal<DockPreview | null>(null);
   const [dragging, setDragging] = createSignal<string | null>(null);
@@ -74,16 +86,27 @@ export function createDockGesture(deps: {
 
   function track(movedId: string, startX: number, startY: number, alreadyDragging: boolean) {
     cancel();
-    if (alreadyDragging) setDragging(movedId);
+    let outside = false;
+    const beginDrag = () => { setDragging(movedId); deps.onDragPhase?.('start'); };
+    if (alreadyDragging) beginDrag();
     const move = (next: PointerEvent) => {
       if (!dragging() && Math.hypot(next.clientX - startX, next.clientY - startY) < DOCK_THRESHOLD_PX) return;
-      setDragging(movedId);
+      if (!dragging()) beginDrag();
       next.preventDefault();
+      if (outside === insideViewport(next)) {
+        outside = !outside;
+        deps.onDragPhase?.(outside ? 'outside' : 'inside');
+      }
       setPreview(hitTest(movedId, next));
     };
     const release = (next: PointerEvent) => {
+      const leftWindow = dragging() !== null && !insideViewport(next);
       const target = dragging() ? hitTest(movedId, next) : null;
       finish();
+      if (leftWindow && deps.onDropOutside) {
+        deps.onDropOutside(movedId, next);
+        return;
+      }
       if (!target) return;
       if (target.tab) deps.onTab?.(movedId, target.targetId);
       else if (target.zone === 'center' && deps.onCenterDrop) deps.onCenterDrop({ movedId, targetId: target.targetId, x: next.clientX, y: next.clientY });
@@ -102,6 +125,7 @@ export function createDockGesture(deps: {
       window.removeEventListener('keydown', keydown, true);
       window.removeEventListener('blur', finish);
       setPreview(null);
+      if (dragging()) deps.onDragPhase?.('end');
       setDragging(null);
       teardown = undefined;
     };
@@ -116,7 +140,8 @@ export function createDockGesture(deps: {
   /** A press on a grip: it becomes a drag once the pointer travels past the threshold. */
   function start(movedId: string, event: PointerEvent) {
     if (event.button !== PRIMARY_BUTTON || (event.target as Element | null)?.closest?.(NO_DRAG)) return;
-    if (deps.targets().size < 2 && deps.exclude(movedId) === movedId) return;
+    // A lone tile has nowhere to dock here, but may still leave the window.
+    if (deps.targets().size < 2 && deps.exclude(movedId) === movedId && !deps.onDropOutside) return;
     track(movedId, event.clientX, event.clientY, false);
   }
 

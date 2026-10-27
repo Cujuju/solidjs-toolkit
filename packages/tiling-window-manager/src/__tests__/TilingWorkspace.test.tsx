@@ -119,3 +119,66 @@ describe('TilingWorkspace', () => {
     expect(onLayoutChange).not.toHaveBeenCalled();
   });
 });
+
+describe('TilingWorkspace drop outside', () => {
+  /** jsdom's viewport is 1024 × 768; a negative coordinate is beyond it. */
+  const OUTSIDE_X = -20;
+
+  function setupOutside(initial: TileNode, withHook = true) {
+    const [layout, setLayout] = createSignal<TileNode | undefined>(initial);
+    const onDropOutside = vi.fn();
+    const phases: string[] = [];
+    const view = render(() => (
+      <TilingWorkspace layout={layout()} onLayoutChange={setLayout} gapPx={GAP} minSize={() => ({ width: MIN, height: MIN })}
+        onDropOutside={withHook ? onDropOutside : undefined} onDragPhase={(phase) => phases.push(phase)}>
+        {(tile) => <header data-testid={`grip-${tile.id}`} onPointerDown={tile.startMove}>{tile.id}</header>}
+      </TilingWorkspace>
+    ));
+    return { ...view, layout, onDropOutside, phases };
+  }
+
+  it('hands a tile released outside the window to the host and keeps the layout', () => {
+    const { getByTestId, layout, onDropOutside, phases } = setupOutside(pair);
+    fireEvent.pointerDown(getByTestId('grip-a'), { button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: OUTSIDE_X, clientY: 150 });
+    fireEvent.pointerUp(window, { clientX: OUTSIDE_X, clientY: 150 });
+    expect(onDropOutside).toHaveBeenCalledWith('a', expect.any(PointerEvent));
+    expect(layout()).toEqual(pair);
+    expect(phases).toEqual(['start', 'outside', 'end']);
+  });
+
+  it('docks normally after the drag comes back inside', () => {
+    const { getByTestId, layout, onDropOutside, phases } = setupOutside(pair);
+    fireEvent.pointerDown(getByTestId('grip-a'), { button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: OUTSIDE_X, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 290 });
+    fireEvent.pointerUp(window, { clientX: 300, clientY: 290 });
+    expect(onDropOutside).not.toHaveBeenCalled();
+    expect(layout()).toEqual({ kind: 'split', dir: 'column', sizes: [1, 1], children: [t('b'), t('a')] });
+    expect(phases).toEqual(['start', 'outside', 'inside', 'end']);
+  });
+
+  it('lets a lone tile drag out only when the host takes drops outside', () => {
+    const lone = setupOutside(t('a'));
+    fireEvent.pointerDown(lone.getByTestId('grip-a'), { button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: OUTSIDE_X, clientY: 150 });
+    fireEvent.pointerUp(window, { clientX: OUTSIDE_X, clientY: 150 });
+    expect(lone.onDropOutside).toHaveBeenCalledWith('a', expect.any(PointerEvent));
+    cleanup();
+
+    const fixed = setupOutside(t('a'), false);
+    fireEvent.pointerDown(fixed.getByTestId('grip-a'), { button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: OUTSIDE_X, clientY: 150 });
+    expect(fixed.phases).toEqual([]);
+  });
+
+  it('ends the phase when Escape cancels the drag', () => {
+    const { getByTestId, onDropOutside, phases } = setupOutside(pair);
+    fireEvent.pointerDown(getByTestId('grip-a'), { button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: OUTSIDE_X, clientY: 150 });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.pointerUp(window, { clientX: OUTSIDE_X, clientY: 150 });
+    expect(onDropOutside).not.toHaveBeenCalled();
+    expect(phases).toEqual(['start', 'outside', 'end']);
+  });
+});
