@@ -27,15 +27,15 @@ export interface TabGroup {
   /** Moves tab `id` to `toIndex`; the same tab stays active. */
   move: (id: string, toIndex: number) => void;
   /** Continues a pointer drag of tab `id` as a dock drag, from `event`. */
-  drag: (id: string, event: PointerEvent) => void;
+  drag: (id: string, event: MouseEvent) => void;
 }
 
 export interface TileContext {
   id: string;
   /** The tile's box in workspace pixels. */
   rect: () => LayoutRect;
-  /** Bind to the tile's grip (`onPointerDown`): dragging docks it beside another tile or swaps with it. */
-  startMove: (event: PointerEvent) => void;
+  /** Bind to the tile's grip (`onPointerDown` or `onMouseDown`): dragging docks it beside another tile or swaps with it. */
+  startMove: (event: MouseEvent) => void;
   remove: () => void;
   /** True while this tile is being dragged. */
   dragging: () => boolean;

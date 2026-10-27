@@ -27,11 +27,11 @@ export interface CenterDrop { movedId: string; targetId: string; x: number; y: n
 export type DragPhase = 'start' | 'outside' | 'inside' | 'end';
 
 /** A held-button drag keeps reporting beyond the window, with client coordinates outside the viewport. */
-function insideViewport(event: PointerEvent): boolean {
+function insideViewport(event: MouseEvent): boolean {
   return event.clientX >= 0 && event.clientY >= 0 && event.clientX < window.innerWidth && event.clientY < window.innerHeight;
 }
 
-function tabTargetRect(container: HTMLElement, tileId: string, event: PointerEvent): LayoutRect | null {
+function tabTargetRect(container: HTMLElement, tileId: string, event: MouseEvent): LayoutRect | null {
   if (typeof document.elementsFromPoint !== 'function') return null;
   const area = container.getBoundingClientRect();
   for (const element of document.elementsFromPoint(event.clientX, event.clientY)) {
@@ -69,7 +69,7 @@ export function createDockGesture(deps: {
   const cancel = () => teardown?.();
   onCleanup(cancel);
 
-  function hitTest(movedId: string, event: PointerEvent): DockPreview | null {
+  function hitTest(movedId: string, event: MouseEvent): DockPreview | null {
     const container = deps.container();
     const area = container?.getBoundingClientRect();
     if (!container || !area) return null;
@@ -137,8 +137,8 @@ export function createDockGesture(deps: {
     teardown = finish;
   }
 
-  /** A press on a grip: it becomes a drag once the pointer travels past the threshold. */
-  function start(movedId: string, event: PointerEvent) {
+  /** A press on a grip (`pointerdown` or `mousedown`): it becomes a drag once the pointer travels past the threshold. */
+  function start(movedId: string, event: MouseEvent) {
     if (event.button !== PRIMARY_BUTTON || (event.target as Element | null)?.closest?.(NO_DRAG)) return;
     // A lone tile has nowhere to dock here, but may still leave the window.
     if (deps.targets().size < 2 && deps.exclude(movedId) === movedId && !deps.onDropOutside) return;
@@ -146,7 +146,7 @@ export function createDockGesture(deps: {
   }
 
   /** Continues a drag that began elsewhere (a tab pulled off its strip) from `event`. */
-  function begin(movedId: string, event: PointerEvent) {
+  function begin(movedId: string, event: MouseEvent) {
     track(movedId, event.clientX, event.clientY, true);
     setPreview(hitTest(movedId, event));
   }

@@ -182,3 +182,18 @@ describe('TilingWorkspace drop outside', () => {
     expect(phases).toEqual(['start', 'outside', 'end']);
   });
 });
+
+describe('TilingWorkspace mouse-down grips', () => {
+  it('starts a move from a mousedown and tracks it with pointer events', () => {
+    const [layout, setLayout] = createSignal<TileNode | undefined>(pair);
+    const { getByTestId } = render(() => (
+      <TilingWorkspace layout={layout()} onLayoutChange={setLayout} gapPx={GAP} minSize={() => ({ width: MIN, height: MIN })}>
+        {(tile) => <header data-testid={`grip-${tile.id}`} onMouseDown={tile.startMove}>{tile.id}</header>}
+      </TilingWorkspace>
+    ));
+    fireEvent.mouseDown(getByTestId('grip-a'), { button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 290 });
+    fireEvent.pointerUp(window, { clientX: 300, clientY: 290 });
+    expect(layout()).toEqual({ kind: 'split', dir: 'column', sizes: [1, 1], children: [t('b'), t('a')] });
+  });
+});
