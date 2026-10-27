@@ -12,6 +12,8 @@ export const MOVE_ZONES: readonly DropZone[] = ['left', 'right', 'top', 'bottom'
 const NO_DRAG = 'button, a, input, select, textarea, [data-twm-no-drag]';
 /** Marks an element (usually a tile's header) where a drop joins that tile's slot as a tab. */
 export const TAB_TARGET_ATTR = 'data-twm-tab-target';
+/** Finds tab targets when the host names none. */
+export const DEFAULT_TAB_TARGET = `[${TAB_TARGET_ATTR}]`;
 
 export interface DockPreview extends TileHit {
   /** Where the moved tile and the target land if released here. */
@@ -31,11 +33,11 @@ function insideViewport(event: MouseEvent): boolean {
   return event.clientX >= 0 && event.clientY >= 0 && event.clientX < window.innerWidth && event.clientY < window.innerHeight;
 }
 
-function tabTargetRect(container: HTMLElement, tileId: string, event: MouseEvent): LayoutRect | null {
+function tabTargetRect(container: HTMLElement, tileId: string, event: MouseEvent, selector: string): LayoutRect | null {
   if (typeof document.elementsFromPoint !== 'function') return null;
   const area = container.getBoundingClientRect();
   for (const element of document.elementsFromPoint(event.clientX, event.clientY)) {
-    const target = element.closest<HTMLElement>(`[${TAB_TARGET_ATTR}]`);
+    const target = element.closest<HTMLElement>(selector);
     const tile = target?.closest<HTMLElement>('[data-tile-id]');
     if (!target || tile?.dataset.tileId !== tileId || !container.contains(target)) continue;
     const box = target.getBoundingClientRect();
@@ -56,6 +58,8 @@ export function createDockGesture(deps: {
   onDrop: (movedId: string, targetId: string, zone: DropZone) => void;
   /** Set when tab groups are on: a tab-target drop joins the target as a tab. */
   onTab?: (movedId: string, targetId: string) => void;
+  /** CSS selector for tab targets; defaults to `DEFAULT_TAB_TARGET`. */
+  tabTarget?: () => string;
   /** Set when tab groups are on: a centre drop asks Swap or Tab. */
   onCenterDrop?: (drop: CenterDrop) => void;
   /** Set when tiles can leave the window: a release outside it hands the tile over instead of docking. */
@@ -75,7 +79,7 @@ export function createDockGesture(deps: {
     if (!container || !area) return null;
     const hit = tileHitAt(deps.targets(), event.clientX - area.left, event.clientY - area.top, MOVE_ZONES, deps.exclude(movedId));
     if (!hit) return null;
-    const bar = deps.onTab ? tabTargetRect(container, hit.targetId, event) : null;
+    const bar = deps.onTab ? tabTargetRect(container, hit.targetId, event, deps.tabTarget?.() ?? DEFAULT_TAB_TARGET) : null;
     // No centre plan means the target is the tile's own slot, whose strip reorders it instead.
     if (bar) return deps.plan(movedId, hit.targetId, 'center') ? { ...hit, zone: 'center', tab: true, placement: { rect: bar } } : null;
     const placement = deps.plan(movedId, hit.targetId, hit.zone);

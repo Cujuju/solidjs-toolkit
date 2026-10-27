@@ -71,3 +71,33 @@ describe('TilingWorkspace tab groups', () => {
     expect(layout()).toEqual({ kind: 'tabs', active: 1, children: [t('a'), t('b')] });
   });
 });
+
+describe('TilingWorkspace tab targets', () => {
+  function setupTarget(tabs: true | { target: string }) {
+    const [layout, setLayout] = createSignal<TileNode | undefined>(pair);
+    const view = render(() => (
+      <TilingWorkspace layout={layout()} onLayoutChange={setLayout} gapPx={GAP} minSize={() => ({ width: MIN, height: MIN })} tabs={tabs}>
+        {(tile) => (
+          <header data-testid={`grip-${tile.id}`} class="bar" data-twm-tab-target={tabs === true ? '' : undefined}
+            onPointerDown={tile.startMove}>{tile.id}</header>
+        )}
+      </TilingWorkspace>
+    ));
+    return { ...view, layout };
+  }
+  // jsdom has no hit testing: the point resolves to tile b's header.
+  const overHeader = (header: HTMLElement) => {
+    document.elementsFromPoint = () => [header];
+  };
+  afterEach(() => { delete (document as { elementsFromPoint?: unknown }).elementsFromPoint; });
+
+  it.each([
+    ['the default attribute', true as const],
+    ['a host selector', { target: '.bar' }],
+  ])('joins as a tab when dropped on %s', (_name, tabs) => {
+    const { getByTestId, layout } = setupTarget(tabs);
+    overHeader(getByTestId('grip-b'));
+    drag(getByTestId('grip-a'), { clientX: 310, clientY: 150 });
+    expect(layout()).toEqual({ kind: 'tabs', active: 1, children: [t('b'), t('a')] });
+  });
+});

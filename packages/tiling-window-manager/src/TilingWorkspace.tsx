@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from 'solid-js';
-import { createDockGesture, type CenterDrop, type DragPhase } from './createDockGesture';
+import { createDockGesture, DEFAULT_TAB_TARGET, type CenterDrop, type DragPhase } from './createDockGesture';
 import { DockMenu } from './DockMenu';
 import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout';
 import { PlacementLayer, type Placing } from './PlacementLayer';
@@ -34,8 +34,8 @@ export interface TilingWorkspaceProps {
   placement?: PlacementMode;
   /** Grow taller than the given height when the tiles' minimums need it (set `min-height`); the owner scrolls. */
   growHeight?: boolean;
-  /** Tab groups: a centre drop asks Swap or Tab, a drop on a `data-twm-tab-target` element joins as a tab. */
-  tabs?: boolean;
+  /** Tab groups: a centre drop asks Swap or Tab; a drop on a tab target (`data-twm-tab-target`, or the `target` selector) joins as a tab. */
+  tabs?: boolean | { target?: string };
   /** Collapsible tiles: `tile.collapse` folds a slot to a strip of `barPx` (in a column) or `stripPx` (in a row). */
   collapse?: boolean | { barPx?: number; stripPx?: number };
   /** While a divider is dragged, show every share and length in its split. `color` tints a tile's cell. */
@@ -104,6 +104,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     onDrop: (movedId, targetId, zone) => { const plan = planFor(movedId, targetId, zone); if (plan) change(plan.next); },
     onTab: (movedId, targetId) => props.tabs && props.layout && change(addToTabs(props.layout, movedId, targetId)),
     onCenterDrop: (drop) => props.tabs && setCenterDrop(drop),
+    tabTarget: () => (typeof props.tabs === 'object' && props.tabs.target) || DEFAULT_TAB_TARGET,
     // Getters: the gesture reads whether each hook is set at press time.
     get onDropOutside() { return props.onDropOutside; },
     get onDragPhase() { return props.onDragPhase; },
