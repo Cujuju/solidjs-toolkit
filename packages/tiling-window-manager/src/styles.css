@@ -208,3 +208,86 @@
 .twm-tab-menu-item[aria-checked='true'] {
   background: var(--twm-accent-soft, rgba(139, 92, 246, 0.18));
 }
+
+/* Resize readout: the dragged divider's whole split, cells in proportion, the traded pair lit. */
+.twm-readout {
+  position: absolute;
+  z-index: 4;
+  padding: 7px;
+  pointer-events: none;
+  border: 1px solid var(--twm-border-strong, rgba(255, 255, 255, 0.35));
+  border-radius: var(--twm-radius, 8px);
+  background: var(--twm-surface, #1e1e2e);
+  box-shadow: var(--twm-shadow, 0 8px 24px rgba(0, 0, 0, 0.4));
+  color: var(--twm-text, #e5e7eb);
+}
+.twm-readout-map {
+  display: flex;
+  gap: 3px;
+}
+/* The minimum length along the split axis is set inline. */
+.twm-readout[data-dir='row'] .twm-readout-map {
+  height: 48px;
+}
+.twm-readout[data-dir='column'] .twm-readout-map {
+  flex-direction: column;
+  min-width: 96px;
+}
+.twm-readout-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* A cell never shrinks below its own numbers; the map grows instead. */
+  min-width: max-content;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--twm-readout-color) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--twm-readout-color);
+}
+.twm-readout-cell:not([data-traded]) {
+  opacity: 0.55;
+}
+.twm-readout-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 5px;
+}
+.twm-readout-cell b {
+  font-size: 12px;
+  line-height: 1.2;
+}
+.twm-readout-cell span,
+.twm-readout-total,
+.twm-readout-aligned,
+.twm-readout-hint {
+  font-size: 10px;
+  line-height: 1.2;
+}
+.twm-readout-cell span,
+.twm-readout-hint {
+  color: var(--twm-text-muted, #9ca3af);
+}
+.twm-readout-gap {
+  flex: none;
+  border-radius: 1px;
+  background: var(--twm-accent, #8b5cf6);
+}
+.twm-readout[data-dir='row'] .twm-readout-gap {
+  width: 2px;
+}
+.twm-readout[data-dir='column'] .twm-readout-gap {
+  height: 2px;
+}
+.twm-readout-total {
+  margin-top: 5px;
+}
+.twm-readout-aligned {
+  color: var(--twm-accent, #8b5cf6);
+}
+.twm-readout-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+}

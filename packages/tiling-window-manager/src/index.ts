@@ -4,6 +4,8 @@ export { TilingWorkspace, DEFAULT_GAP_PX, DEFAULT_MIN_TILE_PX, type CollapseCont
 export { TabStrip, type TabStripProps } from './TabStrip';
 export { planTabFold, tabShowsName, FOLD_HYSTERESIS_PX, type TabFold, type TabFoldInput, type TabWidths } from './tabStripFold';
 export type { Placing } from './PlacementLayer';
+export { ResizeReadout, percentTenths, type ReadoutSide } from './ResizeReadout';
+export { GUIDE_SNAP_PX, handleCentre, nearestGuide, resizeGuides, type AlignLayout, type ResizeGuide } from './resizeGuides';
 export { DOCK_THRESHOLD_PX, MOVE_ZONES, TAB_TARGET_ATTR } from './createDockGesture';
 export {
   computeTileLayout, DEFAULT_COLLAPSED_PX, equalisedShares, minimumSize, resizedShares, slotRects, RESIZE_KEY_STEPS, RESIZE_STEP_RATIO,

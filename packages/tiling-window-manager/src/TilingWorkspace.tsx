@@ -1,16 +1,17 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from 'solid-js';
 import { createDockGesture, type CenterDrop } from './createDockGesture';
 import { DockMenu } from './DockMenu';
-import { computeTileLayout, equalisedShares, minimumSize, resizedShares, slotRects, type LayoutHandle, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout';
+import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout';
 import { PlacementLayer, type Placing } from './PlacementLayer';
 import { planMove, type PlacementMode } from './plan';
-import { ResizeHandle } from './ResizeHandle';
+import { ResizeLayer, type ResizeDraft } from './ResizeLayer';
+import type { AlignLayout } from './resizeGuides';
 import {
   canCollapse, canCollapseAlone, canExpandAlone, collapseSlotAlone, expandSlotAlone, setSlotCollapsed, type CollapsePermission,
 } from './tileCollapse';
 import type { CollapseControls, TabGroup, TileContext } from './tileContext';
-import { addToTabs, insertTile, moveTab, removeTile, resizeSplit, setActiveTab, swapTiles } from './tileEdits';
-import { findSlot, nodeAt, slotIds, slotKey, tileIds, type DropZone, type TileNode, type TileSplit } from './tileTree';
+import { addToTabs, insertTile, moveTab, removeTile, setActiveTab, swapTiles } from './tileEdits';
+import { findSlot, slotIds, slotKey, tileIds, type DropZone, type TileNode } from './tileTree';
 
 export type { CollapseControls, TabGroup, TileContext } from './tileContext';
 
@@ -37,6 +38,10 @@ export interface TilingWorkspaceProps {
   tabs?: boolean;
   /** Collapsible tiles: `tile.collapse` folds a slot to a strip of `barPx` (in a column) or `stripPx` (in a row). */
   collapse?: boolean | { barPx?: number; stripPx?: number };
+  /** While a divider is dragged, show every share and length in its split. `color` tints a tile's cell. */
+  readout?: boolean | { color?: (id: string) => string };
+  /** Other layouts (such as sibling workspaces) whose dividers a drag snaps to, laid out at this size. */
+  alignWith?: readonly AlignLayout[];
   /** The layout with the placed tile added. Without it, `onLayoutChange` receives the new layout. */
   onPlace?: (id: string, next: TileNode) => void;
   onPlacingCancel?: () => void;
@@ -54,9 +59,8 @@ const COLLAPSE_OFF: CollapsePermission = { allowed: false, reason: 'Collapsing i
 export function TilingWorkspace(props: TilingWorkspaceProps) {
   let container: HTMLDivElement | undefined;
   const [size, setSize] = createSignal<TileSize>({ width: 0, height: 0 });
-  const [draft, setDraft] = createSignal<{ split: TileSplit; sizes: number[] } | null>(null);
+  const [draft, setDraft] = createSignal<ResizeDraft>(null);
   const [centerDrop, setCenterDrop] = createSignal<CenterDrop | null>(null);
-  let start: LayoutHandle | undefined;
 
   onMount(() => {
     const measure = () => container && setSize({ width: container.clientWidth, height: container.clientHeight });
@@ -74,24 +78,15 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     return [...previous.filter((id) => present.has(id)), ...ids().filter((id) => !known.has(id))];
   }, []);
   const minFor = (id: string) => props.minSize?.(id) ?? DEFAULT_MIN;
-  const baseOptions = createMemo<TileLayoutOptions>(() => {
-    const minSizes = new Map(ids().map((id) => [id, minFor(id)]));
-    if (props.placing) minSizes.set(props.placing.id, minFor(props.placing.id));
+  const optionsFor = (tiles: readonly string[]): TileLayoutOptions => {
     const strips = typeof props.collapse === 'object' ? props.collapse : {};
-    return { gapPx: props.gapPx ?? DEFAULT_GAP_PX, minSizes, barPx: strips.barPx, stripPx: strips.stripPx };
-  });
+    return { gapPx: props.gapPx ?? DEFAULT_GAP_PX, minSizes: new Map(tiles.map((id) => [id, minFor(id)])), barPx: strips.barPx, stripPx: strips.stripPx };
+  };
+  const baseOptions = createMemo(() => optionsFor(props.placing ? [...ids(), props.placing.id] : ids()));
   const layout = createMemo(() => computeTileLayout(props.layout, size(), { ...baseOptions(), draft: draft() }));
   const targets = createMemo(() => slotRects(layout()));
   const minHeight = () => (props.growHeight && props.layout ? minimumSize(props.layout, baseOptions()).height : 0);
   const change = (next: TileNode | undefined) => { if (next !== props.layout) props.onLayoutChange(next); };
-
-  const cancelResize = () => { start = undefined; setDraft(null); };
-  const startValid = () => !!start && !!props.layout && nodeAt(props.layout, start.path) === start.split;
-  const commitResize = () => {
-    const pending = draft();
-    if (startValid() && pending) change(resizeSplit(props.layout!, start!.path, pending.sizes));
-    cancelResize();
-  };
 
   const planFor = (movedId: string, targetId: string, zone: DropZone) =>
     (props.layout ? planMove(props.layout, movedId, targetId, zone, size(), baseOptions(), !!props.growHeight) : null);
@@ -172,30 +167,9 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
           );
         }}
       </For>
-      <For each={layout().handles.map((handle) => handle.key)}>
-        {(key) => {
-          const handle = () => layout().handles.find((entry) => entry.key === key);
-          return (
-            <Show when={handle()}>
-              {(current) => (
-                <ResizeHandle
-                  dir={current().split.dir}
-                  rect={current().rect}
-                  onBegin={() => { cancelResize(); start = current(); }}
-                  onDraft={(delta, snap) => {
-                    if (!startValid()) return cancelResize();
-                    if (snap.kind !== 'by' && delta === 0) return setDraft(null);
-                    setDraft({ split: start!.split, sizes: resizedShares(start!, delta, snap) });
-                  }}
-                  onCommit={commitResize}
-                  onCancel={cancelResize}
-                  onEqualise={() => props.layout && change(resizeSplit(props.layout, current().path, equalisedShares(current())))}
-                />
-              )}
-            </Show>
-          );
-        }}
-      </For>
+      <ResizeLayer root={props.layout} layout={layout()} size={size()} draft={draft()} setDraft={setDraft} onChange={change}
+        optionsFor={(root) => optionsFor(tileIds(root))} readout={!!props.readout}
+        color={typeof props.readout === 'object' ? props.readout.color : undefined} alignWith={props.alignWith} />
       <Show when={dockGesture.preview()}>
         {(preview) => (
           <>
