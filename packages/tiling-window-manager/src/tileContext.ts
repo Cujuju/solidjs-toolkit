@@ -1,4 +1,23 @@
 import type { LayoutRect } from './layout';
+import type { CollapsePermission } from './tileCollapse';
+import type { CollapseEdge } from './tileTree';
+
+/** Collapse actions for a tile's slot. They do nothing while the workspace's `collapse` prop is off. */
+export interface CollapseControls {
+  /** The edge the slot is collapsed toward, or null when open. */
+  edge: () => CollapseEdge | null;
+  /** Where a collapsed slot's content would open from, and how far it may reach; null when open. */
+  peek: () => { edge: CollapseEdge; extentPx: number } | null;
+  /** Collapses toward `edge`, or reopens with `null`. */
+  set: (edge: CollapseEdge | null) => void;
+  can: (edge: CollapseEdge) => CollapsePermission;
+  /** Opens this slot and rolls its siblings toward it. */
+  expandAlone: () => void;
+  canExpandAlone: () => CollapsePermission;
+  /** Opens its siblings and collapses this slot. */
+  collapseAlone: () => void;
+  canCollapseAlone: () => CollapsePermission;
+}
 
 /** The tab group a tile belongs to, with the edits its strip needs. */
 export interface TabGroup {
@@ -24,4 +43,5 @@ export interface TileContext {
   visible: () => boolean;
   /** The tile's tab group, or null when it has its own slot. */
   tabs: () => TabGroup | null;
+  collapse: CollapseControls;
 }

@@ -1,9 +1,10 @@
+import { collapsedIndices, expandedSlot, repairCollapse, setSlotCollapsed, shareHolders, viewShares } from './tileCollapse';
 import {
   canonicalize, EVEN_SPLIT_PARTS, findSlot, findTile, isShare, nodeAt, replaceNode, splitAxis, tileIds, UNIT_SHARE,
   type DockSide, type DropZone, type InsertionShares, type TileLeaf, type TileNode, type TilePath, type TileSlot, type TileSplit,
 } from './tileTree';
 
-const finish = (root: TileNode): TileNode => canonicalize(root);
+const finish = (root: TileNode): TileNode => repairCollapse(canonicalize(root));
 const atStart = (side: DockSide): boolean => side === 'left' || side === 'top';
 
 function remove(node: TileNode, id: string): TileNode | undefined {
@@ -12,18 +13,24 @@ function remove(node: TileNode, id: string): TileNode | undefined {
     const children = node.children.filter((child) => child.id !== id);
     if (children.length === node.children.length) return node;
     if (!children.length) return undefined;
-    if (children.length === 1) return children[0];
+    // The group's collapse state stays with the slot when one tab is left.
+    const { collapsed, lastCollapseEdge } = node;
+    if (children.length === 1) return { ...children[0], ...(collapsed ? { collapsed } : {}), ...(lastCollapseEdge ? { lastCollapseEdge } : {}) };
     const activeId = node.children[node.active]?.id;
     const activeIndex = children.findIndex((child) => child.id === activeId);
     return { ...node, active: activeIndex >= 0 ? activeIndex : Math.min(node.active, children.length - 1), children };
   }
+  const holders = shareHolders(node);
   const sizes = [...node.sizes];
   const kept = node.children.flatMap((child, i) => {
     const result = remove(child, id);
+    // A removed collapsed slot's share stays with the slot showing it, so the screen does not change.
+    const holder = holders.get(i);
+    if (!result && holder !== undefined) sizes[holder] += sizes[i];
     return result ? [{ child: result, index: i }] : [];
   });
   if (!kept.length) return undefined;
-  if (kept.length === 1) return kept[0].child;
+  if (kept.length === 1) return repairCollapse(kept[0].child);
   if (kept.length === node.children.length && kept.every((entry, i) => entry.child === node.children[i])) return node;
   return { ...node, children: kept.map((entry) => entry.child), sizes: kept.map((entry) => sizes[entry.index]) };
 }
@@ -49,7 +56,10 @@ export function dock(root: TileNode, movedId: string, targetId: string, side: Do
   // A tab docks beside its own group: the group stays, addressed by another of its tabs.
   if (movedId === targetId && source?.kind === 'tabs') targetId = source.children.find((child) => child.id !== movedId)!.id;
   if (movedId === targetId || !findSlot(root, targetId)) return root;
-  const moved: TileLeaf = { kind: 'tile', id: movedId };
+  // Docking opens the target, then divides its own share.
+  root = setSlotCollapsed(root, targetId, null);
+  const movedLeaf = findTile(root, movedId)?.leaf;
+  const moved: TileLeaf = movedLeaf ? expandedSlot(movedLeaf) : { kind: 'tile', id: movedId };
   const rest = remove(root, movedId);
   const location = rest && findSlot(rest, targetId);
   if (!rest || !location) return root;
@@ -71,7 +81,11 @@ function insertTab(root: TileNode, movedId: string, targetId: string): TileNode 
   const moved: TileLeaf = { kind: 'tile', id: movedId };
   const replacement: TileSlot = slot.kind === 'tabs'
     ? { ...slot, active: slot.children.length, children: [...slot.children, moved] }
-    : { kind: 'tabs', active: 1, children: [{ kind: 'tile', id: slot.id }, moved] };
+    : {
+        kind: 'tabs', active: 1, children: [{ kind: 'tile', id: slot.id }, moved],
+        ...(slot.collapsed ? { collapsed: slot.collapsed } : {}),
+        ...(slot.lastCollapseEdge ? { lastCollapseEdge: slot.lastCollapseEdge } : {}),
+      };
   return finish(replaceNode(root, slot, replacement));
 }
 
@@ -80,14 +94,14 @@ export function addToTabs(root: TileNode, movedId: string, targetId: string): Ti
   const source = findSlot(root, movedId);
   const target = findSlot(root, targetId);
   if (!source || !target || source.slot === target.slot) return root;
-  const rest = remove(root, movedId);
+  const rest = remove(setSlotCollapsed(root, targetId, null), movedId);
   return rest ? insertTab(rest, movedId, targetId) : root;
 }
 
 /** Adds a new tile beside `targetId`, or as a tab on it (`center`); an existing id or invalid shares change nothing. */
 export function insertTile(root: TileNode, id: string, targetId: string, zone: DropZone, shares?: InsertionShares): TileNode {
   if (!findSlot(root, targetId) || findSlot(root, id) || (shares && (shares.length !== EVEN_SPLIT_PARTS || !shares.every(isShare)))) return root;
-  return zone === 'center' ? insertTab(root, id, targetId) : dock(root, id, targetId, zone, shares);
+  return zone === 'center' ? insertTab(setSlotCollapsed(root, targetId, null), id, targetId) : dock(root, id, targetId, zone, shares);
 }
 
 /** Exchanges two tiles' places; geometry and tab order stay put. */
@@ -134,6 +148,8 @@ export function appendTile(root: TileNode | undefined, id: string): TileNode {
   if (!root) return leaf;
   if (tileIds(root).includes(id)) return root;
   if (root.kind !== 'split' || root.dir !== 'row') return finish(pair(root, leaf, 'right'));
-  const mean = root.sizes.reduce((sum, share) => sum + share, 0) / root.sizes.length;
+  // The average of the open slots' on-screen shares, so collapsed come-back sizes do not skew it.
+  const collapsed = collapsedIndices(root);
+  const mean = viewShares(root).reduce((sum, share, i) => sum + (collapsed.has(i) ? 0 : share), 0) / (root.children.length - collapsed.size);
   return finish({ ...root, sizes: [...root.sizes, mean], children: [...root.children, leaf] });
 }

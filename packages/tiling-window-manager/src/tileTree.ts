@@ -9,9 +9,18 @@ export type DockSide = 'left' | 'right' | 'top' | 'bottom';
 export type DropZone = DockSide | 'center';
 export type InsertionShares = readonly [target: number, inserted: number];
 
-export interface TileLeaf { kind: 'tile'; id: string }
+/** The edge a collapsed slot folds toward; its space goes to the open neighbour on the other side. */
+export type CollapseEdge = DockSide;
+export interface TileCollapse { edge: CollapseEdge }
+/** Collapse state lives on slots: a tile in a split, or a tab group. Tabs inside a group carry none. */
+interface SlotState {
+  collapsed?: TileCollapse;
+  /** The edge it last collapsed toward, reused by "collapse alone". */
+  lastCollapseEdge?: CollapseEdge;
+}
+export interface TileLeaf extends SlotState { kind: 'tile'; id: string }
 /** Tiles sharing one slot; only the `active` one shows. */
-export interface TileTabs { kind: 'tabs'; active: number; children: TileLeaf[] }
+export interface TileTabs extends SlotState { kind: 'tabs'; active: number; children: TileLeaf[] }
 export type TileSlot = TileLeaf | TileTabs;
 export interface TileSplit {
   kind: 'split';

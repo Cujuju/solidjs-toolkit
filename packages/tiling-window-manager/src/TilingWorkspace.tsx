@@ -1,15 +1,18 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from 'solid-js';
 import { createDockGesture, type CenterDrop } from './createDockGesture';
 import { DockMenu } from './DockMenu';
-import { computeTileLayout, equalisedShares, minimumSize, resizedShares, slotRects, type LayoutHandle, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
+import { computeTileLayout, equalisedShares, minimumSize, resizedShares, slotRects, type LayoutHandle, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout';
 import { PlacementLayer, type Placing } from './PlacementLayer';
 import { planMove, type PlacementMode } from './plan';
 import { ResizeHandle } from './ResizeHandle';
-import type { TabGroup, TileContext } from './tileContext';
+import {
+  canCollapse, canCollapseAlone, canExpandAlone, collapseSlotAlone, expandSlotAlone, setSlotCollapsed, type CollapsePermission,
+} from './tileCollapse';
+import type { CollapseControls, TabGroup, TileContext } from './tileContext';
 import { addToTabs, insertTile, moveTab, removeTile, resizeSplit, setActiveTab, swapTiles } from './tileEdits';
-import { findSlot, nodeAt, slotKey, tileIds, type DropZone, type TileNode, type TileSplit } from './tileTree';
+import { findSlot, nodeAt, slotIds, slotKey, tileIds, type DropZone, type TileNode, type TileSplit } from './tileTree';
 
-export type { TabGroup, TileContext } from './tileContext';
+export type { CollapseControls, TabGroup, TileContext } from './tileContext';
 
 /** Gap between tiles; it is also the divider's hit area. */
 export const DEFAULT_GAP_PX = 8;
@@ -32,6 +35,8 @@ export interface TilingWorkspaceProps {
   growHeight?: boolean;
   /** Tab groups: a centre drop asks Swap or Tab, a drop on a `data-twm-tab-target` element joins as a tab. */
   tabs?: boolean;
+  /** Collapsible tiles: `tile.collapse` folds a slot to a strip of `barPx` (in a column) or `stripPx` (in a row). */
+  collapse?: boolean | { barPx?: number; stripPx?: number };
   /** The layout with the placed tile added. Without it, `onLayoutChange` receives the new layout. */
   onPlace?: (id: string, next: TileNode) => void;
   onPlacingCancel?: () => void;
@@ -43,6 +48,7 @@ export interface TilingWorkspaceProps {
 
 const box = (rect: LayoutRect) => ({ left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px` });
 const ZERO_RECT: LayoutRect = { x: 0, y: 0, width: 0, height: 0 };
+const COLLAPSE_OFF: CollapsePermission = { allowed: false, reason: 'Collapsing is off' };
 
 /** Split-pane tiles that the user resizes, drags to re-dock and adds by pointing at a spot. Controlled by `layout`. */
 export function TilingWorkspace(props: TilingWorkspaceProps) {
@@ -71,7 +77,8 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   const baseOptions = createMemo<TileLayoutOptions>(() => {
     const minSizes = new Map(ids().map((id) => [id, minFor(id)]));
     if (props.placing) minSizes.set(props.placing.id, minFor(props.placing.id));
-    return { gapPx: props.gapPx ?? DEFAULT_GAP_PX, minSizes };
+    const strips = typeof props.collapse === 'object' ? props.collapse : {};
+    return { gapPx: props.gapPx ?? DEFAULT_GAP_PX, minSizes, barPx: strips.barPx, stripPx: strips.stripPx };
   });
   const layout = createMemo(() => computeTileLayout(props.layout, size(), { ...baseOptions(), draft: draft() }));
   const targets = createMemo(() => slotRects(layout()));
@@ -117,6 +124,21 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     };
   };
 
+  const collapseControls = (id: string, placed: () => LayoutSlot | undefined): CollapseControls => {
+    const edit = (apply: (root: TileNode) => TileNode) => { if (props.collapse && props.layout) change(apply(props.layout)); };
+    const ask = (check: () => CollapsePermission) => (props.collapse ? check() : COLLAPSE_OFF);
+    return {
+      edge: () => (placed()?.collapsed ? placed()!.slot.collapsed?.edge ?? null : null),
+      peek: () => { const p = placed(); return p?.peekEdge ? { edge: p.peekEdge, extentPx: p.peekExtentPx ?? 0 } : null; },
+      set: (edge) => edit((root) => setSlotCollapsed(root, id, edge)),
+      can: (edge) => ask(() => canCollapse(props.layout, id, edge)),
+      expandAlone: () => edit((root) => expandSlotAlone(root, id)),
+      canExpandAlone: () => ask(() => canExpandAlone(props.layout, id)),
+      collapseAlone: () => edit((root) => collapseSlotAlone(root, id)),
+      canCollapseAlone: () => ask(() => canCollapseAlone(props.layout, id)),
+    };
+  };
+
   return (
     <div
       ref={container}
@@ -131,6 +153,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
           const rect = createMemo<LayoutRect>((previous) => layout().tiles.get(id) ?? previous, ZERO_RECT);
           const group = createMemo(() => tabGroup(id));
           const visible = () => { const g = group(); return !g || g.ids[g.active] === id; };
+          const placed = createMemo(() => layout().slots.find((entry) => slotIds(entry.slot).includes(id)));
           const context: TileContext = {
             id,
             rect,
@@ -139,10 +162,11 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
             dragging: () => dockGesture.dragging() === id,
             visible,
             tabs: group,
+            collapse: collapseControls(id, placed),
           };
           return (
             <div class="twm-tile" data-tile-id={id} data-dragging={context.dragging() || undefined} hidden={!visible()}
-              role={group() ? 'tabpanel' : undefined} style={{ ...box(rect()), display: visible() ? undefined : 'none' }}>
+              role={group() ? 'tabpanel' : undefined} data-collapsed={context.collapse.edge() ?? undefined} style={{ ...box(rect()), display: visible() ? undefined : 'none' }}>
               {props.children(context)}
             </div>
           );

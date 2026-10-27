@@ -1,35 +1,59 @@
-import { EVEN_SPLIT_PARTS, MIN_SHARE_RATIO, slotIds, slotKey, type TileNode, type TileSlot, type TileSplit } from './tileTree';
+import { collapsedIndices, ownShares, peekEdgeOf, shareHolders, viewShares } from './tileCollapse';
+import { slotIds, slotKey, type CollapseEdge, type TileNode, type TileSlot, type TileSplit } from './tileTree';
+
+export { equalisedShares, resizedShares, RESIZE_KEY_STEPS, RESIZE_STEP_RATIO, type ResizeSnap } from './resize';
 
 export interface TileSize { width: number; height: number }
 export interface LayoutRect extends TileSize { x: number; y: number }
 
+/** A collapsed slot's thickness when none is given: one header row. */
+export const DEFAULT_COLLAPSED_PX = 32;
+
+/** One tile or tab group and its box. */
+export interface LayoutSlot {
+  slot: TileSlot;
+  rect: LayoutRect;
+  collapsed: boolean;
+  /** The edge a collapsed slot's content opens from (toward its holder); null when open. */
+  peekEdge: CollapseEdge | null;
+  /** Pixels from a collapsed slot to the workspace edge its content opens toward; null when open. */
+  peekExtentPx: number | null;
+}
+
 export interface LayoutHandle {
   /** Stable while the tree keeps its shape: `<split path>:<gap index>`. */
   key: string;
+  /** The gap's index: it sits after child `gap`. */
+  gap: number;
   path: number[];
   split: TileSplit;
   /** Shares a drag starts from: the stored ones, or ones matching the pixels when minimums clamped them. */
   sizes: number[];
-  /** The two children either side of the divider. */
+  /** The two open children either side of the divider; collapsed strips between them move with it. */
   a: number;
   b: number;
   rect: LayoutRect;
   childRects: LayoutRect[];
-  /** Pixels the split's shares divide (its length minus its gaps). */
+  /** The split's length along its axis. */
+  extentPx: number;
+  /** Pixels the open shares divide: their own lengths plus the strips they fund. */
   shareSpacePx: number;
-  /** Each child's minimum along the split axis. */
+  /** Each child's minimum along the split axis, as if it were open. */
   minimums: number[];
+  /** Pixels each open child gives to the collapsed strips it holds. */
+  fundedPx: number[];
 }
 
 export interface TileLayoutOptions {
   gapPx: number;
   minSizes: ReadonlyMap<string, TileSize>;
+  /** Height of a slot collapsed in a column; defaults to `DEFAULT_COLLAPSED_PX`. */
+  barPx?: number;
+  /** Width of a slot collapsed in a row; defaults to `DEFAULT_COLLAPSED_PX`. */
+  stripPx?: number;
   /** Shares of one split under a live drag, shown before they are committed. */
   draft?: { split: TileSplit; sizes: number[] } | null;
 }
-
-/** One tile or tab group and its box. */
-export interface LayoutSlot { slot: TileSlot; rect: LayoutRect }
 
 export interface TileLayout {
   /** Every tile's box; tabs of one group share their group's. */
@@ -39,7 +63,9 @@ export interface TileLayout {
   splitSpaces: Map<TileSplit, { shareSpacePx: number; totalShare: number }>;
 }
 
-const axisOf = (split: TileSplit) => (split.dir === 'row' ? 'width' : 'height');
+type MinimumOptions = Pick<TileLayoutOptions, 'gapPx' | 'minSizes' | 'barPx' | 'stripPx'>;
+const thickness = (dir: TileSplit['dir'], options: MinimumOptions) =>
+  (dir === 'row' ? options.stripPx : options.barPx) ?? DEFAULT_COLLAPSED_PX;
 
 /** Splits `space` by share, never below a minimum; when the minimums alone overflow, they shrink in proportion. */
 function distribute(shares: readonly number[], minima: readonly number[], space: number): { px: number[]; clamped: boolean } {
@@ -60,14 +86,19 @@ function distribute(shares: readonly number[], minima: readonly number[], space:
   return { px, clamped: remaining !== space };
 }
 
-/** The node's smallest size: tile minimums plus gaps along each split. */
-export function minimumSize(node: TileNode, options: Pick<TileLayoutOptions, 'gapPx' | 'minSizes'>): TileSize {
+/** The node's smallest size: tile minimums plus gaps, collapsed slots at strip thickness. `open` measures it fully expanded. */
+export function minimumSize(node: TileNode, options: MinimumOptions, open = false): TileSize {
   if (node.kind === 'tile') return options.minSizes.get(node.id) ?? { width: 0, height: 0 };
   if (node.kind === 'tabs') {
     const tabs = node.children.map((child) => minimumSize(child, options));
     return { width: Math.max(...tabs.map((min) => min.width)), height: Math.max(...tabs.map((min) => min.height)) };
   }
-  const mins = node.children.map((child) => minimumSize(child, options));
+  const collapsed = open ? new Set<number>() : collapsedIndices(node);
+  const strip = thickness(node.dir, options);
+  const mins = node.children.map((child, i) => {
+    const min = minimumSize(child, options, open);
+    return !collapsed.has(i) ? min : node.dir === 'row' ? { ...min, width: strip } : { ...min, height: strip };
+  });
   const sum = (key: keyof TileSize) => mins.reduce((total, min) => total + min[key], 0) + options.gapPx * (mins.length - 1);
   const max = (key: keyof TileSize) => Math.max(...mins.map((min) => min[key]));
   return node.dir === 'row' ? { width: sum('width'), height: max('height') } : { width: max('width'), height: sum('height') };
@@ -77,95 +108,95 @@ export function minimumSize(node: TileNode, options: Pick<TileLayoutOptions, 'ga
 export const slotRects = (layout: Pick<TileLayout, 'slots'>): Map<string, LayoutRect> =>
   new Map(layout.slots.map((entry) => [slotKey(entry.slot), entry.rect]));
 
-/** One geometry source for tiles, dividers, drop previews and placement planning. */
+/** Pixels from a collapsed rect to the workspace edge its content opens toward. */
+function peekExtent(rect: LayoutRect, edge: CollapseEdge, size: TileSize): number {
+  switch (edge) {
+    case 'left': return size.width - rect.x - rect.width;
+    case 'right': return rect.x;
+    case 'top': return size.height - rect.y - rect.height;
+    case 'bottom': return rect.y;
+  }
+}
+
+/** One geometry source for tiles, strips, dividers, drop previews and placement planning. */
 export function computeTileLayout(root: TileNode | undefined, size: TileSize, options: TileLayoutOptions): TileLayout {
   const tiles = new Map<string, LayoutRect>();
   const slots: LayoutSlot[] = [];
   const handles: LayoutHandle[] = [];
   const splitSpaces = new Map<TileSplit, { shareSpacePx: number; totalShare: number }>();
-  function visit(node: TileNode, rect: LayoutRect, path: number[]) {
+  const bounds = { width: Math.max(0, size.width), height: Math.max(0, size.height) };
+
+  function lengths(split: TileSplit, rect: LayoutRect) {
+    const collapsed = collapsedIndices(split);
+    const holders = shareHolders(split);
+    const shown = viewShares(split, holders).map((share, i) => (collapsed.has(i) ? null : share));
+    const axis = split.dir === 'row' ? 'width' : 'height';
+    const gapPx = Math.min(options.gapPx, rect[axis] / (split.children.length - 1));
+    const available = Math.max(0, rect[axis] - gapPx * (split.children.length - 1));
+    const bar = Math.min(thickness(split.dir, options), collapsed.size ? available / collapsed.size : available);
+    const strips = split.sizes.map(() => 0);
+    holders.forEach((holder) => { strips[holder] += bar; });
+    // Own pixels ignore collapse flags, so a toggle moves only the toggled slot and its holder.
+    const openMins = split.children.map((child) => minimumSize(child, options, true)[axis]);
+    if (openMins.reduce((sum, min) => sum + min, 0) <= available) {
+      const own = distribute(split.sizes, openMins, available);
+      const allocated = own.px.map((px, i) => (collapsed.has(i) ? bar : px));
+      holders.forEach((holder, i) => { allocated[holder] += own.px[i] - bar; });
+      return { holders, shown, gapPx, fundedPx: strips, allocated, own, openMins };
+    }
+    // Too small for every slot open at its minimum: fit the shown shares instead.
+    const open = shown.map((share) => share ?? 0);
+    const openTotal = open.reduce((sum, share) => sum + share, 0);
+    const sharePerPx = available > 0 ? openTotal / available : 0;
+    const debited = open.map((share, i) => Math.max(0, share - strips[i] * sharePerPx));
+    // Strips filling the whole split leave nothing to debit; plain shares avoid a 0/0 split.
+    const funds = debited.some((share) => share > 0);
+    const fundedPx = funds ? strips : strips.map(() => 0);
+    const mins = split.children.map((child, i) => (shown[i] === null ? 0 : minimumSize(child, options)[axis]));
+    const { px } = distribute(funds ? debited : open, mins, Math.max(0, available - collapsed.size * bar));
+    return { holders, shown, gapPx, fundedPx, allocated: px.map((length, i) => (shown[i] === null ? bar : length)), own: null, openMins };
+  }
+
+  function visit(node: TileNode, rect: LayoutRect, path: number[], collapsed = false, peekEdge: CollapseEdge | null = null) {
     if (node.kind !== 'split') {
-      slots.push({ slot: node, rect });
+      const peekExtentPx = peekEdge ? Math.max(0, peekExtent(rect, peekEdge, bounds)) : null;
+      slots.push({ slot: node, rect, collapsed, peekEdge, peekExtentPx });
       slotIds(node).forEach((id) => tiles.set(id, rect));
       return;
     }
     const split = options.draft?.split === node ? { ...node, sizes: options.draft.sizes } : node;
+    const { holders, shown, allocated, gapPx, fundedPx, own, openMins } = lengths(split, rect);
     const horizontal = split.dir === 'row';
-    const axis = axisOf(split);
+    const axis = horizontal ? 'width' : 'height';
     const start = horizontal ? 'x' : 'y';
-    const gaps = split.children.length - 1;
-    const gapPx = Math.min(options.gapPx, rect[axis] / gaps);
-    const space = Math.max(0, rect[axis] - gapPx * gaps);
-    const minimums = split.children.map((child) => minimumSize(child, options)[axis]);
-    const { px, clamped } = distribute(split.sizes, minimums, space);
-    const total = split.sizes.reduce((sum, share) => sum + share, 0);
-    splitSpaces.set(node, { shareSpacePx: space, totalShare: total });
-    const synced = clamped && space > 0 ? px.map((length) => Math.max(MIN_SHARE_RATIO, length * total / space)) : [...split.sizes];
+    // Open shares divide their own pixels plus the strips they fund.
+    const shareSpace = allocated.reduce((sum, px, i) => sum + (shown[i] === null ? 0 : px + fundedPx[i]), 0);
+    const total = shown.reduce<number>((sum, share) => sum + (share ?? 0), 0);
+    splitSpaces.set(node, { shareSpacePx: shareSpace, totalShare: total });
+    // Stored shares persist until a drag resyncs them: a clamped share from its pixels, an unclamped one as stored.
+    const basis = own ? (own.clamped ? own.px.map((px) => px * total / shareSpace) : split.sizes)
+      : shown.map((share, i) => (share === null ? split.sizes[i] : (allocated[i] + fundedPx[i]) * total / shareSpace));
+    const valid = shareSpace > 0 && basis.every((share) => Number.isFinite(share) && share > 0);
+    const sizes = !valid ? [...split.sizes] : own ? [...basis] : ownShares(split, basis, holders);
     let offset = 0;
-    const childRects = px.map((length) => {
+    const childRects = allocated.map((length) => {
       const childRect: LayoutRect = { ...rect, [start]: rect[start] + offset, [axis]: length };
       offset += length + gapPx;
       return childRect;
     });
+    let a = -1;
     split.children.forEach((child, i) => {
-      visit(child, childRects[i], [...path, i]);
-      if (i === gaps) return;
+      visit(child, childRects[i], [...path, i], shown[i] === null, shown[i] === null ? peekEdgeOf(split, i, holders) : null);
+      if (shown[i] !== null) a = i;
+      const b = shown.findIndex((value, index) => index > i && value !== null);
+      if (a === -1 || b === -1) return;
       handles.push({
-        key: `${path.join('.')}:${i}`, path, split: node, sizes: synced, a: i, b: i + 1, childRects, shareSpacePx: space, minimums,
-        rect: { ...childRects[i], [start]: childRects[i][start] + px[i], [axis]: gapPx },
+        key: `${path.join('.')}:${i}`, gap: i, path, split: node, sizes, a, b, childRects, extentPx: rect[axis],
+        shareSpacePx: shareSpace, minimums: openMins, fundedPx,
+        rect: { ...childRects[i], [start]: childRects[i][start] + allocated[i], [axis]: gapPx },
       });
     });
   }
-  const bounds = { width: Math.max(0, size.width), height: Math.max(0, size.height) };
   if (root) visit(root, { x: 0, y: 0, ...bounds }, []);
   return { tiles, slots, handles, splitSpaces };
-}
-
-/** Saved shares land on 0.5% of the split, so equal percents give equal layouts. */
-export const RESIZE_STEP_RATIO = 0.005;
-/** One arrow press moves 1% of the split. */
-export const RESIZE_KEY_STEPS = 2;
-/** Absorbs float error so a bound sitting on a step counts as on it. */
-const STEP_EPSILON = 1e-9;
-
-/** `free` follows the pointer; `nearest` lands on the closest step; `by` moves whole steps from the current one. */
-export type ResizeSnap = { kind: 'free' } | { kind: 'nearest' } | { kind: 'by'; steps: number };
-
-function snappedShare(current: number, target: number, step: number, low: number, high: number, snap: ResizeSnap): number | undefined {
-  if (snap.kind === 'free') return undefined;
-  const wanted = snap.kind === 'nearest' ? Math.round(target / step) : Math.round(current / step) + snap.steps;
-  const lowest = Math.ceil(low / step - STEP_EPSILON);
-  const highest = Math.floor(high / step + STEP_EPSILON);
-  if (lowest > highest) return undefined;
-  return Math.min(highest, Math.max(lowest, wanted)) * step;
-}
-
-/** Moves a divider `deltaPx`: share passes between its two sides, each kept at or above its minimum. */
-export function resizedShares(handle: LayoutHandle, deltaPx: number, snap: ResizeSnap = { kind: 'free' }): number[] {
-  const { sizes, a, b, minimums, shareSpacePx } = handle;
-  const total = sizes.reduce((sum, share) => sum + share, 0);
-  if (shareSpacePx <= 0 || total <= 0) return sizes;
-  const pxPerShare = shareSpacePx / total;
-  const floor = (i: number) => Math.max(Math.max(...sizes) * MIN_SHARE_RATIO, minimums[i] / pxPerShare);
-  // Untouched shares bound the largest share saved-ratio validation allows.
-  const untouched = sizes.filter((_, i) => i !== a && i !== b);
-  const maximum = untouched.length ? Math.min(...untouched) / MIN_SHARE_RATIO : Infinity;
-  const low = Math.max(floor(a) - sizes[a], sizes[b] - maximum);
-  const high = Math.min(sizes[b] - floor(b), maximum - sizes[a]);
-  if (low > high) return sizes;
-  const current = sizes[a];
-  const free = Math.max(low, Math.min(high, deltaPx / pxPerShare));
-  const snapped = snappedShare(current, current + free, RESIZE_STEP_RATIO * total, current + low, current + high, snap);
-  const delta = snapped === undefined ? free : snapped - current;
-  const next = [...sizes];
-  next[a] += delta;
-  next[b] -= delta;
-  return next;
-}
-
-/** Shares that give both sides of a divider the same length. */
-export function equalisedShares(handle: LayoutHandle): number[] {
-  const axis = axisOf(handle.split);
-  const delta = (handle.childRects[handle.b][axis] - handle.childRects[handle.a][axis]) / EVEN_SPLIT_PARTS;
-  return resizedShares(handle, delta);
 }

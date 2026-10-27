@@ -91,6 +91,26 @@ describe('TilingWorkspace', () => {
     expect((container.firstElementChild as HTMLElement).style.minHeight).toBe('430px');
   });
 
+  it('collapses a tile to a strip only when collapse is on', () => {
+    const STRIP = 30;
+    const run = (collapse: boolean) => {
+      const [layout, setLayout] = createSignal<TileNode | undefined>(pair);
+      const view = render(() => (
+        <TilingWorkspace layout={layout()} onLayoutChange={setLayout} gapPx={GAP} minSize={() => ({ width: MIN, height: MIN })}
+          collapse={collapse && { stripPx: STRIP }}>
+          {(tile) => <button type="button" onClick={() => tile.collapse.set('left')}>Fold {tile.id}</button>}
+        </TilingWorkspace>
+      ));
+      fireEvent.click(view.getByText('Fold a'));
+      const box = view.container.querySelector('[data-tile-id="a"]') as HTMLElement;
+      const result = { edge: box.dataset.collapsed, width: box.style.width };
+      cleanup();
+      return result;
+    };
+    expect(run(true)).toEqual({ edge: 'left', width: `${STRIP}px` });
+    expect(run(false)).toEqual({ edge: undefined, width: '200px' });
+  });
+
   it('ignores a press on a control inside the grip', () => {
     const { getByText, onLayoutChange } = setup(pair);
     fireEvent.pointerDown(getByText('Remove a'), { button: 0, clientX: 100, clientY: 150 });
