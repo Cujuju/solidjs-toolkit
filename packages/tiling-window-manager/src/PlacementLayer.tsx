@@ -1,10 +1,12 @@
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { computeTileLayout, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
-import { planInsertion, planReflow, tileHitAt, type InsertionPlan, type PlacementMode } from './plan';
-import type { DockSide, InsertionShares, TileNode } from './tileTree';
+import { planInsertion, planReflow, planTab, tileHitAt, type InsertionPlan, type PlacementMode } from './plan';
+import { slotRects } from './layout';
+import type { DropZone, InsertionShares, TileNode } from './tileTree';
 
-/** A new tile only ever splits a tile; the centre is not a placement. */
-const PLACE_ZONES: readonly DockSide[] = ['left', 'right', 'top', 'bottom'];
+/** A new tile splits a tile; with tab groups on, the centre adds it as a tab. */
+const SPLIT_ZONES: readonly DropZone[] = ['left', 'right', 'top', 'bottom'];
+const TAB_ZONES: readonly DropZone[] = [...SPLIT_ZONES, 'center'];
 
 export interface Placing {
   id: string;
@@ -12,7 +14,7 @@ export interface Placing {
   label: string;
 }
 
-interface Target { targetId: string; side: DockSide; plan: InsertionPlan }
+interface Target { targetId: string; side: DropZone; plan: InsertionPlan }
 
 /** Covers the workspace while a new tile waits for a spot: hover previews the split, click places, Esc cancels. */
 export function PlacementLayer(props: {
@@ -22,7 +24,8 @@ export function PlacementLayer(props: {
   placing: Placing;
   mode: PlacementMode;
   growHeight: boolean;
-  onPlace: (targetId: string, side: DockSide, shares?: InsertionShares) => void;
+  tabs: boolean;
+  onPlace: (targetId: string, zone: DropZone, shares?: InsertionShares) => void;
   onCancel: () => void;
 }) {
   let layer!: HTMLDivElement;
@@ -32,12 +35,15 @@ export function PlacementLayer(props: {
   const targetAt = (event: MouseEvent): Target | null => {
     const area = layer.getBoundingClientRect();
     const before = computeTileLayout(props.root, props.size, props.options);
-    const hit = tileHitAt(before.tiles, event.clientX - area.left, event.clientY - area.top, PLACE_ZONES);
-    if (!hit || hit.zone === 'center') return null;
-    const plan = props.mode === 'reflow'
-      ? planReflow(props.root, props.placing.id, hit.targetId, hit.zone, props.size, props.options, props.growHeight)
-      : planInsertion(props.root, props.placing.id, hit.targetId, hit.zone, props.size, props.options, before);
-    return { targetId: hit.targetId, side: hit.zone, plan };
+    const hit = tileHitAt(slotRects(before), event.clientX - area.left, event.clientY - area.top, props.tabs ? TAB_ZONES : SPLIT_ZONES);
+    if (!hit) return null;
+    return { targetId: hit.targetId, side: hit.zone, plan: planFor(hit.targetId, hit.zone, before) };
+  };
+  const planFor = (targetId: string, zone: DropZone, before = computeTileLayout(props.root, props.size, props.options)): InsertionPlan => {
+    if (zone === 'center') return planTab(props.root, props.placing.id, targetId, props.size, props.options);
+    return props.mode === 'reflow'
+      ? planReflow(props.root, props.placing.id, targetId, zone, props.size, props.options, props.growHeight)
+      : planInsertion(props.root, props.placing.id, targetId, zone, props.size, props.options, before);
   };
 
   const place = (event: MouseEvent) => {
@@ -67,7 +73,7 @@ export function PlacementLayer(props: {
   const caption = () => {
     const chosen = target();
     if (!chosen) return 'Point at a tile, then click the side to place it on';
-    return chosen.plan.valid ? `Click to place on the ${chosen.side}` : chosen.plan.reason;
+    return !chosen.plan.valid ? chosen.plan.reason : chosen.side === 'center' ? 'Click to add as a tab' : `Click to place on the ${chosen.side}`;
   };
   const box = (rect: LayoutRect) => ({ left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px` });
 

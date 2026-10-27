@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  appendTile, canonicalize, dock, dropZoneAt, findTile, insertTile, normalize, removeTile, resizeSplit, swapTiles, tileIds,
+  canonicalize, dropZoneAt, findTile, tileIds,
   type TileNode, type TileSplit,
 } from '../tileTree';
+import { appendTile, dock, insertTile, removeTile, resizeSplit, swapTiles } from '../tileEdits';
+import { normalize } from '../tileRepair';
 
 const t = (id: string): TileNode => ({ kind: 'tile', id });
 const row = (sizes: number[], ...children: TileNode[]): TileSplit => ({ kind: 'split', dir: 'row', sizes, children });

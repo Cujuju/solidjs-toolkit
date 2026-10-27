@@ -1,27 +1,21 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from 'solid-js';
-import { createDockGesture } from './createDockGesture';
-import { computeTileLayout, equalisedShares, minimumSize, resizedShares, type LayoutHandle, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
+import { createDockGesture, type CenterDrop } from './createDockGesture';
+import { DockMenu } from './DockMenu';
+import { computeTileLayout, equalisedShares, minimumSize, resizedShares, slotRects, type LayoutHandle, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
 import { PlacementLayer, type Placing } from './PlacementLayer';
 import { planMove, type PlacementMode } from './plan';
 import { ResizeHandle } from './ResizeHandle';
-import { insertTile, nodeAt, removeTile, resizeSplit, tileIds, type TileNode, type TileSplit } from './tileTree';
+import type { TabGroup, TileContext } from './tileContext';
+import { addToTabs, insertTile, moveTab, removeTile, resizeSplit, setActiveTab, swapTiles } from './tileEdits';
+import { findSlot, nodeAt, slotKey, tileIds, type DropZone, type TileNode, type TileSplit } from './tileTree';
+
+export type { TabGroup, TileContext } from './tileContext';
 
 /** Gap between tiles; it is also the divider's hit area. */
 export const DEFAULT_GAP_PX = 8;
 /** A header plus one readable line of content. */
 export const DEFAULT_MIN_TILE_PX = 120;
 const DEFAULT_MIN: TileSize = { width: DEFAULT_MIN_TILE_PX, height: DEFAULT_MIN_TILE_PX };
-
-export interface TileContext {
-  id: string;
-  /** The tile's box in workspace pixels. */
-  rect: () => LayoutRect;
-  /** Bind to the tile's grip (`onPointerDown`): dragging docks it beside another tile or swaps with it. */
-  startMove: (event: PointerEvent) => void;
-  remove: () => void;
-  /** True while this tile is being dragged. */
-  dragging: () => boolean;
-}
 
 export interface TilingWorkspaceProps {
   layout: TileNode | undefined;
@@ -36,6 +30,8 @@ export interface TilingWorkspaceProps {
   placement?: PlacementMode;
   /** Grow taller than the given height when the tiles' minimums need it (set `min-height`); the owner scrolls. */
   growHeight?: boolean;
+  /** Tab groups: a centre drop asks Swap or Tab, a drop on a `data-twm-tab-target` element joins as a tab. */
+  tabs?: boolean;
   /** The layout with the placed tile added. Without it, `onLayoutChange` receives the new layout. */
   onPlace?: (id: string, next: TileNode) => void;
   onPlacingCancel?: () => void;
@@ -53,6 +49,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   let container: HTMLDivElement | undefined;
   const [size, setSize] = createSignal<TileSize>({ width: 0, height: 0 });
   const [draft, setDraft] = createSignal<{ split: TileSplit; sizes: number[] } | null>(null);
+  const [centerDrop, setCenterDrop] = createSignal<CenterDrop | null>(null);
   let start: LayoutHandle | undefined;
 
   onMount(() => {
@@ -77,32 +74,48 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     return { gapPx: props.gapPx ?? DEFAULT_GAP_PX, minSizes };
   });
   const layout = createMemo(() => computeTileLayout(props.layout, size(), { ...baseOptions(), draft: draft() }));
+  const targets = createMemo(() => slotRects(layout()));
   const minHeight = () => (props.growHeight && props.layout ? minimumSize(props.layout, baseOptions()).height : 0);
+  const change = (next: TileNode | undefined) => { if (next !== props.layout) props.onLayoutChange(next); };
 
   const cancelResize = () => { start = undefined; setDraft(null); };
   const startValid = () => !!start && !!props.layout && nodeAt(props.layout, start.path) === start.split;
   const commitResize = () => {
     const pending = draft();
-    if (startValid() && pending) props.onLayoutChange(resizeSplit(props.layout!, start!.path, pending.sizes));
+    if (startValid() && pending) change(resizeSplit(props.layout!, start!.path, pending.sizes));
     cancelResize();
   };
 
-  const dock = createDockGesture({
+  const planFor = (movedId: string, targetId: string, zone: DropZone) =>
+    (props.layout ? planMove(props.layout, movedId, targetId, zone, size(), baseOptions(), !!props.growHeight) : null);
+  const dockGesture = createDockGesture({
     container: () => container,
-    tiles: () => layout().tiles,
-    plan: (movedId, targetId, zone) => (props.layout ? planMove(props.layout, movedId, targetId, zone, size(), baseOptions(), !!props.growHeight) : null),
-    onDrop: (movedId, targetId, zone) => {
-      const plan = props.layout && planMove(props.layout, movedId, targetId, zone, size(), baseOptions(), !!props.growHeight);
-      if (plan) props.onLayoutChange(plan.next);
-    },
+    targets,
+    exclude: (movedId) => (findSlot(props.layout, movedId)?.slot.kind === 'tile' ? movedId : undefined),
+    plan: planFor,
+    onDrop: (movedId, targetId, zone) => { const plan = planFor(movedId, targetId, zone); if (plan) change(plan.next); },
+    onTab: (movedId, targetId) => props.tabs && props.layout && change(addToTabs(props.layout, movedId, targetId)),
+    onCenterDrop: (drop) => props.tabs && setCenterDrop(drop),
   });
 
-  const place = (id: string, next: TileNode) => (props.onPlace ? props.onPlace(id, next) : props.onLayoutChange(next));
+  const place = (id: string, next: TileNode) => (props.onPlace ? props.onPlace(id, next) : change(next));
   // An empty workspace has one place for the tile, so it skips the placement layer.
   createEffect(() => {
     const pending = props.placing;
     if (pending && !props.layout) place(pending.id, { kind: 'tile', id: pending.id });
   });
+
+  const tabGroup = (id: string): TabGroup | null => {
+    const slot = layout().tiles.has(id) ? findSlot(props.layout, id)?.slot : undefined;
+    if (slot?.kind !== 'tabs') return null;
+    return {
+      ids: slot.children.map((child) => child.id),
+      active: slot.active,
+      select: (index) => props.layout && change(setActiveTab(props.layout, id, index)),
+      move: (tabId, toIndex) => props.layout && change(moveTab(props.layout, tabId, toIndex)),
+      drag: (tabId, event) => dockGesture.begin(tabId, event),
+    };
+  };
 
   return (
     <div
@@ -110,21 +123,26 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
       class={`twm${props.class ? ` ${props.class}` : ''}`}
       style={{ ...props.style, ...(minHeight() ? { 'min-height': `${minHeight()}px` } : {}) }}
       data-grow={props.growHeight || undefined}
-      data-dragging={dock.dragging() !== null || undefined}
+      data-dragging={dockGesture.dragging() !== null || undefined}
     >
       <For each={identities()}>
         {(id) => {
           // Keeps the last rect while a removed tile unmounts.
           const rect = createMemo<LayoutRect>((previous) => layout().tiles.get(id) ?? previous, ZERO_RECT);
+          const group = createMemo(() => tabGroup(id));
+          const visible = () => { const g = group(); return !g || g.ids[g.active] === id; };
           const context: TileContext = {
             id,
             rect,
-            startMove: (event) => dock.start(id, event),
-            remove: () => props.onLayoutChange(removeTile(props.layout, id)),
-            dragging: () => dock.dragging() === id,
+            startMove: (event) => dockGesture.start(id, event),
+            remove: () => change(removeTile(props.layout, id)),
+            dragging: () => dockGesture.dragging() === id,
+            visible,
+            tabs: group,
           };
           return (
-            <div class="twm-tile" data-tile-id={id} data-dragging={context.dragging() || undefined} style={box(rect())}>
+            <div class="twm-tile" data-tile-id={id} data-dragging={context.dragging() || undefined} hidden={!visible()}
+              role={group() ? 'tabpanel' : undefined} style={{ ...box(rect()), display: visible() ? undefined : 'none' }}>
               {props.children(context)}
             </div>
           );
@@ -147,20 +165,33 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
                   }}
                   onCommit={commitResize}
                   onCancel={cancelResize}
-                  onEqualise={() => props.layout && props.onLayoutChange(resizeSplit(props.layout, current().path, equalisedShares(current())))}
+                  onEqualise={() => props.layout && change(resizeSplit(props.layout, current().path, equalisedShares(current())))}
                 />
               )}
             </Show>
           );
         }}
       </For>
-      <Show when={dock.preview()}>
+      <Show when={dockGesture.preview()}>
         {(preview) => (
           <>
-            <div class="twm-preview-target" style={box(preview().placement.targetRect)} />
+            <Show when={preview().placement.targetRect}>{(target) => <div class="twm-preview-target" style={box(target())} />}</Show>
             <div class="twm-preview" data-zone={preview().zone} style={box(preview().placement.rect)} />
           </>
         )}
+      </Show>
+      <Show when={centerDrop()} keyed>
+        {(drop) => {
+          const close = () => setCenterDrop(null);
+          const apply = (edit: (root: TileNode) => TileNode) => { const root = props.layout; close(); if (root) change(edit(root)); };
+          // Swap trades places with what the target slot shows: its active tab.
+          const shown = (root: TileNode) => { const slot = findSlot(root, drop.targetId)?.slot; return slot ? slotKey(slot) : drop.targetId; };
+          return (
+            <DockMenu x={drop.x} y={drop.y} onClose={close}
+              onSwap={() => apply((root) => swapTiles(root, drop.movedId, shown(root)))}
+              onTab={() => apply((root) => addToTabs(root, drop.movedId, drop.targetId))} />
+          );
+        }}
       </Show>
       <Show when={!props.layout && !props.placing}>{props.empty}</Show>
       <Show when={props.layout && props.placing}>
@@ -172,7 +203,8 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
             placing={placing()}
             mode={props.placement ?? 'preserve'}
             growHeight={!!props.growHeight}
-            onPlace={(targetId, side, shares) => place(placing().id, insertTile(props.layout!, placing().id, targetId, side, shares))}
+            tabs={!!props.tabs}
+            onPlace={(targetId, zone, shares) => place(placing().id, insertTile(props.layout!, placing().id, targetId, zone, shares))}
             onCancel={() => props.onPlacingCancel?.()}
           />
         )}
@@ -180,3 +212,4 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     </div>
   );
 }
+

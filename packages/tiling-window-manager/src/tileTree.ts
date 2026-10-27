@@ -1,10 +1,18 @@
 /**
- * The tile tree: splits divide space between children by share; leaves are tiles.
+ * The tile tree: splits divide space between children by share; slots are a tile or a tab group.
  * Every edit returns a new canonical tree (no same-direction nesting, valid shares) and never mutates.
  */
 
 export type SplitDir = 'row' | 'column';
+export type DockSide = 'left' | 'right' | 'top' | 'bottom';
+/** `center` targets the slot itself: a moved tile swaps with it or joins it as a tab. */
+export type DropZone = DockSide | 'center';
+export type InsertionShares = readonly [target: number, inserted: number];
+
 export interface TileLeaf { kind: 'tile'; id: string }
+/** Tiles sharing one slot; only the `active` one shows. */
+export interface TileTabs { kind: 'tabs'; active: number; children: TileLeaf[] }
+export type TileSlot = TileLeaf | TileTabs;
 export interface TileSplit {
   kind: 'split';
   dir: SplitDir;
@@ -12,42 +20,44 @@ export interface TileSplit {
   sizes: number[];
   children: TileNode[];
 }
-export type TileNode = TileSplit | TileLeaf;
+export type TileNode = TileSplit | TileSlot;
 export type TilePath = readonly number[];
-
-export type DockSide = 'left' | 'right' | 'top' | 'bottom';
-/** `center` targets the tile itself: a moved tile swaps places with it. */
-export type DropZone = DockSide | 'center';
-export type InsertionShares = readonly [target: number, inserted: number];
 
 export const UNIT_SHARE = 1;
 export const EVEN_SPLIT_PARTS = 2;
-/** A split with fewer children is replaced by its only child. */
-export const MIN_SPLIT_CHILDREN = 2;
+/** A split or tab group with fewer children is replaced by its only child. */
+export const MIN_GROUP_CHILDREN = 2;
 /** Prevents denormal ratios from making a saved tile effectively invisible. */
 export const MIN_SHARE_RATIO = 0.000001;
 /** Fraction of a tile's width or height from an edge that counts as that edge; the rest is the centre. */
 export const DOCK_EDGE_SHARE = 0.25;
 
-export interface TileLocation {
-  leaf: TileLeaf;
+export interface SlotLocation {
+  slot: TileSlot;
   path: number[];
   parent: TileSplit | undefined;
   index: number;
 }
+/** `leaf` is the tile itself; `slot` is the tile or the tab group holding it. */
+export interface TileLocation extends SlotLocation { leaf: TileLeaf }
 
 export const isShare = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
 export const splitAxis = (side: DockSide): SplitDir => (side === 'left' || side === 'right' ? 'row' : 'column');
-const atStart = (side: DockSide): boolean => side === 'left' || side === 'top';
 
 export function tileIds(root: TileNode | undefined): string[] {
   if (!root) return [];
   return root.kind === 'tile' ? [root.id] : root.children.flatMap(tileIds);
 }
 
-export function findTile(root: TileNode | undefined, id: string): TileLocation | undefined {
-  function visit(node: TileNode, path: number[], parent?: TileSplit, index = 0): TileLocation | undefined {
-    if (node.kind === 'tile') return node.id === id ? { leaf: node, path, parent, index } : undefined;
+/** The id that addresses a slot: the tile's, or the active tab's. */
+export const slotKey = (slot: TileSlot): string => (slot.kind === 'tile' ? slot.id : slot.children[slot.active].id);
+/** Every tile in a slot. */
+export const slotIds = (slot: TileSlot): string[] => (slot.kind === 'tile' ? [slot.id] : slot.children.map((child) => child.id));
+
+/** Any tab's id addresses its tab group. */
+export function findSlot(root: TileNode | undefined, id: string): SlotLocation | undefined {
+  function visit(node: TileNode, path: number[], parent?: TileSplit, index = 0): SlotLocation | undefined {
+    if (node.kind !== 'split') return slotIds(node).includes(id) ? { slot: node, path, parent, index } : undefined;
     for (const [i, child] of node.children.entries()) {
       const found = visit(child, [...path, i], node, i);
       if (found) return found;
@@ -55,6 +65,14 @@ export function findTile(root: TileNode | undefined, id: string): TileLocation |
     return undefined;
   }
   return root ? visit(root, []) : undefined;
+}
+
+export function findTile(root: TileNode | undefined, id: string): TileLocation | undefined {
+  const location = findSlot(root, id);
+  if (!location) return undefined;
+  const { slot } = location;
+  const leaf = slot.kind === 'tile' ? slot : slot.children.find((child) => child.id === id)!;
+  return { ...location, leaf };
 }
 
 export function nodeAt(root: TileNode, path: TilePath): TileNode | undefined {
@@ -84,10 +102,11 @@ export function canonicalize(root: TileNode): TileNode {
   root.children.forEach((entry, i) => {
     const child = canonicalize(entry);
     if (child.kind === 'split' && child.dir === root.dir) {
-      const total = child.sizes.reduce((sum, share) => sum + share, 0);
+      const ratios = repairShares(child.sizes);
+      const total = ratios.reduce((sum, share) => sum + share, 0);
       child.children.forEach((grandchild, j) => {
         children.push(grandchild);
-        sizes.push(root.sizes[i] * (child.sizes[j] / total));
+        sizes.push(root.sizes[i] * (ratios[j] / total));
       });
     } else {
       children.push(child);
@@ -103,33 +122,6 @@ export function canonicalize(root: TileNode): TileNode {
   return { ...root, children, sizes: nextSizes };
 }
 
-const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
-
-/** Reads a saved tree: drops invalid nodes, duplicate ids and ids outside `ids`, and repairs shares. */
-export function normalize(value: unknown, ids?: ReadonlySet<string>): TileNode | undefined {
-  const seen = new Set<string>();
-  function visit(node: unknown): TileNode | undefined {
-    if (!record(node)) return undefined;
-    if (node.kind === 'tile') {
-      const id = node.id;
-      if (typeof id !== 'string' || !id || seen.has(id) || (ids && !ids.has(id))) return undefined;
-      seen.add(id);
-      return { kind: 'tile', id };
-    }
-    if (node.kind !== 'split' || (node.dir !== 'row' && node.dir !== 'column') || !Array.isArray(node.children)) return undefined;
-    const sizes = Array.isArray(node.sizes) ? node.sizes : [];
-    const kept = node.children.flatMap((child, i) => {
-      const result = visit(child);
-      return result ? [{ child: result, size: isShare(sizes[i]) ? sizes[i] : UNIT_SHARE }] : [];
-    });
-    if (!kept.length) return undefined;
-    if (kept.length === 1) return kept[0].child;
-    return { kind: 'split', dir: node.dir, sizes: repairShares(kept.map((entry) => entry.size)), children: kept.map((entry) => entry.child) };
-  }
-  const root = visit(value);
-  return root ? canonicalize(root) : undefined;
-}
-
 /** The zone a point falls in, as fractions (0–1) of the tile's width and height. */
 export function dropZoneAt(allowed: readonly DropZone[], x: number, y: number): DropZone | null {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
@@ -138,80 +130,4 @@ export function dropZoneAt(allowed: readonly DropZone[], x: number, y: number): 
     zone === 'center' || (best !== null && distance[best] <= distance[zone]) ? best : zone, null);
   if (allowed.includes('center') && (nearest === null || distance[nearest] >= DOCK_EDGE_SHARE)) return 'center';
   return nearest;
-}
-
-function remove(node: TileNode, id: string): TileNode | undefined {
-  if (node.kind === 'tile') return node.id === id ? undefined : node;
-  const kept = node.children.flatMap((child, i) => {
-    const result = remove(child, id);
-    return result ? [{ child: result, size: node.sizes[i] }] : [];
-  });
-  if (!kept.length) return undefined;
-  if (kept.length === 1) return kept[0].child;
-  if (kept.length === node.children.length && kept.every((entry, i) => entry.child === node.children[i])) return node;
-  return { ...node, children: kept.map((entry) => entry.child), sizes: kept.map((entry) => entry.size) };
-}
-
-/** Removes a tile; its siblings share the freed space in proportion. */
-export function removeTile(root: TileNode | undefined, id: string): TileNode | undefined {
-  const rest = root && remove(root, id);
-  return rest && canonicalize(rest);
-}
-
-/** Moves `movedId` (or adds it, when absent) beside `targetId`, dividing the target's own share. */
-export function dock(root: TileNode, movedId: string, targetId: string, side: DockSide, shares?: InsertionShares): TileNode {
-  if (movedId === targetId || !findTile(root, targetId)) return root;
-  const moved: TileLeaf = { kind: 'tile', id: movedId };
-  const rest = remove(root, movedId);
-  const location = rest && findTile(rest, targetId);
-  if (!rest || !location) return root;
-  const { leaf, parent, index } = location;
-  const dir = splitAxis(side);
-  const [targetShare, movedShare] = shares ?? [UNIT_SHARE, UNIT_SHARE];
-  if (!parent || parent.dir !== dir) {
-    const pair: TileSplit = { kind: 'split', dir, sizes: atStart(side) ? [movedShare, targetShare] : [targetShare, movedShare],
-      children: atStart(side) ? [moved, leaf] : [leaf, moved] };
-    return canonicalize(replaceNode(rest, leaf, pair));
-  }
-  const sizes = [...parent.sizes];
-  const children = [...parent.children];
-  const half = sizes[index] / EVEN_SPLIT_PARTS;
-  sizes[index] = shares?.[0] ?? half;
-  const insertAt = atStart(side) ? index : index + 1;
-  sizes.splice(insertAt, 0, shares?.[1] ?? half);
-  children.splice(insertAt, 0, moved);
-  return canonicalize(replaceNode(rest, parent, { ...parent, sizes, children }));
-}
-
-/** Adds a new tile beside `targetId`; an existing id or invalid shares leave the tree unchanged. */
-export function insertTile(root: TileNode, id: string, targetId: string, side: DockSide, shares?: InsertionShares): TileNode {
-  if (findTile(root, id) || (shares && !shares.every(isShare))) return root;
-  return dock(root, id, targetId, side, shares);
-}
-
-/** Exchanges two tiles' places; geometry stays put. */
-export function swapTiles(root: TileNode, a: string, b: string): TileNode {
-  if (a === b || !findTile(root, a) || !findTile(root, b)) return root;
-  function visit(node: TileNode): TileNode {
-    if (node.kind === 'tile') return node.id === a ? { kind: 'tile', id: b } : node.id === b ? { kind: 'tile', id: a } : node;
-    return { ...node, children: node.children.map(visit) };
-  }
-  return visit(root);
-}
-
-export function resizeSplit(root: TileNode, path: TilePath, sizes: readonly number[]): TileNode {
-  const split = nodeAt(root, path);
-  if (split?.kind !== 'split' || sizes.length !== split.children.length || !sizes.every(isShare)) return root;
-  if (sizes.every((size, i) => size === split.sizes[i])) return root;
-  return canonicalize(replaceNode(root, split, { ...split, sizes: [...sizes] }));
-}
-
-/** Adds a tile at the right edge of the whole workspace with an average share. */
-export function appendTile(root: TileNode | undefined, id: string): TileNode {
-  const leaf: TileLeaf = { kind: 'tile', id };
-  if (!root) return leaf;
-  if (findTile(root, id)) return root;
-  if (root.kind !== 'split' || root.dir !== 'row') return { kind: 'split', dir: 'row', sizes: [UNIT_SHARE, UNIT_SHARE], children: [root, leaf] };
-  const mean = root.sizes.reduce((sum, share) => sum + share, 0) / root.sizes.length;
-  return { ...root, sizes: [...root.sizes, mean], children: [...root.children, leaf] };
 }

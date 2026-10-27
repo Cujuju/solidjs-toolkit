@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeTileLayout, equalisedShares, resizedShares, type LayoutRect } from '../layout';
 import { planInsertion, planMove, planReflow, tileHitAt, TOO_SMALL } from '../plan';
-import { insertTile } from '../tileTree';
+import { insertTile } from '../tileEdits';
 import type { TileNode, TileSplit } from '../tileTree';
 
 const t = (id: string): TileNode => ({ kind: 'tile', id });

@@ -114,3 +114,97 @@
 .twm-caption-cancel:hover {
   color: var(--twm-text, #e5e7eb);
 }
+
+/* Tab groups: the strip sits in a tile's header and fills the room it is given. */
+.twm-tabs {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-width: 0;
+}
+.twm-tab-list {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.twm-tab {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--twm-text-muted, #9ca3af);
+  font: inherit;
+  touch-action: none;
+}
+.twm-tab[aria-selected='true'] {
+  border-bottom-color: var(--twm-accent, #8b5cf6);
+  color: var(--twm-text, #e5e7eb);
+}
+.twm-tab:focus-visible,
+.twm-tab-more:focus-visible,
+.twm-dock-menu-item:focus-visible,
+.twm-tab-menu-item:focus-visible {
+  outline: 2px solid var(--twm-accent, #8b5cf6);
+  outline-offset: -2px;
+}
+.twm-tab[data-dragging] {
+  opacity: 0.6;
+}
+.twm-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Keep the width in step with MORE_BUTTON_PX in TabStrip.tsx. */
+.twm-tab-more {
+  flex-shrink: 0;
+  width: 24px;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: var(--twm-text-muted, #9ca3af);
+  font: inherit;
+}
+.twm-tab-menu,
+.twm-dock-menu {
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  padding: 4px;
+  border: 1px solid var(--twm-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--twm-radius, 8px);
+  background: var(--twm-surface, #1e1e2e);
+  box-shadow: var(--twm-shadow, 0 8px 24px rgba(0, 0, 0, 0.4));
+}
+.twm-tab-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+}
+.twm-dock-menu {
+  position: fixed;
+}
+.twm-tab-menu-item,
+.twm-dock-menu-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  text-align: start;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--twm-text, #e5e7eb);
+  font: inherit;
+}
+.twm-tab-menu-item:hover,
+.twm-dock-menu-item:hover,
+.twm-tab-menu-item[aria-checked='true'] {
+  background: var(--twm-accent-soft, rgba(139, 92, 246, 0.18));
+}

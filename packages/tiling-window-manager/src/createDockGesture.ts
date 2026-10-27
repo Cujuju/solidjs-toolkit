@@ -6,23 +6,50 @@ import type { DropZone } from './tileTree';
 /** Pointer travel before a press on a tile's grip becomes a drag, so a plain click stays a click. */
 export const DOCK_THRESHOLD_PX = 6;
 const PRIMARY_BUTTON = 0;
-/** Moving a tile: an edge docks beside the target; the centre swaps places with it. */
+/** Moving a tile: an edge docks beside the target; the centre swaps with it (or offers Swap / Tab). */
 export const MOVE_ZONES: readonly DropZone[] = ['left', 'right', 'top', 'bottom', 'center'];
 /** Controls inside a grip keep their own clicks and never start a drag. */
 const NO_DRAG = 'button, a, input, select, textarea, [data-twm-no-drag]';
+/** Marks an element (usually a tile's header) where a drop joins that tile's slot as a tab. */
+export const TAB_TARGET_ATTR = 'data-twm-tab-target';
 
 export interface DockPreview extends TileHit {
   /** Where the moved tile and the target land if released here. */
-  placement: { rect: LayoutRect; targetRect: LayoutRect };
+  placement: { rect: LayoutRect; targetRect?: LayoutRect };
+  /** Dropping here joins the target as a tab, without asking. */
+  tab?: boolean;
+}
+
+/** A centre drop waiting for Swap or Tab. */
+export interface CenterDrop { movedId: string; targetId: string; x: number; y: number }
+
+function tabTargetRect(container: HTMLElement, tileId: string, event: PointerEvent): LayoutRect | null {
+  if (typeof document.elementsFromPoint !== 'function') return null;
+  const area = container.getBoundingClientRect();
+  for (const element of document.elementsFromPoint(event.clientX, event.clientY)) {
+    const target = element.closest<HTMLElement>(`[${TAB_TARGET_ATTR}]`);
+    const tile = target?.closest<HTMLElement>('[data-tile-id]');
+    if (!target || tile?.dataset.tileId !== tileId || !container.contains(target)) continue;
+    const box = target.getBoundingClientRect();
+    return { x: box.left - area.left, y: box.top - area.top, width: box.width, height: box.height };
+  }
+  return null;
 }
 
 /** Owns one pending press or active tile drag; the workspace previews and applies the result. */
 export function createDockGesture(deps: {
   container: () => HTMLElement | undefined;
-  tiles: () => ReadonlyMap<string, LayoutRect>;
+  /** Drop targets: slot boxes keyed by the id that addresses each slot. */
+  targets: () => ReadonlyMap<string, LayoutRect>;
+  /** A target the moved tile can never drop on: its own single-tile slot. */
+  exclude: (movedId: string) => string | undefined;
   /** The rendered result of a move, or null when it changes nothing. */
   plan: (movedId: string, targetId: string, zone: DropZone) => DockPreview['placement'] | null;
   onDrop: (movedId: string, targetId: string, zone: DropZone) => void;
+  /** Set when tab groups are on: a tab-target drop joins the target as a tab. */
+  onTab?: (movedId: string, targetId: string) => void;
+  /** Set when tab groups are on: a centre drop asks Swap or Tab. */
+  onCenterDrop?: (drop: CenterDrop) => void;
 }) {
   const [preview, setPreview] = createSignal<DockPreview | null>(null);
   const [dragging, setDragging] = createSignal<string | null>(null);
@@ -31,19 +58,23 @@ export function createDockGesture(deps: {
   onCleanup(cancel);
 
   function hitTest(movedId: string, event: PointerEvent): DockPreview | null {
-    const area = deps.container()?.getBoundingClientRect();
-    if (!area) return null;
-    const hit = tileHitAt(deps.tiles(), event.clientX - area.left, event.clientY - area.top, MOVE_ZONES, movedId);
-    const placement = hit && deps.plan(movedId, hit.targetId, hit.zone);
-    return hit && placement ? { ...hit, placement } : null;
+    const container = deps.container();
+    const area = container?.getBoundingClientRect();
+    if (!container || !area) return null;
+    const hit = tileHitAt(deps.targets(), event.clientX - area.left, event.clientY - area.top, MOVE_ZONES, deps.exclude(movedId));
+    if (!hit) return null;
+    const bar = deps.onTab ? tabTargetRect(container, hit.targetId, event) : null;
+    // No centre plan means the target is the tile's own slot, whose strip reorders it instead.
+    if (bar) return deps.plan(movedId, hit.targetId, 'center') ? { ...hit, zone: 'center', tab: true, placement: { rect: bar } } : null;
+    const placement = deps.plan(movedId, hit.targetId, hit.zone);
+    if (!placement) return null;
+    // A centre drop that asks first previews the whole target, not a guessed swap.
+    return { ...hit, placement: hit.zone === 'center' && deps.onCenterDrop ? { rect: hit.rect } : placement };
   }
 
-  function start(movedId: string, event: PointerEvent) {
-    if (event.button !== PRIMARY_BUTTON || (event.target as Element | null)?.closest?.(NO_DRAG)) return;
+  function track(movedId: string, startX: number, startY: number, alreadyDragging: boolean) {
     cancel();
-    if (deps.tiles().size < 2) return;
-    const startX = event.clientX;
-    const startY = event.clientY;
+    if (alreadyDragging) setDragging(movedId);
     const move = (next: PointerEvent) => {
       if (!dragging() && Math.hypot(next.clientX - startX, next.clientY - startY) < DOCK_THRESHOLD_PX) return;
       setDragging(movedId);
@@ -53,7 +84,10 @@ export function createDockGesture(deps: {
     const release = (next: PointerEvent) => {
       const target = dragging() ? hitTest(movedId, next) : null;
       finish();
-      if (target) deps.onDrop(movedId, target.targetId, target.zone);
+      if (!target) return;
+      if (target.tab) deps.onTab?.(movedId, target.targetId);
+      else if (target.zone === 'center' && deps.onCenterDrop) deps.onCenterDrop({ movedId, targetId: target.targetId, x: next.clientX, y: next.clientY });
+      else deps.onDrop(movedId, target.targetId, target.zone);
     };
     const keydown = (next: KeyboardEvent) => {
       if (next.key !== 'Escape') return;
@@ -79,5 +113,18 @@ export function createDockGesture(deps: {
     teardown = finish;
   }
 
-  return { preview, dragging, start, cancel };
+  /** A press on a grip: it becomes a drag once the pointer travels past the threshold. */
+  function start(movedId: string, event: PointerEvent) {
+    if (event.button !== PRIMARY_BUTTON || (event.target as Element | null)?.closest?.(NO_DRAG)) return;
+    if (deps.targets().size < 2 && deps.exclude(movedId) === movedId) return;
+    track(movedId, event.clientX, event.clientY, false);
+  }
+
+  /** Continues a drag that began elsewhere (a tab pulled off its strip) from `event`. */
+  function begin(movedId: string, event: PointerEvent) {
+    track(movedId, event.clientX, event.clientY, true);
+    setPreview(hitTest(movedId, event));
+  }
+
+  return { preview, dragging, start, begin, cancel };
 }

@@ -1,4 +1,4 @@
-import { EVEN_SPLIT_PARTS, MIN_SHARE_RATIO, type TileNode, type TileSplit } from './tileTree';
+import { EVEN_SPLIT_PARTS, MIN_SHARE_RATIO, slotIds, slotKey, type TileNode, type TileSlot, type TileSplit } from './tileTree';
 
 export interface TileSize { width: number; height: number }
 export interface LayoutRect extends TileSize { x: number; y: number }
@@ -28,8 +28,13 @@ export interface TileLayoutOptions {
   draft?: { split: TileSplit; sizes: number[] } | null;
 }
 
+/** One tile or tab group and its box. */
+export interface LayoutSlot { slot: TileSlot; rect: LayoutRect }
+
 export interface TileLayout {
+  /** Every tile's box; tabs of one group share their group's. */
   tiles: Map<string, LayoutRect>;
+  slots: LayoutSlot[];
   handles: LayoutHandle[];
   splitSpaces: Map<TileSplit, { shareSpacePx: number; totalShare: number }>;
 }
@@ -58,20 +63,30 @@ function distribute(shares: readonly number[], minima: readonly number[], space:
 /** The node's smallest size: tile minimums plus gaps along each split. */
 export function minimumSize(node: TileNode, options: Pick<TileLayoutOptions, 'gapPx' | 'minSizes'>): TileSize {
   if (node.kind === 'tile') return options.minSizes.get(node.id) ?? { width: 0, height: 0 };
+  if (node.kind === 'tabs') {
+    const tabs = node.children.map((child) => minimumSize(child, options));
+    return { width: Math.max(...tabs.map((min) => min.width)), height: Math.max(...tabs.map((min) => min.height)) };
+  }
   const mins = node.children.map((child) => minimumSize(child, options));
   const sum = (key: keyof TileSize) => mins.reduce((total, min) => total + min[key], 0) + options.gapPx * (mins.length - 1);
   const max = (key: keyof TileSize) => Math.max(...mins.map((min) => min[key]));
   return node.dir === 'row' ? { width: sum('width'), height: max('height') } : { width: max('width'), height: sum('height') };
 }
 
+/** Slot boxes keyed by the id that addresses each slot (a group's active tab): the drop targets. */
+export const slotRects = (layout: Pick<TileLayout, 'slots'>): Map<string, LayoutRect> =>
+  new Map(layout.slots.map((entry) => [slotKey(entry.slot), entry.rect]));
+
 /** One geometry source for tiles, dividers, drop previews and placement planning. */
 export function computeTileLayout(root: TileNode | undefined, size: TileSize, options: TileLayoutOptions): TileLayout {
   const tiles = new Map<string, LayoutRect>();
+  const slots: LayoutSlot[] = [];
   const handles: LayoutHandle[] = [];
   const splitSpaces = new Map<TileSplit, { shareSpacePx: number; totalShare: number }>();
   function visit(node: TileNode, rect: LayoutRect, path: number[]) {
-    if (node.kind === 'tile') {
-      tiles.set(node.id, rect);
+    if (node.kind !== 'split') {
+      slots.push({ slot: node, rect });
+      slotIds(node).forEach((id) => tiles.set(id, rect));
       return;
     }
     const split = options.draft?.split === node ? { ...node, sizes: options.draft.sizes } : node;
@@ -103,7 +118,7 @@ export function computeTileLayout(root: TileNode | undefined, size: TileSize, op
   }
   const bounds = { width: Math.max(0, size.width), height: Math.max(0, size.height) };
   if (root) visit(root, { x: 0, y: 0, ...bounds }, []);
-  return { tiles, handles, splitSpaces };
+  return { tiles, slots, handles, splitSpaces };
 }
 
 /** Saved shares land on 0.5% of the split, so equal percents give equal layouts. */

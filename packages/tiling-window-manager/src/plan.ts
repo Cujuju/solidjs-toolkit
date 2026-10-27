@@ -1,6 +1,7 @@
 import { computeTileLayout, minimumSize, type LayoutRect, type TileLayout, type TileLayoutOptions, type TileSize } from './layout';
+import { dock, insertTile, swapTiles } from './tileEdits';
 import {
-  dock, dropZoneAt, EVEN_SPLIT_PARTS, findTile, insertTile, splitAxis, swapTiles, UNIT_SHARE,
+  dropZoneAt, EVEN_SPLIT_PARTS, findSlot, slotKey, splitAxis, UNIT_SHARE,
   type DockSide, type DropZone, type InsertionShares, type TileNode,
 } from './tileTree';
 
@@ -34,13 +35,12 @@ export function planInsertion(
   root: TileNode, insertedId: string, targetId: string, side: DockSide, size: TileSize, options: TileLayoutOptions,
   before: TileLayout = computeTileLayout(root, size, options),
 ): InsertionPlan {
-  const location = findTile(root, targetId);
+  const location = findSlot(root, targetId);
   const target = before.tiles.get(targetId);
   const unavailable = (reason: string): InsertionPlan => ({ valid: false, reason, rect: target ?? { x: 0, y: 0, ...size } });
-  if (!location || !target || findTile(root, insertedId)) return unavailable(UNAVAILABLE);
-  const zero = { width: 0, height: 0 };
-  const newMinimum = options.minSizes.get(insertedId) ?? zero;
-  const targetMinimum = options.minSizes.get(targetId) ?? zero;
+  if (!location || !target || findSlot(root, insertedId)) return unavailable(UNAVAILABLE);
+  const newMinimum = options.minSizes.get(insertedId) ?? { width: 0, height: 0 };
+  const targetMinimum = minimumSize(location.slot, options);
   const dir = splitAxis(side);
   const axis = dir === 'row' ? 'width' : 'height';
   const crossAxis = dir === 'row' ? 'height' : 'width';
@@ -75,7 +75,7 @@ export function planReflow(
 ): InsertionPlan {
   const target = computeTileLayout(root, size, options).tiles.get(targetId);
   const unavailable = (reason: string): InsertionPlan => ({ valid: false, reason, rect: target ?? { x: 0, y: 0, ...size } });
-  if (!target || findTile(root, insertedId)) return unavailable(UNAVAILABLE);
+  if (!target || findSlot(root, insertedId)) return unavailable(UNAVAILABLE);
   const next = insertTile(root, insertedId, targetId, side);
   const minimum = minimumSize(next, options);
   if (minimum.width > size.width + RECT_TOLERANCE_PX || (!growHeight && minimum.height > size.height + RECT_TOLERANCE_PX)) return unavailable(TOO_SMALL);
@@ -85,11 +85,23 @@ export function planReflow(
   return rect && targetRect ? { valid: true, rect, targetRect } : unavailable(UNAVAILABLE);
 }
 
+/** Plans adding a tile as a new tab on `targetId`'s slot: nothing moves, so it only has to fit the slot. */
+export function planTab(root: TileNode, insertedId: string, targetId: string, size: TileSize, options: TileLayoutOptions): InsertionPlan {
+  const target = computeTileLayout(root, size, options).tiles.get(targetId);
+  if (!target || !findSlot(root, targetId) || findSlot(root, insertedId)) return { valid: false, reason: UNAVAILABLE, rect: target ?? { x: 0, y: 0, ...size } };
+  return fits(target, options.minSizes.get(insertedId) ?? { width: 0, height: 0 })
+    ? { valid: true, rect: target, targetRect: target } : { valid: false, reason: TOO_SMALL, rect: target };
+}
+
 /** The rendered result of moving a tile: the real dock or swap, laid out. Null when the move changes nothing. */
 export function planMove(
   root: TileNode, movedId: string, targetId: string, zone: DropZone, size: TileSize, options: TileLayoutOptions, growHeight = false,
 ): { rect: LayoutRect; targetRect: LayoutRect; next: TileNode } | null {
-  const next = zone === 'center' ? swapTiles(root, movedId, targetId) : dock(root, movedId, targetId, zone);
+  const source = findSlot(root, movedId);
+  const target = findSlot(root, targetId);
+  if (!source || !target || (zone === 'center' && source.slot === target.slot)) return null;
+  // The centre swaps with what the target slot shows: its active tab.
+  const next = zone === 'center' ? swapTiles(root, movedId, slotKey(target.slot)) : dock(root, movedId, targetId, zone);
   if (next === root) return null;
   // A move that would squeeze a tile below its minimum is no target.
   const minimum = minimumSize(next, options);
