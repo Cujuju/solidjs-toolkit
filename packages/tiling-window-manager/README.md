@@ -61,7 +61,7 @@ A slot is a tile or a tab group. Collapse state lives on slots: a collapsed slot
 
 ## Theming
 
-Set the `--twm-*` custom properties: `accent`, `accent-soft`, `danger`, `danger-soft`, `border`, `border-strong`, `surface`, `text`, `text-muted`, `shadow`, `radius`.
+Set the `--twm-*` custom properties: `accent`, `accent-soft`, `danger`, `danger-soft`, `border`, `border-strong`, `surface`, `text`, `text-muted`, `shadow`, `radius`, and `handle-grab`: the divider's grab width (default 12px), which overhangs a narrower gap.
 
 ## Not included
 

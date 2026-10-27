@@ -37,6 +37,19 @@
   touch-action: none;
   border-radius: 2px;
 }
+/* The grab area overhangs a gap narrower than --twm-handle-grab, so spacing and grab size stay independent. */
+.twm-handle::before {
+  --twm-handle-overhang: min(0px, calc((100% - var(--twm-handle-grab, 12px)) / 2));
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.twm-handle[data-dir='row']::before {
+  inset-inline: var(--twm-handle-overhang);
+}
+.twm-handle[data-dir='column']::before {
+  inset-block: var(--twm-handle-overhang);
+}
 .twm-handle[data-dir='row'] {
   cursor: col-resize;
 }
