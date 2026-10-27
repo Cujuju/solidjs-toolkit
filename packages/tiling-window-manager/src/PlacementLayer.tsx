@@ -1,12 +1,17 @@
-import { createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { computeTileLayout, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { computeTileLayout, slotRects, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
 import { planInsertion, planReflow, planTab, tileHitAt, type InsertionPlan, type PlacementMode } from './plan';
-import { slotRects } from './layout';
-import type { DropZone, InsertionShares, TileNode } from './tileTree';
+import type { DockSide, DropZone, InsertionShares, TileNode } from './tileTree';
 
 /** A new tile splits a tile; with tab groups on, the centre adds it as a tab. */
 const SPLIT_ZONES: readonly DropZone[] = ['left', 'right', 'top', 'bottom'];
 const TAB_ZONES: readonly DropZone[] = [...SPLIT_ZONES, 'center'];
+/** Keyboard placement: arrow keys pick the side of the focused tile. */
+const ARROW_SIDES: Record<string, DockSide> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'top', ArrowDown: 'bottom' };
+/** With tab groups on, this key picks the centre: add as a tab. */
+const TAB_KEY = 't';
+/** The side a focused tile starts on before an arrow key picks one. */
+const DEFAULT_SIDE: DockSide = 'right';
 
 export interface Placing {
   id: string;
@@ -25,6 +30,10 @@ export function PlacementLayer(props: {
   mode: PlacementMode;
   growHeight: boolean;
   tabs: boolean;
+  /** Focusable tile targets: Tab moves between tiles, arrow keys pick a side, Enter places. */
+  keyboard: boolean;
+  /** Names a tile for its keyboard target. */
+  tileLabel: (id: string) => string;
   onPlace: (targetId: string, zone: DropZone, shares?: InsertionShares) => void;
   onCancel: () => void;
 }) {
@@ -46,10 +55,21 @@ export function PlacementLayer(props: {
       : planInsertion(props.root, props.placing.id, targetId, zone, props.size, props.options, before);
   };
 
-  const place = (event: MouseEvent) => {
-    const chosen = targetAt(event);
+  const commit = (chosen: Target | null) => {
     setTarget(chosen);
     if (chosen?.plan.valid) props.onPlace(chosen.targetId, chosen.side, chosen.plan.shares);
+  };
+  const place = (event: MouseEvent) => commit(targetAt(event));
+  const choose = (targetId: string, side: DropZone) => setTarget({ targetId, side, plan: planFor(targetId, side) });
+  const slots = createMemo(() => [...slotRects(computeTileLayout(props.root, props.size, props.options))]);
+  const onTargetKey = (event: KeyboardEvent, targetId: string) => {
+    const current = target()?.targetId === targetId ? target() : null;
+    const side = ARROW_SIDES[event.key] ?? (props.tabs && event.key.toLowerCase() === TAB_KEY ? 'center' : undefined);
+    if (side) choose(targetId, side);
+    else if (event.key === 'Enter' || event.key === ' ') commit(current ?? { targetId, side: DEFAULT_SIDE, plan: planFor(targetId, DEFAULT_SIDE) });
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
   };
 
   onMount(() => {
@@ -72,8 +92,9 @@ export function PlacementLayer(props: {
 
   const caption = () => {
     const chosen = target();
-    if (!chosen) return 'Point at a tile, then click the side to place it on';
-    return !chosen.plan.valid ? chosen.plan.reason : chosen.side === 'center' ? 'Click to add as a tab' : `Click to place on the ${chosen.side}`;
+    if (!chosen) return props.keyboard ? 'Point at a tile and click a side, or Tab to a tile and press an arrow key' : 'Point at a tile, then click the side to place it on';
+    const verb = props.keyboard ? 'Click or press Enter' : 'Click';
+    return !chosen.plan.valid ? chosen.plan.reason : chosen.side === 'center' ? `${verb} to add as a tab` : `${verb} to place on the ${chosen.side}`;
   };
   const box = (rect: LayoutRect) => ({ left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px` });
 
@@ -110,6 +131,17 @@ export function PlacementLayer(props: {
           Cancel <kbd>Esc</kbd>
         </button>
       </div>
+      <Show when={props.keyboard}>
+        <For each={slots()}>
+          {([id, rect]) => (
+            <button type="button" class="twm-place-target" style={box(rect)} aria-label={`Place beside ${props.tileLabel(id)}`}
+              aria-keyshortcuts={props.tabs ? 'ArrowLeft ArrowRight ArrowUp ArrowDown T Enter' : 'ArrowLeft ArrowRight ArrowUp ArrowDown Enter'}
+              onFocus={() => choose(id, target()?.side ?? DEFAULT_SIDE)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => onTargetKey(event, id)} />
+          )}
+        </For>
+      </Show>
     </div>
   );
 }

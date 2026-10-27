@@ -291,3 +291,18 @@
   gap: 8px;
   white-space: nowrap;
 }
+
+/* Keyboard placement: one focusable target per tile; pointer hover and clicks pass through to the layer. */
+.twm-place-target {
+  position: absolute;
+  z-index: 3;
+  padding: 0;
+  pointer-events: none;
+  border: 0;
+  border-radius: var(--twm-radius, 8px);
+  background: transparent;
+}
+.twm-place-target:focus-visible {
+  outline: 2px solid var(--twm-accent, #8b5cf6);
+  outline-offset: -2px;
+}

@@ -42,6 +42,8 @@ export interface TilingWorkspaceProps {
   readout?: boolean | { color?: (id: string) => string };
   /** Other layouts (such as sibling workspaces) whose dividers a drag snaps to, laid out at this size. */
   alignWith?: readonly AlignLayout[];
+  /** Placing works from the keyboard too: Tab moves between tiles, arrows pick a side, Enter places. `label` names a tile. */
+  keyboardPlacement?: boolean | { label?: (id: string) => string };
   /** The layout with the placed tile added. Without it, `onLayoutChange` receives the new layout. */
   onPlace?: (id: string, next: TileNode) => void;
   onPlacingCancel?: () => void;
@@ -202,6 +204,8 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
             mode={props.placement ?? 'preserve'}
             growHeight={!!props.growHeight}
             tabs={!!props.tabs}
+            keyboard={!!props.keyboardPlacement}
+            tileLabel={(id) => (typeof props.keyboardPlacement === 'object' ? props.keyboardPlacement.label?.(id) : undefined) ?? id}
             onPlace={(targetId, zone, shares) => place(placing().id, insertTile(props.layout!, placing().id, targetId, zone, shares))}
             onCancel={() => props.onPlacingCancel?.()}
           />
