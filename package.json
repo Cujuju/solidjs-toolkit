@@ -12,6 +12,7 @@
     "dev": "pnpm --filter playground dev",
     "build": "pnpm -r --filter \"!playground\" build",
     "test": "pnpm -r test",
+    "typecheck": "pnpm -r exec tsc --noEmit",
     "publish-all": "pnpm -r publish --access public --no-git-checks"
   },
   "devDependencies": {

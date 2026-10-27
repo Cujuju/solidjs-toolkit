@@ -4,9 +4,9 @@
  * must work without JS) and asserts the `--cujuju-glass-menu-*` namespace.
  */
 
+/// <reference types="vite/client" />
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import css from '../glass.css?raw';
 import {
   GLASS_MENU_TEXT_CSS_VAR,
   GLASS_MENU_BORDER_CSS_VAR,
@@ -70,11 +70,6 @@ describe('applyGlassMenuPalette', () => {
 // ── The contract that matters ────────────────────────────────────────────────
 
 describe('the stylesheet and the JS defaults are one fact', () => {
-  // Resolved from the package root (vitest's cwd) rather than
-  // `import.meta.url`: under the happy-dom environment that URL is not a
-  // file: URL, and fileURLToPath rejects it.
-  const css = readFileSync(resolve(process.cwd(), 'src/glass.css'), 'utf8');
-
   it('declares every default at the value this module reports', () => {
     for (const [field, value] of Object.entries(GLASS_MENU_PALETTE_DEFAULTS)) {
       const cssVar = `--cujuju-glass-menu-${field

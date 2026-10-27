@@ -57,6 +57,7 @@ what the `solid` condition emits.
 pnpm install
 pnpm -r build
 pnpm -r test
+pnpm typecheck   # tsc --noEmit in every package and the playground
 ```
 
 Types inside the repo: every package's `.` export lists a `cujuju-source` condition (its `src/index.ts`)

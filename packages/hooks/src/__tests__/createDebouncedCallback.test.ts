@@ -125,7 +125,7 @@ describe('createDebouncedCallback', () => {
     });
 
     it('flips false even if fn throws (try/finally guard)', () => {
-      const fn = vi.fn(() => { throw new Error('boom'); });
+      const fn = vi.fn((_value: string) => { throw new Error('boom'); });
       createRoot(() => {
         const { call, isPending } = createDebouncedCallback(fn, 100);
         call('a');
