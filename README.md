@@ -59,8 +59,13 @@ pnpm -r build
 pnpm -r test
 ```
 
-Build order: dependents typecheck against their sibling packages' `dist/` types (every package's `types`
-export points at `dist/`), so in a fresh checkout run `pnpm -r build` before `tsc`.
+Types inside the repo: every package's `.` export lists a `cujuju-source` condition (its `src/index.ts`)
+ahead of `types`, and the shared tsconfig sets `customConditions: ["cujuju-source"]`. Sibling packages and
+the playground therefore typecheck against source, with no build first.
+
+Apps linking a package from outside (`link:`) resolve `types` to the gitignored `dist/`, since their compiler
+flags may be stricter than the toolkit's. They must rebuild linked packages before `tsc`; spillway's
+`scripts/build-linked.mjs` does this.
 
 Tests: every `packages/*/vitest.config.ts` is `libTest(__dirname, overrides?)` from
 [`packages/_shared/vitest.base.config.ts`](packages/_shared/vitest.base.config.ts).
