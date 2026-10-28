@@ -1,4 +1,4 @@
-import { Show, splitProps, type JSX } from 'solid-js';
+import { Show, children, splitProps, type JSX } from 'solid-js';
 
 /**
  * Native `div` attributes (minus string `title`, repurposed as header content) pass through to
@@ -43,6 +43,9 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
     'class',
     'classList',
   ]);
+  // Read once: each read of a JSX prop builds a new tree.
+  const title = children(() => local.title);
+  const headerAction = children(() => local.headerAction);
 
   // Solid renders nothing visible for these; they must not force an empty header row.
   const isRendered = (node: JSX.Element): boolean =>
@@ -56,8 +59,8 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
       .join('');
 
   const hasHeader = (): boolean =>
-    isRendered(local.title) ||
-    isRendered(local.headerAction) ||
+    isRendered(title()) ||
+    isRendered(headerAction()) ||
     local.onClose !== undefined;
 
   return (
@@ -78,9 +81,9 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
           }`}
         >
           {/* Always rendered so actions stay right-aligned without a title; a `div` so callers can pass block content. */}
-          <div class="cujuju-glass-menu-title">{local.title}</div>
+          <div class="cujuju-glass-menu-title">{title()}</div>
           <div class="cujuju-glass-menu-header-actions">
-            {local.headerAction}
+            {headerAction()}
             <Show when={local.onClose}>
               <button
                 type="button"

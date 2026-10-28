@@ -10,6 +10,8 @@ import solid from 'vite-plugin-solid';
 export type LibTestConfig = UserConfig & { test?: { include?: string[]; [option: string]: unknown } };
 
 const DEFAULT_TEST_INCLUDE = ['src/__tests__/**/*.test.{ts,tsx}'];
+// Repo-wide contracts run in every package against its own `src`, whatever `include` it overrides.
+const CONTRACT_TEST_INCLUDE = ['../_shared/contracts/*.test.ts'];
 
 export function libTest(packageDir: string, overrides: LibTestConfig = {}): LibTestConfig {
   // No HMR: Vitest runs Vite as a dev server, and Vitest 4 cannot load the `/@solid-refresh` runtime HMR injects.
@@ -26,7 +28,8 @@ export function libTest(packageDir: string, overrides: LibTestConfig = {}): LibT
       environment: 'jsdom',
       // Vitest stubs stylesheets as empty by default; CSS-contract tests need the real text.
       css: true,
-      include,
+      include: [...include, ...CONTRACT_TEST_INCLUDE],
+      env: { PACKAGE_DIR: packageDir },
       server: {
         deps: {
           // Inline testing-library too: externalised, Node ESM loads solid-js/web's server build,

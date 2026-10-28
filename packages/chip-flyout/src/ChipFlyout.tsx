@@ -1,4 +1,5 @@
 import {
+  children,
   createSignal,
   createMemo,
   createEffect,
@@ -152,6 +153,8 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
   // The panel mounts only once it has a position; everything keyed to its
   // presence (Show, viewport clamp) reads this, not `open` alone.
   const panelShown = createMemo(() => open() && pos() !== null);
+  // Read once, only while shown: each read of a JSX prop builds a new tree.
+  const topSlot = children(() => (panelShown() ? props.topSlot : undefined));
   let loadMoreSentinel: HTMLButtonElement | undefined;
 
   // Infinite scroll. Re-armed whenever a load settles: a fresh observer reports the current
@@ -568,7 +571,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
                   </For>
                 </div>
               </Show>
-              <Show when={props.topSlot}>{props.topSlot}</Show>
+              <Show when={topSlot()}>{topSlot()}</Show>
               <Show when={props.onSearchInput !== undefined}>
                 <input
                   type="search"

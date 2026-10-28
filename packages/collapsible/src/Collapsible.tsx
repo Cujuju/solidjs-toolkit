@@ -1,4 +1,4 @@
-import { Show, createMemo, createUniqueId, type JSX } from 'solid-js';
+import { Show, children, createMemo, createUniqueId, type JSX } from 'solid-js';
 import { useCollapsible } from './useCollapsible';
 
 export interface CollapsibleProps {
@@ -50,12 +50,14 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
   const headerId = (): string => `${baseId()}-header`;
   const contentId = (): string => `${baseId()}-content`;
 
-  const renderArrow = (): JSX.Element => {
-    if (props.openIcon !== undefined && state.open()) return props.openIcon;
-    if (props.closedIcon !== undefined && !state.open()) return props.closedIcon;
-    if (props.icon !== undefined) return props.icon;
-    return '▶';
-  };
+  // Each JSX slot is read once: every read of a JSX prop builds a new tree.
+  const arrow = children(() => {
+    const stateIcon = state.open() ? props.openIcon : props.closedIcon;
+    if (stateIcon !== undefined) return stateIcon;
+    const icon = props.icon;
+    return icon !== undefined ? icon : '▶';
+  });
+  const actions = children(() => props.actions);
 
   // Track whether we've ever been open for lazyMount.
   const everOpen = createMemo<boolean>((prev) => prev || state.open(), false);
@@ -85,14 +87,14 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
           aria-controls={shouldRender() ? contentId() : undefined}
           onClick={state.toggle}
         >
-          <span class="ccl-arrow" aria-hidden="true">{renderArrow()}</span>
+          <span class="ccl-arrow" aria-hidden="true">{arrow()}</span>
           <span class="ccl-title">{props.title}</span>
           <Show when={props.count !== undefined}>
             <span class="ccl-count">({props.count})</span>
           </Show>
         </button>
-        <Show when={props.actions}>
-          <div class="ccl-actions">{props.actions}</div>
+        <Show when={actions()}>
+          <div class="ccl-actions">{actions()}</div>
         </Show>
       </div>
       <Show when={shouldRender()}>

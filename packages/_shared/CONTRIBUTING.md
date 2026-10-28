@@ -95,6 +95,14 @@ Primitive lives at `cujuju-solidjs-hold-action/_internal/measure.ts`. Duplicate 
 
 **Exception:** when adding a second component to an existing single-export package, the suffix may not perfectly match the new export's name. That's fine; the package name stays stable across minor versions, but the README must clearly list all exports under "API" so the import isn't a surprise.
 
+## 9. Read a JSX slot prop once
+
+**Rule:** a component that reads a `JSX.Element` prop (other than `children`) reads it once, or resolves it with `children(() => props.slot)` and reads the accessor. Passing it straight to another component (`<C c={props.slot} />`) or wrapping it as a factory (`() => props.slot`) is not a read. To show one slot in several places, give each place its own resolver (see accordion-dock's `SlotIf`).
+
+**Why:** a JSX prop compiles to a getter, so every read builds a new tree. A presence check followed by a render builds it twice. A read with no owner (a timer or an observer callback) leaks a live copy that keeps tracking signals and throws a stale `<Show>` read after the caller unmounts (kv-tooltip, issue #19).
+
+**Enforced by** `_shared/contracts/jsxSlotReads.test.ts`, which `libTest` runs in every package against its own `src`. Contracts in `_shared/contracts/` always run, whatever `include` a package overrides.
+
 ---
 
 ## When to add a new rule here

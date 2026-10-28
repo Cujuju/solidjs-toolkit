@@ -23,6 +23,7 @@ import { createActivatorKeyDown } from './keys';
 import { createPanelMenu } from './panelMenu';
 import { columnFlex } from './resize';
 import { Splitter } from './Splitter';
+import { SlotIf } from './SlotIf';
 
 export interface AccordionPanelProps {
   /** Stable identity within the group — the key for open/pinned/order/size state. Must be
@@ -190,6 +191,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
         railLabel: () => props.railLabel,
         count: () => props.count,
         badge: () => props.badge,
+        // A factory, not a value: each caller (header, rail, flyout) builds its own copy.
         icon: () => props.icon,
         tooltip: () => props.tooltip,
         accent: () => props.accent,
@@ -295,9 +297,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
             onKeyDown={onKeyDown}
           >
             <Chevron />
-            <Show when={props.icon}>
-              <span class="acc-icon">{props.icon}</span>
-            </Show>
+            <SlotIf content={props.icon} wrap={(slot) => <span class="acc-icon">{slot}</span>} />
             <span class="acc-title">{props.title}</span>
             <Show when={props.count !== undefined}>
               <span class="acc-count">{props.count}</span>
@@ -308,9 +308,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
           </button>
 
           <div class="acc-header-tail">
-            <Show when={props.actions}>
-              <div class="acc-actions">{props.actions}</div>
-            </Show>
+            <SlotIf content={props.actions} wrap={(slot) => <div class="acc-actions">{slot}</div>} />
             <PanelPinButton group={group} id={props.id} shown={pinnable()} pinned={pinned()} />
             <Show when={closable() && open()}>
               <CloseButton onClick={() => group.setOpen(props.id, false)} />
@@ -346,18 +344,14 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
             onClick={() => group.collapseKeepPin(props.id)}
             onKeyDown={onKeyDown}
           >
-            <Show when={props.icon}>
-              <span class="acc-icon">{props.icon}</span>
-            </Show>
+            <SlotIf content={props.icon} wrap={(slot) => <span class="acc-icon">{slot}</span>} />
             <span class="acc-title">{props.title}</span>
             <Show when={props.count !== undefined}>
               <span class="acc-count">{props.count}</span>
             </Show>
           </button>
           <div class="acc-header-tail">
-            <Show when={props.actions}>
-              <div class="acc-actions">{props.actions}</div>
-            </Show>
+            <SlotIf content={props.actions} wrap={(slot) => <div class="acc-actions">{slot}</div>} />
             <PanelPinButton group={group} id={props.id} shown={pinnable()} pinned={pinned()} />
             <Show when={props.tearOffable ?? false}>
               <button

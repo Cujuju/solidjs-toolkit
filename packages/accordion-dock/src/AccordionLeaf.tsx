@@ -10,6 +10,7 @@ import {
   type JSX,
 } from 'solid-js';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
+import { SlotIf } from './SlotIf';
 import { seedDefaultSize, type AccordionDefaultSize } from './contentSize';
 import { slotRef, useAccordionGroup } from './context';
 import { Close } from './icons';
@@ -98,6 +99,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
         railLabel: () => undefined,
         count: () => undefined,
         badge: () => undefined,
+        // A factory, not a value: each caller (header, rail, flyout) builds its own copy.
         icon: () => props.icon,
         tooltip: () => undefined,
         accent: () => props.accent,
@@ -214,14 +216,10 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
       >
         <Show when={props.title !== undefined}>
           <div class="acc-col-bar">
-            <Show when={props.icon}>
-              <span class="acc-icon">{props.icon}</span>
-            </Show>
+            <SlotIf content={props.icon} wrap={(slot) => <span class="acc-icon">{slot}</span>} />
             <span class="acc-title">{props.title}</span>
             <div class="acc-header-tail">
-              <Show when={props.actions}>
-                <div class="acc-actions">{props.actions}</div>
-              </Show>
+              <SlotIf content={props.actions} wrap={(slot) => <div class="acc-actions">{slot}</div>} />
               <Show when={props.closable ?? true}>
                 <button
                   type="button"

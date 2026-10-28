@@ -5,6 +5,7 @@ import { createActivatorKeyDown } from './keys';
 import { createPanelMenu } from './panelMenu';
 import { RAIL_ITEM_ATTR } from './railOverflow';
 import { flyoutDataAttr, type AutoHideApi } from './autoHide';
+import { SlotIf } from './SlotIf';
 
 /**
  * One button in the horizontal rail. Reads its label through the meta ACCESSORS rather than a
@@ -75,9 +76,7 @@ export function RailButton(props: {
           <Pin />
         </span>
       </Show>
-      <Show when={props.meta.icon()}>
-        <span class="acc-rail-icon">{props.meta.icon()}</span>
-      </Show>
+      <SlotIf content={props.meta.icon()} wrap={(slot) => <span class="acc-rail-icon">{slot}</span>} />
       <span class="acc-rail-label">{props.meta.railLabel() ?? props.meta.title()}</span>
       <Show when={props.meta.count() !== undefined}>
         <span class="acc-rail-count">{props.meta.count()}</span>

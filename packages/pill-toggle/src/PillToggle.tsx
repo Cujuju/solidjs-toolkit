@@ -1,4 +1,4 @@
-import { type JSX, Show } from 'solid-js';
+import { children, type JSX, Show } from 'solid-js';
 import { centerOffset, DOT_INSET_PX, dotTranslate } from './_internal/dotPosition';
 
 export interface PillToggleProps {
@@ -68,6 +68,8 @@ function toCssSize(v: number | string | undefined): string | undefined {
 }
 
 export function PillToggle(props: PillToggleProps): JSX.Element {
+  // Read once: each read of a JSX prop builds a new tree.
+  const stateIcon = children(() => (props.loading ? undefined : props.enabled ? props.onIcon : props.offIcon));
   const preset = (): { w: number; h: number } => SIZE_PRESETS[props.size ?? 'md'];
 
   const width = (): string => toCssSize(props.width) ?? `${preset().w}px`;
@@ -191,12 +193,7 @@ export function PillToggle(props: PillToggleProps): JSX.Element {
         <Show when={props.loading}>
           <span class="ctp-spinner" aria-hidden="true" />
         </Show>
-        <Show when={!props.loading && props.enabled && props.onIcon}>
-          {props.onIcon}
-        </Show>
-        <Show when={!props.loading && !props.enabled && props.offIcon}>
-          {props.offIcon}
-        </Show>
+        <Show when={stateIcon()}>{stateIcon()}</Show>
       </span>
     </button>
   );

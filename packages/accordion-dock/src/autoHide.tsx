@@ -19,6 +19,7 @@ import type {
   ActivatorHoverProps,
   PanelMeta,
 } from './context';
+import { SlotIf } from './SlotIf';
 
 /**
  * AUTO-HIDE — an unpinned open panel renders as a flyout; pinning promotes it to a column.
@@ -528,9 +529,7 @@ function Flyout(props: {
       {/* The flyout's OWN title bar, carrying a docked column's classes. Without this a flyout
              had no pin. See DESIGN_NOTES.md § src/autoHide.tsx:886. */}
       <div class="acc-col-bar">
-        <Show when={props.group.meta(props.id)?.icon()}>
-          <span class="acc-icon">{props.group.meta(props.id)?.icon()}</span>
-        </Show>
+        <SlotIf content={props.group.meta(props.id)?.icon()} wrap={(slot) => <span class="acc-icon">{slot}</span>} />
         <span class="acc-title">{props.group.meta(props.id)?.title()}</span>
         <Show when={props.group.meta(props.id)?.count() !== undefined}>
           <span class="acc-count">{props.group.meta(props.id)?.count()}</span>

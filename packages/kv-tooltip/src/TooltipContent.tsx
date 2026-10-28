@@ -1,4 +1,5 @@
 import {
+  children,
   createSignal,
   createEffect,
   createMemo,
@@ -140,8 +141,10 @@ function measureNaturalSize(el: HTMLElement): { w: number; h: number } {
 
 export function TooltipContent(props: TooltipContentProps): JSX.Element {
   let ref: HTMLDivElement | undefined;
+  // Read once: each read of a JSX prop builds a new tree.
+  const extraContent = children(() => props.extraContent);
   // Controls in extraContent must stay reachable, so then only the duplicated rows are hidden.
-  const hasExtra = createMemo(() => props.extraContent != null);
+  const hasExtra = createMemo(() => extraContent.toArray().length > 0);
   const [measured, setMeasured] = createSignal(false);
   const [size, setSize] = createSignal(
     { w: 0, h: 0 },
@@ -152,7 +155,7 @@ export function TooltipContent(props: TooltipContentProps): JSX.Element {
   createEffect(() => {
     const _len = props.entries.length; // track for re-measure
     void _len;
-    void props.extraContent; // re-measure when extra content changes
+    void extraContent(); // re-measure when extra content changes
     void viewportSize(); // the natural size is capped by the viewport
     if (ref) {
       setSize(measureNaturalSize(ref));
@@ -269,8 +272,8 @@ export function TooltipContent(props: TooltipContentProps): JSX.Element {
             </div>
           )}
         </For>
-        <Show when={props.extraContent}>
-          <div class="ckv-extra">{props.extraContent}</div>
+        <Show when={extraContent()}>
+          <div class="ckv-extra">{extraContent()}</div>
         </Show>
       </div>
     </Portal>
