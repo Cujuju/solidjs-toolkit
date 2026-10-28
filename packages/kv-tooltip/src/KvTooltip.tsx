@@ -1,4 +1,5 @@
 import {
+  children,
   createSignal,
   createMemo,
   createEffect,
@@ -29,6 +30,7 @@ export interface KvTooltipProps extends KvTooltipAnchoringProps {
   entries: Record<string, string>;
   children: JSX.Element;
 
+  /** Built once per show, owned by the tooltip, and disposed on hide; never read while hidden. */
   extraContent?: JSX.Element;
 
   showEmpty?: boolean;
@@ -167,8 +169,13 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     filterEntries(props.entries, props.showEmpty ?? false),
   );
 
-  // Gated on the list the panel RENDERS, so a `freezeOnShow` hold covers visibility as well as content.
-  const shouldShow = (): boolean => !(props.disabled ?? false) && (panelEntries().length > 0 || props.extraContent !== undefined);
+  // A hover may open the panel; whether it has content is known only once shown (see `extraContent`).
+  const shouldShow = (): boolean => !(props.disabled ?? false);
+  /**
+   * Each read of a JSX prop builds a new tree under the reader's owner, so `extraContent` is read
+   * only here: once per show, owned by this memo. A read from a hover timer has no owner and leaks.
+   */
+  const extraContent = children(() => (visible() && shouldShow() ? props.extraContent : undefined));
   const interactive = (): boolean => props.interactive ?? false;
   const hideDelayMs = (): number => props.hideDelayMs ?? 100;
   const showDelayMs = (): number => props.showDelayMs ?? 0;
@@ -225,7 +232,10 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
   };
 
   /** The single "a panel is on screen" predicate: the `<Show>` gate and the Escape listener must agree. */
-  const panelOnScreen = createMemo(() => visible() && shouldShow());
+  // Gated on the list the panel RENDERS, so a `freezeOnShow` hold covers visibility as well as content.
+  const panelOnScreen = createMemo(
+    () => visible() && shouldShow() && (panelEntries().length > 0 || extraContent.toArray().length > 0),
+  );
 
   // Hover-intent lives in _internal/hoverIntent.ts so it's unit-testable without JSX.
   const hoverIntent = createHoverIntent({
@@ -415,7 +425,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
           entries={panelEntries()}
           x={panelX()}
           y={panelY()}
-          extraContent={props.extraContent}
+          extraContent={extraContent()}
           hysteresisPx={props.hysteresisPx ?? 20}
           edgePadPx={props.edgePadPx ?? 8}
           mouseOffsetX={props.mouseOffsetX ?? 12}

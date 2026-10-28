@@ -1,4 +1,4 @@
-import { createMemo, Show, type JSX } from 'solid-js';
+import { children, createMemo, Show, type JSX } from 'solid-js';
 import { TooltipContent, filterEntries, type KvTooltipAnchoringProps } from './TooltipContent';
 
 // ── Controlled mode: caller owns x/y + visibility ──────────────────────────
@@ -41,7 +41,9 @@ export function KvTooltipPanel(props: KvTooltipPanelProps): JSX.Element {
   const filtered = createMemo(() =>
     filterEntries(props.entries, props.showEmpty ?? false),
   );
-  const shouldShow = (): boolean => filtered().length > 0 || props.extraContent !== undefined;
+  // A JSX prop builds a new tree per read; resolve it once so presence and render share one copy.
+  const extraContent = children(() => props.extraContent);
+  const shouldShow = (): boolean => filtered().length > 0 || extraContent.toArray().length > 0;
 
   return (
     <Show when={shouldShow()}>
@@ -49,7 +51,7 @@ export function KvTooltipPanel(props: KvTooltipPanelProps): JSX.Element {
         entries={filtered()}
         x={props.x}
         y={props.y}
-        extraContent={props.extraContent}
+        extraContent={extraContent()}
         hysteresisPx={props.hysteresisPx ?? 20}
         edgePadPx={props.edgePadPx ?? 8}
         mouseOffsetX={props.mouseOffsetX ?? 12}

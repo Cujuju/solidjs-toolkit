@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
-import { createComponent, createSignal } from 'solid-js';
+import { createComponent, createSignal, getOwner, onCleanup } from 'solid-js';
 import { KvTooltip } from '../KvTooltip';
 import { DEFAULT_ANCHOR_GAP_PX } from '../clamp';
 
@@ -476,6 +476,53 @@ describe('KvTooltip (integration)', () => {
     fire(getTrigger(container), 'mousemove');
     expect(getPanel()).toBeNull();
 
+    dispose();
+  });
+});
+
+describe('KvTooltip extraContent ownership', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => {
+    vi.useRealTimers();
+    document.querySelectorAll('.ckv-panel').forEach((el) => el.remove());
+  });
+
+  it('builds extraContent once per show, owned, and disposes it on hide', () => {
+    const SHOW_DELAY_MS = 600;
+    const builds: Array<{ owned: boolean }> = [];
+    let disposed = 0;
+    // A JSX prop compiles to a getter like this: every read builds a new tree.
+    const props = {
+      entries: {},
+      children: 'trigger',
+      showDelayMs: SHOW_DELAY_MS,
+      get extraContent() {
+        builds.push({ owned: getOwner() !== null });
+        if (getOwner()) onCleanup(() => { disposed += 1; });
+        return 'prose';
+      },
+    } as Parameters<typeof KvTooltip>[0];
+    const { dispose, container } = renderTooltip(props);
+    const trigger = getTrigger(container);
+    expect(builds).toEqual([]);
+
+    // The delayed show fires from a timer, where nothing owns a new tree.
+    fire(trigger, 'mouseenter');
+    vi.advanceTimersByTime(SHOW_DELAY_MS);
+    expect(getPanel()?.textContent).toBe('prose');
+    expect(builds).toEqual([{ owned: true }]);
+
+    fire(trigger, 'mouseleave');
+    expect(getPanel()).toBeNull();
+    expect(disposed).toBe(1);
+    expect(builds).toHaveLength(1);
+    dispose();
+  });
+
+  it('shows no panel when extraContent resolves empty', () => {
+    const { dispose, container } = renderTooltip({ entries: {}, children: 'trigger', extraContent: undefined });
+    fire(getTrigger(container), 'mouseenter');
+    expect(getPanel()).toBeNull();
     dispose();
   });
 });
