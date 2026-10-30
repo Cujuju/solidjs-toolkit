@@ -46,6 +46,9 @@ const fail = (msg: string): never => {
 
 const git = (args: string[]): string => execFileSync('git', args, { encoding: 'utf8' }).trim();
 
+/** Git may check a committed key out with CRLF line endings. */
+const samePem = (a: string, b: string): boolean => a.replace(/\r\n/g, '\n').trim() === b.replace(/\r\n/g, '\n').trim();
+
 function readPublicKey(c: ReleaseConfig): string {
   return existsSync(c.publicKeyFile) ? readFileSync(c.publicKeyFile, 'utf8') : fail(`no ${c.publicKeyFile}; run keygen first`);
 }
@@ -67,7 +70,7 @@ export async function buildManifest(c: ReleaseConfig, platform: UpdatePlatform, 
   if (!existsSync(c.keyFile)) fail(`no signing key at ${c.keyFile}; run keygen first`);
   const privatePem = readFileSync(c.keyFile, 'utf8');
   const publicPem = readPublicKey(c);
-  if (publicKeyOf(privatePem).trim() !== publicPem.trim()) fail(`${c.publicKeyFile} is not the public half of ${c.keyFile}`);
+  if (!samePem(publicKeyOf(privatePem), publicPem)) fail(`${c.publicKeyFile} is not the public half of ${c.keyFile}`);
   const files: UpdateFile[] = [];
   for (const arch of archs) {
     const name = c.updateFile(platform, arch, version);
