@@ -67,10 +67,10 @@ The pencil icon is always available as an explicit rename trigger when
 
 ## Theming
 
-CSS variables (defaults shown):
+CSS variables (defaults shown, declared on `:root` inside `@layer cujuju-defaults`):
 
 ```css
-[data-cuj-elr] {
+:root {
   --cuj-elr-bg-active: rgba(59, 130, 246, 0.1);
   --cuj-elr-bg-hover: rgba(59, 130, 246, 0.05);
   --cuj-elr-bg-rename-input: color-mix(in srgb, currentColor 8%, transparent); /* derived from the row's inherited text colour */

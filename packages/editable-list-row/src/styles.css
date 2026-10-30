@@ -3,24 +3,27 @@
  * collide with consumer classes; theme via the CSS variables below.
  */
 
-[data-cuj-elr] {
-  --cuj-elr-bg-active: rgba(59, 130, 246, 0.1);
-  --cuj-elr-bg-hover: rgba(59, 130, 246, 0.05);
-  /* From the row's own text colour, not `#fff`: the row is transparent, so a literal white
-       flashed bright on dark themes. */
-  --cuj-elr-bg-rename-input: color-mix(in srgb, currentColor 8%, transparent);
-  --cuj-elr-border-rename: #3b82f6;
-  --cuj-elr-icon-fg: #6b7280;
-  --cuj-elr-icon-fg-hover: #111827;
-  --cuj-elr-icon-bg-hover: rgba(59, 130, 246, 0.1);
-  --cuj-elr-icon-danger-fg: #ef4444;
-  --cuj-elr-icon-danger-bg-hover: rgba(239, 68, 68, 0.1);
-  --cuj-elr-row-padding-y: 4px;
-  --cuj-elr-row-padding-x: 8px;
-  --cuj-elr-row-radius: 6px;
-  --cuj-elr-label-padding-y: 4px;
-  --cuj-elr-label-padding-x: 6px;
-  --cuj-elr-label-radius: 4px;
+/* Defaults on :root in a layer: unlayered consumer overrides win, and scoped ones inherit. */
+@layer cujuju-defaults {
+  :root {
+    --cuj-elr-bg-active: rgba(59, 130, 246, 0.1);
+    --cuj-elr-bg-hover: rgba(59, 130, 246, 0.05);
+    /* From the row's own text colour, not `#fff`: the row is transparent, so a literal white
+         flashed bright on dark themes. */
+    --cuj-elr-bg-rename-input: color-mix(in srgb, currentColor 8%, transparent);
+    --cuj-elr-border-rename: #3b82f6;
+    --cuj-elr-icon-fg: #6b7280;
+    --cuj-elr-icon-fg-hover: #111827;
+    --cuj-elr-icon-bg-hover: rgba(59, 130, 246, 0.1);
+    --cuj-elr-icon-danger-fg: #ef4444;
+    --cuj-elr-icon-danger-bg-hover: rgba(239, 68, 68, 0.1);
+    --cuj-elr-row-padding-y: 4px;
+    --cuj-elr-row-padding-x: 8px;
+    --cuj-elr-row-radius: 6px;
+    --cuj-elr-label-padding-y: 4px;
+    --cuj-elr-label-padding-x: 6px;
+    --cuj-elr-label-radius: 4px;
+  }
 }
 
 [data-cuj-elr='row'] {

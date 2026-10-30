@@ -419,6 +419,27 @@ describe('EditableListRow', () => {
       const row = document.querySelector('[aria-busy="true"]');
       expect(row).not.toBeNull();
     });
+
+    it('makes leadingControl inert while busy, so keyboard activation is blocked too', () => {
+      const [busy, setBusy] = createSignal(true);
+      dispose = render(
+        () => (
+          <EditableListRow
+            id="r1"
+            name="Row 1"
+            selection={{ kind: 'none' }}
+            leadingControl={() => <button type="button">pin</button>}
+            busy={busy}
+          />
+        ),
+        document.body,
+      );
+      // Solid writes the `inert` IDL property; jsdom lacks attribute reflection, so assert the property.
+      const slot = document.querySelector('[data-cuj-elr="leading-control"]') as HTMLElement;
+      expect(slot.inert).toBe(true);
+      setBusy(false);
+      expect(slot.inert).toBe(false);
+    });
   });
 
   describe('leading slot', () => {

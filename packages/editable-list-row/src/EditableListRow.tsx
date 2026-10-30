@@ -253,7 +253,8 @@ export default function EditableListRow(props: EditableListRowProps): JSX.Elemen
           </Show>
         }
       >
-        <span data-cuj-elr="leading-control">
+        {/* Inert while busy: `pointer-events: none` alone leaves keyboard activation open. */}
+        <span data-cuj-elr="leading-control" inert={props.busy?.() ?? false}>
           {props.leadingControl!()}
         </span>
       </Show>

@@ -17,8 +17,7 @@ const css = CSS_SOURCES['../styles.css'];
 const MIN_TEXT_CONTRAST = 4.5;
 const MIN_ICON_CONTRAST = 3;
 
-// editable-list-row declares its tokens on every `[data-cuj-elr]` element, so
-// an override must match those elements directly; inheriting from an ancestor loses.
+// The dark-panel overrides of editable-list-row's tokens live on the in-flyout rows.
 const ROW_TOKEN_SCOPE = "[data-cuj-elf='list'] [data-cuj-elr]";
 
 function blockFor(selector: string): string {
