@@ -3,4 +3,4 @@
 import '@cujuju/solidjs-glass';
 import './glass-menu.css';
 
-export { GlassMenu, type GlassMenuProps } from './GlassMenu';
+export { GlassMenu, type GlassMenuProps, type GlassMenuSurface } from './GlassMenu';

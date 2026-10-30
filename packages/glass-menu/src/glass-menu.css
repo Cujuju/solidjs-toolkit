@@ -8,6 +8,18 @@
   overflow: hidden;
 }
 
+/* `surface="plain"`: a solid panel from host tokens, replacing `.glass-menu`. Text and borders
+   keep the host palette; the outer drop is glass's shared one. */
+.cujuju-glass-menu--plain {
+  color: var(--color-text, inherit);
+  background: var(--color-surface, #16213e);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  box-shadow: var(--surface-glass-shadow-outer);
+  /* Thumb follows the text colour, so it stays visible on light and dark hosts alike. */
+  --cujuju-glass-menu-thumb: color-mix(in srgb, currentColor 22%, transparent);
+  --cujuju-glass-menu-thumb-hover: color-mix(in srgb, currentColor 34%, transparent);
+}
+
 /* Opt out of corner clipping — for a menu whose children must paint
    past the surface edge (Portal-less submenus, edge-overflowing drop
    shadows). Set via the `overflow="visible"` prop. */
@@ -84,7 +96,7 @@
   /* The UA scrollbar is a bright slab on smoked glass. Fixed here, the scroll container every
      consumer inherits; WebKit pseudo-elements cover engines lacking the standard properties. */
   scrollbar-width: auto;
-  scrollbar-color: var(--glass-menu-scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
+  scrollbar-color: var(--glass-menu-scrollbar-thumb, var(--cujuju-glass-menu-thumb, rgba(255, 255, 255, 0.22))) transparent;
 }
 
 .cujuju-glass-menu-body::-webkit-scrollbar {
@@ -103,13 +115,13 @@
   /* Padding-box clip + a transparent border insets the thumb from the panel
      edge, so it reads as a floating pill rather than a slab welded to the
      side. */
-  background: var(--glass-menu-scrollbar-thumb, rgba(255, 255, 255, 0.22));
+  background: var(--glass-menu-scrollbar-thumb, var(--cujuju-glass-menu-thumb, rgba(255, 255, 255, 0.22)));
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 
 .cujuju-glass-menu-body::-webkit-scrollbar-thumb:hover {
-  background: var(--glass-menu-scrollbar-thumb-hover, rgba(255, 255, 255, 0.34));
+  background: var(--glass-menu-scrollbar-thumb-hover, var(--cujuju-glass-menu-thumb-hover, rgba(255, 255, 255, 0.34)));
   background-clip: padding-box;
 }

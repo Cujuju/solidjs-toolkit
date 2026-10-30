@@ -5,6 +5,9 @@ import { Show, children, splitProps, type JSX } from 'solid-js';
  * the root. `classList` is folded into `class`, so imperatively added classes are dropped on
  * the next change.
  */
+/** `glass`: the smoked `.glass-menu` surface. `plain`: a solid panel painted from host tokens. */
+export type GlassMenuSurface = 'glass' | 'plain';
+
 export interface GlassMenuProps
   extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 'title'> {
   /** Header content (left). With `title`, `headerAction` and `onClose` all omitted — `null`, a
@@ -23,6 +26,8 @@ export interface GlassMenuProps
   /** Root `overflow`. Default `'hidden'` clips body content to the rounded corners; `'visible'`
    *  lets submenus or shadows paint past the edge. */
   overflow?: 'hidden' | 'visible';
+  /** Panel treatment. Default `'glass'`; `'plain'` drops the blur, tint and white-on-smoke palette. */
+  surface?: GlassMenuSurface;
   /** Forwarded to the root element so a caller (e.g. a positioned
    *  popover) can measure the surface. */
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
@@ -39,6 +44,7 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
     'onClose',
     'headerDivider',
     'overflow',
+    'surface',
     'children',
     'class',
     'classList',
@@ -66,7 +72,9 @@ export function GlassMenu(props: GlassMenuProps): JSX.Element {
   return (
     <div
       {...rest}
-      class={`glass-menu cujuju-glass-menu${
+      class={`${
+        local.surface === 'plain' ? 'cujuju-glass-menu--plain ' : 'glass-menu '
+      }cujuju-glass-menu${
         local.overflow === 'visible'
           ? ' cujuju-glass-menu--overflow-visible'
           : ''

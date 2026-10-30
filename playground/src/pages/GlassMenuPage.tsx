@@ -74,6 +74,22 @@ import { GlassMenu } from '@cujuju/solidjs-glass-menu';
       </div>
 
       <h2>
+        surface <small>— glass by default, plain for a solid panel in the host's colours</small>
+      </h2>
+      <div class="row">
+        <Card cap='surface="glass" (default)'>
+          <GlassMenu title="Filters" onClose={() => {}} style={{ width: '220px' }}>
+            <div style={{ padding: '10px 12px' }} class="readout">smoked glass, white-on-smoke text</div>
+          </GlassMenu>
+        </Card>
+        <Card cap='surface="plain"'>
+          <GlassMenu surface="plain" title="Filters" onClose={() => {}} style={{ width: '220px' }}>
+            <div style={{ padding: '10px 12px' }} class="readout">solid --color-surface, host text</div>
+          </GlassMenu>
+        </Card>
+      </div>
+
+      <h2>
         headerDivider <small>— on when the body is dense, off when it breathes</small>
       </h2>
       <div class="row">

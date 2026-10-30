@@ -51,7 +51,7 @@ manually (see [Styling](#styling)).
 them from its own stylesheet:
 
 ```
-<div class="glass-menu cujuju-glass-menu [cujuju-glass-menu--overflow-visible] [caller class]">
+<div class="glass-menu|cujuju-glass-menu--plain cujuju-glass-menu [cujuju-glass-menu--overflow-visible] [caller class]">
   ├─ <div class="cujuju-glass-menu-header [cujuju-glass-menu-header--flush]">   ← only when the header is shown
   │    ├─ <div class="cujuju-glass-menu-title"> {title} </div>
   │    └─ <div class="cujuju-glass-menu-header-actions">
@@ -64,7 +64,8 @@ them from its own stylesheet:
 
 | Class | Element | Notes |
 |-------|---------|-------|
-| `glass-menu` | root | The surface treatment (tint / blur / border / shadow / menu-scoped token rebinds) — from `@cujuju/solidjs-glass`. |
+| `glass-menu` | root | The surface treatment (tint / blur / border / shadow / menu-scoped token rebinds) — from `@cujuju/solidjs-glass`. Absent when `surface="plain"`. |
+| `cujuju-glass-menu--plain` | root | Replaces `glass-menu` when `surface="plain"`: solid host-token background, border and text; glass's outer drop shadow. |
 | `cujuju-glass-menu` | root | Layout: `display: flex; flex-direction: column; border-radius; overflow: hidden`. |
 | `cujuju-glass-menu--overflow-visible` | root | Added when `overflow="visible"` — flips the root to `overflow: visible`. |
 | `cujuju-glass-menu-header` | header row | `display: flex`, space-between, padded `10px 14px`, hairline `border-bottom`. Rendered **only** when a header is shown. |
@@ -97,6 +98,7 @@ content). Every attribute not in the table below — `ref`, `style`,
 | `headerAction` | `JSX.Element?` | — | Node rendered in the header between the title and the close button — e.g. a "Clear" action. |
 | `onClose` | `() => void`? | — | Close-button handler. The close button renders **only** when this is provided. `GlassMenu` does not close itself — this is a callback into caller-owned state. |
 | `headerDivider` | `boolean?` | `true` | Hairline `border-bottom` under the header. Pass `false` for a flush header (e.g. an option list where a header-to-body rule reads as clutter). |
+| `surface` | `'glass' \| 'plain'`? | `'glass'` | Panel treatment. `'plain'` is a solid panel in the host's own colours — no blur, tint or white-on-smoke palette. See [Plain surface](#plain-surface--surfaceplain). |
 | `overflow` | `'hidden' \| 'visible'`? | `'hidden'` | Root `overflow`. `'hidden'` clips edge-to-edge body content (full-width row hovers, etc.) to the rounded corners. `'visible'` is for a menu whose children must paint past the surface edge — a context menu with non-Portal'd submenus, or one relying on a drop shadow rendering outside the box. |
 | `children` | `JSX.Element?` | — | Body content. Rendered inside `.cujuju-glass-menu-body`. |
 | `ref` | `HTMLDivElement \| (el) => void` | — | Forwarded to the root. Use it to measure the surface, or to set the `popover` attribute (see [recipe](#as-the-positioned-popover-element)). |
@@ -253,6 +255,22 @@ Note: an element's **own** box-shadow is not clipped by its `overflow`,
 so a menu does not need `overflow="visible"` merely to cast its shadow.
 Use it when *descendant* content must paint past the edge.
 
+### Plain surface — `surface="plain"`
+
+The same header and body without the glass: a solid panel painted from
+the host's `--color-surface`, `--color-border` and `--color-text`. Use it
+where a translucent menu reads poorly, e.g. over busy content or in a
+light theme.
+
+```tsx
+<GlassMenu surface="plain" title="Filters" onClose={close}>
+  <FilterChips />
+</GlassMenu>
+```
+
+The body scrollbar follows the text colour, so it stays visible on light
+and dark hosts. `--glass-menu-scrollbar-thumb` still overrides it.
+
 ## The body is unpadded
 
 `.cujuju-glass-menu-body` has **no padding** and **no `gap`** — a padded
@@ -330,15 +348,20 @@ renders standalone and themes when a host provides them:
 | `--color-text-secondary` | close-button color | `rgba(255,255,255,0.78)` |
 | `--font-size-base` | title font size | `0.9375rem` |
 | `--transition-speed` | close-button hover transition | `0.15s` |
+| `--color-surface` | plain surface background | `#16213e` |
+| `--glass-menu-scrollbar-thumb`, `-hover` | body scrollbar thumb | `rgba(255,255,255,0.22)` / `0.34`; plain: text colour at 22% / 34% |
 
-The `.glass-menu` surface itself (tint, blur, border, shadow) is themed
+On the plain surface, `--color-border` (fallback `rgba(255,255,255,0.1)`)
+also draws the root border, and `--color-text` sets the root text colour.
+
+The `.glass-menu` surface itself (the default `surface="glass"`) (tint, blur, border, shadow) is themed
 through `@cujuju/solidjs-glass` — see that package's README, including
 its menu-tint engine.
 
 ## TypeScript
 
 ```ts
-import { GlassMenu, type GlassMenuProps } from '@cujuju/solidjs-glass-menu';
+import { GlassMenu, type GlassMenuProps, type GlassMenuSurface } from '@cujuju/solidjs-glass-menu';
 ```
 
 `GlassMenuProps` is exported for callers that wrap `GlassMenu` in their

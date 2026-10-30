@@ -69,6 +69,31 @@ describe('GlassMenu', () => {
     expect(root.classList.contains('my-panel')).toBe(true);
   });
 
+  it('surface="plain" swaps the glass surface for the plain one and keeps the layout', () => {
+    const { container } = render(() => (
+      <GlassMenu title="T" surface="plain" class="my-panel">
+        body
+      </GlassMenu>
+    ));
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.classList.contains('glass-menu')).toBe(false);
+    expect(root.classList.contains('cujuju-glass-menu--plain')).toBe(true);
+    expect(root.classList.contains('cujuju-glass-menu')).toBe(true);
+    expect(root.classList.contains('my-panel')).toBe(true);
+  });
+
+  it('switches surface reactively', () => {
+    const [surface, setSurface] = createSignal<'glass' | 'plain'>('glass');
+    const { container } = render(() => (
+      <GlassMenu surface={surface()}>body</GlassMenu>
+    ));
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.classList.contains('glass-menu')).toBe(true);
+    setSurface('plain');
+    expect(root.classList.contains('glass-menu')).toBe(false);
+    expect(root.classList.contains('cujuju-glass-menu--plain')).toBe(true);
+  });
+
   it('forwards passthrough attributes (role, aria-label) to the root', () => {
     const { container } = render(() => (
       <GlassMenu title="T" role="dialog" aria-label="Filter dialog">
