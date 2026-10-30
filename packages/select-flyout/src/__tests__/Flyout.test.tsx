@@ -378,3 +378,24 @@ describe('Flyout', () => {
     expect(document.activeElement).toBe(rows[0]);
   });
 });
+
+describe('Flyout — hover and ARIA wiring', () => {
+  it('hover moves DOM focus with the highlight, so Enter commits the row that has focus', async () => {
+    const { getTrigger, getOptions, getValue } = renderSelect({ initialValue: 'apple' });
+    getTrigger().click();
+    await nextFrame();
+    const banana = getOptions()[1];
+    banana.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(document.activeElement).toBe(banana);
+    banana.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(getValue()).toBe('banana');
+  });
+
+  it('aria-controls points at the listbox itself', async () => {
+    const { getTrigger } = renderSelect({ initialValue: 'apple' });
+    getTrigger().click();
+    await nextFrame();
+    const target = document.getElementById(getTrigger().getAttribute('aria-controls')!);
+    expect(target?.getAttribute('role')).toBe('listbox');
+  });
+});

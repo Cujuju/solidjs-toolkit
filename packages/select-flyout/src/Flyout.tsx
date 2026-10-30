@@ -343,8 +343,7 @@ export function Flyout(props: FlyoutProps): JSX.Element {
 
       {/* AnchoredPopover positions; GlassMenu paints the glass surface
           (headerless — no title/action/close). The inner <ul> is the
-          listbox itself; `panelId` lands on GlassMenu's root, which is
-          the combobox's `aria-controls` target. */}
+          listbox itself, so it carries `panelId`, the combobox's `aria-controls` target. */}
       <AnchoredPopover
         open={open}
         anchor={anchor}
@@ -355,12 +354,12 @@ export function Flyout(props: FlyoutProps): JSX.Element {
             here, inside the keydown handler's reach, instead of on <body>. */}
         <GlassMenu
           class="cujuju-select-flyout-panel"
-          id={panelId}
           tabIndex={-1}
           onKeyDown={onPanelKeyDown}
         >
           <ul
             ref={(el) => (listEl = el)}
+            id={panelId}
             role="listbox"
             aria-label={props.ariaLabel}
             class="cujuju-select-flyout-list"
@@ -384,8 +383,11 @@ export function Flyout(props: FlyoutProps): JSX.Element {
                     disabled={opt.disabled}
                     tabIndex={isFocused() ? 0 : -1}
                     onClick={() => selectOption(index())}
+                    // Focus follows the highlight: Enter commits `focusedIndex`, so the two must agree.
                     onMouseEnter={() => {
-                      if (!opt.disabled) setFocusedIndex(index());
+                      if (opt.disabled) return;
+                      setFocusedIndex(index());
+                      focusOptionAt(index());
                     }}
                   >
                     {/* Selection is a CSS rail off `-option-selected`, not a marker element: no
