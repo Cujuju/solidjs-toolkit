@@ -70,7 +70,7 @@ them from its own stylesheet:
 | `cujuju-glass-menu--overflow-visible` | root | Added when `overflow="visible"` — flips the root to `overflow: visible`. |
 | `cujuju-glass-menu-header` | header row | `display: flex`, space-between, padded `10px 14px`, hairline `border-bottom`. Rendered **only** when a header is shown. |
 | `cujuju-glass-menu-header--flush` | header row | Added when `headerDivider={false}` — removes the `border-bottom`. |
-| `cujuju-glass-menu-title` | header left | `flex: 1; min-width: 0` so long titles truncate. Always a `<div>` (block content allowed). |
+| `cujuju-glass-menu-title` | header left | `flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap`: a long title truncates with an ellipsis instead of running under the actions. Always a `<div>`; block content is allowed but clipped, not wrapped. |
 | `cujuju-glass-menu-header-actions` | header right | Holds `headerAction` then the close button. Always rendered (keeps the cluster right-aligned even with no title). |
 | `cujuju-glass-menu-close` | close button | 22×22 button, `aria-label="Close"`. Rendered **only** when `onClose` is set. |
 | `cujuju-glass-menu-body` | body | `flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto`. **No padding** — see [The body is unpadded](#the-body-is-unpadded). |
@@ -99,7 +99,7 @@ content). Every attribute not in the table below — `ref`, `style`,
 | `onClose` | `() => void`? | — | Close-button handler. The close button renders **only** when this is provided. `GlassMenu` does not close itself — this is a callback into caller-owned state. |
 | `headerDivider` | `boolean?` | `true` | Hairline `border-bottom` under the header. Pass `false` for a flush header (e.g. an option list where a header-to-body rule reads as clutter). |
 | `surface` | `'glass' \| 'plain'`? | `'glass'` | Panel treatment. `'plain'` is a solid panel in the host's own colours — no blur, tint or white-on-smoke palette. See [Plain surface](#plain-surface--surfaceplain). |
-| `overflow` | `'hidden' \| 'visible'`? | `'hidden'` | Root `overflow`. `'hidden'` clips edge-to-edge body content (full-width row hovers, etc.) to the rounded corners. `'visible'` is for a menu whose children must paint past the surface edge — a context menu with non-Portal'd submenus, or one relying on a drop shadow rendering outside the box. |
+| `overflow` | `'hidden' \| 'visible'`? | `'hidden'` | Root `overflow`. `'hidden'` clips edge-to-edge body content (full-width row hovers, etc.) to the rounded corners. `'visible'` unclips the root only: header content may paint past the surface edge. The body stays a scroll container (`overflow-y: auto` forces `overflow-x: auto`), so body descendants that must escape — submenus, popovers — need a Portal. |
 | `children` | `JSX.Element?` | — | Body content. Rendered inside `.cujuju-glass-menu-body`. |
 | `ref` | `HTMLDivElement \| (el) => void` | — | Forwarded to the root. Use it to measure the surface, or to set the `popover` attribute (see [recipe](#as-the-positioned-popover-element)). |
 | ...rest | `JSX.HTMLAttributes<HTMLDivElement>` | — | `style`, `class`, `role`, `aria-*`, `data-*`, handlers — all forwarded to the root. A caller `class` / `classList` is merged into the root's class string. Class order does not affect the cascade: at equal specificity the later stylesheet wins, so raise specificity or override the custom properties the stylesheet reads (e.g. `--radius-md`). |
@@ -241,15 +241,19 @@ become the scroll region while a sibling stays pinned.
 
 ### Edge-escaping children — `overflow="visible"`
 
-By default the root clips to its rounded corners. A context menu whose
-submenus are **not** Portal'd, or one relying on a drop shadow painting
-outside the box, needs the surface to not clip:
+By default the root clips to its rounded corners. `overflow="visible"`
+lifts that clip for the root's own content (the header and its actions):
 
 ```tsx
 <GlassMenu overflow="visible" ref={setPopoverAttr} class="context-menu">
   <MenuItems />
 </GlassMenu>
 ```
+
+It does not unclip the body. The body scrolls when the root's height is
+constrained, and a scroll container clips on both axes (`overflow-y: auto`
+forces `overflow-x: auto`). Children that must paint past the edge, such as
+submenus, need a `Portal` (as `@cujuju/solidjs-context-menu` does).
 
 Note: an element's **own** box-shadow is not clipped by its `overflow`,
 so a menu does not need `overflow="visible"` merely to cast its shadow.

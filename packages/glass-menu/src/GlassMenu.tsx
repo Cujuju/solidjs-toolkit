@@ -23,8 +23,8 @@ export interface GlassMenuProps
    *  `false` for a flush header (no border-bottom) — e.g. an option
    *  list where a header-to-body rule reads as visual clutter. */
   headerDivider?: boolean;
-  /** Root `overflow`. Default `'hidden'` clips body content to the rounded corners; `'visible'`
-   *  lets submenus or shadows paint past the edge. */
+  /** Root `overflow`. Default `'hidden'` clips to the rounded corners; `'visible'` unclips the root
+   *  only. The body stays a scroll container, so body descendants that must escape need a Portal. */
   overflow?: 'hidden' | 'visible';
   /** Panel treatment. Default `'glass'`; `'plain'` drops the blur, tint and white-on-smoke palette. */
   surface?: GlassMenuSurface;

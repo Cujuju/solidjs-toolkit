@@ -20,9 +20,8 @@
   --cujuju-glass-menu-thumb-hover: color-mix(in srgb, currentColor 34%, transparent);
 }
 
-/* Opt out of corner clipping — for a menu whose children must paint
-   past the surface edge (Portal-less submenus, edge-overflowing drop
-   shadows). Set via the `overflow="visible"` prop. */
+/* Opt out of corner clipping for the root's own content (`overflow="visible"`). The body stays
+   a scroll container, so escaping body descendants need a Portal. */
 .cujuju-glass-menu--overflow-visible {
   overflow: visible;
 }
@@ -43,12 +42,14 @@
   border-bottom: none;
 }
 
-/* Title region — grows to fill the header so the action cluster hugs
-   the right edge; `min-width: 0` lets long titles truncate rather than
-   force the header wider. */
+/* Title region — grows to fill the header so the action cluster hugs the right edge. `min-width:
+   0` lets it shrink; the clip + ellipsis keep a long title off the actions. */
 .cujuju-glass-menu-title {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--font-size-base, 0.9375rem);
   font-weight: 600;
   color: var(--color-text, rgba(255, 255, 255, 0.95));
