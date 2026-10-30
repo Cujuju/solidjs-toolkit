@@ -52,6 +52,8 @@ export function TilingWindowManagerPage(): JSX.Element {
   return (
     <>
       <Card cap="Drag a header to dock a tile on another's edge; drop on its centre to swap or tab, or on its header to tab. Drag a gap to resize (readout, Shift flips it); arrows step it, double-click equalises. Fold collapses a tile. Add tile, then Tab and arrow keys place it without a mouse." wide>
+        {/* Card body is a flex row; the workspace has no content width (tiles are absolute), so it needs the full row. */}
+        <div style={{ width: '100%' }}>
         <div style={{ display: 'flex', gap: '8px', 'margin-bottom': '8px' }}>
           <button class="demo-btn" onClick={() => setPlacing({ id: `tile-${next++}`, label: 'a new tile' })}>Add tile</button>
           <button class="demo-btn" onClick={() => setLayout(INITIAL)}>Reset</button>
@@ -88,6 +90,7 @@ export function TilingWindowManagerPage(): JSX.Element {
             </div>
           )}
         </TilingWorkspace>
+        </div>
       </Card>
       <Code cap="usage">{USAGE}</Code>
     </>
