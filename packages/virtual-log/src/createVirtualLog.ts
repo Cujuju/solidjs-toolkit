@@ -379,6 +379,11 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     if (changed || navMeasured()) relayout();
   });
 
+  /** Navigation can run before the ResizeObserver reports a height (a ref may have cached 0): align with the live one. */
+  const syncViewH = (): void => {
+    if (!hidden()) setViewH(scroller!.clientHeight);
+  };
+
   const viewport = (): void => {
     // Hidden: keep the last view (and its anchors); the browser restores the offset when it shows again.
     if (!scroller) return;
@@ -620,6 +625,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     scrollToKey: (key, opts) => {
       if (layout.indexOf(key) < 0) return false;
       setHeldKey(null);
+      syncViewH();
       const align = opts?.align ?? 'auto';
       const d = alignedOffset(layout, key, align, untrack(logical), untrack(viewH), untrack(endPadding));
       pendingNav = layout.measured(key) ? null : { key, align };
@@ -635,6 +641,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       }
       heldAlign = align;
       setHeldKey(key);
+      syncViewH();
       const d = alignedOffset(layout, key, align, untrack(logical), untrack(viewH), untrack(endPadding));
       if (d !== null) commit(d);
       captureAnchors();

@@ -216,6 +216,19 @@ describe('createVirtualLog', () => {
     expect(h.log().scrollToKey('nope')).toBe(false);
   });
 
+  it('navigation aligns with the live height before the resize observer reports it', async () => {
+    const h = mount(rowsOf(100, 20));
+    await h.flush();
+    // The view grows to 200 with no observer delivery yet.
+    h.view.height = 200;
+    expect(h.log().holdRow('r50')).toBe(true);
+    // r50 spans 980-1000: centered in 200, L = 990 - 100.
+    expect(h.native()).toBe(890);
+    h.view.height = 300;
+    expect(h.log().scrollToKey('r50', { align: 'center' })).toBe(true);
+    expect(h.native()).toBe(840);
+  });
+
   it('loads older rows near the top, once at a time', async () => {
     let calls = 0;
     let resolve!: () => void;
