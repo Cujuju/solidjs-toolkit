@@ -116,6 +116,26 @@ describe('HoldIndicator', () => {
     }
   });
 
+  describe('rect direction', () => {
+    for (const direction of ['clockwise', 'counterclockwise'] as const) {
+      it(`${direction}: starts at top-centre and first heads ${direction === 'clockwise' ? 'right' : 'left'}`, () => {
+        dispose = render(
+          () => (
+            <div data-w={PARENT_W} data-h={PARENT_H} style={{ position: 'relative' }}>
+              <HoldIndicator progress={0.25} shape="rect" direction={direction} />
+            </div>
+          ),
+          container,
+        );
+        const svg = container.querySelector('svg')!;
+        const centreX = Number(svg.getAttribute('width')) / 2;
+        const [, startX, , firstX] = /^M (\S+) (\S+) H (\S+)/.exec(container.querySelector('path')!.getAttribute('d')!)!;
+        expect(Number(startX)).toBeCloseTo(centreX, PRECISION);
+        expect(Math.sign(Number(firstX) - centreX)).toBe(direction === 'clockwise' ? 1 : -1);
+      });
+    }
+  });
+
   it('switches between fill-parent and explicit-size layout when size props change', () => {
     const [size, setSize] = createSignal<number | undefined>(undefined);
     dispose = render(

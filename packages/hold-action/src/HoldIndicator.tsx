@@ -227,16 +227,20 @@ export function HoldIndicator(props: HoldIndicatorProps): JSX.Element {
     // Path radius (stroke center) = stroke-outer - sw/2.
     const strokeOuterR = Math.max(0, radius() + avgOut);
     const r = Math.max(0, Math.min(strokeOuterR - sw / 2, Math.min(pathW, pathH) / 2));
+    // Counterclockwise mirrors x about the centre and flips each arc's sweep flag.
+    const ccw = direction() === 'counterclockwise';
+    const x = (v: number): number => (ccw ? w.w - v : v);
+    const sweep = ccw ? 0 : 1;
     const d = [
       `M ${w.w / 2} ${inset}`,
-      `H ${inset + pathW - r}`,
-      `A ${r} ${r} 0 0 1 ${inset + pathW} ${inset + r}`,
+      `H ${x(inset + pathW - r)}`,
+      `A ${r} ${r} 0 0 ${sweep} ${x(inset + pathW)} ${inset + r}`,
       `V ${inset + pathH - r}`,
-      `A ${r} ${r} 0 0 1 ${inset + pathW - r} ${inset + pathH}`,
-      `H ${inset + r}`,
-      `A ${r} ${r} 0 0 1 ${inset} ${inset + pathH - r}`,
+      `A ${r} ${r} 0 0 ${sweep} ${x(inset + pathW - r)} ${inset + pathH}`,
+      `H ${x(inset + r)}`,
+      `A ${r} ${r} 0 0 ${sweep} ${x(inset)} ${inset + pathH - r}`,
       `V ${inset + r}`,
-      `A ${r} ${r} 0 0 1 ${inset + r} ${inset}`,
+      `A ${r} ${r} 0 0 ${sweep} ${x(inset + r)} ${inset}`,
       `H ${w.w / 2}`,
     ].join(' ');
     const perimeter = 2 * (pathW + pathH - 4 * r) + 2 * Math.PI * r;
