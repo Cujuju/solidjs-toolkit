@@ -76,6 +76,8 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
   let reachedStages = new Set<number>();
   let justCompleted = false;
   let activePointerId: number | undefined;
+  // Bumped by every start and reset: a tick whose callback cancelled or restarted stops there.
+  let holdId = 0;
 
   // A second pointer (e.g. another finger) must neither restart nor cancel the hold.
   const isOtherPointer = (e: PointerEvent): boolean =>
@@ -84,6 +86,7 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
   // Pure state reset, shared by stop() and onCleanup. Separate paths are what keep onCancel to
   // user gestures, never disposal.
   const resetState = (): void => {
+    holdId++;
     if (rafId !== null) {
       cancelAnimationFrame(rafId);
       rafId = null;
@@ -105,17 +108,19 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
   const start = (pointerId: number | undefined): void => {
     if (!enabled()) return;
     stop();
+    const id = ++holdId;
     justCompleted = false;
     activePointerId = pointerId;
     startTime = performance.now();
     setHolding(true);
 
     const tick = (now: number): void => {
-      if (startTime === null) return;
+      if (id !== holdId || startTime === null) return;
       const elapsed = now - startTime;
       const p = Math.min(elapsed / options.durationMs, 1);
       setProgress(p);
       options.onProgress?.(p);
+      if (id !== holdId) return;
 
       // Fire stages that have been crossed
       if (options.stages) {
@@ -124,6 +129,7 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
           if (!reachedStages.has(i) && elapsed >= stage.at) {
             reachedStages.add(i);
             stage.onReach();
+            if (id !== holdId) return;
           }
         }
       }

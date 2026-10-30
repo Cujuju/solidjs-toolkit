@@ -95,6 +95,47 @@ describe('useHoldAction', () => {
     });
   });
 
+  it('a cancel() inside a stage stops that frame: no later stages, no onComplete', () => {
+    const later = vi.fn();
+    const onComplete = vi.fn();
+    const onCancel = vi.fn();
+    createRoot(() => {
+      const hold = useHoldAction({
+        durationMs: 100,
+        onComplete,
+        onCancel,
+        stages: [
+          { at: 50, onReach: () => hold.cancel() },
+          { at: 80, onReach: later },
+        ],
+      });
+      h.setTime(0);
+      hold.handlers.onPointerDown({ button: 0 } as PointerEvent);
+      h.flushRaf();
+      // One frame crosses every threshold and the duration.
+      h.setTime(100);
+      h.flushRaf();
+      h.flushRaf();
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      expect(later).not.toHaveBeenCalled();
+      expect(onComplete).not.toHaveBeenCalled();
+      expect(hold.holding()).toBe(false);
+    });
+  });
+
+  it('disposal inside onProgress stops that frame', () => {
+    const onComplete = vi.fn();
+    createRoot((dispose) => {
+      const hold = useHoldAction({ durationMs: 100, onComplete, onProgress: (p) => { if (p >= 1) dispose(); } });
+      h.setTime(0);
+      hold.handlers.onPointerDown({ button: 0 } as PointerEvent);
+      h.flushRaf();
+      h.setTime(100);
+      h.flushRaf();
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+  });
+
   it('stages fire in order as their at-thresholds are crossed', () => {
     const stageA = vi.fn();
     const stageB = vi.fn();
