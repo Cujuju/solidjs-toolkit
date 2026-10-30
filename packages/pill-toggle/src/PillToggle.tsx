@@ -1,6 +1,10 @@
 import { children, type JSX, Show } from 'solid-js';
 import { centerOffset, DOT_INSET_PX, dotTranslate } from './_internal/dotPosition';
 
+/** Larger than any pill: corners clamp to half the rendered height, whatever unit set it.
+ *  `calc(height / 2)` fails for `%`, which resolves against the box's own size. */
+const PILL_RADIUS = '9999px';
+
 export interface PillToggleProps {
   enabled: boolean;
   onToggle: () => void;
@@ -147,7 +151,7 @@ export function PillToggle(props: PillToggleProps): JSX.Element {
     const s: JSX.CSSProperties = {
       width: width(),
       height: height(),
-      'border-radius': `calc(${height()} / 2)`,
+      'border-radius': PILL_RADIUS,
       '--tp-transition': `${anim().ms}ms ${anim().easing}`,
       ...(props.onColor ? { '--tp-on-bg': props.onColor } : {}),
       ...(props.offColor ? { '--tp-off-bg': props.offColor } : {}),

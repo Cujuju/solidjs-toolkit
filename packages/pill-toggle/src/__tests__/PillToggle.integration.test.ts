@@ -164,3 +164,12 @@ describe('PillToggle visual state precedence', () => {
     dispose();
   });
 });
+
+describe('PillToggle pill shape', () => {
+  it('rounds the ends with an absolute radius, so a percentage height keeps semicircular ends', () => {
+    // `calc(50% / 2)` would resolve against the box's own width and height: elliptical corners.
+    const { dispose, toggle } = renderToggle({ enabled: false, height: '50%', onToggle: () => {} });
+    expect(toggle().style.borderRadius).toBe('9999px');
+    dispose();
+  });
+});
