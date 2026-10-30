@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * SegGroup + SegButton: the controlled/uncontrolled context fork and radiogroup roving focus.
  * Uses `solid-js/web` render, not testing-library, which loads a second Solid and leaks Portals.
@@ -192,18 +193,24 @@ describe('a11y roles', () => {
     expect(buttons(c)[0].getAttribute('aria-pressed')).toBeNull();
   });
 
-  it('radio semantics need the GROUP’s role — an uncontrolled group is never a radiogroup', () => {
-    // isRadio() requires ctx.controlled, which is false without a `value`. So role="radiogroup" on an
-    // uncontrolled group silently produces plain buttons with no radio semantics at all.
+  it('an uncontrolled radiogroup still renders radios, driven by `active` / `onClick`', () => {
+    const [sel, setSel] = createSignal('a');
     const c = mount(() => (
       <SegGroup role="radiogroup">
-        <SegButton label="A" active />
+        <SegButton label="A" active={sel() === 'a'} onClick={() => setSel('a')} />
+        <SegButton label="B" active={sel() === 'b'} onClick={() => setSel('b')} />
       </SegGroup>
     ));
-
-    expect(group(c).getAttribute('role')).toBe('radiogroup'); // the wrapper says radiogroup...
-    expect(buttons(c)[0].getAttribute('role')).toBeNull(); // ...but the buttons are not radios
-    expect(buttons(c)[0].getAttribute('aria-checked')).toBeNull();
+    const [a, b] = buttons(c);
+    expect(a.getAttribute('role')).toBe('radio');
+    expect(a.getAttribute('aria-checked')).toBe('true');
+    expect(b.getAttribute('aria-checked')).toBe('false');
+    // Roving: the checked option is the only tab stop, and arrows select through onClick.
+    expect(a.tabIndex).toBe(0);
+    expect(b.tabIndex).toBe(-1);
+    a.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(sel()).toBe('b');
+    expect(b.getAttribute('aria-checked')).toBe('true');
   });
 });
 
@@ -644,5 +651,17 @@ describe('radiogroup has exactly one tab stop while any option is enabled', () =
     setOpts(['a', 'b', 'c']);
     expect(buttons(c).map((b) => b.dataset.label)).toEqual(['a', 'b', 'c']);
     expect(tabbable(c)).toEqual([0, -1, -1]);
+  });
+});
+
+describe('stylesheet', () => {
+  const CSS = Object.values(
+    import.meta.glob('../styles.css', { query: '?raw', import: 'default', eager: true }),
+  )[0] as string;
+
+  it('fills buttons with background-color, so the `background` shorthand cannot reset --seg-bg-clip', () => {
+    const buttonRules = CSS.replace(/\/\*[\s\S]*?\*\//g, '').match(/\.csb-btn[^{]*\{[^}]*\}/g) ?? [];
+    expect(buttonRules.length).toBeGreaterThan(0);
+    for (const rule of buttonRules) expect(rule).not.toMatch(/(^|[\s;{])background\s*:/);
   });
 });

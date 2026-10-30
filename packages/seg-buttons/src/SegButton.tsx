@@ -78,8 +78,9 @@ export function SegButton<T = string>(props: SegButtonProps<T>): JSX.Element {
     return s;
   };
 
-  // Radiogroup mode: role="radio" + aria-checked. Group mode: aria-pressed.
-  const isRadio = (): boolean => !!ctx?.controlled && ctx.role === 'radiogroup';
+  // Radiogroup mode: role="radio" + aria-checked. Group mode: aria-pressed. The group's role
+  // alone decides: an uncontrolled radiogroup still needs radios (state from `active`/`onClick`).
+  const isRadio = (): boolean => ctx?.role === 'radiogroup';
 
   let el: HTMLButtonElement | undefined;
   const entry = { active: isActive, disabled: () => !!props.disabled, el: () => el };

@@ -85,20 +85,21 @@
   white-space: nowrap;
   box-sizing: border-box;
   border: var(--seg-border-width) solid;
+  /* Fills below are `background-color`: the `background` shorthand would reset this clip. */
   background-clip: var(--seg-bg-clip);
   padding: 0;
   font-family: inherit;
   line-height: 1;
   transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
 
-  background: var(--seg-inactive-bg);
+  background-color: var(--seg-inactive-bg);
   border-color: var(--seg-inactive-border);
   color: var(--seg-inactive-text);
 }
 
 .csb-btn[aria-pressed="true"],
 .csb-btn[aria-checked="true"] {
-  background: var(--seg-active-bg);
+  background-color: var(--seg-active-bg);
   border-color: var(--seg-active-border);
   box-shadow: inset 0 0 0 var(--seg-active-ring-width) var(--seg-active-ring-color);
   color: var(--seg-active-text);
@@ -107,7 +108,7 @@
 
 /* Hover on inactive buttons only — active buttons keep the accent color. */
 .csb-btn:hover:not(:disabled):not([aria-pressed="true"]):not([aria-checked="true"]) {
-  background: var(--seg-hover-bg);
+  background-color: var(--seg-hover-bg);
   color: var(--seg-hover-text);
 }
 
