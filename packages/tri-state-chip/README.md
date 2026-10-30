@@ -68,7 +68,11 @@ tristateOf(value: TriStateValue, item: string): TriState;
 applyTriState(value: TriStateValue, item: string, next: TriState): TriStateValue;
 ```
 
-The helpers are pure functions with no Solid dependency of their own. The package entry, though, also loads the component (`solid-js/web`) and its stylesheet. Importing it needs a bundler that handles CSS, and a DOM-capable context: fine in stores and Vite-run tests, not in a bare Node script or a worker.
+The helpers are pure functions with no Solid dependency of their own. The package entry also loads the component (`solid-js/web`) and its stylesheet, so it needs a bundler that handles CSS and a DOM-capable context. In a worker or a plain Node script, import the helpers subpath instead: no stylesheet, no component, no Solid.
+
+```ts
+import { applyTriState, cycleTriState } from '@cujuju/solidjs-tri-state-chip/helpers';
+```
 
 ## Theming
 

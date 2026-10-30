@@ -13,6 +13,11 @@
       "solid": "./src/index.ts",
       "import": "./dist/index.js"
     },
+    "./helpers": {
+      "cujuju-source": "./src/helpers.ts",
+      "types": "./dist/helpers.d.ts",
+      "import": "./dist/helpers.js"
+    },
     "./styles.css": "./src/styles.css",
     "./style.css": "./dist/style.css"
   },

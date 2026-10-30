@@ -3,15 +3,22 @@
  * Vite + vite-plugin-solid because Solid needs its own JSX transform (esbuild's React one
  * breaks Solid). solid-js stays external — one instance per app.
  */
-/** Output is flat: dist/index.js(.map), dist/index.d.ts and dist/style.css, whose import injectCssImport splices in. */
+/** Output is flat: dist/index.js(.map), dist/index.d.ts and dist/style.css, whose import injectCssImport splices in.
+ *  Each extra entry adds dist/<name>.js. */
 
 import { defineConfig, type UserConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'node:path';
-import { injectCssImport } from './injectCssImport';
+import { injectCssImport, MAIN_ENTRY } from './injectCssImport';
 
-export function libConfig(packageDir: string): UserConfig {
+export interface LibOptions {
+  /** Extra entry points, name → path under src/, built to dist/<name>.js without the stylesheet. */
+  extraEntries?: Record<string, string>;
+}
+
+export function libConfig(packageDir: string, options: LibOptions = {}): UserConfig {
+  const extra = Object.entries(options.extraEntries ?? {}).map(([name, path]) => [name, resolve(packageDir, 'src', path)]);
   return defineConfig({
     plugins: [
       solid(),
@@ -28,9 +35,9 @@ export function libConfig(packageDir: string): UserConfig {
     ],
     build: {
       lib: {
-        entry: resolve(packageDir, 'src/index.ts'),
+        entry: { [MAIN_ENTRY]: resolve(packageDir, 'src/index.ts'), ...Object.fromEntries(extra) },
         formats: ['es'],
-        fileName: 'index',
+        fileName: (_format, entryName) => `${entryName}.js`,
         // Vite 6+ names it after the package; the exports and injectCssImport expect style.css.
         cssFileName: 'style',
       },

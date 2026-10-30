@@ -6,6 +6,8 @@ import type { Plugin, Rollup } from 'vite';
  */
 /** Inserted at the position the entry's own source gives it, so both conditions share one cascade order. */
 
+/** The package entry (src/index.ts). Extra entries, such as a helpers subpath, get no stylesheet. */
+export const MAIN_ENTRY = 'index';
 const CSS_FILE = /\.css(\?|$)/;
 // Rollup emits each hoisted import of an ESM chunk on its own line, at the top of the chunk.
 const OUTPUT_IMPORT_LINE = /^import\s+(?:.*?\sfrom\s+)?['"]([^'"]+)['"];?$/;
@@ -32,16 +34,16 @@ export function injectCssImport(): Plugin {
       for (const file of Object.values(bundle)) {
         if (file.type === 'asset') {
           if (CSS_FILE.test(file.fileName)) stylesheets.push(file);
-        } else if (file.isEntry) {
+        } else if (file.isEntry && file.name === MAIN_ENTRY) {
           entries.push(file);
         }
       }
       if (stylesheets.length === 0) return;
-      // Lib mode forces one entry and cssCodeSplit:false. chunk.viteMetadata.importedCss
+      // Lib mode uses cssCodeSplit:false, so one sheet for the main entry. chunk.viteMetadata.importedCss
       // is empty here, so nothing else could attribute a sheet to a chunk.
       if (entries.length !== 1 || stylesheets.length !== 1) {
         this.error(
-          `inject-css-import assumes one entry chunk and one CSS asset; got ${entries.length} entr` +
+          `inject-css-import assumes one main entry chunk and one CSS asset; got ${entries.length} entr` +
             `${entries.length === 1 ? 'y' : 'ies'} and ${stylesheets.length} stylesheets`,
         );
       }
