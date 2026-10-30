@@ -11,7 +11,6 @@ import {
   ACCORDION_LAYOUT_VERSION,
   AccordionGroupContext,
   type AccordionGroupApi,
-  type AccordionLayout,
   type AccordionAppearance,
   type AccordionMode,
   type AccordionOpenPlacement,
@@ -38,6 +37,7 @@ import { RailOverflowMenu } from './RailOverflowMenu';
 import { createRailPan } from './railPan';
 import { createAutoHide, type AutoHideApi } from './autoHide';
 import { createTearOff, type TearOffController } from './tearOff';
+import { readPersisted, writePersisted, type PersistedState } from './persistence';
 import { createReorderList } from '@cujuju/solid-reorder-list';
 
 export interface AccordionGroupProps {
@@ -131,12 +131,6 @@ export interface AccordionGroupProps {
 }
 
 /**
- * What goes to localStorage. `AccordionLayout` itself rather than a parallel shape: a saved
- * workspace and an auto-persisted session are the same data, so there is one migration story.
- */
-type PersistedState = AccordionLayout;
-
-/**
  * Drag activation is skipped on anything matching this. The primitive's default would disable
  * dragging entirely, because the rail ACTIVATOR IS a `<button>` — so the skip is inverted.
  */
@@ -146,40 +140,6 @@ const REORDER_SKIP_SELECTOR = '[data-no-drag]';
  *  A fresh `[]` per call would be a new identity every read and defeat memo
  *  equality downstream. */
 const EMPTY_IDS: readonly string[] = [];
-
-/**
- * Read a persisted layout, or null. VERSION-GATED like `setLayout`, because this runs on every
- * page load. See DESIGN_NOTES.md § src/AccordionGroup.tsx:191.
- */
-function readPersisted(key: string | undefined): PersistedState | null {
-  if (key === undefined) return null;
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw === null) return null;
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return null;
-    const p = parsed as Partial<PersistedState>;
-    if (p.version !== ACCORDION_LAYOUT_VERSION) return null;
-    const strings = (v: unknown): string[] =>
-      Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
-    const sizes: Record<string, number> = {};
-    if (typeof p.sizes === 'object' && p.sizes !== null) {
-      for (const [k, v] of Object.entries(p.sizes)) {
-        if (typeof v === 'number' && Number.isFinite(v)) sizes[k] = v;
-      }
-    }
-    return {
-      version: ACCORDION_LAYOUT_VERSION,
-      open: strings(p.open),
-      pinned: strings(p.pinned),
-      order: strings(p.order),
-      sizes,
-    };
-  } catch {
-    // A corrupt/blocked localStorage must not take the panel group down.
-    return null;
-  }
-}
 
 export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const orientation = (): AccordionOrientation => props.orientation ?? 'vertical';
@@ -272,20 +232,16 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
 
   const persist = (): void => {
     if (props.storageKey === undefined) return;
-    try {
-      const state: PersistedState = {
-        // Stamped, so `readPersisted` has something to gate on. Same constant the
-        // explicit `getLayout`/`setLayout` pair uses — one version for one shape.
-        version: ACCORDION_LAYOUT_VERSION,
-        open: [...openList()],
-        pinned: [...pinned()],
-        order: [...orderIds()],
-        sizes: { ...sizes() },
-      };
-      localStorage.setItem(props.storageKey, JSON.stringify(state));
-    } catch {
-      // silent — persistence is a nicety, never a hard dependency
-    }
+    const state: PersistedState = {
+      // Stamped, so `readPersisted` has something to gate on. Same constant the
+      // explicit `getLayout`/`setLayout` pair uses — one version for one shape.
+      version: ACCORDION_LAYOUT_VERSION,
+      open: [...openList()],
+      pinned: [...pinned()],
+      order: [...orderIds()],
+      sizes: { ...sizes() },
+    };
+    writePersisted(props.storageKey, state);
   };
 
   const metaOf = (id: string): PanelMeta | undefined => metaMap().get(id);
