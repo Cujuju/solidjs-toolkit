@@ -293,3 +293,40 @@ describe('5 — itemState is asked once per item, not once per read', () => {
     expect(calls).toBe(LADDER.length + 1);
   });
 });
+
+describe('the keyboard cursor and custom row content', () => {
+  it('scrolls the panel just enough to show the row the arrows land on', () => {
+    const ROW_H = 40;
+    const VIEW_H = 100;
+    mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
+    click(pills()[0]);
+    const panel = panels()[0] as HTMLElement;
+    // jsdom has no layout: rows stack ROW_H apart, the panel shows VIEW_H of them.
+    let scrollTop = 0;
+    Object.defineProperty(panel, 'scrollTop', { get: () => scrollTop, set: (v: number) => { scrollTop = v; }, configurable: true });
+    Object.defineProperty(panel, 'clientHeight', { value: VIEW_H, configurable: true });
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const i = rows().indexOf(this as HTMLElement);
+      const top = i < 0 ? 0 : i * ROW_H - scrollTop;
+      const height = i < 0 ? VIEW_H : ROW_H;
+      return { x: 0, y: top, top, left: 0, right: 100, bottom: top + height, width: 100, height, toJSON: () => ({}) } as DOMRect;
+    });
+
+    key('End');
+    expect(scrollTop).toBe(LADDER.length * ROW_H - VIEW_H);
+    key('Home');
+    expect(scrollTop).toBe(0);
+    spy.mockRestore();
+  });
+
+  it('leaves a key that custom row content already consumed alone', () => {
+    const onChange = vi.fn();
+    mount(() => <PillDatePicker items={LADDER} value={LADDER[0]} onChange={onChange} now={NOW} />);
+    click(pills()[0]);
+    const row = rows()[0];
+    row.addEventListener('keydown', (e) => e.preventDefault()); // e.g. an input taking Space
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(panels()).toHaveLength(1);
+  });
+});

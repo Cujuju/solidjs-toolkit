@@ -247,6 +247,22 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     setActiveIndex(NO_ACTIVE_INDEX); // every row disabled — nowhere to go
   };
 
+  /**
+   * Scroll the panel just enough to show the cursor row. Keyboard moves and open only: on hover
+   * it could chain-scroll at the panel's edge, row after row under a still pointer.
+   */
+  const revealActiveRow = (): void => {
+    const key = activeRowKey();
+    if (!panelEl || key === null) return;
+    const row = document.getElementById(rowId(key));
+    if (!row) return;
+    const viewTop = panelEl.getBoundingClientRect().top + panelEl.clientTop;
+    const viewBottom = viewTop + panelEl.clientHeight;
+    const r = row.getBoundingClientRect();
+    if (r.top < viewTop) panelEl.scrollTop -= viewTop - r.top;
+    else if (r.bottom > viewBottom) panelEl.scrollTop += r.bottom - viewBottom;
+  };
+
   /** True when the ladder has rows and every one of them is disabled. */
   const noneSelectable = createMemo<boolean>(
     () => props.items.length > 0 && props.items.every((i) => stateOf(i) === 'disabled'),
@@ -322,23 +338,29 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
       // Only the top of the stack acts; a picker underneath another one must not
       // silently commit the keypress its neighbour is receiving.
       if (!ownsKeyboard()) return;
+      // A key custom row content consumed (an input's Space, say) is not ours to act on.
+      if (e.defaultPrevented) return;
       if (!isOurs(e)) return;
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
           moveActive(1);
+          revealActiveRow();
           break;
         case 'ArrowUp':
           e.preventDefault();
           moveActive(-1);
+          revealActiveRow();
           break;
         case 'Home':
           e.preventDefault();
           setActiveIndex(edgeEnabled('first'));
+          revealActiveRow();
           break;
         case 'End':
           e.preventDefault();
           setActiveIndex(edgeEnabled('last'));
+          revealActiveRow();
           break;
         case 'Enter':
         case ' ':
@@ -489,6 +511,8 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   // portalled panel is sized, so its measured height can be 0.
   const PanelBody = (): JSX.Element => {
     onMount(() => place());
+    // Open with the selection in view, not just under the cursor.
+    onMount(revealActiveRow);
     // Re-place whenever the panel's own size changes: rows arriving, a status line, a wrapped note.
     onMount(() => {
       if (!panelEl || typeof ResizeObserver === 'undefined') return;
