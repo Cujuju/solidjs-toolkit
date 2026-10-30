@@ -203,6 +203,9 @@ export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
       // Publish the revert only when the consumer actually SAW a different value. In 'finish'
             // mode props.value never moved, so a spurious onChange would churn the consumer.
       if (props.value !== startedAt) props.onChange(startedAt);
+    } else if (pending !== null && pending !== props.value) {
+      // Kept, not reverted: a 'finish' draft was never published, so keeping it means publishing it.
+      props.onChange(pending);
     }
     setDraft(formatValue(restored, precision()));
     props.onCancel?.(restored);

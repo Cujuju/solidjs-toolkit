@@ -249,6 +249,16 @@ describe("commit: 'change' (default) — publish as you go", () => {
     expect(log.cancels).toEqual([6]);
   });
 
+  it("revertOnCancel={false} in 'finish' mode publishes the kept draft", () => {
+    const { host, log, value } = harness({ commit: 'finish', initial: 5, revertOnCancel: false });
+    click(anchorValue(host));
+    click(buttonsIn(panel())[0]); // 6, unpublished draft
+    key(document, 'Escape');
+    expect(log.changes).toEqual([6]);
+    expect(value()).toBe(6);
+    expect(log.cancels).toEqual([6]);
+  });
+
   it('a cancel that changed nothing publishes nothing — no no-op churn', () => {
     const { host, log } = harness({ commit: 'change', initial: 5 });
     click(anchorValue(host));
