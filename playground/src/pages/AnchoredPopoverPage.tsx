@@ -70,6 +70,70 @@ function Pop(props: {
   );
 }
 
+/** Wider than the 8px default, so the clamp is visible against the viewport edge. */
+const WIDE_VIEWPORT_MARGIN_PX = 24;
+const BACKDROP_TINT = 'rgba(0, 0, 0, 0.35)';
+
+/**
+ * A menu with a submenu: the child takes its x from the parent panel (`horizontalAnchor`), its y
+ * from the row, and re-promotes the parent (`parentPopoverRef`) so stacking stays parent-below-child.
+ */
+function Nested(props: { log: EventLogApi }) {
+  const [open, setOpen] = createSignal(false);
+  const [subOpen, setSubOpen] = createSignal(false);
+  const [dim, setDim] = createSignal(false);
+  const [anchor, setAnchor] = createSignal<HTMLButtonElement>();
+  const [row, setRow] = createSignal<HTMLButtonElement>();
+  const [panel, setPanel] = createSignal<HTMLDivElement>();
+  const shell = (): HTMLElement | null => panel()?.closest<HTMLElement>('[popover]') ?? null;
+  let first: HTMLButtonElement | undefined;
+  const close = (): void => { setSubOpen(false); setOpen(false); };
+  return (
+    <>
+      <button ref={setAnchor} class="demo-btn" aria-controls="ap-nested-panel" onClick={() => setOpen((o) => !o)}>
+        menu with submenu
+      </button>
+      <label><input type="checkbox" checked={dim()} onChange={(e) => setDim(e.currentTarget.checked)} /> dim backdrop</label>
+      <AnchoredPopover
+        open={open}
+        anchor={anchor}
+        onDismiss={() => { close(); props.log.log('onDismiss', { who: 'nested-parent' }); }}
+        id="ap-nested-panel"
+        class="glass-menu"
+        role="menu"
+        aria-label="Nested demo"
+        viewportMarginPx={WIDE_VIEWPORT_MARGIN_PX}
+        contentRef={setPanel}
+        onShown={() => { first?.focus(); props.log.log('onShown', 'parent: first row focused'); }}
+        shellClass="demo-backdrop-shell"
+        shellStyle={() => ({ '--demo-backdrop': dim() ? BACKDROP_TINT : 'transparent' })}
+        shouldSuppressDismiss={(t) => !!t.closest('[popover]:popover-open')}
+      >
+        <div style={{ display: 'grid', padding: '6px', 'min-width': '170px' }}>
+          <button ref={first} class="demo-btn" onClick={close}>Plain item</button>
+          <button ref={setRow} class="demo-btn" onClick={() => setSubOpen((o) => !o)}>Submenu ▸</button>
+        </div>
+      </AnchoredPopover>
+      <AnchoredPopover
+        open={subOpen}
+        anchor={row}
+        horizontalAnchor={panel}
+        parentPopoverRef={shell}
+        onDismiss={() => setSubOpen(false)}
+        placement="right-start"
+        class="glass-menu"
+        role="menu"
+        aria-label="Submenu"
+      >
+        <div style={{ display: 'grid', padding: '6px', 'min-width': '140px' }}>
+          <button class="demo-btn" onClick={close}>Child A</button>
+          <button class="demo-btn" onClick={close}>Child B</button>
+        </div>
+      </AnchoredPopover>
+    </>
+  );
+}
+
 export function AnchoredPopoverPage(): JSX.Element {
   const log = createEventLog();
   const [progOpen, setProgOpen] = createSignal(false);
@@ -119,6 +183,28 @@ const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
         </Card>
         <Card cap="centered — horizontal anchoring dropped, vertical kept">
           <Pop log={log} placement="below-start" centered label="centered" tag="centered" />
+        </Card>
+      </div>
+
+      <h2>Nested surfaces and hooks</h2>
+      <Code cap="more props">{`
+<AnchoredPopover open={open} anchor={trigger} onDismiss={close}
+  id="menu-panel"                                  // pair with aria-controls on the trigger
+  viewportMarginPx={24}                            // edge clamp; default 8
+  contentRef={setPanel}                            // the content element
+  onShown={() => firstItem.focus()}                // shown AND positioned
+  shellClass="my-shell" shellStyle={() => ({ '--backdrop': tint() })}  // ::backdrop styling
+  shouldSuppressDismiss={(t) => !!t.closest('[popover]:popover-open')}>  // child clicks keep it
+  …
+</AnchoredPopover>
+<AnchoredPopover open={subOpen} anchor={row} placement="right-start"
+  horizontalAnchor={panel}                         // x from the parent panel, y from the row
+  parentPopoverRef={parentShell}                   // keep the parent painted below the child
+  onDismiss={() => setSubOpen(false)}>…</AnchoredPopover>
+`}</Code>
+      <div class="row">
+        <Card cap="submenu: horizontalAnchor · parentPopoverRef · shouldSuppressDismiss · onShown · contentRef · id · viewportMarginPx · shellClass/shellStyle">
+          <Nested log={log} />
         </Card>
       </div>
 

@@ -1,5 +1,5 @@
 import { createSignal, type JSX } from 'solid-js';
-import { ContextMenu, type ContextMenuEntry } from '@cujuju/solidjs-context-menu';
+import { ContextMenu, type ContextMenuEntry, type ContextMenuSurface } from '@cujuju/solidjs-context-menu';
 import {
   Card,
   ClipBox,
@@ -10,12 +10,18 @@ import {
   Code,
 } from '../ui';
 
+/** Wider than the stylesheet's default floor, so the override is visible. */
+const WIDE_MENU_PX = 280;
+
 export function ContextMenuPage(): JSX.Element {
   const log = createEventLog();
   const [at, setAt] = createSignal<{ x: number; y: number } | null>(null);
   const [gridOpacity, setGridOpacity] = createSignal(40);
   const [snap, setSnap] = createSignal(true);
   const [showAdvanced, setShowAdvanced] = createSignal(false);
+  const [surface, setSurface] = createSignal<ContextMenuSurface>('glass');
+  const [withHeader, setWithHeader] = createSignal(false);
+  const [minWidth, setMinWidth] = createSignal<number | undefined>(undefined);
 
   /** Every entry kind the package supports, so a regression in any one is visible. `when` entries
    *  included: a conditional row that stops appearing is the bug nobody notices. */
@@ -133,6 +139,28 @@ const items: ContextMenuEntry[] = [
         </Card>
       </div>
 
+      <h2>Surface, header, minWidth</h2>
+      <p class="note">
+        These apply to every menu on this page. <code>surface="solid"</code> swaps the glass shell for an opaque
+        host-themed card (submenus follow); <code>header</code> renders a band above the items;
+        <code> minWidth</code> overrides the stylesheet's width floor.
+      </p>
+      <Code cap="options">{`
+<ContextMenu items={items} x={x} y={y} onClose={close}
+  surface="solid" minWidth={280}
+  header={() => <div>Panel 3 · 12 rows</div>} />
+`}</Code>
+      <div class="row">
+        <Card cap="options, then right-click any canvas">
+          <label>surface <select value={surface()} onChange={(e) => setSurface(e.currentTarget.value as ContextMenuSurface)}>
+            <option value="glass">glass</option><option value="solid">solid</option>
+          </select></label>
+          <label><input type="checkbox" checked={withHeader()} onChange={(e) => setWithHeader(e.currentTarget.checked)} /> header</label>
+          <label><input type="checkbox" checked={minWidth() !== undefined} onChange={(e) => setMinWidth(e.currentTarget.checked ? WIDE_MENU_PX : undefined)} /> minWidth {WIDE_MENU_PX}</label>
+          <div class="canvas" onContextMenu={(e) => openAt(e, 'options')}>right-click</div>
+        </Card>
+      </div>
+
       <h2>2 · Hostile ancestors</h2>
       <p class="note">
         The menu is a top-layer popover, so <code>overflow: hidden</code> cannot touch it, and it
@@ -212,6 +240,9 @@ const items: ContextMenuEntry[] = [
           items={items()}
           x={at()!.x}
           y={at()!.y}
+          surface={surface()}
+          minWidth={minWidth()}
+          header={withHeader() ? () => <div style={{ padding: '6px 10px', 'font-size': '12px', opacity: 0.8 }}>Panel 3 · 12 rows</div> : undefined}
           onClose={() => {
             setAt(null);
             log.log('onClose', { cause: 'escape / outside / item (not distinguished)' });

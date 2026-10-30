@@ -6,6 +6,8 @@ export function SegButtonsPage(): JSX.Element {
   const [side, setSide] = createSignal<'buy' | 'sell'>('buy');
   const [tf, setTf] = createSignal('1D');
   const [size, setSize] = createSignal<'xs' | 'sm' | 'md'>('sm');
+  const [bold, setBold] = createSignal(false);
+  const [italic, setItalic] = createSignal(true);
 
   return (
     <>
@@ -63,6 +65,27 @@ const [side, setSide] = createSignal('buy');
             <SegButton value="md" label="md" size="md" />
           </SegGroup>
           <span class="readout">size <b>{size()}</b></span>
+        </Card>
+      </div>
+
+      <h2>Standalone and geometry</h2>
+      <Code cap="no SegGroup: each button owns its state">{`
+<SegButton label="B" active={bold()} onClick={() => setBold((v) => !v)} ariaLabel="Bold" />
+
+// Geometry overrides, per button:
+<SegButton label="Wide" height={32} paddingX={18} fontSize={14} minWidth={96} />
+`}</Code>
+      <div class="row">
+        <Card cap="active + onClick — independent toggles, no group value">
+          <SegButton label="B" active={bold()} onClick={() => setBold((v) => !v)} ariaLabel="Bold" />
+          <SegButton label="I" active={italic()} onClick={() => setItalic((v) => !v)} ariaLabel="Italic" />
+          <span class="readout">bold <b>{String(bold())}</b> italic <b>{String(italic())}</b></span>
+        </Card>
+        <Card cap="height / paddingX / fontSize / minWidth">
+          <SegGroup value={side()} onChange={setSide} ariaLabel="Geometry">
+            <SegButton value="buy" label="Buy" height={32} paddingX={18} fontSize={14} minWidth={96} />
+            <SegButton value="sell" label="Sell" height={32} paddingX={18} fontSize={14} minWidth={96} />
+          </SegGroup>
         </Card>
       </div>
 

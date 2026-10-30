@@ -437,3 +437,9 @@ code { font-family: var(--mono); color: var(--text); }
   color: var(--text-muted);
 }
 .readout b { color: var(--text); font-weight: 700; }
+
+/* Visible targets for class-passthrough props (headerClass, contentClass, panelClass, …). */
+.demo-tinted { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.demo-outlined { outline: 1px dashed var(--accent); outline-offset: -1px; }
+/* anchored-popover shellClass/shellStyle demo: ::backdrop inherits from its popover, not :root. */
+.demo-backdrop-shell::backdrop { background: var(--demo-backdrop, transparent); }

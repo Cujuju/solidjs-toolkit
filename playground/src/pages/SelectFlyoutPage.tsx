@@ -71,6 +71,10 @@ const [tf, setTf] = createSignal('5m');
 // Empty / placeholder / disabled all supported:
 <Flyout options={[]} value="" onChange={…} placeholder="No options" />
 <Flyout options={TIMEFRAMES} value={tf()} onChange={…} disabled />
+
+// id names the trigger, for an external label:
+<label for="tf">Timeframe</label>
+<Flyout id="tf" options={TIMEFRAMES} value={tf()} onChange={setTf} />
 `}</Code>
 
       <h2>1 · Variants</h2>
@@ -87,6 +91,10 @@ const [tf, setTf] = createSignal('5m');
         <Card cap="40 options — the panel scrolls internally (max-height 320px)">
           <Flyout options={MANY} value={strike()} onChange={pick(setStrike, 'strike')} ariaLabel="Strike" />
           <span class="readout">value <b>{strike()}</b></span>
+        </Card>
+        <Card cap="id — an external <label for> names the trigger">
+          <label for="sf-labelled">Timeframe</label>
+          <Flyout id="sf-labelled" options={TIMEFRAMES} value={tf()} onChange={pick(setTf, 'labelled')} />
         </Card>
         <Card cap="a label longer than the control">
           <Flyout options={LONG} value={long()} onChange={pick(setLong, 'long')} ariaLabel="Long label" />

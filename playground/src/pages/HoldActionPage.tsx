@@ -1,4 +1,4 @@
-import { createSignal, type JSX } from 'solid-js';
+import { createSignal, For, type JSX } from 'solid-js';
 import { useHoldAction, HoldIndicator } from '@cujuju/solidjs-hold-action';
 import { Code, Card } from '../ui';
 
@@ -30,8 +30,26 @@ function HoldButton(props: { label: string; shape: 'circle' | 'rect' | 'bar'; on
   );
 }
 
+/** Box for the static geometry demos: big enough to read a stroke's placement against its border. */
+const DEMO_BOX_PX = 64;
+const PLACEMENTS = ['outside', 'center', 'on-border', 'inside'] as const;
+const easeOutCubic = (t: number): number => 1 - (1 - t) ** 3;
+
+/** A bordered box the indicator measures against; centres a sized (in-flow) indicator. `progress` comes from the scrubber. */
+function GeometryBox(props: { cap: string; children: JSX.Element }) {
+  return (
+    <div style={{ display: 'grid', gap: '4px', 'justify-items': 'center', 'font-size': '11px' }}>
+      <div style={{ position: 'relative', display: 'grid', 'place-items': 'center', width: `${DEMO_BOX_PX}px`, height: `${DEMO_BOX_PX}px`, border: '2px solid var(--line, #555)', 'border-radius': '10px' }}>
+        {props.children}
+      </div>
+      {props.cap}
+    </div>
+  );
+}
+
 export function HoldActionPage(): JSX.Element {
   const [fired, setFired] = createSignal(0);
+  const [scrub, setScrub] = createSignal(0.6);
   const hover = useHoldAction({
     durationMs: HOLD_MS,
     trigger: 'hover',
@@ -89,6 +107,49 @@ const hold = useHoldAction({
           <span class="readout">
             progress <b>{Math.round(hover.progress() * 100)}%</b>
           </span>
+        </Card>
+      </div>
+
+      <h2>Stroke geometry</h2>
+      <p class="note">
+        <code>progress</code> takes a number or an accessor, so the scrubber drives these directly. The rect follows
+        its parent's corner with <code>radius</code>; the circle's start and direction are props.
+      </p>
+      <Code cap="geometry props">{`
+<HoldIndicator progress={p} shape="rect" radius={10} strokePlacement="inside" strokeInset={2}
+  strokeLinecap="round" easing={(t) => 1 - (1 - t) ** 3} />
+<HoldIndicator progress={p} shape="circle" size={48} startAngle={90} direction="counterclockwise" />
+`}</Code>
+      <div class="row">
+        <Card cap="scrub progress">
+          <input type="range" min={0} max={1} step={0.01} value={scrub()} onInput={(e) => setScrub(e.currentTarget.valueAsNumber)} />
+          <span class="readout">progress <b>{Math.round(scrub() * 100)}%</b></span>
+        </Card>
+        <Card cap="strokePlacement (rect, radius 10, strokeWidth 3)" wide>
+          <For each={PLACEMENTS}>
+            {(placement) => (
+              <GeometryBox cap={placement}>
+                <HoldIndicator progress={scrub} shape="rect" radius={10} strokeWidth={3} stroke="var(--red)" strokePlacement={placement} />
+              </GeometryBox>
+            )}
+          </For>
+          <GeometryBox cap="inside, strokeInset 6">
+            <HoldIndicator progress={scrub} shape="rect" radius={10} strokeWidth={3} stroke="var(--red)" strokePlacement="inside" strokeInset={6} />
+          </GeometryBox>
+        </Card>
+        <Card cap="circle: size · startAngle · direction · strokeLinecap · easing" wide>
+          <GeometryBox cap="default">
+            <HoldIndicator progress={scrub} shape="circle" size={48} strokeWidth={4} stroke="var(--accent)" />
+          </GeometryBox>
+          <GeometryBox cap="startAngle 90, ccw">
+            <HoldIndicator progress={scrub} shape="circle" size={48} strokeWidth={4} stroke="var(--accent)" startAngle={90} direction="counterclockwise" />
+          </GeometryBox>
+          <GeometryBox cap="linecap round">
+            <HoldIndicator progress={scrub} shape="circle" size={48} strokeWidth={6} stroke="var(--accent)" strokeLinecap="round" />
+          </GeometryBox>
+          <GeometryBox cap="easeOutCubic">
+            <HoldIndicator progress={scrub} shape="circle" size={48} strokeWidth={4} stroke="var(--accent)" easing={easeOutCubic} />
+          </GeometryBox>
         </Card>
       </div>
     </>

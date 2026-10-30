@@ -1,4 +1,4 @@
-import { createSignal, type JSX } from 'solid-js';
+import { createSignal, onMount, type JSX } from 'solid-js';
 import { Collapsible } from '@cujuju/solidjs-collapsible';
 import { Code, Card } from '../ui';
 
@@ -12,8 +12,17 @@ function Filler(props: { n: number }): JSX.Element {
   );
 }
 
+/** Counts its own mounts, so lazyMount / keepMounted are visible. */
+function MountCounter(props: { onMount: () => void }): JSX.Element {
+  onMount(props.onMount);
+  return <Filler n={2} />;
+}
+
 export function CollapsiblePage(): JSX.Element {
   const [forced, setForced] = createSignal<boolean | null>(null);
+  const [changes, setChanges] = createSignal<boolean[]>([]);
+  const [lazyMounts, setLazyMounts] = createSignal(0);
+  const [unmountMounts, setUnmountMounts] = createSignal(0);
 
   return (
     <>
@@ -84,6 +93,77 @@ import { Collapsible } from '@cujuju/solidjs-collapsible';
               <Filler n={2} />
             </Collapsible>
             <span class="readout">forceOpen <b>{String(forced())}</b></span>
+          </div>
+        </Card>
+        <Card cap="onChange · storageKeyPrefix (key = prefix + storageKey)">
+          <div style={{ width: '260px' }}>
+            <Collapsible
+              title="Watched"
+              storageKeyPrefix="playground:collapsible:"
+              storageKey="watched"
+              onChange={(open) => setChanges((list) => [...list, open].slice(-6))}
+            >
+              <Filler n={2} />
+            </Collapsible>
+            <span class="readout">onChange <b>{changes().map(String).join(', ') || '—'}</b></span>
+          </div>
+        </Card>
+      </div>
+
+      <h2>Header slots</h2>
+      <Code cap="slots and classes">{`
+<Collapsible title="Alerts" uppercase id="alerts" ariaLabel="Alerts section"
+  icon={<span>⚑</span>} openIcon={<span>−</span>} closedIcon={<span>+</span>}
+  actions={<button onClick={clearAll}>Clear</button>}
+  headerClass="my-header" contentClass="my-content">
+  …
+</Collapsible>
+`}</Code>
+      <div class="row">
+        <Card cap="icon · openIcon/closedIcon · actions · uppercase · id · ariaLabel · headerClass/contentClass">
+          <div style={{ width: '280px' }}>
+            <Collapsible
+              title="Alerts"
+              uppercase
+              id="pg-alerts"
+              ariaLabel="Alerts section"
+              icon={<span>⚑</span>}
+              openIcon={<span>−</span>}
+              closedIcon={<span>+</span>}
+              actions={<button class="demo-btn" onClick={() => setChanges([])}>Clear log</button>}
+              headerClass="demo-tinted"
+              contentClass="demo-outlined"
+              defaultOpen
+            >
+              <Filler n={2} />
+            </Collapsible>
+          </div>
+        </Card>
+      </div>
+
+      <h2>Mounting and motion</h2>
+      <div class="row">
+        <Card cap="animated — height transitions on toggle">
+          <div style={{ width: '260px' }}>
+            <Collapsible title="Animated" animated defaultOpen>
+              <Filler n={4} />
+            </Collapsible>
+          </div>
+        </Card>
+        <Card cap="lazyMount — children mount on first open, then stay">
+          <div style={{ width: '260px' }}>
+            <Collapsible title="Lazy" lazyMount>
+              <MountCounter onMount={() => setLazyMounts((n) => n + 1)} />
+            </Collapsible>
+            <span class="readout">mounts <b>{lazyMounts()}</b></span>
+          </div>
+        </Card>
+        <Card cap="keepMounted={false} — unmounts on every close">
+          <div style={{ width: '260px' }}>
+            <Collapsible title="Unmounting" keepMounted={false}>
+              <MountCounter onMount={() => setUnmountMounts((n) => n + 1)} />
+            </Collapsible>
+            <span class="readout">mounts <b>{unmountMounts()}</b></span>
           </div>
         </Card>
       </div>

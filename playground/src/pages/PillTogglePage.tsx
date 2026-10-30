@@ -6,6 +6,8 @@ export function PillTogglePage(): JSX.Element {
   const [a, setA] = createSignal(true);
   const [b, setB] = createSignal(false);
   const [c, setC] = createSignal(false);
+  const [d, setD] = createSignal(true);
+  const [e, setE] = createSignal(false);
 
   return (
     <>
@@ -62,6 +64,47 @@ const [on, setOn] = createSignal(false);
             ariaLabel="Armed"
           />
           <span class="readout">armed <b>{String(c())}</b></span>
+        </Card>
+      </div>
+
+      <h2>Geometry, icons, motion</h2>
+      <Code cap="more props">{`
+<PillToggle enabled={on()} onToggle={flip} ariaLabel="Night mode"
+  width={56} height={28} dotSize={22} dotColor="#fde68a"
+  onIcon={<span>☾</span>} offIcon={<span>☀</span>}
+  transitionMs={400} easing="cubic-bezier(.2,.9,.3,1.2)" title="Night mode" />
+
+// A visible label instead of ariaLabel, plus root style and data attributes:
+<span id="wifi-label">Wi-Fi</span>
+<PillToggle enabled={on()} onToggle={flip} ariaLabelledBy="wifi-label"
+  style={{ 'margin-left': '8px' }} dataAttr={{ 'data-testid': 'wifi' }} />
+`}</Code>
+      <div class="row">
+        <Card cap="width · height · dotSize · dotColor · onIcon/offIcon · transitionMs · easing · title">
+          <PillToggle
+            enabled={d()}
+            onToggle={() => setD((v) => !v)}
+            ariaLabel="Night mode"
+            width={56}
+            height={28}
+            dotSize={22}
+            dotColor="#fde68a"
+            onIcon={<span style={{ 'font-size': '12px', color: '#1e293b' }}>☾</span>}
+            offIcon={<span style={{ 'font-size': '12px', color: '#1e293b' }}>☀</span>}
+            transitionMs={400}
+            easing="cubic-bezier(.2,.9,.3,1.2)"
+            title="Night mode"
+          />
+        </Card>
+        <Card cap="ariaLabelledBy · style · dataAttr">
+          <span id="pt-wifi-label">Wi-Fi</span>
+          <PillToggle
+            enabled={e()}
+            onToggle={() => setE((v) => !v)}
+            ariaLabelledBy="pt-wifi-label"
+            style={{ 'margin-left': '8px' }}
+            dataAttr={{ 'data-testid': 'wifi' }}
+          />
         </Card>
       </div>
     </>

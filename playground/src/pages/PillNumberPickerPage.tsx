@@ -1,9 +1,17 @@
 import { For, createSignal, type JSX } from 'solid-js';
-import { PillNumberPicker, type PnpLayout } from '@cujuju/solidjs-pill-number-picker';
+import { PillNumberPicker, type PnpLayout, type PnpSegment } from '@cujuju/solidjs-pill-number-picker';
 import { Code, Card, ClipBox, EdgeRight, ScrollBox, Tall } from '../ui';
 
 /** Every arrangement of [value][+][−] the control supports. The `v-` prefixed two stack the
  *  buttons vertically beside the value. */
+/** Lot-size shortcuts: custom segments either side of the steppers. */
+const LOT_SEGMENTS: PnpSegment[] = [
+  { key: 'half', icon: '½', label: 'Halve', position: 'start', disabled: (v) => v <= 1, onSelect: (api) => api.setValue(Math.floor(api.value / 2)) },
+  { key: 'x10', icon: '×10', label: 'Times ten', width: 34, onSelect: (api) => api.setValue(api.value * 10) },
+];
+/** The demo's default lot size, which the reset segment restores. */
+const DEFAULT_LOTS = 5;
+
 const LAYOUTS: PnpLayout[] = [
   'value-inc-dec',
   'value-dec-inc',
@@ -91,6 +99,8 @@ export function PillNumberPickerPage(): JSX.Element {
   const [pct, setPct] = createSignal(50);
   const [delta, setDelta] = createSignal(0);
   const [qty, setQty] = createSignal(0);
+  const [nonZero, setNonZero] = createSignal(1);
+  const [lots, setLots] = createSignal(DEFAULT_LOTS);
 
   return (
     <>
@@ -413,6 +423,31 @@ const [qty, setQty] = createSignal(1);
           <span class="readout">
             value <b>{controlledVal()}</b>
           </span>
+        </Card>
+        <Card cap="excludeZero — stepping skips 0">
+          <PillNumberPicker value={nonZero()} onChange={setNonZero} min={-5} max={5} excludeZero ariaLabel="Non-zero" />
+          <span class="readout">value <b>{nonZero()}</b></span>
+        </Card>
+        <Card cap="resetTo · resetIcon · resetLabel · incrementLabel / decrementLabel">
+          <PillNumberPicker
+            value={lots()}
+            onChange={setLots}
+            min={1}
+            max={500}
+            resetTo={DEFAULT_LOTS}
+            resetIcon="⟲"
+            resetLabel="Reset to default lots"
+            incrementLabel="One more lot"
+            decrementLabel="One fewer lot"
+            ariaLabel="Lots"
+          />
+        </Card>
+        <Card cap="segments — ½ at the start, ×10 at the end">
+          <PillNumberPicker value={lots()} onChange={setLots} min={1} max={500} segments={LOT_SEGMENTS} ariaLabel="Lots with shortcuts" />
+          <span class="readout">lots <b>{lots()}</b></span>
+        </Card>
+        <Card cap="popoutGap 12 — space between the pill and its pop-out">
+          <PillNumberPicker value={qty()} onChange={setQty} min={-10} max={10} collapsible popoutGap={12} ariaLabel="Gap" />
         </Card>
         <Card cap="editable — click the value INSIDE the pop-out to type">
           <Picker collapsible initial={25} />

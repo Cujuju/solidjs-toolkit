@@ -9,6 +9,7 @@ import {
   type AccordionGroupApi,
   type AccordionRailSide,
   type AccordionLayout,
+  type AccordionOpenPlacement,
   DEFAULT_MIN_SIZE_PX,
 } from '@cujuju/solidjs-accordion-dock';
 import { Card, Code, EventLog, createEventLog } from '../ui';
@@ -123,6 +124,10 @@ function GroupToolbar(): JSX.Element {
   );
 }
 
+/** The package's documented default for `hoverOpenDelayMs`; the slider starts here. */
+const DEFAULT_HOVER_OPEN_DELAY_MS = 350;
+const MAX_HOVER_OPEN_DELAY_MS = 1000;
+
 export function AccordionDockPage(): JSX.Element {
   const log = createEventLog();
 
@@ -138,6 +143,10 @@ export function AccordionDockPage(): JSX.Element {
   const [animated, setAnimated] = createSignal(true);
 
   const [appearance, setAppearance] = createSignal<AccordionAppearance>('cards');
+  const [hoverDelay, setHoverDelay] = createSignal(DEFAULT_HOVER_OPEN_DELAY_MS);
+  const [openPlacement, setOpenPlacement] = createSignal<AccordionOpenPlacement>('in-order');
+  const [railDivider, setRailDivider] = createSignal(false);
+  const [leafOpen, setLeafOpen] = createSignal(true);
 
   const [autoHide, setAutoHide] = createSignal(true);
   const [hoverToOpen, setHoverToOpen] = createSignal(false);
@@ -330,6 +339,11 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
               ariaLabel="Horizontal rail dock"
               onChange={(id, open) => log.log(open ? 'open' : 'close', `rail:${id}`)}
               onPinChange={(id, pinned) => log.log(pinned ? 'pin' : 'unpin', `rail:${id}`)}
+              onOrderChange={(order) => log.log('onOrderChange', order.join(','))}
+              onSizeChange={(sizes) => log.log('onSizeChange', sizes)}
+              onTearOff={(id) => log.log('onTearOff', id)}
+              onDock={(id) => log.log('onDock', id)}
+              onTearOffError={(id, reason) => log.log('onTearOffError', { id, reason })}
             >
               {/* `tearOffable` is opt-in per panel, and these two are the demo of
                   it: a panel whose content assumes it shares a document with the
@@ -452,6 +466,11 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
               >
                 hoverToOpen: {String(hoverToOpen())}
               </button>
+              <label class="readout">
+                hoverOpenDelayMs{' '}
+                <input type="range" min={0} max={MAX_HOVER_OPEN_DELAY_MS} step={50} value={hoverDelay()} onInput={(e) => setHoverDelay(e.currentTarget.valueAsNumber)} />{' '}
+                {hoverDelay()}
+              </label>
             </div>
             <AccordionGroup
               orientation="horizontal"
@@ -459,6 +478,7 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
               policy="multi"
               autoHide={autoHide()}
               hoverToOpen={hoverToOpen()}
+              hoverOpenDelayMs={hoverDelay()}
               height="320px"
               ariaLabel="Auto-hide dock"
               onChange={(id, open) => log.log(open ? 'open' : 'close', `hide:${id}`)}
@@ -1042,6 +1062,74 @@ import { AccordionGroup, AccordionPanel } from '@cujuju/solidjs-accordion-dock';
             </AccordionGroup>
             </div>
           </div>
+        </div>
+      </Card>
+
+      <h2>Open placement, rail divider, panel chrome</h2>
+      <Code cap="more props">{`
+<AccordionGroup orientation="horizontal" openPlacement="append" railDivider …>
+  <AccordionPanel id="a" title="Watch" actions={<button>↻</button>} closable={false}
+    headerClass="my-header" contentClass="my-content" railClass="my-rail-button">…</AccordionPanel>
+  <AccordionPanel id="b" title="Notes" shrinkToContent>…</AccordionPanel>   // never taller than its content
+  <AccordionLeaf id="leaf" open={open()} title="Detail" actions={…} closable shrinkToContent
+    contentClass="my-content" onClose={() => setOpen(false)}>…</AccordionLeaf>
+</AccordionGroup>
+
+// Superseded by AccordionPanel's own tear-off portal; kept exported for compatibility:
+<TearOffOutlet id="a" api={createTearOff(…)}>…</TearOffOutlet>
+`}</Code>
+      <Card cap="openPlacement · railDivider · actions · closable · shrinkToContent · headerClass / contentClass / railClass · leaf" wide>
+        <div style={{ width: '100%' }}>
+          <div style={{ display: 'flex', gap: '6px', 'margin-bottom': '8px', 'flex-wrap': 'wrap' }}>
+            <button class="demo-btn" onClick={() => setOpenPlacement((v) => (v === 'append' ? 'in-order' : 'append'))}>
+              openPlacement: {openPlacement()}
+            </button>
+            <button class="demo-btn" data-active={railDivider() ? '' : undefined} onClick={() => setRailDivider((v) => !v)}>
+              railDivider: {String(railDivider())}
+            </button>
+            <button class="demo-btn" disabled={leafOpen()} onClick={() => setLeafOpen(true)}>reopen leaf</button>
+          </div>
+          <AccordionGroup
+            orientation="horizontal"
+            mode="fill"
+            policy="multi"
+            height="260px"
+            openPlacement={openPlacement()}
+            railDivider={railDivider()}
+            ariaLabel="Panel chrome demo"
+            onChange={(id, open) => log.log(open ? 'open' : 'close', `chrome:${id}`)}
+          >
+            <AccordionPanel
+              id="pc-watch"
+              title="Watch"
+              defaultOpen
+              closable={false}
+              actions={<button class="demo-btn" onClick={() => log.log('action', 'refresh')}>↻</button>}
+              headerClass="demo-tinted"
+              contentClass="demo-outlined"
+              railClass="demo-tinted"
+            >
+              <p class="note">No close button; a header action that does not toggle.</p>
+            </AccordionPanel>
+            <AccordionPanel id="pc-notes" title="Notes" shrinkToContent>
+              <p class="note">shrinkToContent: never wider than this text needs.</p>
+            </AccordionPanel>
+            <AccordionPanel id="pc-log" title="Log">
+              <Rows n={8} label="line" />
+            </AccordionPanel>
+            <AccordionLeaf
+              id="pc-leaf"
+              open={leafOpen()}
+              title="Detail"
+              closable
+              shrinkToContent
+              actions={<button class="demo-btn" onClick={() => log.log('action', 'leaf')}>⋯</button>}
+              contentClass="demo-outlined"
+              onClose={() => setLeafOpen(false)}
+            >
+              <p class="note">A headless leaf with its own actions.</p>
+            </AccordionLeaf>
+          </AccordionGroup>
         </div>
       </Card>
 

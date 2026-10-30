@@ -20,6 +20,7 @@ import { TilingWindowManagerPage } from './pages/TilingWindowManagerPage';
 import { TriStateChipPage } from './pages/TriStateChipPage';
 import { AccordionDockPage } from './pages/AccordionDockPage';
 import { VirtualLogPage } from './pages/VirtualLogPage';
+import { CapacitorLiveUpdatesPage } from './pages/CapacitorLiveUpdatesPage';
 
 /**
  * Playground — the live harness. Aimed at what a unit test cannot show: how a control behaves
@@ -60,6 +61,7 @@ const PAGES: Page[] = [
   { id: 'glass', blurb: 'surfaces + tint engine', component: GlassPage },
   { id: 'hooks', blurb: 'primitive drawer', component: HooksPage },
   { id: 'virtual-log', blurb: 'bottom-anchored log', component: VirtualLogPage },
+  { id: 'capacitor-live-updates', blurb: 'OTA bundles (docs only)', component: CapacitorLiveUpdatesPage },
 ];
 
 const DEFAULT_PAGE = PAGES[0].id;

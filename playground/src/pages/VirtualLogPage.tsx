@@ -121,6 +121,7 @@ export function VirtualLogPage(): JSX.Element {
     loadOlder,
   };
   const ctl = window.__vlogCtl;
+  const [menuRow, setMenuRow] = createSignal<string | null>(null);
   // Leaving the page must not keep this instance reachable; a newer mount's globals stay.
   onCleanup(() => {
     if (window.__vlog === log) delete window.__vlog;
@@ -138,19 +139,21 @@ export function VirtualLogPage(): JSX.Element {
       <Code cap="usage">{`
 const log = createVirtualLog({ rows, estimateSize: 44, hasOlder, loadOlder, following });
 <div ref={log.ref} style={{ height: '480px', 'overflow-y': 'auto' }}>
-  <VirtualLog log={log}>{(row) => <Message msg={row()} />}</VirtualLog>
-</div>`}</Code>
+  <VirtualLog log={log} onRowMenu={(rowEl) => openMenu(rowEl)}>{(row) => <Message msg={row()} />}</VirtualLog>
+</div>
+// onRowMenu: the ContextMenu key or Shift+F10 on a focused row (Tab into the log first).`}</Code>
       <div style={{ display: 'flex', gap: '8px', margin: '8px 0' }}>
         <button onClick={() => window.__vlogCtl!.append()}>Append</button>
         <button onClick={() => log.scrollToBottom()}>Newest</button>
         <button onClick={() => log.holdRow(`m${oldest() + 20}`)}>Hold an older row</button>
+        <span class="readout">onRowMenu <b>{menuRow() ?? '—'}</b></span>
       </div>
       <div
         data-testid="vlog-scroller"
         ref={log.ref}
         style={{ height: '480px', width: '420px', 'overflow-y': 'auto', border: '1px solid #444', 'border-radius': '8px' }}
       >
-        <VirtualLog log={log}>
+        <VirtualLog log={log} onRowMenu={(rowEl) => setMenuRow(rowEl.dataset.rowKey ?? '?')}>
           {(row) => (
             <div data-msg={row().n} style={{ padding: '6px 10px', 'border-bottom': '1px solid #2a2a2a', 'font-size': '14px', 'line-height': '1.4' }}>
               <b>#{row().n}</b> {row().text}

@@ -115,6 +115,13 @@ function strikeNote(isoDate: string): string | undefined {
 }
 
 /** One picker with its own state, so every instance on the page is independently live. */
+/** AM- and PM-settled contracts on the same Friday: one date, two keys. */
+interface Session { date: string; settle: 'AM' | 'PM' }
+const SESSIONS: Session[] = DATES.slice(0, 3).flatMap((date) => [{ date, settle: 'AM' as const }, { date, settle: 'PM' as const }]);
+const sessionKey = (s: Session): string => `${s.date}-${s.settle}`;
+/** A venue counts expiration day itself, so its DTE runs one above calendar days. */
+const VENUE_DAY_OFFSET = 1;
+
 function Picker(props: {
   size?: 'xs' | 'sm' | 'md';
   initial?: string | null;
@@ -158,6 +165,8 @@ export function PillDatePickerPage(): JSX.Element {
   const [liveVal, setLiveVal] = createSignal<string | null>(DATES[1] ?? null);
   const [controlledOpen, setControlledOpen] = createSignal(false);
   const [controlledVal, setControlledVal] = createSignal<string | null>(DATES[3] ?? null);
+  const [sessionPick, setSessionPick] = createSignal<string | null>(null);
+  const [fmtPick, setFmtPick] = createSignal<string | null>(null);
 
   return (
     <>
@@ -411,6 +420,46 @@ const [v, setV] = createSignal(DATES[0]);
             )}
             ariaLabel="Expiration"
           />
+        </Card>
+      </div>
+
+      <h2>Keys, labels, empty states</h2>
+      <Code cap="more props">{`
+// Two contracts per date: key them, and own the DTE number.
+<PillDatePicker items={sessions} keyOf={(s) => \`\${s.date}-\${s.settle}\`}
+  dteOf={(s) => calendarDte(s.date) + 1} value={key()} onChange={(s) => setKey(keyOf(s))} />
+
+<PillDatePicker items={DATES} value={null} onChange={…} placeholder="Expiry"
+  formatDate={(iso) => iso.slice(5).replace('-', '/')} disableTooltip popoutGap={12} />
+<PillDatePicker items={[]} value={null} onChange={…} emptyMessage="Nothing listed" />
+`}</Code>
+      <div class="row">
+        <Card cap="keyOf + dteOf — AM/PM settled on one date">
+          <PillDatePicker
+            items={SESSIONS}
+            keyOf={sessionKey}
+            dteOf={(s) => daysFromToday(s.date) + VENUE_DAY_OFFSET}
+            value={sessionPick()}
+            onChange={(s) => setSessionPick(s ? sessionKey(s) : null)}
+            annotation={(s) => `${s.settle}-settled`}
+            ariaLabel="Session"
+          />
+          <span class="readout">key <b>{sessionPick() ?? '—'}</b></span>
+        </Card>
+        <Card cap="placeholder · formatDate · disableTooltip · popoutGap 12">
+          <PillDatePicker
+            items={DATES}
+            value={fmtPick()}
+            onChange={setFmtPick}
+            placeholder="Expiry"
+            formatDate={(isoDate) => isoDate.slice(5).replace('-', '/')}
+            disableTooltip
+            popoutGap={12}
+            ariaLabel="Formatted"
+          />
+        </Card>
+        <Card cap="emptyMessage — no items">
+          <PillDatePicker items={[]} value={null} onChange={() => {}} emptyMessage="Nothing listed" ariaLabel="Empty" />
         </Card>
       </div>
 

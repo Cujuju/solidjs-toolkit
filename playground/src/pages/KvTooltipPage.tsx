@@ -1,4 +1,4 @@
-import { createSignal, createMemo, onCleanup, For, type JSX } from 'solid-js';
+import { createSignal, createMemo, onCleanup, For, Show, type JSX } from 'solid-js';
 import { KvTooltip, KvTooltipPanel } from '@cujuju/solidjs-kv-tooltip';
 import AnchoredPopover from '@cujuju/solidjs-anchored-popover';
 import { Code, Card, ClipBox, EdgeRight, ScrollBox } from '../ui';
@@ -203,11 +203,15 @@ export function KvTooltipPage(): JSX.Element {
   // a simple hover target (a virtualised table row, a canvas hit-test).
   const [at, setAt] = createSignal<{ x: number; y: number } | null>(null);
   const [disabled, setDisabled] = createSignal(false);
+  const [portalBox, setPortalBox] = createSignal<HTMLElement>();
+  const [pinned, setPinned] = createSignal(false);
+  let pinButton: HTMLButtonElement | undefined;
 
   // ── 0.2.0 demos ───────────────────────────────────────────────────────────
   // Anchors are read through accessors, not captured once, so the rect stays
   // honest across resize and scroll.
   let anchorFieldA: HTMLDivElement | undefined;
+  let anchorGapEl: HTMLDivElement | undefined;
   let anchorFieldB: HTMLDivElement | undefined;
   let anchorFieldC: HTMLDivElement | undefined;
   let fakeMenu: HTMLDivElement | undefined;
@@ -372,6 +376,74 @@ import '@cujuju/solidjs-kv-tooltip/styles.css';
         <code>hysteresisPx</code> past the boundary before it will flip back, so a one-pixel cursor
         tremor cannot oscillate it.
       </p>
+
+      <h2>Accessibility, wrapper, panel hooks</h2>
+      <Code cap="more props">{`
+<KvTooltip entries={quote} ariaLabel="Quote" description="Bid 412.18, ask 412.20">…</KvTooltip>
+<KvTooltip entries={quote} describeTrigger={false}>…</KvTooltip>  // mouse-only, no aria-describedby
+<KvTooltip entries={quote} focusable>…</KvTooltip>              // force tabindex=0 on the wrapper
+<KvTooltip entries={quote} wrapperLayout="control">…</KvTooltip> // 'text' | 'control' | 'block' | 'contents'
+<KvTooltip entries={quote} panelClass="my-panel" portalTarget={host} anchorGapPx={12}
+  anchor={() => el.getBoundingClientRect()} placement="below-start">…</KvTooltip>
+`}</Code>
+      <div class="row">
+        <Card cap="ariaLabel + description · describeTrigger={false} · focusable (Tab to it)">
+          <KvTooltip entries={QUOTE} ariaLabel="Quote" description="Bid 412.18, ask 412.20">
+            <span class="strike">described</span>
+          </KvTooltip>
+          <KvTooltip entries={QUOTE} describeTrigger={false}>
+            <span class="strike">mouse-only</span>
+          </KvTooltip>
+          <KvTooltip entries={QUOTE} focusable>
+            <span class="strike">focusable</span>
+          </KvTooltip>
+        </Card>
+        <Card cap="wrapperLayout — text · control · block · contents">
+          <div style={{ width: '90px' }}>
+            <KvTooltip entries={QUOTE} wrapperLayout="text"><span>text: a label that ellipsises</span></KvTooltip>
+          </div>
+          <KvTooltip entries={QUOTE} wrapperLayout="control"><button class="demo-btn">control</button></KvTooltip>
+          <div style={{ width: '90px', border: '1px dashed var(--line, #555)' }}>
+            <KvTooltip entries={QUOTE} wrapperLayout="block"><span>block</span></KvTooltip>
+          </div>
+          <KvTooltip entries={QUOTE} wrapperLayout="contents"><button class="demo-btn">contents</button></KvTooltip>
+        </Card>
+        <Card cap="panelClass (dashed outline) · portalTarget (mounts in the box below) · anchorGapPx 12">
+          <div ref={anchorGapEl} style={{ display: 'inline-block' }}>
+            <KvTooltip
+              entries={QUOTE}
+              panelClass="demo-outlined"
+              portalTarget={portalBox()}
+              anchor={() => anchorGapEl?.getBoundingClientRect() ?? null}
+              placement="below-start"
+              anchorGapPx={12}
+            >
+              <span class="strike">hover</span>
+            </KvTooltip>
+          </div>
+          <div ref={setPortalBox} data-portal-host class="readout">portal host</div>
+        </Card>
+        <Card cap="KvTooltipPanel: anchored, ariaLabel, panelClass, anchorGapPx, onPlatformDismiss (Escape)">
+          <button ref={pinButton} class="demo-btn" onClick={() => setPinned((v) => !v)}>
+            {pinned() ? 'unpin' : 'pin'} panel
+          </button>
+          <Show when={pinned()}>
+            <KvTooltipPanel
+              entries={QUOTE}
+              x={0}
+              y={0}
+              anchor={() => pinButton?.getBoundingClientRect() ?? null}
+              placement="below-start"
+              anchorGapPx={10}
+              ariaLabel="Pinned quote"
+              panelClass="demo-outlined"
+              portalTarget={portalBox()}
+              onPlatformDismiss={() => setPinned(false)}
+            />
+          </Show>
+          <span class="readout">pinned <b>{String(pinned())}</b></span>
+        </Card>
+      </div>
 
       <h2>Anchored placement <small>(0.2.0)</small></h2>
       <p class="note">

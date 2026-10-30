@@ -1,5 +1,5 @@
 import { createSignal, type JSX } from 'solid-js';
-import EditableListFlyout from '@cujuju/solidjs-editable-list-flyout';
+import EditableListFlyout, { type EditableListFlyoutProps } from '@cujuju/solidjs-editable-list-flyout';
 import {
   Card,
   ClipBox,
@@ -28,7 +28,9 @@ function delay(ms: number): Promise<void> {
 }
 
 /** One self-contained flyout, so the same thing can be dropped into each hostile box. */
-function Lists(props: { log: EventLogApi; tag: string; items: Watchlist[]; empty?: boolean }) {
+type ExtraProps = Pick<EditableListFlyoutProps<Watchlist>, 'placement' | 'role' | 'createPlaceholder' | 'confirmDelete' | 'shouldSuppressDismiss'>;
+
+function Lists(props: { log: EventLogApi; tag: string; items: Watchlist[]; empty?: boolean; extra?: ExtraProps }) {
   const [open, setOpen] = createSignal(false);
   const [anchor, setAnchor] = createSignal<HTMLButtonElement>();
   const [items, setItems] = createSignal<Watchlist[]>(props.empty ? [] : props.items);
@@ -86,6 +88,11 @@ function Lists(props: { log: EventLogApi; tag: string; items: Watchlist[]; empty
         }}
         createButtonLabel="New watchlist"
         emptyMessage="No watchlists yet."
+        placement={props.extra?.placement}
+        role={props.extra?.role}
+        createPlaceholder={props.extra?.createPlaceholder}
+        confirmDelete={props.extra?.confirmDelete}
+        shouldSuppressDismiss={props.extra?.shouldSuppressDismiss}
       />
     </>
   );
@@ -119,6 +126,12 @@ import EditableListFlyout from '@cujuju/solidjs-editable-list-flyout';
   onDelete={(item) => …}
   onCreate={(name) => …}
 />
+
+// Optional: placement (default below-start), panel role, add-input placeholder,
+// a custom delete confirm (default window.confirm), and outside clicks that must not dismiss.
+<EditableListFlyout … placement="above-end" role="dialog" createPlaceholder="Watchlist name…"
+  confirmDelete={async ({ title, message }) => myDialog.ask(title, message)}
+  shouldSuppressDismiss={(t) => !!t.closest('[data-keep-open]')} />
 `}</Code>
 
       <h2>1 · Variants</h2>
@@ -133,6 +146,22 @@ import EditableListFlyout from '@cujuju/solidjs-editable-list-flyout';
         </Card>
         <Card cap="empty — emptyMessage, create still available">
           <Lists log={log} tag="empty" items={[]} empty />
+        </Card>
+        <Card cap="placement above-end · role dialog · createPlaceholder · confirmDelete (always yes, logged) · shouldSuppressDismiss">
+          <Lists
+            log={log}
+            tag="options"
+            items={INITIAL}
+            extra={{
+              placement: 'above-end',
+              role: 'dialog',
+              createPlaceholder: 'Watchlist name…',
+              confirmDelete: async ({ title, message }) => { log.log('confirmDelete', { title, message }); return true; },
+              // Clicks on the marked box below do not dismiss the panel.
+              shouldSuppressDismiss: (target) => !!target.closest('[data-keep-open]'),
+            }}
+          />
+          <div data-keep-open class="canvas" style={{ height: '40px' }}>clicking here keeps it open</div>
         </Card>
       </div>
 

@@ -2,6 +2,7 @@ import { createSignal, type JSX } from 'solid-js';
 import {
   ChipFlyout,
   EMPTY_TRI_STATE,
+  type ChipFlyoutTab,
   type ChipOption,
   type TriStateValue,
 } from '@cujuju/solidjs-chip-flyout';
@@ -23,6 +24,8 @@ const BROKERS: ChipOption[] = [
   { value: 'polymarket', label: 'Polymarket', group: 'Events' },
 ];
 
+const TABS: ChipFlyoutTab[] = [{ id: 'equity', label: 'Equity' }, { id: 'index', label: 'Index' }];
+
 const STRATEGIES: ChipOption[] = [
   { value: 'ic', label: 'Iron condor' },
   { value: 'cs', label: 'Credit spread' },
@@ -41,6 +44,8 @@ export function ChipFlyoutPage(): JSX.Element {
   const [ctrlOpen, setCtrlOpen] = createSignal(false);
   const [ctrlValue, setCtrlValue] = createSignal<string[]>([]);
   const [search, setSearch] = createSignal('');
+  const [tab, setTab] = createSignal('equity');
+  const tabbed = () => (tab() === 'equity' ? STRATEGIES : STRATEGIES.slice(0, 2));
 
   const filtered = (): ChipOption[] =>
     STRATEGIES.filter((o) => o.label.toLowerCase().includes(search().toLowerCase()));
@@ -70,6 +75,12 @@ const [tri, setTri] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
   onChange={setTri}
   onOpenChange={(open) => …}
 />
+
+// Tabs above the search; the caller swaps \`options\` per tab. Arrow keys move focus,
+// Enter/Space or a click activates.
+<ChipFlyout mode="multi" label="Tabbed" options={optionsFor(tab())} value={v()} onChange={setV}
+  tabs={[{ id: 'equity', label: 'Equity' }, { id: 'index', label: 'Index' }]}
+  activeTab={tab()} onTabChange={setTab} panelMaxWidth={240} />
 `}</Code>
 
       <h2>1 · Variants</h2>
@@ -120,6 +131,20 @@ const [tri, setTri] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
             topSlot={<span class="readout">a caller-supplied top slot</span>}
             panelMinWidth={260}
           />
+        </Card>
+        <Card cap="tabs + activeTab/onTabChange · panelMaxWidth 240">
+          <ChipFlyout
+            mode="multi"
+            label="Tabbed"
+            options={tabbed()}
+            value={multi()}
+            onChange={(next) => { setMulti(next); log.log('onChange', next); }}
+            tabs={TABS}
+            activeTab={tab()}
+            onTabChange={(id) => { setTab(id); log.log('onTabChange', id); }}
+            panelMaxWidth={240}
+          />
+          <span class="readout">tab <b>{tab()}</b></span>
         </Card>
       </div>
 

@@ -4,11 +4,15 @@ import {
   applyTriState,
   tristateOf,
   EMPTY_TRI_STATE,
+  type TriState,
   type TriStateValue,
 } from '@cujuju/solidjs-tri-state-chip';
 import { Card, Code } from '../ui';
 
 const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
+
+/** Reverse cycle: neutral → excluded → included → neutral. */
+const REVERSE_CYCLE: Record<TriState, TriState> = { unselected: 'excluded', excluded: 'included', included: 'unselected' };
 
 /**
  * The built-in state indicators. Everything except `glyph` carries state WITHOUT a character in
@@ -133,6 +137,7 @@ function HatchPropRow(props: { angle: string; stripe: string; gap: string }): JS
 
 export function TriStateChipPage(): JSX.Element {
   const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
+  const [custom, setCustom] = createSignal<TriState>('unselected');
 
   return (
     <>
@@ -187,6 +192,21 @@ const [value, setValue] = createSignal<TriStateValue>({ ...EMPTY_TRI_STATE });
         </Card>
         <Card cap="disabled">
           <TriStateChip label="frozen" value="included" onCycle={() => {}} disabled />
+        </Card>
+        <Card cap="nextState (reverse) · custom glyph prefixes · stateText · ariaLabel · dataAttr">
+          <TriStateChip
+            label="earnings"
+            value={custom()}
+            onCycle={setCustom}
+            nextState={(s) => REVERSE_CYCLE[s]}
+            indicator="glyph"
+            includePrefix="+ "
+            excludePrefix="− "
+            stateText={{ included: 'kept', excluded: 'dropped' }}
+            ariaLabel="Earnings filter"
+            dataAttr={{ 'data-testid': 'chip-earnings' }}
+          />
+          <span class="readout">state <b>{custom()}</b></span>
         </Card>
       </div>
 

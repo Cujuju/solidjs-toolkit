@@ -19,6 +19,11 @@ function delay(ms: number): Promise<void> {
 export function EditableListRowPage(): JSX.Element {
   const [items, setItems] = createSignal<Item[]>(INITIAL);
   const [active, setActive] = createSignal('1');
+  const [busy, setBusy] = createSignal(false);
+  const [renameNow, setRenameNow] = createSignal(false);
+  const [starred, setStarred] = createSignal(false);
+  const [allowDelete, setAllowDelete] = createSignal(false);
+  const [lastEvent, setLastEvent] = createSignal('—');
 
   return (
     <>
@@ -93,6 +98,68 @@ import EditableListRow from '@cujuju/solidjs-editable-list-row';
               onRename={async () => { await delay(200); }}
               onDelete={async () => {}}
             />
+          </div>
+        </Card>
+      </div>
+
+      <h2>Slots, outside control, confirm</h2>
+      <Code cap="more props">{`
+<EditableListRow id="a" name="Watchlist" selection={{ kind: 'none' }}
+  leadingIcon={() => <ListIcon />}            // or leadingControl={() => <StarButton />} (wins)
+  reorderProps={sortable.itemProps}           // spread onto the row; shows a drag handle
+  onContextMenu={(e) => openMenu(e)}
+  busy={() => saving()}                       // blocks rename/delete while true
+  pendingRename={() => renameRequested()}     // false → true enters rename
+  onRenameClose={() => setRenameRequested(false)}
+  deleteConfirmTitle="Remove list" deleteConfirmMessage="Remove Watchlist and its 12 symbols?"
+  confirmDelete={async ({ title, message }) => myDialog.ask(title, message)}  // default: window.confirm
+  renameAriaLabel="Rename watchlist" deleteAriaLabel="Remove watchlist"
+  onRename={…} onDelete={…} />
+`}</Code>
+      <div class="row">
+        <Card cap="leadingIcon · reorderProps · onContextMenu · aria labels · confirm title/message (window.confirm)">
+          <div style={{ width: '320px' }}>
+            <EditableListRow
+              id="slots"
+              name="Watchlist"
+              selection={{ kind: 'none' }}
+              leadingIcon={() => <span aria-hidden="true">☰</span>}
+              reorderProps={{ 'data-demo-reorder': '' }}
+              onContextMenu={(e) => { e.preventDefault(); setLastEvent('onContextMenu'); }}
+              renameAriaLabel="Rename watchlist"
+              deleteAriaLabel="Remove watchlist"
+              deleteConfirmTitle="Remove list"
+              deleteConfirmMessage="Remove Watchlist and its 12 symbols?"
+              onRename={async () => { setLastEvent('onRename'); }}
+              onDelete={async () => { setLastEvent('onDelete'); }}
+            />
+            <span class="readout">last <b>{lastEvent()}</b></span>
+          </div>
+        </Card>
+        <Card cap="leadingControl · busy · pendingRename/onRenameClose · custom confirmDelete">
+          <div style={{ width: '320px' }}>
+            <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap', 'margin-bottom': '8px' }}>
+              <button class="demo-btn" onClick={() => setRenameNow(true)}>Rename from outside</button>
+              <label><input type="checkbox" checked={busy()} onChange={(e) => setBusy(e.currentTarget.checked)} /> busy</label>
+              <label><input type="checkbox" checked={allowDelete()} onChange={(e) => setAllowDelete(e.currentTarget.checked)} /> confirm says yes</label>
+            </div>
+            <EditableListRow
+              id="driven"
+              name="Earnings"
+              selection={{ kind: 'none' }}
+              leadingControl={() => (
+                <button type="button" aria-pressed={starred()} aria-label="Star" onClick={() => setStarred((v) => !v)}>
+                  {starred() ? '★' : '☆'}
+                </button>
+              )}
+              busy={busy}
+              pendingRename={renameNow}
+              onRenameClose={() => { setRenameNow(false); setLastEvent('onRenameClose'); }}
+              confirmDelete={async ({ title, message }) => { setLastEvent(`confirmDelete: ${title} / ${message}`); return allowDelete(); }}
+              onRename={async () => { setLastEvent('onRename'); }}
+              onDelete={async () => { setLastEvent('onDelete'); }}
+            />
+            <span class="readout">pendingRename <b>{String(renameNow())}</b></span>
           </div>
         </Card>
       </div>
