@@ -953,6 +953,28 @@ describe('onShown / parent re-promote fire once per open transition', () => {
     expect(onShown).toHaveBeenCalledTimes(1);
   });
 
+  it('defers onShown until an anchor that arrives frames after the open positions the panel', async () => {
+    const onShown = vi.fn();
+    const [open, setOpen] = createSignal(false);
+    const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
+    dispose = render(
+      () => (
+        <AnchoredPopover open={open} anchor={anchor} onShown={onShown} onDismiss={() => {}}>
+          <div>content</div>
+        </AnchoredPopover>
+      ),
+      document.body,
+    );
+
+    setOpen(true);
+    await nextFrame();
+    expect(onShown).not.toHaveBeenCalled();
+
+    setAnchor(makeAnchor());
+    await nextFrame();
+    expect(onShown).toHaveBeenCalledTimes(1);
+  });
+
   it('fires onShown again on every reopen', async () => {
     const onShown = vi.fn();
     const [open, setOpen] = createSignal(true);

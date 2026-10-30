@@ -109,10 +109,11 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
   /** Set on an open transition, consumed by the frame that fires re-promote + onShown. */
   let showPending = false;
 
-  function computeAndClamp(): void {
+  /** Returns false when there is no anchor or panel to position against. */
+  function computeAndClamp(): boolean {
     const anchor = props.anchor();
     const el = panelEl();
-    if (!anchor || !el) return;
+    if (!anchor || !el) return false;
     const rect = anchor.getBoundingClientRect();
     const panel = el.getBoundingClientRect();
     const offset = props.offsetPx ?? DEFAULT_POPOVER_OFFSET_PX;
@@ -169,6 +170,7 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
     if (top < margin) top = margin;
 
     setPos({ top, left });
+    return true;
   }
 
   // Sync open() → browser popover state. Reading anchor() / panelEl()
@@ -195,8 +197,8 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
       afterPaint(() => {
         // A close before this frame leaves nothing to position or announce.
         if (!props.open()) return;
-        computeAndClamp();
-        if (!showPending) return;
+        // Unpositioned (no anchor yet) stays pending: the anchor's arrival re-runs this effect.
+        if (!computeAndClamp() || !showPending) return;
         showPending = false;
         // Re-promote the parent AFTER our show and measure (LIFO top layer), else we paint
         // above it. Guarded on `:popover-open` to avoid InvalidStateError.
