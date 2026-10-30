@@ -146,7 +146,7 @@ describe('Collapsible mount / a11y contract', () => {
       defaultOpen: false,
       children: 'body',
     });
-    // Solid writes the `inert` IDL property; jsdom 24 lacks its attribute reflection, so assert the property.
+    // Solid writes the `inert` IDL property; jsdom (26) lacks its attribute reflection, so assert the property.
     const wrapper = container.querySelector('.ccl-content-wrapper') as HTMLElement;
     expect(wrapper.inert).toBe(true);
     header(container).click();

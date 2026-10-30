@@ -51,7 +51,7 @@
   "devDependencies": {
     "@capacitor/core": "^8.5.2",
     "@capgo/capacitor-updater": "8.53.0",
-    "jsdom": "^24.0.0",
+    "jsdom": "^26.1.0",
     "vitest": "^4.1.12"
   },
   "publishConfig": {

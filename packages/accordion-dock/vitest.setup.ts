@@ -104,7 +104,7 @@ globalThis.cancelAnimationFrame = ((id: number): void => {
 }) as typeof cancelAnimationFrame;
 
 /**
- * The POPOVER API, stubbed. jsdom 24 implements neither `showPopover` nor top-layer behaviour,
+ * The POPOVER API, stubbed. jsdom (26) implements neither `showPopover` nor top-layer behaviour,
  * so any test opening a flyout threw. See DESIGN_NOTES.md § vitest.setup.ts:133.
  */
 type PopoverElement = HTMLElement & { __popoverOpen?: boolean };
