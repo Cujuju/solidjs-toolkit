@@ -159,6 +159,11 @@
   }
   .ccl-root[data-animated="true"] .ccl-content-wrapper > .ccl-content {
     min-height: 0;
+    transition: padding-block var(--cl-animation-duration) ease;
+  }
+  /* The grid item's padding is a floor the 0fr track cannot shrink past; drop it while closed. */
+  .ccl-root[data-animated="true"][data-open="false"] .ccl-content-wrapper > .ccl-content {
+    padding-block: 0;
   }
 }
 
@@ -171,5 +176,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ccl-arrow, .ccl-content-wrapper { transition: none !important; }
+  .ccl-arrow, .ccl-content-wrapper, .ccl-content { transition: none !important; }
 }

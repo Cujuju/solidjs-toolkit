@@ -82,6 +82,14 @@ describe('Collapsible stylesheet', () => {
     dispose();
   });
 
+  // Grid-item padding floors the 0fr track, so a collapsed animated panel kept 16px. jsdom
+  // does not apply `@supports` blocks, so assert the source.
+  it('drops block padding on collapsed animated content, so the 0fr track reaches zero', () => {
+    expect(CSS_SOURCES['../styles.css']).toMatch(
+      /\.ccl-root\[data-animated="true"\]\[data-open="false"\] \.ccl-content-wrapper > \.ccl-content \{\s*padding-block: 0;/,
+    );
+  });
+
   // Pre-Grid engines skip the animated @supports block, so `display: contents` would leave
   // collapsed content visible. jsdom cannot evaluate `@supports not`, so assert the source.
   it('ships a display: none fallback for engines without CSS Grid', () => {
