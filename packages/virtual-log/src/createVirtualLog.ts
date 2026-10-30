@@ -129,6 +129,8 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   let heldAlign: Align = 'center';
   let pendingNav: { key: string; align: Align } | null = null;
   let topSnap: AnchorSnap | null = null;
+  /** Following but scrolled a little up: the row at the bottom edge, which holds instead of the newest row. */
+  let bottomSnap: AnchorSnap | null = null;
   let ownWrites: { p: number; at: number }[] = [];
   let width = 0;
   /** The runway in the committed extent: the top is only real once it is gone. */
@@ -163,6 +165,8 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const hidden = (): boolean => !scroller || scroller.clientHeight === 0 || scroller.getClientRects().length === 0;
   const runway = (): number => (o.hasOlder?.() ? (o.runwayPx ?? DEFAULT_RUNWAY_VIEWPORTS * viewH()) : 0);
 
+  /** Public, reactive mirror of `busy()`; internals read `busy()` untracked. */
+  const [scrolling, setScrolling] = createSignal(false);
   const settle = isBrowser()
     ? createSettle({
         now: () => performance.now(),
@@ -173,7 +177,11 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
           const n = native();
           return n >= -END_SLOP_PX && n <= maxNative() + END_SLOP_PX;
         },
-        onSettle: () => settled(),
+        onSettle: () => {
+          settled();
+          setScrolling(false);
+        },
+        onBusy: () => setScrolling(true),
         // Stopped against the bottom holding a correction (a false bottom): no momentum to wait out, so commit now.
         restingAtEnd: () => native() <= END_SLOP_PX && Math.abs(untrack(shift)) >= 1,
       })
@@ -188,6 +196,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
   const captureAnchors = (): void => {
     const L = untrack(logical);
     topSnap = captureAnchor(layout, L + untrack(viewH), L, 'bottom');
+    bottomSnap = untrack(following) && L - bottomRunway > END_SLOP_PX ? captureAnchor(layout, L, L, 'bottom') : null;
   };
 
   const writeNative = (to: number): void => {
@@ -236,9 +245,11 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       }
     }
     if (untrack(following)) {
-      // At rest, on the newest row. Mid-scroll the newest row's end holds where it is, as a column-reverse scroller
-      // keeps it natively: posts arriving push the content up then, rather than a held correction snapping it at rest.
-      return busy() ? L : bottomRunway;
+      // Mid-scroll the newest row's end holds where it is, as a column-reverse scroller keeps it natively: posts
+      // arriving push the content up then, rather than a held correction snapping it at rest.
+      if (busy()) return L;
+      // At the bottom, the newest row; scrolled a little up, the bottom edge holds.
+      return (bottomSnap && anchoredOffset(layout, bottomSnap)) ?? bottomRunway;
     }
     // No row the view held survives (every row replaced): a new log opens at its newest row.
     return topSnap ? (anchoredOffset(layout, topSnap) ?? 0) : L;
@@ -449,7 +460,9 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     endAfterResize = false;
   };
 
-  const onScroll = (): void => {
+  // Batched whole: `settle.activity()` publishes isScrolling, and a consumer reacting to it must run after this
+  // handler's offset, shift and anchors are in place, not between them.
+  const onScroll = (): void => batch(() => {
     const now = performance.now();
     const n = native();
     ownWrites = ownWrites.filter((w) => now - w.at < OWN_WRITE_MS);
@@ -479,7 +492,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
     });
     captureAnchors();
     void checkEdges();
-  };
+  });
 
   const touchCount = (e: TouchEvent): void => settle?.touches(e.touches.length);
   // iOS sends a touch's moves and end to the node it began on, even once that row is removed from the log.
@@ -634,7 +647,7 @@ export function createVirtualLog<R>(o: VirtualLogOptions<R>): VirtualLogControll
       commit(bottomRunway);
       captureAnchors();
     },
-    isScrolling: busy,
+    isScrolling: scrolling,
     checkOlder,
     checkNewer,
     attachCanvas: (el) => {

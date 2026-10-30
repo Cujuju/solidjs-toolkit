@@ -117,3 +117,21 @@ describe('createSettle', () => {
     expect(h.pending()).toBe(1);
   });
 });
+
+describe('createSettle onBusy', () => {
+  it('fires once per rest-to-busy edge, with busy() already true', () => {
+    const seen: boolean[] = [];
+    let s!: ReturnType<typeof createSettle>;
+    s = createSettle({
+      now: () => 0,
+      frame: () => {},
+      offset: () => 0,
+      inBounds: () => true,
+      onSettle: () => {},
+      onBusy: () => seen.push(s.busy()),
+    });
+    s.activity();
+    s.activity();
+    expect(seen).toEqual([true]);
+  });
+});

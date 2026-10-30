@@ -13,6 +13,8 @@ export interface SettleOptions {
   /** False during an overscroll bounce. */
   inBounds: () => boolean;
   onSettle: () => void;
+  /** Rest to busy: the first activity after a settle. */
+  onBusy?: () => void;
   /** True when no momentum can be running (the view resting against an end): settle on quiet frames alone. */
   restingAtEnd?: () => boolean;
   quietMs?: number;
@@ -67,12 +69,16 @@ export function createSettle(o: SettleOptions): Settle {
   };
 
   const wake = (): void => {
+    const wasBusy = busy;
     busy = true;
     quiet = 0;
     lastOffset = o.offset();
-    if (looping) return;
-    looping = true;
-    o.frame(tick);
+    if (!looping) {
+      looping = true;
+      o.frame(tick);
+    }
+    // Last: a listener reacting synchronously must already see the busy state.
+    if (!wasBusy) o.onBusy?.();
   };
 
   return {

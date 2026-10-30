@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@solidjs/testing-library';
-import { createSignal } from 'solid-js';
+import { createEffect, createRoot, createSignal } from 'solid-js';
 import { installFakes, mount, rowsOf } from './harness';
 import { createVirtualLog } from '../createVirtualLog';
 import { VirtualLog } from '../VirtualLog';
@@ -95,6 +95,46 @@ describe('createVirtualLog', () => {
     expect(h.writes).toEqual([]);
     expect(h.native()).toBe(0);
     expect(h.drawn().at(-1)).toBe('new');
+  });
+
+  it('following but scrolled a little up, a new row keeps the bottom edge instead of snapping to the newest row', async () => {
+    const h = mount(rowsOf(100, 20), { following: () => true });
+    await h.flush();
+    h.userScrollTo(50);
+    await h.settle();
+    h.setRows([...h.rows(), { key: 'new', h: 20 }]);
+    await h.flush();
+    h.resize({ new: 20 }); // the harness measures rows added after mount only through resize
+    await h.flush();
+    // The view keeps what it showed: the new row lifts it by its own height.
+    expect(h.log().distanceFromBottom()).toBe(70);
+  });
+
+  it('a row appended by an isScrolling effect mid-scroll keeps the reading anchor', async () => {
+    const h = mount(rowsOf(100, 20));
+    await h.flush();
+    let appended = false;
+    createRoot(() => createEffect(() => {
+      if (h.log().isScrolling() && !appended) {
+        appended = true;
+        h.setRows([...h.rows(), { key: 'new', h: 20 }]);
+      }
+    }));
+    h.userScrollTo(50);
+    h.resize({ new: 20 });
+    // The new newest row lifts the view by its height (as a correction, mid-scroll), keeping what is read in place.
+    expect(h.log().distanceFromBottom()).toBe(70);
+  });
+
+  it('isScrolling is reactive: an effect sees scrolling start and stop', async () => {
+    const h = mount(rowsOf(100, 20));
+    await h.flush();
+    const seen: boolean[] = [];
+    createRoot(() => createEffect(() => seen.push(h.log().isScrolling())));
+    h.touch('touchstart', 1);
+    h.touch('touchend', 0);
+    await h.settle();
+    expect(seen).toEqual([false, true, false]);
   });
 
   it('following at the bottom, a viewport resize mid-touch that leaves the offset short goes back to the bottom at rest', async () => {
