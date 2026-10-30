@@ -15,6 +15,7 @@ import { Portal } from 'solid-js/web';
 import {
   createAfterPaint,
   createOutsideScrollDismiss,
+  createResizeObserver,
   createClickOutside,
   createEscapeOwner,
   contains,
@@ -230,8 +231,7 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     const rect = triggerEl.getBoundingClientRect();
     const placement = props.placement ?? 'bottom-start';
     const top = rect.bottom + PANEL_OFFSET_PX;
-    // For bottom-end, right-align to the trigger's right edge by snapping left so
-    // (left + minWidth) <= right; the panel's final width isn't known yet.
+    // Pre-mount estimate: width is unknown, so bottom-end assumes minWidth. `placePanel` corrects it.
     const left =
       placement === 'bottom-end'
         ? Math.max(
@@ -261,51 +261,35 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
     target.focus({ preventScroll: true });
   }
 
-  /** Clamp the panel inside the viewport after it renders: the trigger-relative position from
-   *  `computePosition` can push it off the right or bottom edge. */
-  function clampToViewport(): void {
-    if (!panelEl || !triggerEl) return;
-    const panel = panelEl.getBoundingClientRect();
-    const triggerRect = triggerEl.getBoundingClientRect();
-    const vpW = window.innerWidth;
-    const vpH = window.innerHeight;
-
+  /** Place the rendered panel from the trigger rect and its measured size: right-align for
+   *  `bottom-end`, keep it inside the viewport, flip above when it overflows the bottom. */
+  function placePanel(): void {
     const current = pos();
-    if (!current) return;
-    let { top, left } = current;
+    if (!panelEl || !triggerEl || !current) return;
+    const panel = panelEl.getBoundingClientRect();
+    const trigger = triggerEl.getBoundingClientRect();
 
-    // Horizontal: if the panel's right edge overflows, slide it
-    // leftward so it fits; never let its left go below the margin.
-    const rightEdge = left + panel.width;
-    if (rightEdge > vpW - VIEWPORT_MARGIN_PX) {
-      left = Math.max(
-        VIEWPORT_MARGIN_PX,
-        vpW - panel.width - VIEWPORT_MARGIN_PX,
-      );
-    }
-    if (left < VIEWPORT_MARGIN_PX) left = VIEWPORT_MARGIN_PX;
+    const anchorLeft =
+      (props.placement ?? 'bottom-start') === 'bottom-end' ? trigger.right - panel.width : trigger.left;
+    const maxLeft = window.innerWidth - panel.width - VIEWPORT_MARGIN_PX;
+    const left = Math.max(VIEWPORT_MARGIN_PX, Math.min(anchorLeft, maxLeft));
 
-    // Vertical: if the panel overflows the bottom, flip above the
-    // trigger. If it ALSO doesn't fit above (tiny viewport), snap to
-    // the top margin.
-    const bottomEdge = top + panel.height;
-    if (bottomEdge > vpH - VIEWPORT_MARGIN_PX) {
-      const flipped = triggerRect.top - panel.height - PANEL_OFFSET_PX;
+    let top = trigger.bottom + PANEL_OFFSET_PX;
+    if (top + panel.height > window.innerHeight - VIEWPORT_MARGIN_PX) {
+      const flipped = trigger.top - panel.height - PANEL_OFFSET_PX;
       top = flipped >= VIEWPORT_MARGIN_PX ? flipped : VIEWPORT_MARGIN_PX;
     }
 
-    if (top !== current.top || left !== current.left) {
-      setPos({ top, left });
-    }
+    if (top !== current.top || left !== current.left) setPos({ top, left });
   }
 
-  // Run the clamp once the panel has painted at its initial position.
-  // `afterPaint` waits for the first layout pass so
-  // `panelEl.getBoundingClientRect` reflects the real rendered size.
+  // Place once the panel has painted (real size), then again whenever its size changes:
+  // async options and load-more can grow it past the viewport.
   createEffect(() => {
     if (!panelShown() || !panelEl) return;
-    afterPaint(clampToViewport);
+    afterPaint(placePanel);
   });
+  createResizeObserver(() => (panelShown() ? panelEl : undefined), placePanel);
 
   /** `restoreFocus: false` (outside clicks) leaves focus where the user put it.
    *  The restore itself runs when the panel actually hides — see the focus effect. */

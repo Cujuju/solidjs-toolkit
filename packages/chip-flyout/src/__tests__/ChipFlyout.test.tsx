@@ -512,6 +512,60 @@ describe('ChipFlyout — controlled open', () => {
   });
 });
 
+describe('ChipFlyout — placement from the measured panel', () => {
+  const TRIGGER = { left: 600, top: 100, width: 60, height: 28 };
+  const PANEL_WIDTH = 400;
+
+  /** Trigger at TRIGGER; panel at its styled position with the given size. */
+  function mockRects(panelHeight: () => number): void {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const isPanel = this.classList.contains('cujuju-cf-panel');
+      const el = this as HTMLElement;
+      const left = isPanel ? parseFloat(el.style.left) || 0 : TRIGGER.left;
+      const top = isPanel ? parseFloat(el.style.top) || 0 : TRIGGER.top;
+      const width = isPanel ? PANEL_WIDTH : TRIGGER.width;
+      const height = isPanel ? panelHeight() : TRIGGER.height;
+      return { x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => ({}) } as DOMRect;
+    });
+  }
+
+  it('right-aligns bottom-end to the trigger using the rendered width', async () => {
+    mockRects(() => 100);
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} placement="bottom-end" />
+    ));
+    fireEvent.click(trigger(container));
+    await vi.waitFor(() => {
+      expect(panel()?.style.left).toBe(`${TRIGGER.left + TRIGGER.width - PANEL_WIDTH}px`);
+    });
+  });
+
+  it('re-places the panel when it grows past the viewport bottom', async () => {
+    let height = 100;
+    mockRects(() => height);
+    let notifyResize: ((entries: unknown[]) => void) | undefined;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: (entries: unknown[]) => void) { notifyResize = cb; }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { container } = render(() => (
+      <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={() => {}} />
+    ));
+    fireEvent.click(trigger(container));
+    const below = TRIGGER.top + TRIGGER.height;
+    await vi.waitFor(() => expect(parseFloat(panel()!.style.top)).toBeGreaterThan(below));
+    await new Promise(requestAnimationFrame); // let the after-paint placement settle first
+    expect(parseFloat(panel()!.style.top)).toBeGreaterThan(below);
+    height = window.innerHeight; // async results: taller than the space below the trigger
+    notifyResize?.([{}]);
+    await vi.waitFor(() => expect(parseFloat(panel()!.style.top)).toBeLessThan(below));
+  });
+});
+
 describe('ChipFlyout — onOpenChange reports changes only', () => {
   it('does not report a close on resize while uncontrolled and closed', () => {
     const onOpenChange = vi.fn();
