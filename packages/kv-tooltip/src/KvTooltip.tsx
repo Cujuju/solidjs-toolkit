@@ -127,10 +127,10 @@ const SR_ONLY_STYLE: JSX.CSSProperties = {
 
 /** Elements that already take keyboard focus — see the `focusable` prop. */
 const FOCUSABLE_SELECTOR =
-  'a[href], button, input, select, textarea, [contenteditable=""], [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [contenteditable=""], [contenteditable="true"], [tabindex]:not([tabindex="-1"]):not(:disabled)';
 
 /** The attributes `FOCUSABLE_SELECTOR` reads — a change to any of them can flip the AUTO probe. */
-const FOCUSABLE_ATTRIBUTES = ['href', 'contenteditable', 'tabindex'];
+const FOCUSABLE_ATTRIBUTES = ['href', 'contenteditable', 'tabindex', 'disabled'];
 
 /**
  * No `position: relative` outside `text`: the portalled fixed panel doesn't need a
@@ -410,7 +410,11 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
         pointerOnTrigger = false;
         hoverIntent.onTriggerLeave();
       }}
-      onPointerDown={hoverIntent.onTriggerPointerDown}
+      onPointerDown={(e) => {
+        // A press inside an interactive panel bubbles out of the Portal; hiding would eat its click.
+        if (e.target instanceof Node && panelEl?.contains(e.target)) return;
+        hoverIntent.onTriggerPointerDown();
+      }}
     >
       {props.children}
       {/* Always mounted: a hover-only description is unreachable by screen readers,

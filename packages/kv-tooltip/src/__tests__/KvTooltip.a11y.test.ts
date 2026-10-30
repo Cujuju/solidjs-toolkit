@@ -126,6 +126,25 @@ describe('KvTooltip accessibility', () => {
     container.remove();
   });
 
+  it('keeps its own tab stop around a disabled button, and drops it once the button enables', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const button = document.createElement('button');
+    button.disabled = true;
+    button.tabIndex = 0; // an explicit tabindex does not make a disabled control focusable
+    const dispose = render(
+      () => createComponent(KvTooltip, { entries: { Delta: '0.42' }, children: button }),
+      host,
+    );
+    // A disabled button takes no focus, so the wrapper must.
+    expect(getWrapper(host).getAttribute('tabindex')).toBe('0');
+    button.disabled = false;
+    await Promise.resolve(); // MutationObserver delivery
+    expect(getWrapper(host).getAttribute('tabindex')).toBeNull();
+    dispose();
+    host.remove();
+  });
+
   it('takes a tab stop only when the trigger has none of its own', () => {
     const plain = renderTooltip({ entries: { Delta: '0.42' }, children: 'text' });
     expect(getWrapper(plain.container).getAttribute('tabindex')).toBe('0');

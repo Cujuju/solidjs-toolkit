@@ -64,6 +64,44 @@ describe('KvTooltip (integration)', () => {
     dispose();
   });
 
+  it('interactive + hideOnPointerDown: a press inside the panel keeps it open', () => {
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      interactive: true,
+      hideOnPointerDown: true,
+    });
+    const trigger = getTrigger(container);
+    fire(trigger, 'mouseenter');
+    fire(trigger, 'mousemove');
+    const panel = getPanel()!;
+
+    panel.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(getPanel()).not.toBeNull();
+
+    // A press on the trigger itself still hides.
+    trigger.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(getPanel()).toBeNull();
+    dispose();
+  });
+
+  it('applies a mouseOffsetX change while shown', () => {
+    const [offset, setOffset] = createSignal(12);
+    const { dispose, container } = renderTooltip({
+      entries: { Foo: 'Bar' },
+      children: 'trigger',
+      get mouseOffsetX() { return offset(); },
+    });
+    const trigger = getTrigger(container);
+    fire(trigger, 'mouseenter');
+    fire(trigger, 'mousemove');
+    expect(getPanel()!.style.left).toBe('112px');
+
+    setOffset(50);
+    expect(getPanel()!.style.left).toBe('150px');
+    dispose();
+  });
+
   it('interactive: hide is debounced by default 100ms', () => {
     const { dispose, container } = renderTooltip({
       entries: { Foo: 'Bar' },
