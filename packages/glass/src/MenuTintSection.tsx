@@ -67,7 +67,10 @@ export function MenuTintSection(props: MenuTintSectionProps) {
 
   onMount(() => {
     const stored = readMenuTintKnobsFromStorage(props.storageKey);
-    if (stored !== null) setKnobsState(stored);
+    if (stored === null) return;
+    setKnobsState(stored);
+    // Without a host bootstrap the sliders would show stored values over default-tinted menus.
+    applyMenuTintKnobs(stored);
   });
 
   function commit(next: MenuTintKnobs) {
