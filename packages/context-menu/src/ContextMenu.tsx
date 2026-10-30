@@ -80,14 +80,18 @@ export function ContextMenu(props: ContextMenuProps) {
     });
   }
 
-  onMount(() => {
-    // Top layer paints above every stacking context, and LIFO order puts a menu opened over an
-    // existing popover above it. The `popover` attribute is set in the ref below.
-    if (menuRef && !menuRef.matches(':popover-open')) {
+  // Top layer paints above every stacking context, and LIFO order puts a menu opened over an
+  // existing popover above it. The `popover` attribute is set in the ref below.
+  function showMenu() {
+    if (menuRef?.isConnected && !menuRef.matches(':popover-open')) {
       menuRef.showPopover();
     }
     afterPaint(clampToViewport);
-  });
+  }
+
+  onMount(showMenu);
+  // A `surface` change swaps the root element; the replacement needs promoting too.
+  createEffect(on(() => props.surface, showMenu, { defer: true }));
 
   // A caller can move the open point without remounting (same `<Show>` branch);
   // re-clamp at the new point.

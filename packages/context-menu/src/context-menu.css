@@ -273,11 +273,6 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--color-text-muted, #64748b);
 }
-/* Explicit label colour (with the Portal, belt-and-suspenders): otherwise a hostile ancestor
-   `color` could tint the label invisible. */
-.cujuju-context-menu--solid .cujuju-context-menu-label {
-  color: var(--color-text-secondary, #94a3b8);
-}
 .cujuju-context-menu--solid .cujuju-context-menu-shortcut {
   margin-left: 12px;
   color: var(--color-text-dim, #475569);

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createUniqueId, on, onCleanup, For, Show } from 'solid-js';
+import { createSignal, createEffect, createMemo, createUniqueId, on, onCleanup, For, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
@@ -302,7 +302,7 @@ function SubmenuItem(props: {
         onKeyDown={onTriggerKeyDown}
       >
         <Show when={props.item.icon}>
-          <span class="cujuju-context-menu-icon">{props.item.icon}</span>
+          {(icon) => <span class="cujuju-context-menu-icon">{icon()}</span>}
         </Show>
         <span class="cujuju-context-menu-label">{props.item.label}</span>
         {/* Arrow glyph differs by surface: solid mirrors the host's ▶
@@ -401,7 +401,7 @@ export function MenuEntries(props: {
                     type="button"
                   >
                     <Show when={btn.icon}>
-                      <span class="cujuju-context-menu-icon">{btn.icon}</span>
+                      {(icon) => <span class="cujuju-context-menu-icon">{icon()}</span>}
                     </Show>
                     {btn.label}
                   </button>
@@ -411,51 +411,57 @@ export function MenuEntries(props: {
           );
         }
         const mi = item as ContextMenuItem;
-        const resolveIcon = () => typeof mi.icon === 'function' ? mi.icon() : mi.icon;
         return (
           <Show when={!mi.when || mi.when()}>
-          <button
-            class={`cujuju-context-menu-item${mi.danger ? ' cujuju-context-menu-item-danger' : ''}`}
-            disabled={mi.disabled}
-            aria-pressed={mi.checked}
-            title={mi.disabled ? mi.disabledTooltip : undefined}
-            onClick={() => { mi.onClick(); if (!mi.keepOpen) props.onClose(); }}
-            type="button"
-          >
-            <Show when={resolveIcon()}>
-              <span class="cujuju-context-menu-icon">{resolveIcon()}</span>
-            </Show>
-            <span class="cujuju-context-menu-label">{mi.label}</span>
-            {/* Right-aligned shortcut hint (display-only). */}
-            <Show when={mi.shortcut}>
-              <span class="cujuju-context-menu-shortcut">{mi.shortcut}</span>
-            </Show>
-            {/* Rendered when `checked` is defined: `false` reserves the slot so
-                adjacent toggles align; `true` fills it with a Check glyph. */}
-            <Show when={mi.checked !== undefined}>
-              <span
-                class="cujuju-context-menu-check"
-                data-checked={mi.checked ? 'true' : 'false'}
-                aria-hidden="true"
-              >
-                <Show when={mi.checked}>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                </Show>
-              </span>
-            </Show>
-          </button>
+            {(_visible) => {
+              // Inside the `when` gate: a hidden row's icon may read state `when` guards.
+              // Memoized: each factory call builds a new tree; check and render share one.
+              const icon = createMemo(() => (typeof mi.icon === 'function' ? mi.icon() : mi.icon));
+              return (
+                <button
+                  class={`cujuju-context-menu-item${mi.danger ? ' cujuju-context-menu-item-danger' : ''}`}
+                  disabled={mi.disabled}
+                  aria-pressed={mi.checked}
+                  title={mi.disabled ? mi.disabledTooltip : undefined}
+                  onClick={() => { mi.onClick(); if (!mi.keepOpen) props.onClose(); }}
+                  type="button"
+                >
+                  <Show when={icon()}>
+                    {(resolved) => <span class="cujuju-context-menu-icon">{resolved()}</span>}
+                  </Show>
+                  <span class="cujuju-context-menu-label">{mi.label}</span>
+                  {/* Right-aligned shortcut hint (display-only). */}
+                  <Show when={mi.shortcut}>
+                    <span class="cujuju-context-menu-shortcut">{mi.shortcut}</span>
+                  </Show>
+                  {/* Rendered when `checked` is defined: `false` reserves the slot so
+                      adjacent toggles align; `true` fills it with a Check glyph. */}
+                  <Show when={mi.checked !== undefined}>
+                    <span
+                      class="cujuju-context-menu-check"
+                      data-checked={mi.checked ? 'true' : 'false'}
+                      aria-hidden="true"
+                    >
+                      <Show when={mi.checked}>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      </Show>
+                    </span>
+                  </Show>
+                </button>
+              );
+            }}
           </Show>
         );
       }}

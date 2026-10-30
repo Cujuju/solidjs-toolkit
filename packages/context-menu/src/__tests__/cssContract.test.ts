@@ -46,6 +46,17 @@ describe('context-menu.css', () => {
     expect(getComputedStyle(el).overflowY).toBe('auto');
   });
 
+  it('solid-surface labels inherit the danger colour from their item', () => {
+    const { el } = mount('cujuju-context-menu--solid');
+    const item = document.createElement('button');
+    item.className = 'cujuju-context-menu-item cujuju-context-menu-item-danger';
+    const label = document.createElement('span');
+    label.className = 'cujuju-context-menu-label';
+    item.appendChild(label);
+    el.appendChild(item);
+    expect(getComputedStyle(label).color).toBe(getComputedStyle(item).color);
+  });
+
   it('root and flyouts are border-box, so the inline viewport max-height includes padding + border', () => {
     const { el } = mount('cujuju-context-menu');
     expect(getComputedStyle(el).boxSizing).toBe('border-box');

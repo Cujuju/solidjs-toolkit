@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
+import { createSignal } from 'solid-js';
 import { ContextMenu } from '../ContextMenu';
 import type { ContextMenuEntry } from '../types';
 
@@ -195,5 +196,44 @@ describe('ContextMenu — entries', () => {
     (buttons[0] as HTMLButtonElement).click();
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ContextMenu — single render per slot', () => {
+  it('calls an icon factory once per row', () => {
+    const icon = vi.fn(() => <svg />);
+    renderMenu([{ label: 'Item', icon, onClick: () => {} }], () => {});
+    expect(icon).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll('.cujuju-context-menu-icon svg')).toHaveLength(1);
+  });
+
+  it('does not call the icon factory of a row hidden by `when`', () => {
+    const icon = vi.fn(() => <svg />);
+    renderMenu([{ label: 'Item', icon, when: () => false, onClick: () => {} }], () => {});
+    expect(icon).not.toHaveBeenCalled();
+  });
+});
+
+describe('ContextMenu — surface swap', () => {
+  it('promotes the replacement root when `surface` changes while open', () => {
+    // Per-element popover state: the shared stub's single flag cannot tell the two roots apart.
+    const shown = new WeakSet<Element>();
+    HTMLElement.prototype.matches = function (selectors: string): boolean {
+      if (selectors === ':popover-open') return shown.has(this);
+      return originalMatches.call(this, selectors);
+    };
+    (HTMLElement.prototype as HTMLElement & { showPopover: () => void }).showPopover = function () {
+      shown.add(this);
+    };
+    const [surface, setSurface] = createSignal<'glass' | 'solid'>('glass');
+    dispose = render(
+      () => <ContextMenu x={10} y={10} onClose={() => {}} surface={surface()} items={[{ label: 'Item', onClick: () => {} }]} />,
+      document.body,
+    );
+
+    setSurface('solid');
+
+    const root = document.querySelector('.cujuju-context-menu--solid')!;
+    expect(shown.has(root)).toBe(true);
   });
 });
