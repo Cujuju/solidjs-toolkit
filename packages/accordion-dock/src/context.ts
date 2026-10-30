@@ -249,8 +249,8 @@ export interface AccordionGroupApi {
   /** Snapshot the current arrangement — for named workspaces, server-side sync, or
    *  an undo stack. Pure data; safe to JSON.stringify. */
   getLayout: () => AccordionLayout;
-  /** Restore a snapshot. A layout whose `version` does not match is ignored and
-   *  reported false, rather than being partially applied. */
+  /** Restore a snapshot; panels registering later then skip `defaultOpen`. A layout whose
+   *  `version` does not match is ignored and reported false, rather than partially applied. */
   setLayout: (layout: AccordionLayout) => boolean;
 
   /** Panels self-register so the group can apply `defaultOpen` in declaration order,

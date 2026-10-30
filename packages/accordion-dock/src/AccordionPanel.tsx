@@ -45,7 +45,7 @@ export interface AccordionPanelProps {
   /** Right-aligned controls in the panel's own header/title bar. Clicks do NOT toggle. */
   actions?: JSX.Element;
 
-  /** Open on first render, when no persisted state exists. */
+  /** Open on first render, unless a layout was restored (storageKey or `setLayout`). */
   defaultOpen?: boolean;
   /** Set false for a panel that must always obey the accordion. Default true. */
   pinnable?: boolean;

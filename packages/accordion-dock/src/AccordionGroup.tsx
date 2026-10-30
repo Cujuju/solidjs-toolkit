@@ -155,9 +155,9 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const depth = parent === undefined ? 0 : parent.depth + 1;
 
   const persisted = readPersisted(props.storageKey);
-  /** True when localStorage answered — in that case `defaultOpen` on a panel is
-   *  IGNORED, because a remembered state the user produced outranks an author default. */
-  const hydrated = persisted !== null;
+  /** True once a layout was restored (localStorage or `setLayout`): later `defaultOpen`
+   *  registrations are IGNORED, because a remembered state outranks an author default. */
+  let hydrated = persisted !== null;
 
   /**
    * Open MEMBERSHIP, an array only so persistence has a stable serialisation. The on-screen
@@ -689,6 +689,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       commitPinned(new Set(layout.pinned));
       commitSizes({ ...layout.sizes });
       commitOpen([...layout.open]);
+      hydrated = true;
       return true;
     },
 
