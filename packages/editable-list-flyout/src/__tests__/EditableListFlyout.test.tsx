@@ -648,25 +648,6 @@ describe('EditableListFlyout', () => {
       expect(listItems).toHaveLength(2);
       for (const li of listItems) expect(li.querySelector('[data-cuj-elr="row"]')).not.toBeNull();
     });
-
-    it('no token-declaring [data-cuj-elf] element sits between the list and its rows', () => {
-      // `[data-cuj-elf]` redeclares every --cuj-elf-* default, so a wrapper matching it would reset list-level overrides.
-      const [open] = createSignal(true);
-      const anchor = makeAnchor();
-      dispose = render(
-        () => (
-          <EditableListFlyout
-            open={open}
-            anchor={() => anchor}
-            onDismiss={() => {}}
-            items={[{ id: 'a', name: 'Alpha' }]}
-          />
-        ),
-        document.body,
-      );
-      const list = document.querySelector('[data-cuj-elf="list"]');
-      for (const row of findRows()) expect(row.parentElement!.closest('[data-cuj-elf]')).toBe(list);
-    });
   });
 
   describe('slot stability across itemConfig re-runs', () => {

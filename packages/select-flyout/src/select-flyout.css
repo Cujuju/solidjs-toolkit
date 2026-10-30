@@ -2,18 +2,28 @@
    `--font-size-*`) all carry dark-default fallbacks: an unset token invalidates its
    declaration and breaks the control. */
 
+@layer cujuju-defaults {
+  .cujuju-select-flyout-trigger {
+    --cujuju-select-flyout-chevron-icon: 14px;
+    --cujuju-select-flyout-chevron-right: 8px;
+    /* Right padding reserves room for the absolutely-positioned chevron
+       (right offset + icon width + 6px breathing). Keep these three
+       numbers consistent or update them together. */
+    --cujuju-select-flyout-chevron-room: calc(
+      var(--cujuju-select-flyout-chevron-right)
+      + var(--cujuju-select-flyout-chevron-icon)
+      + 6px
+    );
+    --cujuju-select-flyout-trigger-pad-left: 10px;
+  }
+
+  .cujuju-select-flyout-option {
+    /* Selection rail width; 3px matches the tri-state chip's rail. */
+    --cujuju-select-flyout-rail-width: 3px;
+  }
+}
+
 .cujuju-select-flyout-trigger {
-  --cujuju-select-flyout-chevron-icon: 14px;
-  --cujuju-select-flyout-chevron-right: 8px;
-  /* Right padding reserves room for the absolutely-positioned chevron
-     (right offset + icon width + 6px breathing). Keep these three
-     numbers consistent or update them together. */
-  --cujuju-select-flyout-chevron-room: calc(
-    var(--cujuju-select-flyout-chevron-right)
-    + var(--cujuju-select-flyout-chevron-icon)
-    + 6px
-  );
-  --cujuju-select-flyout-trigger-pad-left: 10px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -97,8 +107,6 @@
 }
 
 .cujuju-select-flyout-option {
-  /* Selection rail width; 3px matches the tri-state chip's rail. */
-  --cujuju-select-flyout-rail-width: 3px;
   display: flex;
   align-items: center;
   gap: 8px;

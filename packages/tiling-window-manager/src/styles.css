@@ -38,8 +38,12 @@
   border-radius: 2px;
 }
 /* The grab area overhangs a gap narrower than --twm-handle-grab, so spacing and grab size stay independent. */
+@layer cujuju-defaults {
+  .twm-handle::before {
+    --twm-handle-overhang: min(0px, calc((100% - var(--twm-handle-grab, 12px)) / 2));
+  }
+}
 .twm-handle::before {
-  --twm-handle-overhang: min(0px, calc((100% - var(--twm-handle-grab, 12px)) / 2));
   content: '';
   position: absolute;
   inset: 0;

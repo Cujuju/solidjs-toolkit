@@ -1,0 +1,72 @@
+import { describe, it, expect } from 'vitest';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+
+// CONTRIBUTING §5: a package's custom-property declarations live in `@layer cujuju-defaults`, so unlayered consumer CSS
+// wins whatever the load order. Misses: tokens written from JS.
+
+const DEFAULTS_LAYER = /^@layer\s+cujuju-defaults$/;
+
+/** Each custom property declared outside `@layer cujuju-defaults`, as `<selector> <--name>`. */
+export function unlayeredTokens(css: string): string[] {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const preludes: string[] = [];
+  const hits: string[] = [];
+  let buf = '';
+  const collect = (declarations: string): void => {
+    if (preludes.some((p) => DEFAULTS_LAYER.test(p))) return;
+    for (const m of declarations.matchAll(/(?:^|;)\s*(--[\w-]+)\s*:/g)) hits.push(`${preludes.at(-1) ?? '(top level)'} ${m[1]}`);
+  };
+  for (const ch of text) {
+    if (ch === '{') {
+      // Declarations before a nested block belong to the enclosing rule.
+      const cut = buf.lastIndexOf(';') + 1;
+      collect(buf.slice(0, cut));
+      preludes.push(buf.slice(cut).trim().replace(/\s+/g, ' '));
+      buf = '';
+    } else if (ch === '}') {
+      collect(buf);
+      preludes.pop();
+      buf = '';
+    } else buf += ch;
+  }
+  return hits;
+}
+
+function collectCssFiles(dir: string, acc: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules' || entry === 'dist' || entry === '__tests__') continue;
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) collectCssFiles(full, acc);
+    else if (entry.endsWith('.css')) acc.push(full);
+  }
+  return acc;
+}
+
+describe('the token-layer scanner itself', () => {
+  it('flags tokens outside the defaults layer, at any nesting', () => {
+    expect(unlayeredTokens(':root { --a: 1; }')).toEqual([':root --a']);
+    expect(unlayeredTokens('@media (x) { .c { color: red; --b: calc(var(--a) * 2); } }')).toEqual(['.c --b']);
+  });
+
+  it('accepts tokens inside the layer, nested or not, and ignores var() reads and comments', () => {
+    expect(unlayeredTokens('@layer cujuju-defaults { :root { --a: 1; } @supports (x) { .c { --b: 2; } } }')).toEqual([]);
+    expect(unlayeredTokens('.c { width: var(--a); /* --b: 1; */ }')).toEqual([]);
+  });
+
+  it('attributes declarations before a nested block to the enclosing rule', () => {
+    expect(unlayeredTokens('.c { --a: 1; &:hover { color: red; } }')).toEqual(['.c --a']);
+  });
+});
+
+describe('CSS token layer contract', () => {
+  it('every custom property a package declares is inside @layer cujuju-defaults', () => {
+    const packageDir = process.env.PACKAGE_DIR;
+    expect(packageDir, 'libTest sets PACKAGE_DIR').toBeTruthy();
+    const srcDir = join(packageDir!, 'src');
+    const files = existsSync(srcDir) ? collectCssFiles(srcDir) : [];
+    const offenders = files.flatMap((file) =>
+      unlayeredTokens(readFileSync(file, 'utf8')).map((hit) => `${relative(packageDir!, file).split(sep).join('/')}: ${hit}`));
+    expect(offenders, `Move these declarations into \`@layer cujuju-defaults\`. Offenders:\n${offenders.join('\n')}`).toEqual([]);
+  });
+});

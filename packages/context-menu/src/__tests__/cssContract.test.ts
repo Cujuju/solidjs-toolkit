@@ -81,8 +81,9 @@ describe('context-menu.css', () => {
   });
 
   it('sticky search backing reads no token that .glass-menu rebinds', () => {
-    const glassMenuBlock = /(?:^|\n)\.glass-menu\s*\{([^}]*)\}/.exec(GLASS_CSS)?.[1] ?? '';
-    const rebound = new Set(Array.from(glassMenuBlock.matchAll(/(--[\w-]+)\s*:/g), (m) => m[1]));
+    // Every `.glass-menu` rule, layered (indented) or not.
+    const glassMenuBlocks = Array.from(GLASS_CSS.matchAll(/(?:^|\n)\s*\.glass-menu\s*\{([^}]*)\}/g), (m) => m[1]).join('');
+    const rebound = new Set(Array.from(glassMenuBlocks.matchAll(/(--[\w-]+)\s*:/g), (m) => m[1]));
     const background =
       /\.cujuju-context-menu-flyout-search\s*\{[^}]*?background:\s*([^;]+);/.exec(MENU_CSS)?.[1] ?? '';
     const token = /var\(\s*(--[\w-]+)/.exec(background)?.[1];

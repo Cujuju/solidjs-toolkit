@@ -124,10 +124,11 @@ interface EditableListFlyoutItemConfig {
 ## Styling
 
 The package entry imports `styles.css` (the built bundle also exports
-`./style.css`). Defaults are declared
-on every `[data-cuj-elf]` element, so an override must match those elements
-(e.g. `.my-flyout [data-cuj-elf] { … }` with `class="my-flyout"`); setting a
-token on an outer ancestor has no effect.
+`./style.css`). Defaults are declared on `:root` inside
+`@layer cujuju-defaults`, so any unlayered rule wins: set a token on `:root`
+or on any ancestor of the flyout. The row icon colours (`--cuj-elr-icon-fg`,
+`-hover`) are re-declared on the in-flyout rows; override those on
+`[data-cuj-elr]`.
 
 | Token | Default | Purpose |
 |---|---|---|

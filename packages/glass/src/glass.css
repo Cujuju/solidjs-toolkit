@@ -78,13 +78,18 @@
 /* Extends `.glass-panel` with smoked tint, luminance compression and an inner edge; rebinds
    text/border/surface tokens for descendants. A higher-specificity `color: inherit` descendant
    reverts to body colour. */
+@layer cujuju-defaults {
+  .glass-menu {
+    --color-text: var(--cujuju-glass-menu-text);
+    --color-text-secondary: var(--cujuju-glass-menu-text-secondary);
+    --color-text-muted: var(--cujuju-glass-menu-text-muted);
+    --color-border: var(--cujuju-glass-menu-border);
+    --color-surface-raised: var(--cujuju-glass-menu-surface-raised);
+    --color-surface: var(--cujuju-glass-menu-input-bg);
+  }
+}
+
 .glass-menu {
-  --color-text: var(--cujuju-glass-menu-text);
-  --color-text-secondary: var(--cujuju-glass-menu-text-secondary);
-  --color-text-muted: var(--cujuju-glass-menu-text-muted);
-  --color-border: var(--cujuju-glass-menu-border);
-  --color-surface-raised: var(--cujuju-glass-menu-surface-raised);
-  --color-surface: var(--cujuju-glass-menu-input-bg);
   /* Re-resolve `color` against the rebound `--color-text`; otherwise it inherits the body's
      already-computed colour. */
   color: var(--color-text);

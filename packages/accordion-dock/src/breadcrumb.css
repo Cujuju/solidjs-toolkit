@@ -3,16 +3,20 @@
  * be folded in on promotion. Every value comes from an existing --acc-* token.
  */
 
-.acc-breadcrumb {
-  /* Cap on ONE crumb's label — the elision handles "too many crumbs", this handles one
+@layer cujuju-defaults {
+  .acc-breadcrumb {
+    /* Cap on ONE crumb's label — the elision handles "too many crumbs", this handles one
        absurd label. Sized just under --acc-col-width, so a crumb never claims more room than
        its column. */
-  --acc-crumb-max-width: 180px;
-  /* Gap around a separator. Half the header padding: the separator is a joint
-     between two labels, not a boundary between two regions, so it reads wrong
-     at full header spacing. */
-  --acc-crumb-gap: calc(var(--acc-header-pad-x) / 2);
+    --acc-crumb-max-width: 180px;
+    /* Gap around a separator. Half the header padding: the separator is a joint
+       between two labels, not a boundary between two regions, so it reads wrong
+       at full header spacing. */
+    --acc-crumb-gap: calc(var(--acc-header-pad-x) / 2);
+  }
+}
 
+.acc-breadcrumb {
   display: flex;
   align-items: center;
   /* min-width:0 on a flex child is what actually lets the inner ellipsis fire;

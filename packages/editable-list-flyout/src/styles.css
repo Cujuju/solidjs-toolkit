@@ -3,42 +3,45 @@
  * `--cuj-elf-*`. Footer button and input share geometry so the morph doesn't shift the list.
  */
 
-[data-cuj-elf] {
-  /* Dark like the rest of the toolkit; this package shipped a white panel that flashed in dark
-  apps. A floating panel must be opaque, so it cannot derive from currentColor. */
-  --cuj-elf-popover-bg: #1e293b;
-  /* The panel picks its own background, so it must pick its text colour too;
-     otherwise row labels inherit the host page's colour. */
-  --cuj-elf-popover-fg: #e2e8f0;
-  --cuj-elf-popover-border: 1px solid rgba(255, 255, 255, 0.12);
-  --cuj-elf-popover-radius: 8px;
-  --cuj-elf-popover-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  /* Vertical only: a horizontal inset would float the active row's selection
-     rail in from the panel edge instead of running flush against it. */
-  --cuj-elf-popover-padding: 6px 0;
-  /* Selection rail — 3px matches select-flyout, pill-date-picker and the
-     tri-state chip's rail, so every such stripe is the same weight. */
-  --cuj-elf-rail-width: 3px;
-  --cuj-elf-rail-color: #3b82f6;
-  --cuj-elf-popover-min-width: 220px;
-  --cuj-elf-popover-max-height: 60vh;
+/* On `:root`, not the flyout's elements, so a token set on any ancestor reaches the panel. */
+@layer cujuju-defaults {
+  :root {
+    /* Dark like the rest of the toolkit; this package shipped a white panel that flashed in dark
+    apps. A floating panel must be opaque, so it cannot derive from currentColor. */
+    --cuj-elf-popover-bg: #1e293b;
+    /* The panel picks its own background, so it must pick its text colour too;
+       otherwise row labels inherit the host page's colour. */
+    --cuj-elf-popover-fg: #e2e8f0;
+    --cuj-elf-popover-border: 1px solid rgba(255, 255, 255, 0.12);
+    --cuj-elf-popover-radius: 8px;
+    --cuj-elf-popover-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    /* Vertical only: a horizontal inset would float the active row's selection
+       rail in from the panel edge instead of running flush against it. */
+    --cuj-elf-popover-padding: 6px 0;
+    /* Selection rail — 3px matches select-flyout, pill-date-picker and the
+       tri-state chip's rail, so every such stripe is the same weight. */
+    --cuj-elf-rail-width: 3px;
+    --cuj-elf-rail-color: #3b82f6;
+    --cuj-elf-popover-min-width: 220px;
+    --cuj-elf-popover-max-height: 60vh;
 
-  --cuj-elf-list-gap: 2px;
+    --cuj-elf-list-gap: 2px;
 
-  --cuj-elf-footer-margin-top: 6px;
-  --cuj-elf-footer-padding-y: 6px;
-  --cuj-elf-footer-padding-x: 8px;
-  --cuj-elf-footer-radius: 6px;
-  --cuj-elf-footer-border-style: 1px dashed #b6b6b6;
-  --cuj-elf-footer-bg: transparent;
-  --cuj-elf-footer-fg: #94a3b8;
-  --cuj-elf-footer-fg-hover: #e2e8f0;
-  --cuj-elf-footer-bg-hover: rgba(59, 130, 246, 0.05);
-  /* From the footer's own text colour, not `#fff`, which flashed bright on dark themes. Matches
-       `--cuj-elr-bg-rename-input` in editable-list-row. */
-  --cuj-elf-footer-input-bg: color-mix(in srgb, currentColor 8%, transparent);
-  --cuj-elf-footer-input-border: 1px solid #3b82f6;
-  --cuj-elf-footer-icon-size: 14px;
+    --cuj-elf-footer-margin-top: 6px;
+    --cuj-elf-footer-padding-y: 6px;
+    --cuj-elf-footer-padding-x: 8px;
+    --cuj-elf-footer-radius: 6px;
+    --cuj-elf-footer-border-style: 1px dashed #b6b6b6;
+    --cuj-elf-footer-bg: transparent;
+    --cuj-elf-footer-fg: #94a3b8;
+    --cuj-elf-footer-fg-hover: #e2e8f0;
+    --cuj-elf-footer-bg-hover: rgba(59, 130, 246, 0.05);
+    /* From the footer's own text colour, not `#fff`, which flashed bright on dark themes. Matches
+         `--cuj-elr-bg-rename-input` in editable-list-row. */
+    --cuj-elf-footer-input-bg: color-mix(in srgb, currentColor 8%, transparent);
+    --cuj-elf-footer-input-border: 1px solid #3b82f6;
+    --cuj-elf-footer-icon-size: 14px;
+  }
 }
 
 [data-cuj-elf='popover'] {
@@ -92,9 +95,11 @@
 }
 
 /* Dark-panel overrides of editable-list-row's light `:root` defaults, on the rows themselves. */
-[data-cuj-elf='list'] [data-cuj-elr] {
-  --cuj-elr-icon-fg: #94a3b8;
-  --cuj-elr-icon-fg-hover: #e2e8f0;
+@layer cujuju-defaults {
+  [data-cuj-elf='list'] [data-cuj-elr] {
+    --cuj-elr-icon-fg: #94a3b8;
+    --cuj-elr-icon-fg-hover: #e2e8f0;
+  }
 }
 
 [data-cuj-elf='list'] [data-cuj-elr='row'][data-active='true'] {

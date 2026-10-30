@@ -44,7 +44,7 @@ function contrast(a: string, b: string): number {
 }
 
 describe('flyout palette on the dark popover', () => {
-  const root = blockFor('[data-cuj-elf]');
+  const root = blockFor(':root');
   const bg = tokenIn(root, '--cuj-elf-popover-bg');
 
   it.each(['--cuj-elf-footer-fg', '--cuj-elf-footer-fg-hover'])('%s is legible text', (name) => {

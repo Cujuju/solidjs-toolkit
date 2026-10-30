@@ -232,31 +232,35 @@
 /* Chips come from `@cujuju/solidjs-tri-state-chip` (`.ctc-chip`); its `--ctc-*` vars are
    overridden here so chips match the host palette. Set on `.cujuju-cf-chips`, they cascade
    to every chip. */
+@layer cujuju-defaults {
+  .cujuju-cf-chips {
+    --ctc-bg: var(--color-surface, #0f172a);
+    --ctc-color: var(--color-text, #e2e8f0);
+    --ctc-border: 1px solid var(--color-border, #334155);
+    --ctc-border-hover: 1px solid var(--color-primary, #6366f1);
+
+    --ctc-bg-included: var(--color-success-alpha-15, rgba(16, 185, 129, 0.15));
+    --ctc-color-included: var(--color-success, #10b981);
+    --ctc-border-included: 1px solid var(--color-success, #10b981);
+    --ctc-bg-included-hover: var(--color-success-alpha-25, rgba(16, 185, 129, 0.25));
+
+    --ctc-bg-excluded: var(--color-danger-alpha-15, rgba(244, 63, 94, 0.15));
+    --ctc-color-excluded: var(--color-danger, #f43f5e);
+    --ctc-border-excluded: 1px solid var(--color-danger, #f43f5e);
+    --ctc-bg-excluded-hover: var(--color-danger-alpha-25, rgba(244, 63, 94, 0.25));
+
+    --ctc-padding: 5px 10px;
+    --ctc-radius: var(--radius-btn, 6px);
+    --ctc-font-size: var(--font-size-sm, 13px);
+    --ctc-font-weight: 500;
+    --ctc-transition: var(--transition-speed, 120ms);
+  }
+}
+
 .cujuju-cf-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs, 4px);
-
-  --ctc-bg: var(--color-surface, #0f172a);
-  --ctc-color: var(--color-text, #e2e8f0);
-  --ctc-border: 1px solid var(--color-border, #334155);
-  --ctc-border-hover: 1px solid var(--color-primary, #6366f1);
-
-  --ctc-bg-included: var(--color-success-alpha-15, rgba(16, 185, 129, 0.15));
-  --ctc-color-included: var(--color-success, #10b981);
-  --ctc-border-included: 1px solid var(--color-success, #10b981);
-  --ctc-bg-included-hover: var(--color-success-alpha-25, rgba(16, 185, 129, 0.25));
-
-  --ctc-bg-excluded: var(--color-danger-alpha-15, rgba(244, 63, 94, 0.15));
-  --ctc-color-excluded: var(--color-danger, #f43f5e);
-  --ctc-border-excluded: 1px solid var(--color-danger, #f43f5e);
-  --ctc-bg-excluded-hover: var(--color-danger-alpha-25, rgba(244, 63, 94, 0.25));
-
-  --ctc-padding: 5px 10px;
-  --ctc-radius: var(--radius-btn, 6px);
-  --ctc-font-size: var(--font-size-sm, 13px);
-  --ctc-font-weight: 500;
-  --ctc-transition: var(--transition-speed, 120ms);
 }
 
 /* ── Group headers ────────────────────────────────────────────── */

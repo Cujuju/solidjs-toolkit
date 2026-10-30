@@ -3,9 +3,11 @@
  * only ships overridable variables. Content styling is the consumer's.
  */
 
-:root {
-  /* Shell-level z-index. Top-layer popovers naturally paint above page
-   * content, but consumers can adjust if they have an existing stacking
-   * context fight to win. */
-  --cuj-ap-z-index: 1000;
+@layer cujuju-defaults {
+  :root {
+    /* Shell-level z-index. Top-layer popovers naturally paint above page
+     * content, but consumers can adjust if they have an existing stacking
+     * context fight to win. */
+    --cuj-ap-z-index: 1000;
+  }
 }

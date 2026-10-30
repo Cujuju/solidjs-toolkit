@@ -3,10 +3,12 @@
  * meant to be folded in on promotion. Every value comes from an existing --acc-* token.
  */
 
-.acc-rail {
-  /* Fade depth at the rail's ends under `pan` — the affordance replacing the scrollbar.
+@layer cujuju-defaults {
+  .acc-rail {
+    /* Fade depth at the rail's ends under `pan` — the affordance replacing the scrollbar.
        Sized from the rail's own button padding, so it scales with density. */
-  --acc-rail-fade: calc(var(--acc-rail-btn-pad-block) * 3);
+    --acc-rail-fade: calc(var(--acc-rail-btn-pad-block) * 3);
+  }
 }
 
 /* ── Overflow strategy: menu ──────────────────────────────────────────────────

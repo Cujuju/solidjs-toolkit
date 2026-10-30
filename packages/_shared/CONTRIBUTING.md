@@ -54,9 +54,14 @@ Primitive lives at `cujuju-solidjs-hold-action/_internal/measure.ts`. Duplicate 
 
 ## 5. Package defaults in `@layer cujuju-defaults`
 
-**Rule:** CSS files shipped with a package must wrap all `:root` default declarations in `@layer cujuju-defaults`. Consumer-supplied unlayered CSS must win regardless of stylesheet load order.
+**Rule:** every custom property a package's CSS declares sits inside `@layer cujuju-defaults`. Consumer-supplied unlayered CSS must win regardless of stylesheet load order.
 
-**Why:** package stylesheets are side-effect-imported by component JS, which runs after the host's bootstrap CSS. Without `@layer`, package defaults override consumer mappings. Bug observed when SegGroup colors reverted to the package's built-in green.
+- Theme defaults go on `:root`. A token declared on the component's own elements shadows the value a host sets on any ancestor, so only a rule matching those elements can override it.
+- Element-scoped declarations, still inside the layer, are only for variants (`[data-badge='danger']`), values derived from the element (`100%`, `currentColor`), private `--_*` tokens, and re-mapping another package's tokens for one subtree.
+
+**Why:** package stylesheets are side-effect-imported by component JS, which runs after the host's bootstrap CSS. Without `@layer`, package defaults override consumer mappings. Bug observed when SegGroup colors reverted to the package's built-in green. editable-list-flyout declared its defaults on `[data-cuj-elf]`, so ancestor overrides had no effect.
+
+**Enforced by** `_shared/contracts/cssTokenLayer.test.ts`, which runs in every package and fails on any custom property declared outside the layer. Not checked: tokens written from JS, and whether a theme default sits on `:root` (review that).
 
 ---
 

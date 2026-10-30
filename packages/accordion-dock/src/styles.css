@@ -177,10 +177,15 @@
 
 /* ── Group ──────────────────────────────────────────────────────────────── */
 
+@layer cujuju-defaults {
+  .acc-group {
+    /* Private (leading `_`): derived from `--acc-splitter-hit`, group-scoped, never a host
+       input. Every splitter offset and the animated clip margin read it. */
+    --_acc-splitter-overhang: calc(var(--acc-splitter-hit) / 2);
+  }
+}
+
 .acc-group {
-  /* Private (leading `_`): derived from `--acc-splitter-hit`, group-scoped, never a host
-     input. Every splitter offset and the animated clip margin read it. */
-  --_acc-splitter-overhang: calc(var(--acc-splitter-hit) / 2);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -668,20 +673,22 @@
 
 /* Severity is a closed set of named tokens, not a free colour prop: a dock whose panels
    each invented their own amber stops communicating urgency. Brand colour goes in `accent`. */
-.acc-badge[data-badge='info'] {
-  --acc-badge-color: var(--acc-accent);
-}
+@layer cujuju-defaults {
+  .acc-badge[data-badge='info'] {
+    --acc-badge-color: var(--acc-accent);
+  }
 
-.acc-badge[data-badge='success'] {
-  --acc-badge-color: var(--acc-badge-success);
-}
+  .acc-badge[data-badge='success'] {
+    --acc-badge-color: var(--acc-badge-success);
+  }
 
-.acc-badge[data-badge='warning'] {
-  --acc-badge-color: var(--acc-badge-warning);
-}
+  .acc-badge[data-badge='warning'] {
+    --acc-badge-color: var(--acc-badge-warning);
+  }
 
-.acc-badge[data-badge='danger'] {
-  --acc-badge-color: var(--acc-badge-danger);
+  .acc-badge[data-badge='danger'] {
+    --acc-badge-color: var(--acc-badge-danger);
+  }
 }
 
 .acc-header-tail {
@@ -976,11 +983,16 @@
    PURELY CHROME: nothing here changes behaviour, and every rule is keyed on
    `[data-appearance='cards']`. See DESIGN_NOTES.md § src/styles.css:1297. */
 
+@layer cujuju-defaults {
+  .acc-group[data-appearance='cards'] {
+    /* The handle sits mid-gap: half a gap further out. */
+    --_acc-splitter-overhang: calc(var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2);
+  }
+}
+
 .acc-group[data-appearance='cards'] {
   /* A frame around a row of framed cards is doubled chrome. The group keeps its layout job
    and gives up decoration; the host's background is what separates the cards. */
-  /* The handle sits mid-gap: half a gap further out. */
-  --_acc-splitter-overhang: calc(var(--acc-splitter-hit) / 2 + var(--acc-card-gap) / 2);
   border: 0;
   background: transparent;
   /* The divider. Applied on the group so it follows the main axis in either orientation, and
