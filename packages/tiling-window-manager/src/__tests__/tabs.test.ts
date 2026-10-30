@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeTileLayout, minimumSize } from '../layout';
-import { planMove } from '../plan';
+import { planInsertion, planMove } from '../plan';
 import { planTabFold } from '../tabStripFold';
 import { addToTabs, dock, insertTile, moveTab, removeTile, setActiveTab, swapTiles } from '../tileEdits';
 import { normalize } from '../tileRepair';
@@ -71,5 +71,12 @@ describe('tab strip fold', () => {
   });
   it('needs extra room to unfold, so a boundary width cannot flicker', () => {
     expect(planTabFold({ ...input, room: 200, previous: 'inactive-icons' })).toBe('inactive-icons');
+  });
+});
+
+describe('preserve placement beside a tab group', () => {
+  it('splits a tab group with room: its inactive tabs resize with the slot, not against the rule', () => {
+    const root: TileNode = row([1, 1], tabs(0, 'a', 'b'), t('c'));
+    expect(planInsertion(root, 'n', 'a', 'bottom', SIZE, options)).toMatchObject({ valid: true });
   });
 });

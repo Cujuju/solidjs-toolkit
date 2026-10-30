@@ -72,6 +72,45 @@ describe('TilingWorkspace tab groups', () => {
   });
 });
 
+describe('TilingWorkspace tab groups — review regressions', () => {
+  it('without `tabs`, a centre drop swaps instead of doing nothing', () => {
+    const [layout, setLayout] = createSignal<TileNode | undefined>(pair);
+    const { getByTestId } = render(() => (
+      <TilingWorkspace layout={layout()} onLayoutChange={setLayout} gapPx={GAP} minSize={() => ({ width: MIN, height: MIN })}>
+        {(tile) => <header data-testid={`grip-${tile.id}`} onPointerDown={tile.startMove}>{tile.id}</header>}
+      </TilingWorkspace>
+    ));
+    drag(getByTestId('grip-a'), { clientX: 310, clientY: 150 });
+    expect(layout()).toEqual({ ...pair, children: [t('b'), t('a')] });
+  });
+
+  it('keyboard selection moves focus to the strip of the tile now shown', () => {
+    const { getAllByRole } = setup({ kind: 'tabs', active: 0, children: [t('a'), t('b')] });
+    const visibleTabs = () => getAllByRole('tab').filter((tab) => !tab.closest('[hidden]'));
+    visibleTabs()[0].focus();
+    fireEvent.keyDown(visibleTabs()[0], { key: 'ArrowRight' });
+    expect(document.activeElement?.closest('[hidden]')).toBeNull();
+    expect(document.activeElement?.textContent).toBe('Tab b');
+  });
+
+  it('unmounting mid-press removes the press listeners from window', () => {
+    const removed: string[] = [];
+    const original = window.removeEventListener.bind(window);
+    window.removeEventListener = ((type: string, ...rest: unknown[]) => {
+      removed.push(type);
+      return (original as (...a: unknown[]) => void)(type, ...rest);
+    }) as typeof window.removeEventListener;
+    try {
+      const { getAllByRole, unmount } = setup({ kind: 'tabs', active: 0, children: [t('a'), t('b')] });
+      fireEvent.pointerDown(getAllByRole('tab')[0], { button: 0, clientX: 10, clientY: 10 });
+      unmount();
+      expect(removed).toEqual(expect.arrayContaining(['pointermove', 'pointerup', 'pointercancel']));
+    } finally {
+      window.removeEventListener = original;
+    }
+  });
+});
+
 describe('TilingWorkspace tab targets', () => {
   function setupTarget(tabs: true | { target: string }) {
     const [layout, setLayout] = createSignal<TileNode | undefined>(pair);

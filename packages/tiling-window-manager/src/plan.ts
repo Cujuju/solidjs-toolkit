@@ -58,8 +58,10 @@ export function planInsertion(
   const placed = after.tiles.get(insertedId);
   const remaining = after.tiles.get(targetId);
   if (!placed || !remaining || !fits(placed, newMinimum) || !fits(remaining, targetMinimum)) return unavailable(TOO_SMALL);
+  // Inactive tabs share the target's slot, so they resize with it.
+  const targetSlotIds = new Set(location.slot.kind === 'tabs' ? location.slot.children.map((child) => child.id) : [targetId]);
   for (const [id, rect] of before.tiles) {
-    if (id === targetId) continue;
+    if (targetSlotIds.has(id)) continue;
     const moved = after.tiles.get(id);
     if (!moved || !matches(rect, moved)) return unavailable(WOULD_RESIZE);
   }

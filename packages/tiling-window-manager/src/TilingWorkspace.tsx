@@ -102,10 +102,13 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     exclude: (movedId) => (findSlot(props.layout, movedId)?.slot.kind === 'tile' ? movedId : undefined),
     plan: planFor,
     onDrop: (movedId, targetId, zone) => { const plan = planFor(movedId, targetId, zone); if (plan) change(plan.next); },
-    onTab: (movedId, targetId) => props.tabs && props.layout && change(addToTabs(props.layout, movedId, targetId)),
-    onCenterDrop: (drop) => props.tabs && setCenterDrop(drop),
     tabTarget: () => (typeof props.tabs === 'object' && props.tabs.target) || DEFAULT_TAB_TARGET,
-    // Getters: the gesture reads whether each hook is set at press time.
+    // Getters: the gesture reads whether each hook is set at press time. Without tabs the tab hooks
+    // are unset, so a centre drop falls through to a swap instead of an ignored menu request.
+    get onTab() {
+      return props.tabs ? (movedId: string, targetId: string) => { if (props.layout) change(addToTabs(props.layout, movedId, targetId)); } : undefined;
+    },
+    get onCenterDrop() { return props.tabs ? setCenterDrop : undefined; },
     get onDropOutside() { return props.onDropOutside; },
     get onDragPhase() { return props.onDragPhase; },
   });

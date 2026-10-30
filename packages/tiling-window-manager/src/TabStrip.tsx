@@ -72,8 +72,12 @@ export function TabStrip(props: TabStripProps) {
   const select = (index: number) => {
     const g = group();
     if (!g) return;
+    const id = g.ids[index];
     g.select(index);
-    buttons.get(g.ids[index])?.button.focus();
+    // Selecting hides this strip's tile: hand focus to the strip in the tile now shown.
+    const shown = [...(strip?.closest('.twm')?.querySelectorAll<HTMLElement>('.twm-tile') ?? [])]
+      .find((tile) => tile.dataset.tileId === id && !tile.hidden);
+    (shown?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ?? buttons.get(id)?.button)?.focus();
   };
   const navigate = (event: KeyboardEvent, index: number) => {
     const count = ids().length;
@@ -84,6 +88,10 @@ export function TabStrip(props: TabStripProps) {
     event.stopPropagation();
     select(next);
   };
+
+  /** Removes a live press's window listeners; also run on unmount mid-press. */
+  let endPress: (() => void) | undefined;
+  onCleanup(() => endPress?.());
 
   // Along the strip a drag reorders; once the pointer leaves the strip's band it becomes a dock drag.
   const press = (id: string, event: PointerEvent) => {
@@ -110,9 +118,7 @@ export function TabStrip(props: TabStripProps) {
     };
     const up = () => finish(true);
     const finish = (commit: boolean) => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', cancel);
+      endPress?.();
       const shown = order();
       setOrder(null);
       setDraggedId(null);
@@ -120,6 +126,13 @@ export function TabStrip(props: TabStripProps) {
       if (commit && shown) group()?.move(id, shown.indexOf(id));
     };
     const cancel = () => finish(false);
+    endPress?.();
+    endPress = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      endPress = undefined;
+    };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', cancel);
