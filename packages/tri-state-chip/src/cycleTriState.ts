@@ -11,9 +11,9 @@ export interface TriStateValue {
   excluded: string[];
 }
 
-/** Neutral / empty tri-state value. Not frozen — callers that need to mutate
- *  should clone via `{ ...EMPTY_TRI_STATE }`. The shared instance is safe to
- *  pass straight to setters whose stores do reference-equality short-circuits. */
+/** Neutral / empty tri-state value. Not frozen; never mutate it. To mutate, create
+ *  `{ included: [], excluded: [] }`: a spread clone still shares both arrays. Safe to pass
+ *  straight to setters whose stores short-circuit on reference equality. */
 export const EMPTY_TRI_STATE: TriStateValue = { included: [], excluded: [] };
 
 /** Default cycle order: unselected → included → excluded → unselected. */
