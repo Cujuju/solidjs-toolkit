@@ -75,7 +75,7 @@ export interface EditableListFlyoutProps<TItem extends { id: string; name: strin
   /** Renders a footer "+ New X": button morphs to input; Enter commits, Escape or blur-empty
    *  cancels, blur-with-value commits. Reject keeps the typed value. */
   onCreate?: (name: string) => Promise<void>;
-  /** Footer add button label. Default `"+ New"`. */
+  /** Footer add button label. Default `"New"`. A leading `+` is dropped: the button draws its own. */
   createButtonLabel?: string;
   /** Footer add input placeholder. Default `"Name…"`. */
   createPlaceholder?: string;
@@ -244,10 +244,9 @@ export default function EditableListFlyout<
                 type="button"
                 data-cuj-elf="add-button"
                 onClick={startCreating}
-                aria-label={(props.createButtonLabel ?? '+ New').replace(/^\+\s*/, 'New ')}
               >
                 <span aria-hidden="true">+</span>
-                <span>{props.createButtonLabel ?? 'New'}</span>
+                <span>{(props.createButtonLabel ?? 'New').replace(/^\+\s*/, '')}</span>
               </button>
             }
           >

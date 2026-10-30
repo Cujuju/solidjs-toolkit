@@ -268,6 +268,34 @@ describe('EditableListFlyout', () => {
       expect(findAddButton()).not.toBeNull();
     });
 
+    it('names the add button once: the drawn "+" is hidden and a leading "+" in the label is dropped', () => {
+      const [open] = createSignal(true);
+      const anchor = makeAnchor();
+      const [label, setLabel] = createSignal<string | undefined>(undefined);
+      dispose = render(
+        () => (
+          <EditableListFlyout
+            open={open}
+            anchor={() => anchor}
+            onDismiss={() => {}}
+            items={[]}
+            onCreate={() => Promise.resolve()}
+            createButtonLabel={label()}
+          />
+        ),
+        document.body,
+      );
+      const visibleName = () =>
+        [...findAddButton()!.childNodes]
+          .filter((n) => !(n instanceof HTMLElement && n.getAttribute('aria-hidden') === 'true'))
+          .map((n) => n.textContent)
+          .join('');
+      expect(findAddButton()!.getAttribute('aria-label')).toBeNull();
+      expect(visibleName()).toBe('New');
+      setLabel('+ Add');
+      expect(visibleName()).toBe('Add');
+    });
+
     it('Escape cancels — does not call onCreate', () => {
       const onCreate = vi.fn(() => Promise.resolve());
       const [open] = createSignal(true);
