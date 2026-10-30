@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { Show, createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import { AccordionGroup } from '../AccordionGroup';
 import { AccordionPanel } from '../AccordionPanel';
@@ -132,6 +133,52 @@ describe('vertical auto-hide — the activator survives', () => {
 
     expect(g.panelEl('a')!.getAttribute('data-flyout')).toBe('true');
     g.unmount();
+  });
+
+  it('the flying-out shell carries no inline flex, so an explicit size cannot grow it', () => {
+    const g = mountGroup({ orientation: 'vertical', panels: TWO });
+    g.api().setSize('a', 200);
+    g.api().setOpen('a', true);
+
+    expect(g.panelEl('a')!.style.flex).toBe('');
+    g.unmount();
+  });
+
+  it('unmounting an open flyout panel removes its flyout', () => {
+    const [showA, setShowA] = createSignal(true);
+    let api!: AccordionGroupApi;
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const dispose = render(
+      () => (
+        <AccordionGroup orientation="vertical" policy="multi" autoHide apiRef={(a) => (api = a)}>
+          <Show when={showA()}>
+            <AccordionPanel id="a" title="a">
+              <div>a body</div>
+            </AccordionPanel>
+          </Show>
+          <AccordionPanel id="b" title="b">
+            <div>b body</div>
+          </AccordionPanel>
+        </AccordionGroup>
+      ),
+      container,
+    );
+    api.setOpen('a', true);
+    expect(api.isFlyout('a')).toBe(true);
+    expect(document.querySelector('.acc-flyout')).not.toBeNull();
+
+    setShowA(false);
+
+    expect(api.isFlyout('a')).toBe(false);
+    expect(document.querySelector('.acc-flyout')).toBeNull();
+    expect(api.visualOpenIds()).toEqual([]);
+
+    // Remembered open state survives the unmount.
+    setShowA(true);
+    expect(api.isFlyout('a')).toBe(true);
+    dispose();
+    container.remove();
   });
 
   it("the panel's inline content host is hidden, so the content is not in flow twice", () => {

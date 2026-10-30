@@ -243,7 +243,9 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
     if (group.isPinned(id)) return false;
     // A leaf has no rail button, so no anchor to place against — and it is terminal by
     // definition, the RESULT of a selection rather than something that should evaporate.
-    return group.meta(id)?.isLeaf !== true;
+    // Unregistered (unmounted) panels keep their open state but have nothing to fly out.
+    const meta = group.meta(id);
+    return meta !== undefined && !meta.isLeaf;
   };
 
   /** Open flyouts in the group's own open sequence, so two coexisting flyouts

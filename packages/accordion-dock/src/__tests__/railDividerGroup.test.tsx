@@ -76,6 +76,23 @@ describe('the painted sequence is ONE sequence', () => {
     m.dispose();
   });
 
+  it('moveBy reorders pinned columns in the PAINTED sequence, not just the panel order', () => {
+    const m = mountHorizontal([
+      { id: 'a', defaultOpen: true },
+      { id: 'b', defaultOpen: true },
+    ]);
+    m.api().togglePin('a');
+    m.api().togglePin('b');
+    expect(m.api().visualOpenIds()).toEqual(['a', 'b']);
+
+    m.api().moveBy('a', 1);
+
+    expect(m.api().order()).toEqual(['b', 'a']);
+    expect(m.api().visualOpenIds()).toEqual(['b', 'a']);
+    assertMonotonicOrders(m.api());
+    m.dispose();
+  });
+
   it('pairs each splitter with the column it actually sits against', () => {
     const m = mountHorizontal([
       { id: 'a', defaultOpen: true },

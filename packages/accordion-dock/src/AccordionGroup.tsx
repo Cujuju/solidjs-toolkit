@@ -319,7 +319,8 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const userOrderOpenIds = createMemo<readonly string[]>(() =>
     orderVisualOpen({
       order: orderIds(),
-      open: openList(),
+      // Unmounted panels keep their remembered open state but paint nothing.
+      open: openList().filter((id) => metaMap().has(id)),
       isLeaf,
       isFlyout: (id) => isFlyoutId(id),
       orderLeaves: leafChain.orderOpen,
@@ -466,6 +467,14 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     cur.splice(from, 1);
     cur.splice(clamped, 0, id);
     commitOrder(cur);
+    // Under the divider pinned columns paint in PIN order, so the move must reach it too:
+    // the moved pin goes before the first pin that now follows it.
+    if (railDivider() && pinned().has(id)) {
+      const pins = [...pinned()].filter((p) => p !== id);
+      const nextPin = cur.slice(clamped + 1).find((p) => pins.includes(p));
+      pins.splice(nextPin === undefined ? pins.length : pins.indexOf(nextPin), 0, id);
+      commitPinned(new Set(pins));
+    }
   };
 
   const resize = createResize({

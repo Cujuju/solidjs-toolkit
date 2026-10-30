@@ -227,7 +227,8 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
    * a group can hold a user-dragged column next to an auto-sized one.
    */
   const sizeStyle = (): JSX.CSSProperties => {
-    if (!open()) return {};
+    // A flying-out shell is out of the layout: inline flex would beat `autoHide.css` and grow it.
+    if (!open() || group.isFlyout(props.id)) return {};
     return columnFlex({
       sizePx: group.sizeOf(props.id),
       fill: group.mode() === 'fill',
