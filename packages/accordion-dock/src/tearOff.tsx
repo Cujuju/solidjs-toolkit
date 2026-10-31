@@ -12,10 +12,7 @@ import { getGlobalTarget, safeAddEventListener } from '@cujuju/solidjs-hooks';
 export const TEAR_OFF_DEFAULT_WIDTH_PX = 520;
 export const TEAR_OFF_DEFAULT_HEIGHT_PX = 680;
 
-/**
- * How often the opener checks whether a popup has gone away, ms. `pagehide` is the fast path
- * but is not guaranteed — a crashed renderer can skip it.
- */
+/** How often the opener checks whether a popup has gone away, ms. See DESIGN_NOTES.md § src/tearOff.tsx:95. */
 export const TEAR_OFF_CLOSE_POLL_MS = 400;
 
 /**
@@ -51,14 +48,10 @@ const TEAR_OFF_STYLE_MARKER_ATTR = 'data-acc-tearoff-style';
 const TEAR_OFF_HOST_ATTR = 'data-acc-tearoff-host';
 const TEAR_OFF_CONTAINER_ATTR = 'data-acc-tearoff';
 
-/** Style nodes worth mirroring: `<style>` in dev, `<link rel=stylesheet>` in prod. Handling
- *  one leaves the popup unstyled in exactly the half nobody tests. */
+/** Style nodes worth mirroring: `<style>` in dev, `<link rel=stylesheet>` in prod. See DESIGN_NOTES.md § src/tearOff.tsx:160. */
 const STYLE_NODE_SELECTOR = 'style, link[rel~="stylesheet"]';
 
-/**
- * Runs INSIDE the popup, surviving an opener death `beforeunload` cannot cover. An orphan
- * rendering from a dead graph is a frozen ghost. A strict CSP drops this silently.
- */
+/** Runs INSIDE the popup, surviving an opener death `beforeunload` cannot cover. See DESIGN_NOTES.md § src/tearOff.tsx:167. */
 const ORPHAN_WATCHDOG_SOURCE = `(function () {
   setInterval(function () {
     if (!window.opener || window.opener.closed) window.close();
@@ -105,10 +98,7 @@ export interface TearOffOptions {
   onDock?: (id: string) => void;
 }
 
-/**
- * The tear-off surface, as it should appear on `AccordionGroupApi`. NOT a third open-state
- * enum: it is orthogonal, and forcing it in would make every predicate lie.
- */
+/** The tear-off surface, as it should appear on `AccordionGroupApi`. See DESIGN_NOTES.md § src/tearOff.tsx:225. */
 export interface AccordionTearOffApi {
   /** Panel ids currently rendering into their own window. */
   tornOff: Accessor<readonly string[]>;
@@ -419,9 +409,7 @@ export function createTearOff(options: TearOffOptions): TearOffController {
     windows.delete(id);
     for (const step of rec.teardown.reverse()) step();
 
-    // One last sample before persisting: the poll refreshes only every tick, so a window moved
-    // then docked would be remembered at its previous position. Guarded — a closed window
-    // reports zeros.
+    // One last sample before persisting: the poll refreshes only every tick, so a window moved then docked would be remembered at its previous position. See DESIGN_NOTES.md § src/tearOff.tsx:575.
     if (!rec.win.closed) {
       const finalSample = sampleGeometry(rec.win);
       if (finalSample !== null) rec.geometry = finalSample;
@@ -550,10 +538,7 @@ export function createTearOff(options: TearOffOptions): TearOffController {
  * Wrap a panel's content so it renders into the dock OR its window, without being rebuilt.
  * ONE `<Portal>` whose `mount` toggles. See DESIGN_NOTES.md § src/tearOff.tsx:733.
  */
-/**
- * ⚠ EXPORTED BUT UNUSED — superseded by the mount-precedence Portal in `AccordionPanel`. This
- * knows only about the popup, so a panel using it could not also fly out.
- */
+/** ⚠ EXPORTED BUT UNUSED — superseded by the mount-precedence Portal in `AccordionPanel`. See DESIGN_NOTES.md § src/tearOff.tsx:746. */
 export function TearOffOutlet(props: {
   id: string;
   api: TearOffController;

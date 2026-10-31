@@ -23,17 +23,10 @@ export interface AccordionLeafProps {
   id: string;
   children: JSX.Element;
 
-  /**
-   * CONTROLLED visibility. A leaf has no activator, so its open state is always the
-   * consumer's — the answer to a selection made upstream. A chained leaf needs its parent
-   * open too.
-   */
+  /** CONTROLLED visibility. See DESIGN_NOTES.md § src/AccordionLeaf.tsx:25. */
   open: boolean;
 
-  /**
-   * The panel or leaf this one hangs off, making it a link in a CHAIN. Naming a LEAF orders
-   * the columns. The prop asserts a dependency: parent closed, this closed.
-   */
+  /** The panel or leaf this one hangs off, making it a link in a CHAIN. See DESIGN_NOTES.md § src/AccordionLeaf.tsx:36. */
   parentId?: string;
 
   title?: string | JSX.Element;
@@ -148,10 +141,7 @@ export function AccordionLeaf(props: AccordionLeafProps): JSX.Element {
     chain.unlink(props.id);
   });
 
-  /**
-   * Mirror the EFFECTIVE open state into the group's open list. Not `props.open`: the render
-   * gate uses the same accessor, and a disagreement leaves a broken flex `order`.
-   */
+  /** Mirror the EFFECTIVE open state into the group's open list. See DESIGN_NOTES.md § src/AccordionLeaf.tsx:207. */
   createEffect(() => {
     // `setLeafOpen`, not `setOpen`: this is the leaf REPORTING what it decided, and `setOpen`
     // would route straight back here as `requestClose`.

@@ -3,10 +3,7 @@ import { ContextMenu, type ContextMenuEntry } from '@cujuju/solidjs-context-menu
 import { slotRef, RAIL_OVERFLOW_SLOT_KEY, type AccordionGroupApi } from './context';
 import { RAIL_OVERFLOW_ATTR } from './railOverflow';
 
-/**
- * The `⋯` at the end of the rail: the panels that did not fit, reachable as a menu instead of
- * behind a scrollbar. Uses `@cujuju/solidjs-context-menu`, so dismissal semantics cannot drift.
- */
+/** The `⋯` at the end of the rail: the panels that did not fit, reachable as a menu instead of behind a scrollbar. See DESIGN_NOTES.md § src/RailOverflowMenu.tsx:6. */
 
 /** Trigger glyph. A horizontal ellipsis rather than a vertical one: it reads as
  *  "continues past here" along the rail's own axis of truncation. */
@@ -25,10 +22,7 @@ export interface RailOverflowMenuProps {
   onMeasure?: (px: number) => void;
 }
 
-/**
- * Rows for the overflow menu, pure so the set is assertable without a renderer. Every row is
- * enabled: `toggle` is meaningful both ways, so open panels get a checkmark.
- */
+/** Rows for the overflow menu, pure so the set is assertable without a renderer. See DESIGN_NOTES.md § src/RailOverflowMenu.tsx:34. */
 export function buildRailOverflowItems(
   group: AccordionGroupApi,
   ids: readonly string[],

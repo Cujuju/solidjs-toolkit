@@ -19,10 +19,7 @@
   flex: 0 0 auto;
 }
 
-/*
- * A flyout has no neighbour to resize against, so its splitter would move nothing. Belt to
- * the suspenders: with `<Splitter>` outside `PanelOutlet` it stays in the hidden docked shell.
- */
+/* A flyout has no neighbour to resize against, so its splitter would move nothing. See DESIGN_NOTES.md § src/autoHide.css:71. */
 .acc-flyout .acc-splitter {
   display: none;
 }
@@ -61,16 +58,12 @@
 @layer cujuju-defaults {
   :root {
     --acc-flyout-shadow: 0 8px 24px rgb(0 0 0 / 45%);
-    /*
-     * Ceiling for a CONTENT-SIZED flyout (vertical). A viewport fraction, so it scales and
-     * never passes the screen edge. Wider content scrolls inside, rather than clipping.
-     */
+    /* Ceiling for a CONTENT-SIZED flyout (vertical). See DESIGN_NOTES.md § src/autoHide.css:125. */
     --acc-flyout-max-width: 60vw;
   }
 }
 
-/* The element the panel's subtree portals into — the flyout's whole content area. Carries
-   `data-density`, because the Portal escapes the group's token scope. */
+/* The element the panel's subtree portals into — the flyout's whole content area. See DESIGN_NOTES.md § src/autoHide.css:140. */
 .acc-flyout-host {
   display: flex;
   flex-direction: column;
@@ -115,10 +108,7 @@
   }
 }
 
-/*
- * `PanelOutlet`'s two wrappers while docked. `display: contents` removes their boxes, so the
- * column layout is unchanged — but they still sit in the SELECTOR chain.
- */
+/* `PanelOutlet`'s two wrappers while docked. See DESIGN_NOTES.md § src/autoHide.css:198. */
 [data-acc-outlet-host],
 [data-acc-outlet] {
   display: contents;

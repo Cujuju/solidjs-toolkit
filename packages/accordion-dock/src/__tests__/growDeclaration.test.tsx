@@ -4,10 +4,7 @@ import { AccordionGroup } from '../AccordionGroup';
 import { AccordionPanel } from '../AccordionPanel';
 import type { AccordionGroupApi } from '../context';
 
-/**
- * `grow` AT THE GROUP LEVEL — the plumbing `columnFlex`'s unit tests cannot reach: that the
- * flag is derived over the OPEN members, and that the flex reaches the panel ELEMENT.
- */
+/** Test that group-level `grow` derives from open members and reaches panel elements. See DESIGN_NOTES.md § src/__tests__/growDeclaration.test.tsx:7. */
 
 /** Explicit sizes, so every open panel is fixed and the surplus is real — the
  *  situation that produced the dead strip in the first place. */

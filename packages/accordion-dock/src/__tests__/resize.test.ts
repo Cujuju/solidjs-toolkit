@@ -2,11 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
 import { createResize, DEFAULT_MIN_SIZE_PX, type ResizeApi, type ResizeHost } from '../resize';
 
-/**
- * The splitter engine, driven through pointer events. Two CONSERVATION properties: a drag
- * moves a boundary so the pair's total never changes, and clamping happens BEFORE the delta
- * is applied.
- */
+/** The splitter engine, driven through pointer events. See DESIGN_NOTES.md § src/__tests__/resize.test.ts:5. */
 
 /** Overdrag distance past a floor that commits a collapse. Mirrors the module's
  *  private COLLAPSE_OVERDRAG_PX; if that value moves, these tests should fail. */
@@ -41,10 +37,7 @@ function harness(spec: HarnessSpec): Harness {
   const axis = spec.axis ?? 'x';
   const collapsed: string[] = [];
 
-  /*
-   * Sizes mirrored out of the signal so the fake rects can read them. A FROZEN rect would
-   * start every gesture from the original extent, not where the last finished.
-   */
+  /* Sizes mirrored out of the signal so the fake rects can read them. See DESIGN_NOTES.md § src/__tests__/resize.test.ts:49. */
   let applied: Readonly<Record<string, number>> = {};
 
   const els = new Map<string, HTMLElement>();

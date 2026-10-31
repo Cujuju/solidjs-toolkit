@@ -6,10 +6,7 @@ import { createAfterPaint, createResizeObserver } from '@cujuju/solidjs-hooks';
  * only during a MEASURE PASS. See DESIGN_NOTES.md § src/railOverflow.ts:4.
  */
 
-/**
- * Attribute the rail's buttons carry, so measurements bind to a panel by IDENTITY rather than
- * position — index mapping is one reorder away from the wrong button collapsing.
- */
+/** Identify measured rail buttons by panel id so reordering cannot associate an extent with the wrong panel. See DESIGN_NOTES.md § src/railOverflow.ts:25. */
 export const RAIL_ITEM_ATTR = 'data-panel-id';
 
 /** Marks the `⋯` trigger so it is never mistaken for a panel button. */
@@ -21,10 +18,7 @@ export const RAIL_OVERFLOW_ATTR = 'data-rail-overflow';
  */
 export const RAIL_CONTROL_SELECTOR = `[${RAIL_ITEM_ATTR}], [${RAIL_OVERFLOW_ATTR}]`;
 
-/**
- * The rail always keeps at least this many buttons. One: a rail rendered as nothing but a `⋯`
- * reads as broken chrome.
- */
+/** The rail always keeps at least this many buttons. See DESIGN_NOTES.md § src/railOverflow.ts:53. */
 export const MIN_VISIBLE_RAIL_ITEMS = 1;
 
 export interface RailOverflowOptions {
@@ -49,10 +43,7 @@ export interface RailOverflow {
   remeasure: () => void;
 }
 
-/**
- * Extents are rounded UP: sub-pixel accumulation would otherwise decide a fit by a fraction
- * of a pixel, which is the boundary case that flickers.
- */
+/** Extents are rounded UP: sub-pixel accumulation would otherwise decide a fit by a fraction of a pixel, which is the boundary case that flickers. See DESIGN_NOTES.md § src/railOverflow.ts:86. */
 function extentOf(el: Element): number {
   return Math.ceil(el.getBoundingClientRect().height);
 }
@@ -82,10 +73,7 @@ export function createRailOverflow(options: RailOverflowOptions): RailOverflow {
     setMeasuring(true);
   };
 
-  /**
-   * Fallback reserve for the `⋯` trigger, used only on the first frame in which overflow
-   * appears. A measurement rather than a constant, so density and font changes move it.
-   */
+  /** Fallback reserve for the `⋯` trigger, used only on the first frame in which overflow appears. See DESIGN_NOTES.md § src/railOverflow.ts:125. */
   const fallbackReserve = (s: ReadonlyMap<string, number>): number => {
     let max = 0;
     for (const v of s.values()) if (v > max) max = v;
@@ -163,10 +151,7 @@ export function createRailOverflow(options: RailOverflowOptions): RailOverflow {
     scheduleMeasure();
   });
 
-  /**
-   * Per-button observation, robust to a density change or a late font load. The guard matters:
-   * `observe()` fires immediately, so re-observing would re-enter the measure pass.
-   */
+  /** Per-button observation, robust to a density change or a late font load. See DESIGN_NOTES.md § src/railOverflow.ts:217. */
   createEffect(() => {
     const rail = options.railEl();
     // Re-observe whatever is currently rendered.

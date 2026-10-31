@@ -1,7 +1,4 @@
-/**
- * jsdom fills for the two APIs this control measures with. STUBS, not polyfills: jsdom has no
- * layout engine, so sizes come from explicit `getBoundingClientRect` stubs the test controls.
- */
+/** jsdom fills for the two APIs this control measures with. See DESIGN_NOTES.md § vitest.setup.ts:1. */
 
 /** Minimal ResizeObserver. Records observed elements so a test can assert wiring,
  *  and never fires — a callback here would be reporting a resize that did not
@@ -69,11 +66,7 @@ if (typeof globalThis.localStorage?.clear !== 'function') {
   }
 }
 
-/**
- * jsdom implements `MouseEvent` but not `PointerEvent`, and every drag here is pointer-based.
- * Subclassing rather than hand-rolling: the coordinate plumbing the resize engine reads is
- * MouseEvent's, already correct.
- */
+/** jsdom implements `MouseEvent` but not `PointerEvent`, and every drag here is pointer-based. See DESIGN_NOTES.md § vitest.setup.ts:89. */
 class StubPointerEvent extends MouseEvent implements Partial<PointerEvent> {
   readonly pointerId: number;
   readonly pointerType: string;

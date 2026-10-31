@@ -1,13 +1,8 @@
-/*
- * Breadcrumb chrome. A separate file only because `styles.css` is owned elsewhere; meant to
- * be folded in on promotion. Every value comes from an existing --acc-* token.
- */
+/* Breadcrumb chrome uses existing dock tokens and keeps new tokens scoped to each bar. See DESIGN_NOTES.md § src/breadcrumb.css:1. */
 
 @layer cujuju-defaults {
   .acc-breadcrumb {
-    /* Cap on ONE crumb's label — the elision handles "too many crumbs", this handles one
-       absurd label. Sized just under --acc-col-width, so a crumb never claims more room than
-       its column. */
+    /* Cap on ONE crumb's label — the elision handles "too many crumbs", this handles one absurd label. See DESIGN_NOTES.md § src/breadcrumb.css:13. */
     --acc-crumb-max-width: 180px;
     /* Gap around a separator. Half the header padding: the separator is a joint
        between two labels, not a boundary between two regions, so it reads wrong

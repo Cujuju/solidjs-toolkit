@@ -1,7 +1,4 @@
-/*
- * Rail overflow + pan chrome. A separate file only because `styles.css` is owned elsewhere;
- * meant to be folded in on promotion. Every value comes from an existing --acc-* token.
- */
+/* Rail overflow and pan chrome use dock tokens, with the fade token scoped to each rail. See DESIGN_NOTES.md § src/rail.css:1. */
 
 @layer cujuju-defaults {
   .acc-rail {

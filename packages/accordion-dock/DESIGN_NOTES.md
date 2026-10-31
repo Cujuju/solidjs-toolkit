@@ -5,7 +5,7 @@ Each section reproduces the HEAD text VERBATIM, exactly as it stood in commit
 707f423, and is headed by the file and line it came from at HEAD.
 
 Source comments carry the invariant plus `see DESIGN_NOTES.md § <file>:<line>`.
-Boundary: every comment that was 100 words or more at HEAD.
+Boundary: every comment that was 60 words or more at HEAD.
 
 Sections are grouped by file, in HEAD line order.
 
@@ -150,6 +150,26 @@ HEAD `src/__tests__/domContract.test.tsx:9` — 322 words. Attached to: `/*`
 ```
 
 
+## § src/__tests__/domContract.test.tsx:47
+
+*Sources are read through Vite's own `import.meta.glob`, not through `node:fs`.*
+
+HEAD `src/__tests__/domContract.test.tsx:47` — 91 words. Attached to: `const CSS_SOURCES = import.meta.glob('../*.css', {`
+
+```text
+/*
+ * Sources are read through Vite's own `import.meta.glob`, not through `node:fs`.
+ *
+ * Two reasons, in order of weight. The playground's tsconfig carries no Node
+ * types, so `readFileSync`/`__dirname` typecheck-fail even while the test passes —
+ * and a test that only runs green in one of the two checks is a test someone will
+ * eventually delete. Second, the glob is resolved by the same bundler that builds
+ * the control, so "which files are in this directory" is answered by the tool that
+ * actually decides it rather than by a directory walk that can drift from it.
+ */
+```
+
+
 ## § src/__tests__/domContract.test.tsx:75
 
 *One dock exercising every element the derived pairs name.*
@@ -172,6 +192,23 @@ HEAD `src/__tests__/domContract.test.tsx:75` — 105 words. Attached to: `functi
  * and the flyout's own geometry is covered by the browser suite where a real
  * popover exists.
  */
+```
+
+
+## § src/__tests__/domContract.test.tsx:119
+
+*Comments are stripped from BOTH sides before matching.*
+
+HEAD `src/__tests__/domContract.test.tsx:119` — 64 words. Attached to: `function stripComments(source: string, kind: 'css' | 'ts'): string {`
+
+```text
+/** Comments are stripped from BOTH sides before matching.
+ *
+ *  Not a detail: this file's own module comment names `data-overflow`, the
+ *  misspelling from the second defect above, and `AccordionGroup` documents it at
+ *  the site of the fix. A scan that counted comments would find that name "emitted"
+ *  and pass a stylesheet still selecting it — the check would be satisfied by the
+ *  very prose describing the bug. */
 ```
 
 
@@ -283,6 +320,97 @@ HEAD `src/__tests__/flyoutCrossAxis.test.ts:4` — 132 words. Attached to: `/** 
 
 ---
 
+# src/__tests__/groupInvariants.test.tsx
+
+
+## § src/__tests__/groupInvariants.test.tsx:13
+
+*The group's INVARIANTS, tested at the level they are enforced.*
+
+HEAD `src/__tests__/groupInvariants.test.tsx:13` — 74 words. Attached to: `/**`
+
+```text
+/**
+ * The group's INVARIANTS, tested at the level they are enforced.
+ *
+ * Each of these was violated by exactly one writer while three others honoured
+ * it, which is the signature of a rule enforced at callsites instead of at the
+ * one place the state is written. So these tests drive the API rather than the
+ * UI: the question is not "does clicking work" but "can any entry point produce
+ * a state the group says is impossible".
+ */
+```
+
+
+## § src/__tests__/groupInvariants.test.tsx:272
+
+*THE defect. Editing the list directly left the leaf painting — its own*
+
+HEAD `src/__tests__/groupInvariants.test.tsx:272` — 69 words. Attached to: `const g = mountWithLeaf();`
+
+```text
+/*
+     * THE defect. Editing the list directly left the leaf painting — its own
+     * `<Show>` reads `props.open`, which nothing had changed — while the group
+     * believed it closed: a pane on screen with a broken flex `order` and a
+     * splitter that could not find its neighbour.
+     *
+     * It used to be prevented by the CALLER: `breadcrumbPath` skipped leaves and a
+     * comment explained why. Every other caller was one `setOpen` away from the
+     * desync.
+     */
+```
+
+
+## § src/__tests__/groupInvariants.test.tsx:381
+
+*THE regression test. This direction lost the activator ENTIRELY: the rail*
+
+HEAD `src/__tests__/groupInvariants.test.tsx:381` — 69 words. Attached to: `const g = mountSwappable();`
+
+```text
+/*
+     * THE regression test. This direction lost the activator ENTIRELY: the rail
+     * button mounted and registered, then the outgoing vertical header's cleanup
+     * ran an unconditional delete and removed it. `activatorElOf` returned
+     * undefined, so the flyout had no anchor and the keyboard had no target.
+     *
+     * The other direction happened to interleave the other way and worked, which is
+     * exactly why both are asserted — testing one would have passed against the bug.
+     */
+```
+
+
+---
+
+# src/__tests__/growDeclaration.test.tsx
+
+
+## § src/__tests__/growDeclaration.test.tsx:7
+
+*`grow` AT THE GROUP LEVEL — the part `columnFlex`'s unit tests cannot reach.*
+
+HEAD `src/__tests__/growDeclaration.test.tsx:7` — 98 words. Attached to: `/** Explicit sizes, so every open panel is fixed and the surplus is real — the`
+
+```text
+/**
+ * `grow` AT THE GROUP LEVEL — the part `columnFlex`'s unit tests cannot reach.
+ *
+ * `columnFlex` is a pure function and is pinned directly in `columnFlex.test.ts`.
+ * What it cannot answer is where its two group-scoped inputs come from, and that
+ * plumbing is where this feature can silently do nothing:
+ *
+ *   • `groupHasDeclaredGrower` must be derived over the OPEN members, so a CLOSED
+ *     grower falls back to the trailing default instead of promising the surplus
+ *     to a panel nobody can see.
+ *   • The flex must actually reach the panel ELEMENT, since a declaration that
+ *     never becomes a style is a no-op that reads as implemented.
+ */
+```
+
+
+---
+
 # src/__tests__/hoverOpenDelay.test.tsx
 
 
@@ -309,6 +437,30 @@ HEAD `src/__tests__/hoverOpenDelay.test.tsx:8` — 156 words. Attached to: `cons
  * delay as "next tick", so an unguarded override would turn a typo into "no
  * hover intent at all" — the exact failure the default exists to prevent, and
  * invisible when it happens.
+ */
+```
+
+
+---
+
+# src/__tests__/panelMenu.test.ts
+
+
+## § src/__tests__/panelMenu.test.ts:10
+
+*The menu's real behaviour is its ENABLE/DISABLE MATRIX — which rows exist, and*
+
+HEAD `src/__tests__/panelMenu.test.ts:10` — 74 words. Attached to: `interface Row {`
+
+```text
+/**
+ * The menu's real behaviour is its ENABLE/DISABLE MATRIX — which rows exist, and
+ * which are dead in a given state. That is data, so it is asserted as data.
+ *
+ * The hide-vs-disable rule under test throughout: a row is HIDDEN only when the
+ * capability does not exist for this panel at all, DISABLED when the capability
+ * exists but the current state makes it a no-op. A menu that changes SHAPE
+ * between openings hides the capability itself.
  */
 ```
 
@@ -343,6 +495,25 @@ HEAD `src/__tests__/railDivider.test.ts:10` — 133 words. Attached to: `const N
 ```
 
 
+## § src/__tests__/railDivider.test.ts:294
+
+*THE BUG: the drag committed into the panel order, `orderVisualOpen` honoured*
+
+HEAD `src/__tests__/railDivider.test.ts:294` — 70 words. Attached to: `it('reorders the painted static sequence, not just the panel order', () => {`
+
+```text
+/**
+   * THE BUG: the drag committed into the panel order, `orderVisualOpen` honoured
+   * it, and `partitionAtRail` then re-sorted the static region by PIN order and
+   * threw it away. Every column in an auto-hide dock is pinned, so drag-to-reorder
+   * looked dead — no error, no clue, the columns simply did not move.
+   *
+   * These assert the COMPOSED path (reorder → repin → partition), because each
+   * function was individually correct and the defect lived in how they combined.
+   */
+```
+
+
 ---
 
 # src/__tests__/railOverflow.test.ts
@@ -370,6 +541,53 @@ HEAD `src/__tests__/railOverflow.test.ts:10` — 121 words. Attached to: `/** Tw
  * (button extents, rail extent, trigger extent) that hiding a button cannot
  * change.
  */
+```
+
+
+---
+
+# src/__tests__/resize.test.ts
+
+
+## § src/__tests__/resize.test.ts:5
+
+*The splitter engine, driven through real pointer events.*
+
+HEAD `src/__tests__/resize.test.ts:5` — 84 words. Attached to: `/** Overdrag distance past a floor that commits a collapse. Mirrors the module's`
+
+```text
+/**
+ * The splitter engine, driven through real pointer events.
+ *
+ * The two properties worth protecting are both CONSERVATION properties, and both
+ * are things the naive implementation gets wrong:
+ *
+ *   1. A drag moves a boundary — the pair's total never changes. The naive "just
+ *      set this panel's width" version makes the dock overflow or leaves a gap.
+ *   2. Clamping happens BEFORE the delta is applied, against both floors at once.
+ *      Clamping after the fact is what produces the classic "the other panel keeps
+ *      shrinking past its minimum" bug.
+ */
+```
+
+
+## § src/__tests__/resize.test.ts:49
+
+*The applied sizes, mirrored out of the signal so the fake rects can read them.*
+
+HEAD `src/__tests__/resize.test.ts:49` — 98 words. Attached to: `let applied: Readonly<Record<string, number>> = {};`
+
+```text
+/*
+   * The applied sizes, mirrored out of the signal so the fake rects can read them.
+   *
+   * jsdom has no layout — every real rect is zero — so the engine's DOM seeding
+   * has to be faked. Faking it as a FROZEN number is the tempting version and it
+   * is wrong: in a browser an element's rect reflects the size already applied to
+   * it, so a second gesture starts where the first one finished. A frozen rect
+   * makes every gesture start from the original extent, which silently turns any
+   * test of repeated adjustment into a test of one adjustment done N times.
+   */
 ```
 
 
@@ -497,6 +715,26 @@ HEAD `src/__tests__/stubGroup.ts:10` — 232 words. Attached to: `export interfa
 ```
 
 
+## § src/__tests__/stubGroup.ts:139
+
+*The REAL rule, called — not a copy of it.*
+
+HEAD `src/__tests__/stubGroup.ts:139` — 76 words. Attached to: `const userOrderOpenIds = (): readonly string[] =>`
+
+```text
+/**
+   * The REAL rule, called — not a copy of it.
+   *
+   * This used to reimplement `AccordionGroup.visualOpenIds`, with a comment
+   * admitting it was the one place the stub could silently drift. It could, and
+   * it did: the rule gained a flying-out-panel exclusion, and nothing about a
+   * stub-side copy would have failed to notice. Sharing the function removes the
+   * drift as a possibility rather than as a thing to remember, which is the only
+   * version of that guarantee worth having.
+   */
+```
+
+
 ---
 
 # src/__tests__/tearOff.test.ts
@@ -528,6 +766,23 @@ HEAD `src/__tests__/tearOff.test.ts:9` — 172 words. Attached to: `/** Minimum 
  * properties of a real browser engine. jsdom has no rendering, so a green run here
  * is necessary and not sufficient — the browser check is still owed.
  */
+```
+
+
+## § src/__tests__/tearOff.test.ts:150
+
+*Regression: `syncStyles` mirrors the opener's root attributes onto the*
+
+HEAD `src/__tests__/tearOff.test.ts:150` — 64 words. Attached to: `const { api, dispose } = mountController();`
+
+```text
+    // Regression: `syncStyles` mirrors the opener's root attributes onto the
+    // popup, and its reconciliation loop removed any attribute the opener lacked
+    // — including `style`. Since a normal page's <body> has no inline style, the
+    // frame set moments earlier in `prepareDocument` was wiped, leaving a panel
+    // that did not fill its window inside a document that scrolled.
+    //
+    // `0px` not `0`: the CSSOM normalises the shorthand on read.
 ```
 
 
@@ -648,6 +903,21 @@ HEAD `src/AccordionGroup.tsx:103` — 139 words. Attached to: `hoverOpenDelayMs?
 ```
 
 
+## § src/AccordionGroup.tsx:148
+
+*Hands the group's API to the consumer so `collapseAll()` / `expandAll()` and the*
+
+HEAD `src/AccordionGroup.tsx:148` — 62 words. Attached to: `apiRef?: (api: AccordionGroupApi) => void;`
+
+```text
+/** Hands the group's API to the consumer so `collapseAll()` / `expandAll()` and the
+   *  open set can be driven from OUTSIDE the group. `useAccordionGroup()` only works
+   *  for descendants, and in `horizontal` orientation there is nowhere sensible to put
+   *  a toolbar inside the group — it would land in the column strip. Named `apiRef`
+   *  rather than `ref` so it cannot be mistaken for an element ref. */
+```
+
+
 ## § src/AccordionGroup.tsx:191
 
 *Read a persisted layout, or null.*
@@ -699,6 +969,26 @@ HEAD `src/AccordionGroup.tsx:259` — 102 words. Attached to: `const [openList, 
 ```
 
 
+## § src/AccordionGroup.tsx:281
+
+*Activator elements, REACTIVELY.*
+
+HEAD `src/AccordionGroup.tsx:281` — 67 words. Attached to: `const [headerEls, setHeaderEls] = createSignal<ReadonlyMap<string, HTMLElement>>(new Map());`
+
+```text
+/**
+   * Activator elements, REACTIVELY.
+   *
+   * A plain Map was enough while these only served `moveFocus`, which reads them
+   * inside an event handler long after mount. An anchored flyout reads one during
+   * render — before the rail button's ref callback has fired — so a non-reactive
+   * read returns undefined once and never corrects itself, leaving the popover
+   * anchored to nothing. The signal is what lets the anchor re-resolve when the
+   * ref lands.
+   */
+```
+
+
 ## § src/AccordionGroup.tsx:378
 
 *Is this panel currently an auto-hide OVERLAY rather than a column?*
@@ -719,6 +1009,67 @@ HEAD `src/AccordionGroup.tsx:378` — 115 words. Attached to: `let isFlyoutId: (
    * It stays reactive through the wrapper: the assigned implementation reads
    * `enabled`/`orientation`/`isOpen`/`isPinned`, and this indirection does not
    * break that chain because the call happens inside the reader's tracking scope.
+   */
+```
+
+
+## § src/AccordionGroup.tsx:394
+
+*The group's leaf chain — `parentId` edges, published by each `<AccordionLeaf>`*
+
+HEAD `src/AccordionGroup.tsx:394` — 82 words. Attached to: `const leafChain = createLeafChain();`
+
+```text
+/**
+   * The group's leaf chain — `parentId` edges, published by each `<AccordionLeaf>`
+   * and read back here to sort the open leaves.
+   *
+   * Created BEFORE `visualOpenIds` because that memo consumes it, and bound to the
+   * api object further down (`bindLeafChain`) so the leaves can find it. Both
+   * halves were missing until now: nothing called `bindLeafChain`, so every
+   * chained leaf fell through to `leafChainFor`'s unshared fallback, warned once
+   * on the console, and painted in open-list order — the exact ordering the chain
+   * exists to stop being an accident.
+   */
+```
+
+
+## § src/AccordionGroup.tsx:436
+
+*The static/dynamic split and every flex `order` in the group.*
+
+HEAD `src/AccordionGroup.tsx:436` — 69 words. Attached to: `const railPartition = createMemo(() =>`
+
+```text
+/**
+   * The static/dynamic split and every flex `order` in the group.
+   *
+   * PIN ORDER comes from the pinned Set's own iteration order, which is insertion
+   * order — and `togglePin` re-adds on repin, so a re-pinned panel moves to the
+   * end of the static run exactly as the rule requires. That is also what the
+   * persisted `pinned` array round-trips, so the static sequence survives a
+   * reload rather than being rebuilt from panel order.
+   */
+```
+
+
+## § src/AccordionGroup.tsx:455
+
+*Open panels in the sequence they are painted — the order a splitter walks to*
+
+HEAD `src/AccordionGroup.tsx:455` — 87 words. Attached to: `const visualOpenIds = createMemo<readonly string[]>(() => railPartition().sequence);`
+
+```text
+/**
+   * Open panels in the sequence they are painted — the order a splitter walks to
+   * find its neighbour, the breadcrumb reads, and the flex `order` follows.
+   *
+   * One sequence: splitters, `fill` trailing and resize pairing all read it.
+   *
+   * The RULE lives in `visualOrder.ts` and is documented there; naming the signals
+   * its inputs come from is `userOrderOpenIds`' and `railPartition`'s job, and this
+   * memo is only the read-through onto the partition they produce. Keeping the rule
+   * out of here is what let the test stub stop carrying a copy of it.
    */
 ```
 
@@ -749,6 +1100,27 @@ HEAD `src/AccordionGroup.tsx:468` — 142 words. Attached to: `const commitOpen 
 ```
 
 
+## § src/AccordionGroup.tsx:497
+
+*THE writer for the pinned set, for the same reason `commitOpen` is the writer*
+
+HEAD `src/AccordionGroup.tsx:497` — 79 words. Attached to: `const commitPinned = (next: ReadonlySet<string>): void => {`
+
+```text
+/**
+   * THE writer for the pinned set, for the same reason `commitOpen` is the writer
+   * for open membership.
+   *
+   * `setLayout` used to call `setPinnedSet` directly, so restoring a layout
+   * changed which panels were pinned and told nobody: it fired `onChange` for
+   * every panel it opened or closed, `onOrderChange`, and `onSizeChange` — and
+   * silently skipped `onPinChange`. A consumer mirroring pin state went stale on
+   * every restore, with the dock and the mirror disagreeing until the user
+   * happened to toggle a pin by hand.
+   */
+```
+
+
 ## § src/AccordionGroup.tsx:517
 
 *Enforce `maxOpen` by evicting least-recently-opened panels.*
@@ -773,6 +1145,145 @@ HEAD `src/AccordionGroup.tsx:517` — 139 words. Attached to: `const evictForCap
    * have no such panel: nothing there was "just asked for", so nothing is exempt
    * and eviction is plain least-recently-opened.
    */
+```
+
+
+## § src/AccordionGroup.tsx:553
+
+*A LEAF is controlled — see `PanelMeta.requestClose`. Editing the open list*
+
+HEAD `src/AccordionGroup.tsx:553` — 66 words. Attached to: `const requestClose = metaOf(id)?.requestClose;`
+
+```text
+/*
+       * A LEAF is controlled — see `PanelMeta.requestClose`. Editing the open list
+       * here would leave the leaf painting (its own `<Show>` still reads
+       * `props.open`) while the group believed it closed: a pane on screen with a
+       * broken flex `order` and a splitter that cannot find its neighbour.
+       *
+       * So the group asks, and the leaf's own effect reports back through
+       * `setLeafOpen` once its owner has actually flipped the prop.
+       */
+```
+
+
+## § src/AccordionGroup.tsx:664
+
+*Reorder driven by dragging a COLUMN (its title bar) rather than a rail button.*
+
+HEAD `src/AccordionGroup.tsx:664` — 98 words. Attached to: `const draggableColumnIds = (): string[] => visualOpenIds().filter((id) => !isLeaf(id));`
+
+```text
+/**
+   * Reorder driven by dragging a COLUMN (its title bar) rather than a rail button.
+   *
+   * A second primitive instance rather than a second mode on the first, because the
+   * two drags disagree on both inputs: the rail drags every registered panel along
+   * the Y axis, while columns drag only the OPEN ones along X. Trying to serve both
+   * from one instance would mean swapping its `ids` and `axis` mid-gesture.
+   *
+   * The result still lands in the one shared `order`, so dragging a column moves its
+   * rail button — the coupling is not extra work here, it is the absence of work.
+   */
+```
+
+
+## § src/AccordionGroup.tsx:677
+
+*Apply a move made in the OPEN subsequence back onto the full order.*
+
+HEAD `src/AccordionGroup.tsx:677` — 69 words. Attached to: `const moveOpenTo = (fromIndex: number, toIndex: number): void => {`
+
+```text
+/**
+   * Apply a move made in the OPEN subsequence back onto the full order.
+   *
+   * Closed panels keep their absolute slots: they are not visible on screen, so a
+   * drag between two columns carries no information about where a closed panel
+   * should end up, and silently relocating one would surprise the user the next time
+   * they opened it. Only the open ids are permuted, into the same positions they
+   * already occupied.
+   */
+```
+
+
+## § src/AccordionGroup.tsx:699
+
+*The static region is ordered by PIN order, so a drag that only wrote the*
+
+HEAD `src/AccordionGroup.tsx:699` — 71 words. Attached to: `if (railDivider()) {`
+
+```text
+/*
+     * The static region is ordered by PIN order, so a drag that only wrote the
+     * panel order above would commit and paint nothing — for a pinned column the
+     * partition re-sorts over it. Pin order is the STORAGE for that sequence, so
+     * the drag writes there too. Unconditional: a drag among unpinned columns
+     * leaves the pinned ids' relative order untouched, so this is a no-op there
+     * rather than a case to detect.
+     */
+```
+
+
+## § src/AccordionGroup.tsx:735
+
+*The panels the rail is actually serving.*
+
+HEAD `src/AccordionGroup.tsx:735` — 74 words. Attached to: `const railServedIds = createMemo<readonly string[]>(() =>`
+
+```text
+/**
+   * The panels the rail is actually serving.
+   *
+   * Under the divider an OPEN PINNED panel has no button — its column is its
+   * presence — so it is filtered out here rather than hidden in the button's own
+   * render. That distinction matters: the overflow measurement divides the rail's
+   * extent among the buttons it is given, and a hidden-but-counted button would
+   * reserve space for something that never paints, pushing a real button into the
+   * `⋯` menu for no reason.
+   */
+```
+
+
+## § src/AccordionGroup.tsx:817
+
+*Collapse a column but REMEMBER that it docks — the column title bar's own*
+
+HEAD `src/AccordionGroup.tsx:817` — 61 words. Attached to: `collapseKeepPin: (id) => setOpen(id, false),`
+
+```text
+/**
+     * Collapse a column but REMEMBER that it docks — the column title bar's own
+     * activator. Deliberately NOT the same path as the × beside it: that one is
+     * close-and-FORGET (see `closeAndUnpin`), and the only difference between
+     * them is whether `pinned` survives. Two names, because a future reader who
+     * folds them into one handler silently destroys the distinction the whole
+     * open×pinned model rests on.
+     */
+```
+
+
+## § src/AccordionGroup.tsx:897
+
+*FOUR COMMITS, no raw setters.*
+
+HEAD `src/AccordionGroup.tsx:897` — 99 words. Attached to: `commitOrder([...layout.order]);`
+
+```text
+/*
+       * FOUR COMMITS, no raw setters.
+       *
+       * This used to write `setPinnedSet` and `setSizesRaw` directly and then
+       * hand-fire the callbacks it remembered — which was `onChange`,
+       * `onOrderChange` and `onSizeChange`, but never `onPinChange`. A restore
+       * silently changed which panels were pinned, so a consumer mirroring that
+       * state went stale until the user happened to toggle a pin by hand.
+       *
+       * Going through the same writers every other path uses removes the
+       * remembering. Each one persists and notifies, so a restore is reported
+       * exactly like the equivalent sequence of user actions — including the cap,
+       * which a stored layout can violate and which `commitOpen` now enforces.
+       */
 ```
 
 
@@ -822,9 +1333,105 @@ HEAD `src/AccordionGroup.tsx:984` — 149 words. Attached to: `if (wasLeaf && op
 ```
 
 
+## § src/AccordionGroup.tsx:1111
+
+*Publish the chain against the finished api object, which is the only handle a*
+
+HEAD `src/AccordionGroup.tsx:1111` — 70 words. Attached to: `bindLeafChain(api, leafChain);`
+
+```text
+/**
+   * Publish the chain against the finished api object, which is the only handle a
+   * leaf and its group both hold. Until this call every `<AccordionLeaf parentId>`
+   * resolved to `leafChainFor`'s private fallback: the edges were recorded into a
+   * chain nobody read, so the console warning fired and chained leaves painted in
+   * open order. `visualOpenIds` already sorts through `leafChain.orderOpen`, so
+   * this line is what makes that sort see any edges at all.
+   */
+```
+
+
+## § src/AccordionGroup.tsx:1186
+
+*NAME MUST MATCH `rail.css`, which selects `data-overflow-mode`.*
+
+HEAD `src/AccordionGroup.tsx:1186` — 68 words. Attached to: `data-overflow-mode={overflowStrategy()}`
+
+```text
+/* NAME MUST MATCH `rail.css`, which selects `data-overflow-mode`.
+               This emitted `data-overflow` — one character of disagreement between
+               the two authors — so every overflow-strategy rule was inert: the
+               `menu` strategy never got its `overflow-y: hidden`, and `pan` never
+               got `scrollbar-width: none`, the webkit scrollbar suppression or the
+               end fades. The rail's base `overflow-y: auto` therefore stood in both
+               strategies, which is precisely the scrollbar-in-a-40px-strip that the
+               overflow work existed to remove. */
+```
+
+
+## § src/AccordionGroup.tsx:1256
+
+*The id is CAPTURED, not read through `props` on each call.*
+
+HEAD `src/AccordionGroup.tsx:1256` — 71 words. Attached to: `const panelId = props.meta.id;`
+
+```text
+/**
+   * The id is CAPTURED, not read through `props` on each call.
+   *
+   * `trackedRef`'s cleanup runs during disposal, and this component is rendered
+   * inside a `<Show when={meta()}>` — so by then `props.meta` is `undefined` and
+   * `props.meta.id` throws, taking every later cleanup in the owner tree with it.
+   * The id is fixed for this button's lifetime (the `<For>` keys on it), so there
+   * is nothing to gain by re-reading it and a teardown to lose.
+   */
+```
+
+
 ---
 
 # src/AccordionLeaf.tsx
+
+
+## § src/AccordionLeaf.tsx:25
+
+*CONTROLLED visibility. A leaf has no activator of its own, so its open state is*
+
+HEAD `src/AccordionLeaf.tsx:25` — 69 words. Attached to: `open: boolean;`
+
+```text
+/**
+   * CONTROLLED visibility. A leaf has no activator of its own, so its open state is
+   * always the consumer's: it is the answer to a selection made in the columns
+   * before it ("a file is selected → show the detail pane"), never a thing the user
+   * toggles directly.
+   *
+   * A chained leaf (see `parentId`) is open only when BOTH this prop and its
+   * parent say so — the prop is necessary, not sufficient.
+   */
+```
+
+
+## § src/AccordionLeaf.tsx:36
+
+*The panel or leaf this one hangs off, making it a link in a CHAIN rather than*
+
+HEAD `src/AccordionLeaf.tsx:36` — 94 words. Attached to: `parentId?: string;`
+
+```text
+/**
+   * The panel or leaf this one hangs off, making it a link in a CHAIN rather than
+   * a lone detail pane: `file → symbol → reference`.
+   *
+   * Naming a LEAF is the chained case and is what orders the columns. Naming a
+   * PANEL is also legal and useful — "this detail pane belongs to the folder
+   * column" — and gets the same cascade, because the only thing this prop asserts
+   * is a dependency: when the parent is not open, neither is this.
+   *
+   * Omit it and the leaf behaves exactly as it always has: a terminal pane
+   * depending on nothing.
+   */
+```
 
 
 ## § src/AccordionLeaf.tsx:74
@@ -888,6 +1495,26 @@ HEAD `src/AccordionLeaf.tsx:126` — 198 words. Attached to: `const effectiveOpe
    * Deriving it instead means there is no site to forget. The child cannot outlive
    * the parent because "open" is defined as "my parent is open and I was asked to
    * be", and depth is free: B hides when A closes, which hides C, and so on down.
+   */
+```
+
+
+## § src/AccordionLeaf.tsx:207
+
+*Mirror the EFFECTIVE open state into the group's open list, which drives*
+
+HEAD `src/AccordionLeaf.tsx:207` — 86 words. Attached to: `createEffect(() => {`
+
+```text
+/**
+   * Mirror the EFFECTIVE open state into the group's open list, which drives
+   * ordering, sizing and the splitter's neighbour lookup.
+   *
+   * `effectiveOpen()` and not `props.open`: the render gate below uses the same
+   * accessor, and the two must not be able to disagree. A group that believes a
+   * leaf is open while `<Show>` is not painting it leaves a column with a broken
+   * flex `order` and a splitter that resizes against a pane nobody can see — the
+   * same desync that stops the breadcrumb from closing a leaf through `setOpen`.
    */
 ```
 
@@ -1024,6 +1651,44 @@ HEAD `src/AccordionPanel.tsx:169` — 103 words. Attached to: `const dragItem = 
 ```
 
 
+## § src/AccordionPanel.tsx:201
+
+*Mount precedence: a popup WINDOW outranks a flyout overlay outranks the panel's*
+
+HEAD `src/AccordionPanel.tsx:201` — 61 words. Attached to: `const contentMount = (): HTMLElement | undefined =>`
+
+```text
+/**
+   * Mount precedence: a popup WINDOW outranks a flyout overlay outranks the panel's
+   * own column.
+   *
+   * The order is not arbitrary. Torn-off is the most explicit state the user can
+   * put a panel in — they moved it to another window — so nothing in this document
+   * may claim the content back while that holds. A flyout is transient by
+   * definition and yields to it.
+   */
+```
+
+
+## § src/AccordionPanel.tsx:305
+
+*The docked shell of a flying-out panel. It stays MOUNTED — it owns the*
+
+HEAD `src/AccordionPanel.tsx:305` — 97 words. Attached to: `data-flyout={flyoutDataAttr(group.isFlyout(props.id))}`
+
+```text
+/* The docked shell of a flying-out panel. It stays MOUNTED — it owns the
+         refs the group measures and the identity the reorder list tracks — but
+         `autoHide.css` takes it out of the column layout, because a flyout is an
+         overlay and the columns must not reflow to make room for it.
+
+         Writing this was missed when auto-hide was wired, and the CSS silently
+         never fired: the column kept its slot, kept painting its title bar, and
+         the flyout floated over it — so the bar covered the flyout's first row
+         and pinning appeared to change nothing about the layout. */
+```
+
+
 ## § src/AccordionPanel.tsx:392
 
 *THE TITLE BAR IS AN ACTIVATOR, not a label.*
@@ -1055,6 +1720,25 @@ HEAD `src/AccordionPanel.tsx:392` — 182 words. Attached to: `}`
 ```
 
 
+## § src/AccordionPanel.tsx:415
+
+*Claims the activator slot ONLY when no rail button exists for this*
+
+HEAD `src/AccordionPanel.tsx:415` — 93 words. Attached to: `ref={(el) => {`
+
+```text
+/* Claims the activator slot ONLY when no rail button exists for this
+               panel. The slot is what a flyout anchors to, and the docked shell of
+               a flying-out panel is `display:none` — so a column bar that
+               registered unconditionally would hand the flyout a zero-rect anchor
+               and place it in the corner. Under the divider the two are mutually
+               exclusive by construction (a button appears exactly when the column
+               does not), and this keeps that true rather than assuming it.
+
+               The claim is made by the `colBarEl` effect; this ref only reports the element. */
+```
+
+
 ## § src/AccordionPanel.tsx:483
 
 *ONE Portal whose mount toggles — never a <Show> swapping an inline branch*
@@ -1079,6 +1763,45 @@ HEAD `src/AccordionPanel.tsx:483` — 126 words. Attached to: `}`
         remount anything. A plain `mount={undefined}` would not do — Portal
         defaults to document.body.
       */
+```
+
+
+## § src/AccordionPanel.tsx:503
+
+*The role follows the ACTIVATOR, because the two orientations are two*
+
+HEAD `src/AccordionPanel.tsx:503` — 68 words. Attached to: `role={horizontal() ? 'tabpanel' : 'region'}`
+
+```text
+/*
+         * The role follows the ACTIVATOR, because the two orientations are two
+         * different ARIA patterns wearing the same component.
+         *
+         * Horizontal puts every activator in one `role="tablist"` rail, so the
+         * content each one reveals is a `tabpanel` — and the rail button now names
+         * it with `aria-controls`. Vertical is a disclosure: a header button with
+         * `aria-expanded` revealing a `region`. Calling both a `region` left the
+         * rail's tabs controlling nothing at all.
+         */
+```
+
+
+## § src/AccordionPanel.tsx:514
+
+*Referenced only when the labelling element EXISTS.*
+
+HEAD `src/AccordionPanel.tsx:514` — 63 words. Attached to: `aria-labelledby={!horizontal() || open() ? headerId : undefined}`
+
+```text
+/*
+         * Referenced only when the labelling element EXISTS.
+         *
+         * In horizontal, `headerId` sits on the column title bar, which renders
+         * only while the panel is open — so a closed panel pointed
+         * `aria-labelledby` at an id that was not in the document. A dangling
+         * reference is not a harmless one: it leaves the region with no accessible
+         * name at all, which is worse than the fallback.
+         */
 ```
 
 
@@ -1159,6 +1882,86 @@ HEAD `src/autoHide.css:33` — 238 words. Attached to: `.acc-group[data-orientat
  * which is exactly what a collapsed panel looks like; its content is already
  * out of the layout because `AccordionPanel` marks the inline host `hidden`
  * while the subtree is portalled away.
+ */
+```
+
+
+## § src/autoHide.css:71
+
+*A flyout has no neighbour to resize against — it floats over the columns*
+
+HEAD `src/autoHide.css:71` — 77 words. Attached to: `.acc-flyout .acc-splitter {`
+
+```text
+/*
+ * A flyout has no neighbour to resize against — it floats over the columns
+ * rather than sharing an edge with one — so its splitter would be a drag
+ * handle that moves nothing.
+ *
+ * Belt to the suspenders above: with `<Splitter>` left OUTSIDE `PanelOutlet`
+ * (the recommended wiring) it stays in the `display: none` docked shell and
+ * this rule never fires. It exists so that moving the splitter inside the
+ * outlet later cannot silently ship a dead control into the overlay.
+ */
+```
+
+
+## § src/autoHide.css:125
+
+*Ceiling for a CONTENT-SIZED flyout (the vertical case).*
+
+HEAD `src/autoHide.css:125` — 91 words. Attached to: `--acc-flyout-max-width: 60vw;`
+
+```text
+/*
+     * Ceiling for a CONTENT-SIZED flyout (the vertical case).
+     *
+     * A fraction of the viewport rather than a px, for two reasons: it scales
+     * with the window instead of being right at one size, and being viewport-
+     * relative it can never put the flyout past the screen edge no matter how
+     * pathological a row is. Content wider than this scrolls horizontally INSIDE
+     * the flyout — the honest last resort, chosen over clipping, which would hide
+     * data silently. At 60% a flyout can be much wider than a narrow sidebar
+     * without ever becoming the window.
+     */
+```
+
+
+## § src/autoHide.css:140
+
+*The element the panel's subtree portals into. It is the flyout's whole*
+
+HEAD `src/autoHide.css:140` — 76 words. Attached to: `.acc-flyout-host {`
+
+```text
+/* The element the panel's subtree portals into. It is the flyout's whole
+   content area, which is why `styles.css` lists it alongside `.acc-content`
+   for padding and scrolling — the flyout must look like the column it will
+   become when pinned.
+
+   It also carries `data-density`, restating what the group element sets, since
+   the flyout is Portal'd to <body> and escapes the group's token scope. The
+   density block in `styles.css` matches `:is(.acc-group, .acc-flyout-host)`
+   for that attribute to mean anything here. */
+```
+
+
+## § src/autoHide.css:198
+
+*`PanelOutlet`'s two wrappers, while the panel is docked.*
+
+HEAD `src/autoHide.css:198` — 77 words. Attached to: `[data-acc-outlet-host],`
+
+```text
+/*
+ * `PanelOutlet`'s two wrappers, while the panel is docked.
+ *
+ * `display: contents` removes their boxes so the column layout is byte-for-
+ * byte what it was before the outlet existed. They still appear in the
+ * SELECTOR chain, which is why the nested-group rules in styles.css need
+ * widening — the handoff lists them. The inline style set by the component
+ * covers this too; the rule is here so the docked case is correct even if a
+ * future refactor stops setting it inline.
  */
 ```
 
@@ -1274,6 +2077,8 @@ HEAD `src/autoHide.tsx:22` — 612 words. Attached to: `/**`
  * `flyoutCrossAxis`, which owns the rule and states it in full.
  */
 ```
+
+Editor’s note: The phase handoff containing the Q5 fit assessment is not available in this repository.
 
 
 ## § src/autoHide.tsx:100
@@ -1440,6 +2245,28 @@ HEAD `src/autoHide.tsx:260` — 107 words. Attached to: `function inheritedTypog
 ```
 
 
+## § src/autoHide.tsx:287
+
+*Class on the AnchoredPopover SHELL (the element carrying `popover`). A MARKER*
+
+HEAD `src/autoHide.tsx:287` — 88 words. Attached to: `const FLYOUT_SHELL_CLASS = 'acc-flyout-shell';`
+
+```text
+/**
+ * Class on the AnchoredPopover SHELL (the element carrying `popover`). A MARKER
+ * ONLY: it exists so the dismiss-suppression predicate can tell our flyouts
+ * apart from every other popover on the page, and `autoHide.css` deliberately
+ * defines NO rule for it.
+ *
+ * That is a hard constraint, not an omission. The primitive documents a cascade
+ * trap: the UA hides a closed popover with
+ * `[popover]:not(:popover-open) { display: none }`, which only wins because no
+ * author class competes at equal specificity. A `display`/`visibility` rule on
+ * `shellClass` would beat it and leave closed flyouts painted on screen.
+ */
+```
+
+
 ## § src/autoHide.tsx:315
 
 *Elements whose pointerdown must NOT dismiss a flyout.*
@@ -1463,6 +2290,125 @@ HEAD `src/autoHide.tsx:315` — 102 words. Attached to: `const DISMISS_SUPPRESS_
 ```
 
 
+## § src/autoHide.tsx:330
+
+*Why a flyout is currently open. Drives ONE thing: whether the pointer leaving*
+
+HEAD `src/autoHide.tsx:330` — 70 words. Attached to: `type FlyoutOpenCause = 'hover' | 'click';`
+
+```text
+/**
+ * Why a flyout is currently open. Drives ONE thing: whether the pointer leaving
+ * it is allowed to dismiss it.
+ *
+ * A hover-opened flyout is a peek — the pointer leaving is the user withdrawing
+ * the request, so it closes. A click-opened flyout is a decision, and closing it
+ * because the pointer wandered to a scrollbar, a browser dialog or a second
+ * monitor would be hostile. Dismissal mirrors the intent that opened it.
+ */
+```
+
+
+## § src/autoHide.tsx:341
+
+*The slice of `AccordionGroupApi` this module consumes.*
+
+HEAD `src/autoHide.tsx:341` — 83 words. Attached to: `export interface AutoHideGroup {`
+
+```text
+/**
+ * The slice of `AccordionGroupApi` this module consumes.
+ *
+ * Declared structurally rather than importing `AccordionGroupApi` wholesale so it
+ * states the precise, checkable list of what this module needs from a group —
+ * which is a small fraction of that interface, and is what makes the module
+ * testable against a stub that implements nine members instead of forty.
+ *
+ * (It originally also let the file compile before the group had grown the members
+ * it wanted. That is no longer why it is here; every member below now exists.)
+ */
+```
+
+
+## § src/autoHide.tsx:360
+
+*Promote a flyout to a docked column, or demote it back.*
+
+HEAD `src/autoHide.tsx:360` — 75 words. Attached to: `togglePin: (id: string) => void;`
+
+```text
+/**
+   * Promote a flyout to a docked column, or demote it back.
+   *
+   * Required, not optional: the pin is the entire subject of this mode, and a
+   * flyout renders its own title bar because the panel's docked one is
+   * `display: none` while it floats. Without this the flyout would have no pin
+   * affordance at all and the mode would be a one-way trip — which is exactly
+   * what shipped until a browser test went looking for the control.
+   */
+```
+
+
+## § src/autoHide.tsx:372
+
+*The element that represents the panel in the chrome, REACTIVELY — its rail*
+
+HEAD `src/autoHide.tsx:372` — 73 words. Attached to: `activatorElOf: (id: string) => HTMLElement | undefined;`
+
+```text
+/**
+   * The element that represents the panel in the chrome, REACTIVELY — its rail
+   * button, or the `⋯` trigger when that button collapsed into the overflow menu.
+   *
+   * Reactive is load-bearing twice over: the flyout renders before the rail
+   * button's ref has fired, so a plain `Map` read returns undefined once and never
+   * corrects itself; and the overflow partition changes as the dock is resized, so
+   * which element represents a panel is not fixed for its lifetime.
+   */
+```
+
+
+## § src/autoHide.tsx:385
+
+*OPTIONAL, and optional only so this file compiles before the group grows it.*
+
+HEAD `src/autoHide.tsx:385` — 92 words. Attached to: `density?: Accessor<'comfortable' | 'compact'>;`
+
+```text
+/**
+   * OPTIONAL, and optional only so this file compiles before the group grows it.
+   *
+   * A flyout is Portal'd to `<body>` by the popover primitive, so it sits
+   * OUTSIDE `.acc-group` and stops inheriting the token overrides the group
+   * carries — `data-density='compact'` rescales the whole dock by overriding
+   * `--acc-*` on the group element, and a flyout that escapes that scope silently
+   * renders at comfortable density inside a compact dock. Passing the value lets
+   * the flyout host restate it. Recommended: add `density` to
+   * `AccordionGroupApi` (it is already an `AccordionGroupProps` field, so this
+   * is exposure, not new state).
+   */
+```
+
+
+## § src/autoHide.tsx:430
+
+*Spread on the panel's ACTIVATOR — the rail button in horizontal, the header*
+
+HEAD `src/autoHide.tsx:430` — 67 words. Attached to: `activatorHoverProps: (id: string) => ActivatorHoverProps;`
+
+```text
+/**
+   * Spread on the panel's ACTIVATOR — the rail button in horizontal, the header
+   * bar in vertical. Named for the role rather than for one orientation's
+   * furniture: the hover-intent behaviour is identical either way, and calling it
+   * `railHoverProps` was what made the vertical case look like it needed its own.
+   *
+   * Empty object when hover-to-open is off, so the listeners are not attached at
+   * all rather than attached and inert.
+   */
+```
+
+
 ## § src/autoHide.tsx:463
 
 *Drop the open-cause for anything that is no longer open.*
@@ -1482,6 +2428,60 @@ HEAD `src/autoHide.tsx:463` — 116 words. Attached to: `createEffect(() => {`
    * An effect over the open set rather than a hook on unregister: this is derived
    * state, so it is cheaper and more honest to recompute it than to arrange for
    * every path that can close a panel to remember to notify.
+   */
+```
+
+
+## § src/autoHide.tsx:483
+
+*Read at FIRE time, not at listener-attach time, so a host that computes the*
+
+HEAD `src/autoHide.tsx:483` — 68 words. Attached to: `const hoverOpenDelay = (): number => {`
+
+```text
+/* Read at FIRE time, not at listener-attach time, so a host that computes the
+     delay reactively is honoured without re-attaching the listeners. A negative
+     or non-finite override falls back to the default rather than being clamped
+     silently: `setTimeout` treats a negative delay as 0, which would turn a
+     typo'd prop into "no hover intent at all" — the exact failure the default
+     exists to prevent — and do it invisibly. */
+```
+
+
+## § src/autoHide.tsx:585
+
+*Focus must never be left on a node that is about to be removed — the*
+
+HEAD `src/autoHide.tsx:585` — 97 words. Attached to: `const surface = surfaceOf(id);`
+
+```text
+    // Focus must never be left on a node that is about to be removed — the
+    // browser would drop it to <body> and the next Tab would restart from the
+    // top of the document. Returning it to the rail button also puts the user
+    // exactly where the keyboard path expects to resume.
+    // Against the whole surface, for the same reason `onFocusIn` is — focus
+    // resting on the flyout's own pin or close button must still be returned to
+    // the rail button, or the browser drops it to <body> and the next Tab
+    // restarts from the top of the document.
+```
+
+
+## § src/autoHide.tsx:602
+
+*Tab-away dismissal. The popover primitive covers outside POINTERDOWN and*
+
+HEAD `src/autoHide.tsx:602` — 82 words. Attached to: `/**`
+
+```text
+/**
+   * Tab-away dismissal. The popover primitive covers outside POINTERDOWN and
+   * Escape; neither fires when focus leaves by keyboard, and a flyout the user
+   * has tabbed out of is by definition no longer the thing they are working on.
+   *
+   * `focusin` (fires when focus ARRIVES somewhere) rather than `focusout`: a
+   * `focusout` with a null `relatedTarget` also fires when the whole WINDOW
+   * loses focus, and dismissing because the user alt-tabbed to another app —
+   * losing their peek when they come back — is the exact opposite of helpful.
    */
 ```
 
@@ -1558,6 +2558,46 @@ HEAD `src/autoHide.tsx:734` — 130 words. Attached to: `const focusSurface = ()
    * the flyout was visible and `:popover-open` by the time anything checked, and
    * focus had never moved.
    */
+```
+
+
+## § src/autoHide.tsx:765
+
+*The flyout emerges the way the panels themselves grow, so a panel appears in*
+
+HEAD `src/autoHide.tsx:765` — 87 words. Attached to: `const placement = (): AnchoredPlacement => {`
+
+```text
+/**
+   * The flyout emerges the way the panels themselves grow, so a panel appears in
+   * the same place whether it is a flyout or docked — which is what makes pinning
+   * read as "this stays" rather than as "this moved".
+   *
+   * horizontal — out of the rail's OUTER edge, the direction the columns grow.
+   *              Rail left → columns grow right → `right-start`.
+   * vertical   — DOWNWARD from the header bar, the direction the stack grows.
+   *              `below-start` also guarantees the bar is never covered by its
+   *              own flyout, which is what keeps the way back visible.
+   */
+```
+
+
+## § src/autoHide.tsx:803
+
+*Reads `anchor()`, so this re-runs when the rail button's ref lands or is*
+
+HEAD `src/autoHide.tsx:803` — 96 words. Attached to: `const source =`
+
+```text
+    // Reads `anchor()`, so this re-runs when the rail button's ref lands or is
+    // replaced — no second signal, and no side-effecting accessor.
+    //
+    // The MEASURED ELEMENT differs by orientation, for the same reason in both:
+    // measure whatever already spans exactly the dock's growth axis. Horizontal
+    // has the rail, which is that strip by construction. Vertical has no rail, so
+    // the group itself is the only thing with that extent — and a vertical flyout
+    // dropping from a header bar should not be taller than the dock it belongs
+    // to, or it reads as a menu that escaped its container.
 ```
 
 
@@ -1644,6 +2684,68 @@ HEAD `src/autoHide.tsx:965` — 210 words. Attached to: `/**`
  */
 ```
 
+Editor’s note: The referenced handoff about widening stylesheet selectors is not available in this repository.
+
+
+## § src/autoHide.tsx:991
+
+*⚠ EXPORTED BUT UNUSED — zero callers. `AccordionPanel` renders the same single*
+
+HEAD `src/autoHide.tsx:991` — 89 words. Attached to: `export function PanelOutlet(props: {`
+
+```text
+/**
+ * ⚠ EXPORTED BUT UNUSED — zero callers. `AccordionPanel` renders the same single
+ * re-targeting Portal inline, because it also owns the inline host that Portal
+ * falls back to, and threading that host out to a wrapper bought nothing.
+ *
+ * Kept rather than deleted because the mechanism it documents is the one the panel
+ * uses, and a consumer building its own panel shell would want exactly this. But it
+ * is not on the path any dock takes today: do not "fix" a mount bug here and expect
+ * it to change what the control does.
+ */
+```
+
+
+---
+
+# src/breadcrumb.css
+
+
+## § src/breadcrumb.css:1
+
+*Breadcrumb chrome for the accordion-dock mock.*
+
+HEAD `src/breadcrumb.css:1` — 74 words. Attached to: `.acc-breadcrumb {`
+
+```text
+/*
+ * Breadcrumb chrome for the accordion-dock mock.
+ *
+ * Separate file only because `styles.css` is owned elsewhere while this lands;
+ * it is meant to be folded in on promotion. Every colour, radius and metric
+ * comes from an existing --acc-* token so the bar cannot drift from the dock it
+ * describes — the two new tokens below are declared on the bar itself, not on
+ * :root, so they stay overridable per instance without widening the group's
+ * global token surface.
+ */
+```
+
+
+## § src/breadcrumb.css:13
+
+*Cap on ONE crumb's label. The elision handles "too many crumbs"; this*
+
+HEAD `src/breadcrumb.css:13` — 60 words. Attached to: `--acc-crumb-max-width: 180px;`
+
+```text
+/* Cap on ONE crumb's label. The elision handles "too many crumbs"; this
+     handles "one crumb with an absurd label", which elision cannot: a single
+     600px filename would blow out the bar no matter how few crumbs there are.
+     Sized just under the default column width (--acc-col-width: 230px) so a
+     crumb never claims more room than the column it stands for. */
+```
+
 
 ---
 
@@ -1670,6 +2772,46 @@ HEAD `src/Breadcrumb.tsx:24` — 105 words. Attached to: `/** Default separator 
  * The only local state is presentational: which crumb holds the roving tab stop,
  * and whether the user has expanded an elided middle.
  */
+```
+
+
+## § src/Breadcrumb.tsx:43
+
+*Ref-map key for the elision button, so it can take part in arrow-key movement*
+
+HEAD `src/Breadcrumb.tsx:43` — 76 words. Attached to: `const ELLIPSIS_KEY = '#acc-breadcrumb-ellipsis';`
+
+```text
+/**
+ * Ref-map key for the elision button, so it can take part in arrow-key movement
+ * alongside real crumbs (which are keyed by panel id).
+ *
+ * Residual failure mode, stated rather than hidden: a panel whose id is literally
+ * this string would share the slot. The consequence is confined to which element
+ * an arrow key focuses — no open, close or truncate is routed through this map —
+ * and the `#` prefix is not something an author writes in an `id` prop.
+ */
+```
+
+
+## § src/Breadcrumb.tsx:63
+
+*Render the CONTENT of a crumb. `index` is the position among VISIBLE entries*
+
+HEAD `src/Breadcrumb.tsx:63` — 86 words. Attached to: `renderCrumb?: (crumb: CrumbData, index: number) => JSX.Element;`
+
+```text
+/**
+   * Render the CONTENT of a crumb. `index` is the position among VISIBLE entries
+   * (post-elision); `crumb.index` is the position in the full path.
+   *
+   * Deliberately the content, not the whole element: the wrapper carries the tab
+   * stop, `aria-current`, the click-to-truncate and the arrow-key handler, and
+   * handing those to every custom renderer is how a control loses its keyboard
+   * story one consumer at a time. A consumer who genuinely needs to own the
+   * element should skip this component and render from `buildCrumbPath` +
+   * `elideCrumbs`, which are exported for exactly that.
+   */
 ```
 
 
@@ -1723,6 +2865,27 @@ HEAD `src/Breadcrumb.tsx:150` — 106 words. Attached to: `const els = new Map<s
 # src/breadcrumbPath.ts
 
 
+## § src/breadcrumbPath.ts:4
+
+*The DATA half of the breadcrumb: turning the group's open sequence into a path,*
+
+HEAD `src/breadcrumbPath.ts:4` — 93 words. Attached to: `/**`
+
+```text
+/**
+ * The DATA half of the breadcrumb: turning the group's open sequence into a path,
+ * and eliding that path when it gets long. Split out of `Breadcrumb.tsx` on
+ * purpose — everything interesting about a breadcrumb is the derivation and the
+ * truncation semantics, and both are testable against a hand-built
+ * `AccordionGroupApi` stub with no renderer and no DOM.
+ *
+ * There is no state in this file. The path is a pure function of
+ * `visualOpenIds()` + `meta()`, which is the whole point: a Miller browser must
+ * not be able to have a breadcrumb that disagrees with its own columns.
+ */
+```
+
+
 ## § src/breadcrumbPath.ts:94
 
 *Fired BEFORE the truncation is applied, with every id that is about to be*
@@ -1743,6 +2906,26 @@ HEAD `src/breadcrumbPath.ts:94` — 115 words. Attached to: `onTruncate?: (close
    * null)`) want the same treatment for the same reason — the group would close
    * them, but the consumer's selection state would still claim otherwise.
    */
+```
+
+
+## § src/breadcrumbPath.ts:110
+
+*Renderable label for a crumb, most specific first.*
+
+HEAD `src/breadcrumbPath.ts:110` — 74 words. Attached to: `function resolveCrumbLabel(meta: PanelMeta): string | JSX.Element {`
+
+```text
+/**
+ * Renderable label for a crumb, most specific first.
+ *
+ * `title` over `railLabel`: `railLabel` exists because the rail is ~40px wide and
+ * the label is rotated into it, a constraint the breadcrumb does not share. It is
+ * used only when a panel supplied no title at all.
+ *
+ * The id is the last resort. It is ugly, but a blank crumb is worse: it reads as
+ * a rendering bug and gives the user nothing to aim at.
+ */
 ```
 
 
@@ -1780,6 +2963,22 @@ HEAD `src/breadcrumbPath.ts:143` — 215 words. Attached to: `function applyTrun
  * The pin STATE survives — `togglePin` is never called here — so reopening the
  * panel brings its pin back and it resumes surviving auto-collapse.
  */
+```
+
+
+## § src/breadcrumbPath.ts:189
+
+*No leaf special case any more. `setOpen` on a leaf is a REQUEST that routes*
+
+HEAD `src/breadcrumbPath.ts:189` — 78 words. Attached to: `group.setOpen(c.id, false);`
+
+```text
+    // No leaf special case any more. `setOpen` on a leaf is a REQUEST that routes
+    // to the leaf's own `requestClose` (see `PanelMeta.requestClose`), so the
+    // consumer flips the prop and the group's state follows — which is what this
+    // loop used to have to arrange by skipping leaves and relying on `onTruncate`
+    // above having done the same job. The skip was correct and load-bearing, and
+    // it was also a rule that lived in a comment at one of several callsites.
 ```
 
 
@@ -1821,6 +3020,64 @@ HEAD `src/contentSize.ts:1` — 206 words. Attached to: `import { createEffect }
 ```
 
 
+## § src/contentSize.ts:31
+
+*How many extra digit-widths a frozen column carries.*
+
+HEAD `src/contentSize.ts:31` — 75 words. Attached to: `export const CONTENT_SLACK_DIGITS = 1;`
+
+```text
+/**
+ * How many extra digit-widths a frozen column carries.
+ *
+ * ONE. It covers the single rollover that a frozen column is actually exposed to
+ * within a session (a price gaining a digit, a P/L crossing a power of ten). Two
+ * would buy a second rollover that essentially never happens while making every
+ * column visibly too wide — and the column is draggable, so an under-estimate
+ * costs the user one drag while an over-estimate costs every user the space.
+ */
+```
+
+
+## § src/contentSize.ts:42
+
+*Ceiling on a measured column, as a fraction of the group's own extent.*
+
+HEAD `src/contentSize.ts:42` — 79 words. Attached to: `export const CONTENT_MAX_GROUP_FRACTION = 0.4;`
+
+```text
+/**
+ * Ceiling on a measured column, as a fraction of the group's own extent.
+ *
+ * Content-sizing trusts the content, and content can be pathological: one
+ * user-renamed strategy ("Jan 2027 diagonal — roll candidate, do not close") is
+ * a single unbreakable string that would otherwise freeze a 600px column and
+ * leave the plot a sliver. At 40% the widest legitimate column still fits with
+ * the dock's own two-columns-plus-surface layout intact, and anything past it is
+ * an outlier the user can drag wider deliberately.
+ */
+```
+
+
+## § src/contentSize.ts:69
+
+*The advance width of `'0'` in an element's own resolved font.*
+
+HEAD `src/contentSize.ts:69` — 62 words. Attached to: `export function digitAdvancePx(computed: CSSStyleDeclaration): number {`
+
+```text
+/**
+ * The advance width of `'0'` in an element's own resolved font.
+ *
+ * Built from the font LONGHANDS rather than `computed.font`: the shorthand
+ * serializes to an empty string whenever the longhands cannot be losslessly
+ * combined into one (which includes every element whose `line-height` came from
+ * a separate declaration), and an empty font string silently measures in the
+ * canvas default face instead of the content's.
+ */
+```
+
+
 ## § src/contentSize.ts:91
 
 *The element's natural extent along one axis, in px.*
@@ -1844,6 +3101,26 @@ HEAD `src/contentSize.ts:91` — 154 words. Attached to: `function naturalExtent
  * reflow, not a visible frame. `flex` is neutralised alongside the size because
  * the host is a flex item, and a flex item's base size loses to the flex
  * algorithm before it ever reaches layout.
+ */
+```
+
+
+## § src/contentSize.ts:138
+
+*The size to freeze a content-sized panel at, or `undefined` when there is*
+
+HEAD `src/contentSize.ts:138` — 71 words. Attached to: `export function measureContentSize(input: ContentSizeInput): number | undefined {`
+
+```text
+/**
+ * The size to freeze a content-sized panel at, or `undefined` when there is
+ * nothing to measure.
+ *
+ * Returns `undefined` rather than a number whenever layout cannot answer (a
+ * zero-extent host: display:none, an unattached tree, or jsdom, which has no
+ * layout at all). A caller that treats "no layout" as "0px, clamped up to the
+ * minimum" would freeze every column at the minimum width in exactly the
+ * environments where the measurement is meaningless.
  */
 ```
 
@@ -1887,6 +3164,81 @@ HEAD `src/contentSize.ts:180` — 194 words. Attached to: `export function seedD
 # src/context.ts
 
 
+## § src/context.ts:31
+
+*Which edge the rail is docked against (`horizontal` orientation only).*
+
+HEAD `src/context.ts:31` — 78 words. Attached to: `export type AccordionRailSide = 'left' | 'right';`
+
+```text
+/**
+ * Which edge the rail is docked against (`horizontal` orientation only).
+ *
+ * The rail is the ANCHOR: columns always grow AWAY from it, in open order. Rail on
+ * the left → the first-opened column sits against the rail and later ones extend
+ * rightward. Rail on the right → the same thing mirrored, so columns read
+ * right-to-left. A panel visually emerges from its own button either way, which is
+ * the whole point of docking the rail to an edge rather than floating it.
+ */
+```
+
+
+## § src/context.ts:50
+
+*Where a newly-opened panel lands in the column sequence.*
+
+HEAD `src/context.ts:50` — 69 words. Attached to: `export type AccordionOpenPlacement =`
+
+```text
+/**
+ * Where a newly-opened panel lands in the column sequence.
+ *
+ * There is exactly ONE order in this control — `AccordionGroupApi.order` — and both
+ * the rail and the columns render from it. That is what makes reordering the rail
+ * reorder the columns and vice versa: they are not two sequences kept in sync, they
+ * are one sequence read twice. This prop only decides whether OPENING a panel also
+ * moves it within that sequence.
+ */
+```
+
+
+## § src/context.ts:83
+
+*A panel's chrome, registered with the group as ACCESSORS rather than values.*
+
+HEAD `src/context.ts:83` — 63 words. Attached to: `export interface PanelMeta {`
+
+```text
+/**
+ * A panel's chrome, registered with the group as ACCESSORS rather than values.
+ *
+ * This matters: in `horizontal` orientation the GROUP renders the rail button for
+ * each panel, so it needs the panel's title/count/icon — and a snapshot taken at
+ * registration time would freeze them, so a count that ticks would never update on
+ * the rail. Thunks keep every read reactive at the group's use site.
+ */
+```
+
+
+## § src/context.ts:122
+
+*The id of this panel's CONTENT element.*
+
+HEAD `src/context.ts:122` — 67 words. Attached to: `contentId: string;`
+
+```text
+/**
+   * The id of this panel's CONTENT element.
+   *
+   * Published because the element that must reference it — the rail button — is
+   * rendered by the GROUP, not by the panel, and `aria-controls` has to name a real
+   * id. Without it the rail was a `role="tablist"` of `role="tab"` buttons that
+   * controlled nothing, which is a shape assistive technology cannot navigate: the
+   * relationship between a tab and its panel IS the pattern.
+   */
+```
+
+
 ## § src/context.ts:139
 
 *How the group ASKS a leaf to close. Present on leaves, absent on panels.*
@@ -1908,6 +3260,81 @@ HEAD `src/context.ts:139` — 134 words. Attached to: `requestClose?: () => void
    * shape of bug this codebase keeps finding: a rule enforced by remembering.
    * `setOpen(leafId, false)` now routes here instead, so the desync is not
    * something a caller can cause.
+   */
+```
+
+
+## § src/context.ts:157
+
+*The complete user-owned arrangement of a group, as a plain serialisable object.*
+
+HEAD `src/context.ts:157` — 62 words. Attached to: `export interface AccordionLayout {`
+
+```text
+/**
+ * The complete user-owned arrangement of a group, as a plain serialisable object.
+ *
+ * This is the SAME shape the group persists to localStorage, deliberately: a saved
+ * workspace and an auto-persisted session are the same data, so there is one
+ * migration story rather than two. `version` exists so a consumer that stored a
+ * layout server-side can be told, later, that the shape moved on.
+ */
+```
+
+
+## § src/context.ts:180
+
+*The two listeners hover-to-open attaches to a panel's activator.*
+
+HEAD `src/context.ts:180` — 69 words. Attached to: `export interface ActivatorHoverProps {`
+
+```text
+/**
+ * The two listeners hover-to-open attaches to a panel's activator.
+ *
+ * Spelled out rather than typed as `JSX.HTMLAttributes<HTMLElement>`: the two
+ * activators are different ELEMENTS (a `<button>` in horizontal, a `<div>` header
+ * row in vertical), and the generic attribute bag carries a `ref` whose element
+ * type then has to match at every spread site. The listeners are all this
+ * actually is, so saying so makes it spreadable onto either without a cast.
+ */
+```
+
+
+## § src/context.ts:214
+
+*Does any OPEN member declare `grow`?*
+
+HEAD `src/context.ts:214` — 68 words. Attached to: `hasDeclaredGrower: Accessor<boolean>;`
+
+```text
+/**
+   * Does any OPEN member declare `grow`?
+   *
+   * Read by every member's sizing, not just the growers: a declaration retires the
+   * trailing-member default for the whole group, so a member that declares nothing
+   * still has to know whether one exists. Scoped to OPEN members because a closed
+   * grower absorbs nothing — the surplus must fall back to the default rather than
+   * being promised to a panel that is not on screen.
+   */
+```
+
+
+## § src/context.ts:335
+
+*The `⋯` overflow trigger, which STANDS IN for every rail button that did not*
+
+HEAD `src/context.ts:335` — 63 words. Attached to: `railOverflowSlot: ElementSlot;`
+
+```text
+/**
+   * The `⋯` overflow trigger, which STANDS IN for every rail button that did not
+   * fit. Filled by `RailOverflowMenu`.
+   *
+   * The group needs it as an element rather than a boolean because it is the anchor
+   * and the focus target for panels whose own button is not rendered — see
+   * `activatorElOf`. Keyed like the others so it can share `slotRef`; there is only
+   * ever one, under `RAIL_OVERFLOW_SLOT_KEY`.
    */
 ```
 
@@ -1937,6 +3364,24 @@ HEAD `src/context.ts:373` — 158 words. Attached to: `activatorElOf: (id: strin
    *
    * Returns `undefined` only when the panel has no on-screen representation at all
    * (unregistered, or a leaf — leaves have no activator by definition).
+   */
+```
+
+
+## § src/context.ts:396
+
+*The panel's outer element — measured when seeding a resize.*
+
+HEAD `src/context.ts:396` — 66 words. Attached to: `panelElements: ElementSlot;`
+
+```text
+/**
+   * The panel's outer element — measured when seeding a resize.
+   *
+   * A slot for the same reason the others are: these were registered with a bare
+   * `ref` and NEVER cleared, so every panel that unmounted left a detached node
+   * behind. `resize` measures through this map, and a detached node's rect is all
+   * zeros — so a stale entry does not fail, it silently seeds a panel's extent as 0.
    */
 ```
 
@@ -2140,6 +3585,26 @@ HEAD `src/keys.ts:3` — 126 words. Attached to: `export function createActivato
 ```
 
 
+## § src/keys.ts:21
+
+*Open the panel's context menu, anchored to the activator.*
+
+HEAD `src/keys.ts:21` — 68 words. Attached to: `onMenu?: (activator: HTMLElement) => void;`
+
+```text
+/**
+     * Open the panel's context menu, anchored to the activator.
+     *
+     * Handled HERE rather than as a second `onKeyDown` from `createPanelMenu`
+     * because an element has exactly one `onKeyDown` in JSX: a menu that supplied
+     * its own would be silently overwritten by this one, or overwrite it,
+     * depending on spread order. `createPanelMenu` already keeps `triggerProps`
+     * down to `onContextMenu` for the same reason, and this is the other half of
+     * that decision.
+     */
+```
+
+
 ## § src/keys.ts:35
 
 *Shift+F10 and the dedicated ContextMenu key, handled EXPLICITLY.*
@@ -2211,6 +3676,27 @@ HEAD `src/leafChain.ts:4` — 319 words. Attached to: `/**`
  *
  * A declared parent cannot drift. It is derived from a prop the author wrote, so
  * the order is a fact rather than a consequence.
+ */
+```
+
+Editor’s note: The referenced phase handoff about registry lifetime is not available in this repository.
+
+
+## § src/leafChain.ts:69
+
+*Walk `id`'s ancestors, nearest first, stopping at the first repeat.*
+
+HEAD `src/leafChain.ts:69` — 69 words. Attached to: `function walkAncestors(`
+
+```text
+/**
+ * Walk `id`'s ancestors, nearest first, stopping at the first repeat.
+ *
+ * The visited set is the ONLY termination guarantee this file needs, and it is
+ * why there is no depth cap anywhere in the chain implementation: a malformed
+ * `parentId` (a typo producing A→B→A) is bounded structurally rather than by a
+ * number someone picked. See the handoff note on depth for why a numeric cap
+ * would be strictly worse than none.
  */
 ```
 
@@ -2324,6 +3810,39 @@ HEAD `src/panelMenu.tsx:85` — 119 words. Attached to: `function bulkClosableId
 ```
 
 
+## § src/panelMenu.tsx:102
+
+*Through the shared rule rather than a hand-written inverse. This function*
+
+HEAD `src/panelMenu.tsx:102` — 65 words. Attached to: `return sharedBulkClosableIds(group.openOrder(), {`
+
+```text
+  // Through the shared rule rather than a hand-written inverse. This function
+  // used to spell out `!isPinned && !isLeaf` itself, and its own comment conceded
+  // that it "only PREDICTS" what `collapseAll` would do — a prediction that could
+  // drift from the thing it predicts, while being used to grey out a row. Both
+  // now read the same predicate, so the row's enablement and the action's effect
+  // cannot disagree.
+```
+
+
+## § src/panelMenu.tsx:114
+
+*True when at least one panel or leaf carries an explicit size. Read through*
+
+HEAD `src/panelMenu.tsx:114` — 64 words. Attached to: `function hasExplicitSizes(group: AccordionGroupApi): boolean {`
+
+```text
+/**
+ * True when at least one panel or leaf carries an explicit size. Read through
+ * `sizeOf` rather than a size map because that accessor is the API's only public
+ * view of it — and it covers sizes seeded from `defaultSize`, not just ones the
+ * user dragged, so "Reset Sizes" stays enabled when there IS something to reset
+ * even in a group whose splitters are turned off.
+ */
+```
+
+
 ## § src/panelMenu.tsx:140
 
 *Build the menu entries for one panel, from live group state.*
@@ -2348,6 +3867,67 @@ HEAD `src/panelMenu.tsx:140` — 149 words. Attached to: `export function buildP
  *
  * Every enabled row does something observable. There are no rows here that run
  * an action the group will silently drop.
+ */
+```
+
+
+## § src/panelMenu.tsx:298
+
+*Open anchored to an ELEMENT rather than a pointer — the keyboard path.*
+
+HEAD `src/panelMenu.tsx:298` — 70 words. Attached to: `openAtElement: (el: HTMLElement) => void;`
+
+```text
+/**
+   * Open anchored to an ELEMENT rather than a pointer — the keyboard path.
+   *
+   * A context menu reachable only by right-click is a set of commands a keyboard
+   * user cannot issue: on the rail button, "Pin", "Close Others" and both Move
+   * commands exist nowhere else in the chrome. Shift+F10 and the ContextMenu key
+   * are the platform bindings for exactly this, and they carry no coordinates —
+   * hence an element instead of an event.
+   */
+```
+
+
+## § src/panelMenu.tsx:312
+
+*Attach the panel context menu to one activator.*
+
+HEAD `src/panelMenu.tsx:312` — 66 words. Attached to: `export function createPanelMenu(`
+
+```text
+/**
+ * Attach the panel context menu to one activator.
+ *
+ * Call in a component body; spread `triggerProps` on the activator and render
+ * `element`. The id is an ACCESSOR rather than a value because the rail button
+ * renders from a `<For>` over reactive metadata — a snapshot would bind the menu
+ * to whichever panel occupied that slot at mount time and quietly act on the
+ * wrong one after a reorder.
+ */
+```
+
+
+---
+
+# src/rail.css
+
+
+## § src/rail.css:1
+
+*Rail overflow + pan chrome for the accordion-dock mock.*
+
+HEAD `src/rail.css:1` — 61 words. Attached to: `.acc-rail {`
+
+```text
+/*
+ * Rail overflow + pan chrome for the accordion-dock mock.
+ *
+ * A new file only because `styles.css` is owned elsewhere while this lands; it is
+ * meant to be folded in on promotion. Every value comes from an existing --acc-*
+ * token, with one new token declared on the rail itself rather than on :root so
+ * it stays per-instance overridable without widening the global token surface.
  */
 ```
 
@@ -2387,6 +3967,25 @@ HEAD `src/railOverflow.ts:4` — 171 words. Attached to: `/**`
 ```
 
 
+## § src/railOverflow.ts:25
+
+*Attribute the rail's buttons must carry, so measurements bind to a panel by*
+
+HEAD `src/railOverflow.ts:25` — 65 words. Attached to: `export const RAIL_ITEM_ATTR = 'data-panel-id';`
+
+```text
+/**
+ * Attribute the rail's buttons must carry, so measurements bind to a panel by
+ * IDENTITY rather than by position.
+ *
+ * Index-based mapping (nth child ↔ nth id) would be one reorder away from
+ * silently attributing one panel's height to another, and the symptom — the wrong
+ * button collapsing into the menu — looks like a measurement bug rather than a
+ * mapping bug. See the wiring note in this phase's handoff.
+ */
+```
+
+
 ## § src/railOverflow.ts:39
 
 *Everything in the rail that is a CONTROL rather than background, as a selector*
@@ -2405,6 +4004,136 @@ HEAD `src/railOverflow.ts:39` — 120 words. Attached to: `export const RAIL_CON
  * as a pan, and the capture-phase `stopPropagation` that makes panning work would
  * have silently killed drag-reorder. Exported as a finished selector so there is
  * one place the answer to "is this a rail control" is written down.
+ */
+```
+
+
+## § src/railOverflow.ts:53
+
+*The rail always keeps at least this many buttons.*
+
+HEAD `src/railOverflow.ts:53` — 70 words. Attached to: `export const MIN_VISIBLE_RAIL_ITEMS = 1;`
+
+```text
+/**
+ * The rail always keeps at least this many buttons.
+ *
+ * One. A rail rendered as nothing but a `⋯` reads as broken chrome rather than as
+ * a dense rail — the user loses the "this is a strip of panels" affordance
+ * entirely, and the menu becomes primary navigation by accident. If even a single
+ * button genuinely cannot fit, showing it clipped is more honest than showing
+ * none: the clipping is visible and self-explaining.
+ */
+```
+
+
+## § src/railOverflow.ts:86
+
+*Extents are rounded UP.*
+
+HEAD `src/railOverflow.ts:86` — 71 words. Attached to: `function extentOf(el: Element): number {`
+
+```text
+/**
+ * Extents are rounded UP.
+ *
+ * Sub-pixel layout means a button can measure 27.5px and two of them 55.0px; a
+ * floor or a raw float lets accumulated error decide a fit by a fraction of a
+ * pixel, which is exactly the boundary case that produces a one-frame flicker.
+ * Rounding up is the conservative direction: the fit is under-estimated, so the
+ * failure mode is "one fewer button than strictly possible", never "one button
+ * clipped".
+ */
+```
+
+
+## § src/railOverflow.ts:125
+
+*Fallback reserve for the `⋯` trigger, used only on the very first frame in*
+
+HEAD `src/railOverflow.ts:125` — 92 words. Attached to: `const fallbackReserve = (s: ReadonlyMap<string, number>): number => {`
+
+```text
+/**
+   * Fallback reserve for the `⋯` trigger, used only on the very first frame in
+   * which overflow appears and the trigger has therefore not rendered yet.
+   *
+   * The tallest measured button is a deliberate OVER-estimate: the trigger is
+   * plainer chrome than a labelled button, so reserving a button's worth of space
+   * can only under-fill the rail, never clip. It is a measurement rather than a
+   * constant so that a density change or a font swap moves it automatically —
+   * a hardcoded px here would be a second, silently-drifting copy of a value the
+   * stylesheet already owns.
+   */
+```
+
+
+## § src/railOverflow.ts:217
+
+*Per-button observation, which is what makes this robust to a density change*
+
+HEAD `src/railOverflow.ts:217` — 96 words. Attached to: `createEffect(() => {`
+
+```text
+/**
+   * Per-button observation, which is what makes this robust to a density change
+   * or a late font load: both alter a button's box, and neither fires any other
+   * signal this module could listen to.
+   *
+   * The guard is the important part. `ResizeObserver.observe()` delivers an
+   * immediate callback for every element it starts watching, so re-observing
+   * after each render would re-enter the measure pass forever. Comparing against
+   * the cached extent turns that burst into a no-op and leaves only genuine size
+   * changes to trigger work — the same reason a measure pass that finds nothing
+   * changed emits no new `sizes` value.
+   */
+```
+
+
+---
+
+# src/RailOverflowMenu.tsx
+
+
+## § src/RailOverflowMenu.tsx:6
+
+*The `⋯` at the end of the rail: the panels that did not fit, reachable as a*
+
+HEAD `src/RailOverflowMenu.tsx:6` — 67 words. Attached to: `/** Trigger glyph. A horizontal ellipsis rather than a vertical one: it reads as`
+
+```text
+/**
+ * The `⋯` at the end of the rail: the panels that did not fit, reachable as a
+ * menu instead of behind a scrollbar.
+ *
+ * The menu itself is `@cujuju/solidjs-context-menu` — the same package Phase 4's
+ * panel menu uses. Positioning, top-layer promotion, outside-click and Escape
+ * dismissal are all solved there, and a second implementation of dismissal
+ * semantics inside the accordion would drift from the first one the moment either
+ * is touched.
+ */
+```
+
+
+## § src/RailOverflowMenu.tsx:34
+
+*Rows for the overflow menu.*
+
+HEAD `src/RailOverflowMenu.tsx:34` — 99 words. Attached to: `export function buildRailOverflowItems(`
+
+```text
+/**
+ * Rows for the overflow menu.
+ *
+ * Exported and pure for the same reason `buildPanelMenuItems` is: the interesting
+ * part is which panels appear and what state they show, and that should be
+ * assertable without a renderer.
+ *
+ * Every row is enabled. Unlike the panel context menu — where "Close" on an
+ * already-closed panel is a real no-op worth greying out — a rail button's action
+ * is `toggle`, which is meaningful in both directions. The open ones are marked
+ * with a checkmark rather than disabled, because the row's job here is to be the
+ * rail button it replaced, and a rail button never disables itself.
  */
 ```
 
@@ -2450,6 +4179,25 @@ HEAD `src/railPan.ts:6` — 180 words. Attached to: `/** Secondary/middle pointe
 ```
 
 
+## § src/railPan.ts:38
+
+*Movement before a press becomes a pan, in px.*
+
+HEAD `src/railPan.ts:38` — 72 words. Attached to: `const PAN_ACTIVATE_DISTANCE_PX = 5;`
+
+```text
+/**
+ * Movement before a press becomes a pan, in px.
+ *
+ * Mirrors `createReorderList`'s `activateDistance` default (5). It is duplicated
+ * rather than imported because the vendored file exposes it only as an inline
+ * `?? 5` default — but the VALUE must match, or the two gestures would have
+ * different dead zones and a user would feel one as looser than the other on the
+ * same strip of chrome. If the vendored default ever changes, this follows it.
+ */
+```
+
+
 ## § src/railPan.ts:85
 
 *Space is the modifier AND the activation key for a focused button, which is a*
@@ -2469,6 +4217,27 @@ HEAD `src/railPan.ts:85` — 106 words. Attached to: `const focusInsideRail = ()
    * Outside that intersection Space keeps every default it has — page scroll,
    * button activation — untouched.
    */
+```
+
+
+## § src/railPan.ts:167
+
+*CAPTURE-PHASE stopPropagation is what keeps a pan from becoming a reorder.*
+
+HEAD `src/railPan.ts:167` — 93 words. Attached to: `e.stopPropagation();`
+
+```text
+/**
+     * CAPTURE-PHASE stopPropagation is what keeps a pan from becoming a reorder.
+     *
+     * The reorder primitive listens on the BUTTON, in the bubble phase. Capture
+     * runs root→target, so stopping here means the event never reaches the
+     * button's handler and no reorder is ever armed — as opposed to letting both
+     * start and trying to cancel one afterwards, which is how a gesture ends up
+     * committing a reorder it visibly abandoned. Note this is reached only when
+     * `wantsPan` is true; an unmodified press on a button falls through
+     * untouched, so reorder keeps its gesture exactly as before.
+     */
 ```
 
 
@@ -2515,6 +4284,45 @@ HEAD `src/resize.ts:4` — 264 words. Attached to: `/**`
  * store: a drag interrupted by a crash would persist whatever pixel the pointer
  * happened to be over, and a consumer mirroring the callback would record sixty
  * layout revisions for one adjustment.
+ */
+```
+
+
+## § src/resize.ts:44
+
+*How far PAST a panel's minimum the pointer must travel before the drag is read as*
+
+HEAD `src/resize.ts:44` — 81 words. Attached to: `const COLLAPSE_OVERDRAG_PX = 40;`
+
+```text
+/**
+ * How far PAST a panel's minimum the pointer must travel before the drag is read as
+ * "collapse this" rather than "make it as small as allowed".
+ *
+ * It has to be a deliberate overshoot, not a hair past the floor: a panel already
+ * clamped at its minimum sits under a pointer that is still moving, so a 1px trigger
+ * would collapse panels every time someone dragged firmly to the edge. Wide enough
+ * to require intent, short enough to discover by accident once.
+ */
+```
+
+
+## § src/resize.ts:59
+
+*How much one arrow keypress moves the boundary, px.*
+
+HEAD `src/resize.ts:59` — 85 words. Attached to: `const KEYBOARD_STEP_PX = 8;`
+
+```text
+/**
+ * How much one arrow keypress moves the boundary, px.
+ *
+ * The keyboard equivalent of a drag has to answer a question the pointer never
+ * asks: how far is "a bit"? 8px is deliberately fine rather than convenient — a
+ * splitter is a precision control, and a user who wants to travel a long way holds
+ * the key (autorepeat makes that fast) or uses the coarse step below. Erring coarse
+ * would make fine adjustment impossible; erring fine only makes the long adjustment
+ * slower, which is the cheaper mistake.
  */
 ```
 
@@ -2605,6 +4413,22 @@ HEAD `src/resize.ts:76` — 813 words. Attached to: `export function columnFlex(
 ```
 
 
+## § src/resize.ts:185
+
+*No explicit size. Normally the stylesheet's mode rules size this member and*
+
+HEAD `src/resize.ts:185` — 75 words. Attached to: `if (opts.fill && opts.groupHasDeclaredGrower && !opts.declaresGrow) {`
+
+```text
+/* No explicit size. Normally the stylesheet's mode rules size this member and
+       an inline `flex` here would out-specify them for no gain — but `fill`'s
+       stylesheet rule is `flex: 1 1 0`, i.e. "grow", which would let an unsized
+       NON-grower compete with the declared one for the surplus. So a group with a
+       declared grower pins its other members to their content size; without one,
+       nothing is emitted and behaviour is exactly what it always was. */
+```
+
+
 ## § src/resize.ts:237
 
 *Move the boundary on `id`'s trailing edge by `steps` — the KEYBOARD path.*
@@ -2625,6 +4449,25 @@ HEAD `src/resize.ts:237` — 111 words. Attached to: `nudge: (id: string, steps:
    * reachable this way: overdrag is a gesture with a distance, and a keypress has
    * none, so a key can clamp at the minimum but never close a panel out from under
    * the user.
+   */
+```
+
+
+## § src/resize.ts:266
+
+*Teardown for the drag currently in flight, or null.*
+
+HEAD `src/resize.ts:266` — 63 words. Attached to: `let endActiveDrag: (() => void) | null = null;`
+
+```text
+/**
+   * Teardown for the drag currently in flight, or null.
+   *
+   * Held at this level so the owning component's disposal can run it. Without that,
+   * a group unmounted mid-drag (a route change while the pointer is down, an HMR
+   * boundary) leaves `pointermove` and `pointerup` bound to `window` forever, each
+   * closing over a dead reactive graph — and every subsequent move writes sizes
+   * into a disposed signal.
    */
 ```
 
@@ -2768,6 +4611,42 @@ HEAD `src/styles.css:1` — 265 words. Attached to: `@layer cujuju-defaults {`
 ```
 
 
+## § src/styles.css:36
+
+*The panel's CONTENT box, separately from the panel itself. `transparent`*
+
+HEAD `src/styles.css:36` — 96 words. Attached to: `--acc-content-bg: transparent;`
+
+```text
+/* The panel's CONTENT box, separately from the panel itself. `transparent`
+       so the panel's own `--acc-bg` shows through and this token costs an
+       existing consumer nothing — it exists for the host that wants its section
+       bodies to read as a WELL the content sits in rather than as the same
+       surface the chrome is drawn on. Elevation is directional: a body toned
+       BELOW its contents is what makes those contents read as cards, and toning
+       it ABOVE inverts that, so a host reaching for this almost always wants a
+       darker value than `--acc-bg`, not a lighter one. */
+```
+
+
+## § src/styles.css:48
+
+*A CLOSED panel's header, which under `appearance: cards` is the WHOLE*
+
+HEAD `src/styles.css:48` — 92 words. Attached to: `--acc-header-bg-closed: var(--acc-header-bg);`
+
+```text
+/* A CLOSED panel's header, which under `appearance: cards` is the WHOLE
+       card — there is no body behind it to carry a tone. Defaults to
+       `--acc-header-bg` (the value a closed header had before this token
+       existed) so the three-state header ramp is unchanged for anyone who does
+       not set it. Split out because "chrome over a body" and "chrome that IS
+       the card" are two different jobs for one colour, and a host toning
+       `--acc-content-bg` generally wants its collapsed cards to match that
+       body rather than to stay at the open header's tone. */
+```
+
+
 ## § src/styles.css:170
 
 *Chrome transitions — header and rail-button backgrounds, the chevron's*
@@ -2870,6 +4749,22 @@ HEAD `src/styles.css:352` — 109 words. Attached to: `.acc-group > *:not(.acc-p
 ```
 
 
+## § src/styles.css:399
+
+*Before the columns regardless of DOM position — the columns carry positive*
+
+HEAD `src/styles.css:399` — 69 words. Attached to: `order: -1;`
+
+```text
+/* Before the columns regardless of DOM position — the columns carry positive
+     `order` values so they can sit in open-order.
+     UNDER THE RAIL DIVIDER this is overridden inline by the group, which computes
+     the slot after the static (pinned) columns. The declaration stays as the
+     non-divider default rather than moving wholesale into JS: a dock that never
+     turns the divider on should not need a script to place its rail. */
+```
+
+
 ## § src/styles.css:453
 
 *THE RAIL BUTTON IS SQUARE, ALWAYS — stated, never inherited. The buttons are a*
@@ -2890,6 +4785,85 @@ HEAD `src/styles.css:453` — 129 words. Attached to: `border-radius: 0;`
 ```
 
 
+## § src/styles.css:481
+
+*Active marker as an INSET SHADOW, not a border: it costs no layout box, so it*
+
+HEAD `src/styles.css:481` — 65 words. Attached to: `/* STAYS PHYSICAL, and cannot be otherwise: the offsets of `box-shadow` are always`
+
+```text
+/* Active marker as an INSET SHADOW, not a border: it costs no layout box, so it
+   cannot shift the label when a button activates, and flipping it to the other edge
+   is a sign change rather than a second set of border/padding rules. It sits on the
+   rail's OUTER edge — away from the columns — so it never reads as part of the
+   column's own frame. */
+```
+
+
+## § src/styles.css:517
+
+*The cap is on the LABEL'S OWN inline axis, which `writing-mode` above has*
+
+HEAD `src/styles.css:517` — 94 words. Attached to: `max-inline-size: var(--acc-rail-label-max);`
+
+```text
+/* The cap is on the LABEL'S OWN inline axis, which `writing-mode` above has
+     already turned vertical — so `max-inline-size` resolves to a height here and
+     says what it means ("this much label, then ellipsis"), where `max-height`
+     only said where it landed. Logical properties resolve against the ELEMENT'S
+     writing mode, so this survives the element being re-rotated.
+     Under RTL the inline axis of `vertical-rl` runs bottom-to-top, which is the
+     correct reading direction for an RTL script rotated into the rail; that is a
+     property of the writing mode, so it needs no rule of its own. */
+```
+
+
+## § src/styles.css:609
+
+*STAYS PHYSICAL. The handle belongs on the edge that faces the NEXT column, and*
+
+HEAD `src/styles.css:609` — 67 words. Attached to: `.acc-group[data-orientation='horizontal'][data-rail-side='left'] .acc-splitter {`
+
+```text
+/* STAYS PHYSICAL. The handle belongs on the edge that faces the NEXT column, and
+   which edge that is comes from `data-rail-side` — a physical dock choice that
+   RTL does not flip. `inset-inline-end` would move the handle to the left edge in
+   RTL while the column it resizes stayed put, so the user would be dragging the
+   boundary they can see with the handle for the boundary they cannot. */
+```
+
+
+## § src/styles.css:671
+
+*Column separators sit on each column's RAIL-FACING side, and the column hard*
+
+HEAD `src/styles.css:671` — 62 words. Attached to: `/* STAYS PHYSICAL, for the same reason as the rail's own border: "rail-facing" is`
+
+```text
+/* Column separators sit on each column's RAIL-FACING side, and the column hard
+   against the rail drops its own — otherwise it doubles up with the rail's edge.
+   `:first-of-type` cannot express "first column": the rail is also a div and comes
+   first in the DOM, and visual order comes from flex `order` anyway, which no
+   selector can read. Hence `data-col-first`, set by the panel. */
+```
+
+
+## § src/styles.css:738
+
+*...and the hover this rule would otherwise EAT. `.acc-header-row:hover` is*
+
+HEAD `src/styles.css:738` — 63 words. Attached to: `.acc-panel[data-open='false'] > .acc-header-row:hover {`
+
+```text
+/* ...and the hover this rule would otherwise EAT. `.acc-header-row:hover` is
+   (0,2,0); the closed rule above is (0,3,0) and outranks it, which would leave
+   the dock's primary click target — a collapsed header — with no hover feedback
+   at all. Restated at (0,4,0) rather than by loosening the closed selector,
+   because the specificity is load-bearing: it is what makes the closed tone
+   beat the base one. */
+```
+
+
 ## § src/styles.css:795
 
 *RTL: a COLLAPSED disclosure chevron points at the edge the content will unfold*
@@ -2905,6 +4879,39 @@ HEAD `src/styles.css:795` — 105 words. Attached to: `.acc-chevron:dir(rtl) {`
    Deliberately lower specificity than the open rule above, which replaces the
    transform outright: a chevron rotated to point DOWN is symmetric about the
    vertical axis, so mirroring it would be a no-op anyway. */
+```
+
+
+## § src/styles.css:884
+
+*EVERYTHING PINNED: the rail is serving no panels, so it takes no space. A*
+
+HEAD `src/styles.css:884` — 75 words. Attached to: `.acc-rail[data-rail-empty='true'] {`
+
+```text
+/* EVERYTHING PINNED: the rail is serving no panels, so it takes no space. A
+   40px strip between the last static column and the leaf, with nothing in it and
+   nothing that can be put in it, is a dead strip — and the divider's whole claim
+   is that the rail marks a boundary that MEANS something. Width, padding and
+   border all go; `overflow: hidden` keeps the collapse from being undone by a
+   stray child's intrinsic width. */
+```
+
+
+## § src/styles.css:913
+
+*The column title bar's activator — the control that collapses a docked column*
+
+HEAD `src/styles.css:913` — 83 words. Attached to: `.acc-col-activator {`
+
+```text
+/* The column title bar's activator — the control that collapses a docked column
+   back to a rail button while it stays pinned.
+
+   Transparent and unpadded so the bar looks exactly as it did when it was a label:
+   the affordance is the pointer and the focus ring, not a second button face
+   inside a bar that is already chrome. It takes the free space so the whole span
+   left of the pin is the hit area, which is what makes it findable at all. */
 ```
 
 
@@ -2927,6 +4934,25 @@ HEAD `src/styles.css:1024` — 136 words. Attached to: `.acc-content,`
    and flying-out renderings drift apart, and they must be indistinguishable — the
    whole promise of pinning a flyout is that the content does not change, only where
    it lives. */
+```
+
+
+## § src/styles.css:1050
+
+*Fill mode: the content box must be a flex parent so a nested group (or any*
+
+HEAD `src/styles.css:1050` — 91 words. Attached to: `.acc-group[data-mode='fill'] .acc-content:not([hidden]) {`
+
+```text
+/* Fill mode: the content box must be a flex parent so a nested group (or any
+   flex:1 child) can claim the panel's remaining space.
+
+   The `:not([hidden])` is LOAD-BEARING, not decoration. A collapsed panel carries
+   the `hidden` attribute, whose UA `display: none` is the weakest rule in the
+   cascade — any author `display` beats it. This selector is (0,3,0) and a bare
+   `.acc-content[hidden]` is (0,2,0), so without the guard a fill-mode panel went on
+   painting its content after being collapsed. Every rule below that sets `display`
+   on `.acc-content` must carry the same guard. */
 ```
 
 
@@ -2957,6 +4983,22 @@ HEAD `src/styles.css:1086` — 148 words. Attached to: `/* ── horizontal: a 
 ```
 
 
+## § src/styles.css:1104
+
+*── horizontal: a column grows out of the rail ──*
+
+HEAD `src/styles.css:1104` — 66 words. Attached to: `.acc-group[data-animated='true'][data-orientation='horizontal'] > .acc-panel[data-open='true'] {`
+
+```text
+/* ── horizontal: a column grows out of the rail ──
+   `flex-basis` carries it in `natural` (the column has a declared width) and
+   `flex-grow` + `min-width` carry it in `fill` (the column has a share, not a
+   width) — all three are numbers/lengths, so all three interpolate. One rule
+   covers both modes because the property that is inert in a mode is identical at
+   both ends there and so never animates. */
+```
+
+
 ## § src/styles.css:1115
 
 *Stops the content REFLOWING while the column is narrower than its content*
@@ -2974,6 +5016,23 @@ HEAD `src/styles.css:1115` — 102 words. Attached to: `overflow: clip;`
      (`right: calc(-1 * var(--_acc-splitter-overhang))`), so the clip region is
      expanded by exactly that overhang. Without it, animating a column would silently halve its resize
      hit area. */
+```
+
+
+## § src/styles.css:1129
+
+*The other end of the transition. A collapsed column is `display: none`, so it*
+
+HEAD `src/styles.css:1129` — 75 words. Attached to: `@starting-style {`
+
+```text
+/* The other end of the transition. A collapsed column is `display: none`, so it
+   has no before-change style to animate FROM — @starting-style is what supplies
+   one for an element entering the box tree. It also fires on first paint, so a
+   `defaultOpen` column animates in on mount, which is the same event from the
+   user's point of view.
+   Engines without @starting-style drop this at-rule and land on the final values
+   immediately: no animation, no breakage. */
 ```
 
 
@@ -3000,6 +5059,23 @@ HEAD `src/styles.css:1144` — 168 words. Attached to: `.acc-group[data-animated
    user narrowed, for as long as animation stayed enabled. It gets the clip and
    nothing else, which is the other mitigation and the cheap one to be right
    about. */
+```
+
+
+## § src/styles.css:1174
+
+*CLOSING a column is deliberately NOT animated, and this is a correctness*
+
+HEAD `src/styles.css:1174` — 94 words. Attached to: `/* ── vertical + natural: wipe the content open ──`
+
+```text
+/* CLOSING a column is deliberately NOT animated, and this is a correctness
+   decision rather than an omission. A closed panel's `openIndex` is -1, so the
+   inline style clamps its flex `order` to 1 — the head of the column strip. Keep
+   a closing column in the box tree and it TELEPORTS to sit against the rail and
+   then shrinks, which reads as a different panel closing. Letting it disappear
+   under the existing `display: none` is the honest behaviour until the group can
+   hold a last-known order (see the note at the end of this section). */
 ```
 
 
@@ -3049,6 +5125,21 @@ HEAD `src/styles.css:1204` — 203 words. Attached to: `.acc-group[data-animated
 ```
 
 
+## § src/styles.css:1232
+
+*Overrides the `auto` this control gives content everywhere else, and only*
+
+HEAD `src/styles.css:1232` — 60 words. Attached to: `overflow: hidden;`
+
+```text
+/* Overrides the `auto` this control gives content everywhere else, and only
+       safely HERE: in `natural` mode the content box is sized to its own content,
+       so it has nothing to scroll in a resting state — the only moment it is ever
+       smaller than its content is mid-wipe, which is precisely the moment a
+       scrollbar must not flash in and out. */
+```
+
+
 ## § src/styles.css:1241
 
 *── vertical + fill: not animated, and this is the reason ──*
@@ -3077,6 +5168,8 @@ HEAD `src/styles.css:1241` — 204 words. Attached to: `/* ── What this sect
    version legal once it is not Chromium-only. */
 ```
 
+Editor’s note: “The note below” proposed a content wrapper and retaining closing order; it is preserved at § src/styles.css:1261.
+
 
 ## § src/styles.css:1261
 
@@ -3103,6 +5196,21 @@ HEAD `src/styles.css:1261` — 134 words. Attached to: `@media (prefers-reduced-
 ```
 
 
+## § src/styles.css:1286
+
+*The open/close motion above is geometry — a whole column travelling its own*
+
+HEAD `src/styles.css:1286` — 60 words. Attached to: `.acc-group[data-animated='true'] > .acc-panel,`
+
+```text
+/* The open/close motion above is geometry — a whole column travelling its own
+     width, a panel's content wiping open. That is the exact class of movement
+     this query exists to suppress, so the opt-in is overruled here and the
+     control lands on its resting layout immediately. The @starting-style block
+     becomes inert on its own once there is no transition to start. */
+```
+
+
 ## § src/styles.css:1297
 
 *── Appearance: cards ────────────────────────────────────────────────────────*
@@ -3121,6 +5229,22 @@ HEAD `src/styles.css:1297` — 110 words. Attached to: `.acc-group[data-appearan
    with a gap doing the dividing that separators did. Both orientations get it —
    vertical stacks the cards, horizontal sets them side by side — because the gap
    is applied along the group's main axis and needs no per-axis rule. */
+```
+
+
+## § src/styles.css:1335
+
+*── Separator suppression ───────────────────────────────────────────────────*
+
+HEAD `src/styles.css:1335` — 64 words. Attached to: `.acc-group[data-appearance='cards'][data-orientation='vertical'] > .acc-panel + .acc-panel {`
+
+```text
+/* ── Separator suppression ───────────────────────────────────────────────────
+   The flush rules below divide panels INSIDE a shared frame; in cards the gap
+   already does that, and these would either double a card's own border or, in
+   the `data-col-first` case, strip the borders off the card hard against the
+   rail. Restated at matching-or-higher specificity rather than by reordering,
+   so this does not silently depend on where in the file it sits. */
 ```
 
 
@@ -3145,6 +5269,37 @@ HEAD `src/styles.css:1368` — 158 words. Attached to: `.acc-group[data-appearan
    fixture with the cards floating beside it at the same rhythm they float from
    each other. Its inner border goes, because that border's whole job was to
    divide it from columns it now has a gap from. */
+```
+
+
+## § src/styles.css:1388
+
+*── Splitters land in the GAP ───────────────────────────────────────────────*
+
+HEAD `src/styles.css:1388` — 69 words. Attached to: `.acc-group[data-appearance='cards'][data-orientation='horizontal'][data-rail-side='left']`
+
+```text
+/* ── Splitters land in the GAP ───────────────────────────────────────────────
+   Flush centres the handle on the panel's trailing EDGE, which is where the
+   divide visibly is when panels touch. With cards the divide the user sees is the
+   middle of the gap, half a gap further out — so the handle moves with it. Miss
+   this and the grab target sits on the card's border while the user aims at the
+   space between the cards. */
+```
+
+
+## § src/styles.css:1408
+
+*FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout` already draws a*
+
+HEAD `src/styles.css:1408` — 63 words. Attached to: ``
+
+```text
+/* FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout` already draws a
+   bordered, shadowed surface, and under cards its ELEVATION is what says it is
+   floating above the docked cards rather than being one of them. Matching a
+   flyout's border to the cards' would take the only cue that distinguishes
+   transient from docked and hand it to the thing it distinguishes them from. */
 ```
 
 
@@ -3247,6 +5402,26 @@ HEAD `src/tearOff.tsx:4` — 694 words. Attached to: `/** Default popup size, px
 ```
 
 
+## § src/tearOff.tsx:95
+
+*How often the opener checks whether a popup has gone away, ms.*
+
+HEAD `src/tearOff.tsx:95` — 92 words. Attached to: `export const TEAR_OFF_CLOSE_POLL_MS = 400;`
+
+```text
+/**
+ * How often the opener checks whether a popup has gone away, ms.
+ *
+ * A popup's `pagehide` is the fast path and fires for the normal close, but it is
+ * NOT guaranteed — a crashed renderer, or a close during the opener's own
+ * teardown, can skip it entirely. Without this poll a panel could stay marked
+ * torn-off with no window to render into, which is unrecoverable from the UI.
+ * 400ms is below the threshold where a user reads the re-dock as laggy while
+ * still being a rounding error against the event path that normally wins.
+ */
+```
+
+
 ## § src/tearOff.tsx:126
 
 *Distinguishes one controller's windows from another's.*
@@ -3274,6 +5449,61 @@ HEAD `src/tearOff.tsx:126` — 182 words. Attached to: `let nextControllerId = 0
  * controller?" — which is scoped to one document. Across a reload the counter
  * restarts, and that is correct, because the reloading document's `beforeunload`
  * closes its windows on the way out.
+ */
+```
+
+
+## § src/tearOff.tsx:160
+
+*Style nodes worth mirroring into the popup. `<style>` is what Vite's dev*
+
+HEAD `src/tearOff.tsx:160` — 63 words. Attached to: `const STYLE_NODE_SELECTOR = 'style, link[rel~="stylesheet"]';`
+
+```text
+/** Style nodes worth mirroring into the popup. `<style>` is what Vite's dev
+ *  server injects (it ships CSS as JS that appends a style tag); `<link
+ *  rel=stylesheet>` is what a production build emits. Both paths exist because
+ *  the SAME code runs under both, and handling only one means the popup is
+ *  unstyled in exactly one of dev or prod — the half that nobody tests. */
+```
+
+
+## § src/tearOff.tsx:167
+
+*Runs INSIDE the popup, in the popup's own realm, so it survives the opener*
+
+HEAD `src/tearOff.tsx:167` — 97 words. Attached to: `const ORPHAN_WATCHDOG_SOURCE = `(function () {`
+
+```text
+/**
+ * Runs INSIDE the popup, in the popup's own realm, so it survives the opener
+ * dying in a way the opener's `beforeunload` cannot cover (crash, force-quit,
+ * `beforeunload` skipped by the browser). Belt to `beforeunload`'s suspenders:
+ * an orphan window rendering from a dead reactive graph is a frozen ghost, and
+ * the user has no way to tell it apart from a live one.
+ *
+ * A page with a strict CSP that forbids inline script will silently drop this;
+ * the opener-side `beforeunload` is still the primary mechanism, so the failure
+ * mode degrades to "orphan survives an opener CRASH", not "orphan always".
+ */
+```
+
+
+## § src/tearOff.tsx:225
+
+*The tear-off surface, as it should eventually appear on `AccordionGroupApi`.*
+
+HEAD `src/tearOff.tsx:225` — 70 words. Attached to: `export interface AccordionTearOffApi {`
+
+```text
+/**
+ * The tear-off surface, as it should eventually appear on `AccordionGroupApi`.
+ *
+ * Exported as its own interface because `context.ts` is owned elsewhere; the
+ * handoff note lists the literal lines to paste. A torn-off panel is deliberately
+ * NOT modelled as a third open-state enum: it is orthogonal — a panel can be torn
+ * off while its rail slot stays in `order`, and forcing it into `open`/`closed`
+ * would make every existing predicate lie about it.
  */
 ```
 
@@ -3334,6 +5564,26 @@ HEAD `src/tearOff.tsx:468` — 148 words. Attached to: `const TARGET_OWNED_ATTRS
 ```
 
 
+## § src/tearOff.tsx:575
+
+*One last sample before persisting. The poll only refreshes `rec.geometry`*
+
+HEAD `src/tearOff.tsx:575` — 91 words. Attached to: `if (!rec.win.closed) {`
+
+```text
+    // One last sample before persisting. The poll only refreshes `rec.geometry`
+    // every TEAR_OFF_CLOSE_POLL_MS, so without this a window moved or resized
+    // inside that window of time — then docked — would be remembered at its
+    // PREVIOUS position, and the user's last adjustment would be the one change
+    // that did not stick.
+    //
+    // Best-effort and guarded: on the user-closed path the window is already
+    // gone, and reading geometry off a closed window yields zeros or throws.
+    // `sampleGeometry` rejects degenerate values on its own, so a refusal here
+    // simply leaves the last good poll sample in place.
+```
+
+
 ## § src/tearOff.tsx:684
 
 *An opener that unloads must take its popups with it. A popup outliving its*
@@ -3383,6 +5633,25 @@ HEAD `src/tearOff.tsx:733` — 111 words. Attached to: `/**`
 ```
 
 
+## § src/tearOff.tsx:746
+
+*⚠ EXPORTED BUT UNUSED — zero callers, and superseded by the mount-precedence*
+
+HEAD `src/tearOff.tsx:746` — 63 words. Attached to: `export function TearOffOutlet(props: {`
+
+```text
+/**
+ * ⚠ EXPORTED BUT UNUSED — zero callers, and superseded by the mount-precedence
+ * Portal in `AccordionPanel` (a popup outranks a flyout outranks the column, all
+ * through one Portal). This one knows only about the popup, so a panel using it
+ * could not also fly out.
+ *
+ * Kept as the narrow reference implementation for a consumer that wants tear-off
+ * without auto-hide. Not on any path this control takes.
+ */
+```
+
+
 ---
 
 # src/visualOrder.ts
@@ -3415,6 +5684,25 @@ HEAD `src/visualOrder.ts:1` — 176 words. Attached to: `/** The predicates a ru
  * group, the menu and a hand-built test stub all call the same code instead of
  * agreeing to behave the same way.
  */
+```
+
+
+## § src/visualOrder.ts:39
+
+*Sort the open LEAF ids into chain order (`file → symbol → reference`).*
+
+HEAD `src/visualOrder.ts:39` — 69 words. Attached to: `orderLeaves?: (openLeafIds: readonly string[]) => readonly string[];`
+
+```text
+/**
+   * Sort the open LEAF ids into chain order (`file → symbol → reference`).
+   *
+   * Optional, and identity by default, because a dock with no chained leaves —
+   * which is every dock that never sets `parentId` — needs no chain at all. When
+   * a chain IS present this is `LeafChain.orderOpen`, and passing it here is the
+   * whole reason chained leaves paint in declaration order rather than in
+   * whatever order the user happened to open them.
+   */
 ```
 
 
@@ -3516,6 +5804,25 @@ HEAD `src/visualOrder.ts:139` — 101 words. Attached to: `isEdgeColumn: (id: st
 ```
 
 
+## § src/visualOrder.ts:154
+
+*Split the open panels either side of the rail and hand back every flex*
+
+HEAD `src/visualOrder.ts:154` — 71 words. Attached to: `export function partitionAtRail(input: RailPartitionInput): RailPartition {`
+
+```text
+/**
+ * Split the open panels either side of the rail and hand back every flex
+ * `order` the layout needs.
+ *
+ * Orders start at 1, never 0: an element with no `order` sits at 0, and the
+ * group deliberately lets consumers drop arbitrary children into it (a toolbar,
+ * a status strip). Leaving slot 0 free is what keeps those children where they
+ * were authored instead of silently promoting them ahead of the first column.
+ */
+```
+
+
 ## § src/visualOrder.ts:196
 
 *Rewrite the pin order so it agrees with a sequence the user just dragged.*
@@ -3583,6 +5890,27 @@ HEAD `src/visualOrder.ts:250` — 123 words. Attached to: `export function survi
 # vitest.setup.ts
 
 
+## § vitest.setup.ts:1
+
+*jsdom fills for the two browser APIs this control measures with.*
+
+HEAD `vitest.setup.ts:1` — 87 words. Attached to: `/** Minimal ResizeObserver. Records observed elements so a test can assert wiring,`
+
+```text
+/**
+ * jsdom fills for the two browser APIs this control measures with.
+ *
+ * Both are STUBS, not polyfills, and that distinction is the point: jsdom has no
+ * layout engine, so a faithful ResizeObserver is impossible — nothing would ever
+ * resize. What the tests need is for the observing code to run without throwing,
+ * while the SIZES come from explicit `getBoundingClientRect` stubs the test
+ * controls. That keeps every fit assertion driven by numbers the test states out
+ * loud, instead of by whatever jsdom happens to report (which is zero for
+ * everything).
+ */
+```
+
+
 ## § vitest.setup.ts:34
 
 *A real in-memory `Storage`.*
@@ -3603,6 +5931,28 @@ HEAD `vitest.setup.ts:34` — 103 words. Attached to: `class MemoryStorage imple
  * round-trip. A `vi.fn()` pair would assert that the module called setItem, not
  * that what it wrote can be read back — and the geometry round-trip is exactly a
  * write-then-read across two controller lifetimes.
+ */
+```
+
+
+## § vitest.setup.ts:89
+
+*jsdom implements `MouseEvent` but not `PointerEvent` — a long-standing gap, not*
+
+HEAD `vitest.setup.ts:89` — 91 words. Attached to: `class StubPointerEvent extends MouseEvent implements Partial<PointerEvent> {`
+
+```text
+/**
+ * jsdom implements `MouseEvent` but not `PointerEvent` — a long-standing gap, not
+ * a version issue. Every drag gesture in this control (splitter resize, reorder,
+ * rail pan) is built on pointer events precisely because they unify mouse, touch
+ * and pen, so without this nothing draggable is testable at all.
+ *
+ * Subclassing `MouseEvent` rather than hand-rolling an object: the coordinate
+ * plumbing the resize engine actually reads (`clientX`/`clientY`, `bubbles`,
+ * `currentTarget` during dispatch) is MouseEvent's, already correct, and
+ * re-implementing it would be re-implementing the part most likely to be wrong.
+ * Only the pointer-specific fields are added on top.
  */
 ```
 
@@ -3633,4 +5983,3 @@ HEAD `vitest.setup.ts:133` — 154 words. Attached to: `type PopoverElement = HT
  * caught (see the header of `autoHide.css`).
  */
 ```
-

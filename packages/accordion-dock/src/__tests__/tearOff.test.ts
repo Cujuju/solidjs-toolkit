@@ -130,9 +130,7 @@ describe('createTearOff — opening', () => {
   });
 
   it('leaves the popup body carrying the panel FRAME', () => {
-    // Regression: `syncStyles` removed any attribute the opener lacked — including `style`,
-        // wiping the frame set in `prepareDocument`. `0px` not `0`: the CSSOM normalises the
-        // shorthand on read.
+    // Regression: `syncStyles` removed any attribute the opener lacked — including `style`, wiping the frame set in `prepareDocument`. See DESIGN_NOTES.md § src/__tests__/tearOff.test.ts:150.
     const { api, dispose } = mountController();
     api.tearOff('files');
     const style = opened[0].document.body.style;

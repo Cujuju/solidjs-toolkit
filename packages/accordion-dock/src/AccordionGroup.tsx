@@ -112,8 +112,7 @@ export interface AccordionGroupProps {
   class?: string;
   ariaLabel?: string;
 
-  /** Hands the group's API to the consumer, so `collapseAll()`/`expandAll()` can be driven from
-   *  OUTSIDE — `useAccordionGroup()` only reaches descendants. Named `apiRef`, not `ref`. */
+  /** Hands the group's API to the consumer, so `collapseAll()`/`expandAll()` can be driven from OUTSIDE — `useAccordionGroup()` only reaches descendants. See DESIGN_NOTES.md § src/AccordionGroup.tsx:148. */
   apiRef?: (api: AccordionGroupApi) => void;
 
   /** Fires on every effective open-state change, INCLUDING the auto-collapse of a
@@ -174,10 +173,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   );
   const [metaMap, setMetaMap] = createSignal<ReadonlyMap<string, PanelMeta>>(new Map());
 
-  /**
-   * Activator elements, REACTIVELY. A flyout reads one during render, before the rail
-   * button's ref has fired, so a plain Map answers undefined once and never corrects itself.
-   */
+  /** Store activator elements reactively so flyouts update when rail button refs arrive. See DESIGN_NOTES.md § src/AccordionGroup.tsx:281. */
   const [headerEls, setHeaderEls] = createSignal<ReadonlyMap<string, HTMLElement>>(new Map());
   /**
    * The `⋯` trigger while the rail overflows. Signal-backed like `headerEls`: read during
@@ -265,10 +261,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    */
   let isFlyoutId: (id: string) => boolean = () => false;
 
-  /**
-   * The group's leaf chain — `parentId` edges published by each `<AccordionLeaf>`. Created
-   * before `visualOpenIds`, which consumes it, and bound to `api` below so leaves can find it.
-   */
+  /** The group's leaf chain — `parentId` edges published by each `<AccordionLeaf>`. See DESIGN_NOTES.md § src/AccordionGroup.tsx:394. */
   const leafChain = createLeafChain();
 
   /** Open ids in USER order: the partition's input. The painted order differs under the divider — read `visualOpenIds` for that. */
@@ -297,10 +290,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   const railDivider = (): boolean =>
     orientation() === 'horizontal' && (props.railDivider ?? props.autoHide ?? false);
 
-  /**
-   * The static/dynamic split and every flex `order`. PIN ORDER is the pinned Set's insertion
-   * order, and `togglePin` re-adds on repin, so a re-pinned panel moves to the end.
-   */
+  /** Static columns follow pinned-set insertion order; repinning moves a panel to the end. See DESIGN_NOTES.md § src/AccordionGroup.tsx:436. */
   const railPartition = createMemo(() =>
     partitionAtRail({
       visualOpen: userOrderOpenIds(),
@@ -311,10 +301,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   );
   const railOrder = (): number => railPartition().railOrder;
 
-  /**
-   * Open panels in the sequence they are painted — what a splitter walks, the breadcrumb
-   * reads and flex `order` follows. The RULE itself lives in `visualOrder.ts`.
-   */
+  /** Open panels in the sequence they are painted — what a splitter walks, the breadcrumb reads and flex `order` follows. See DESIGN_NOTES.md § src/AccordionGroup.tsx:455. */
   const visualOpenIds = createMemo<readonly string[]>(() => railPartition().sequence);
 
   /**
@@ -334,10 +321,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     for (const id of prev) if (!capped.includes(id)) props.onChange(id, false);
   };
 
-  /**
-   * THE writer for the pinned set. `setLayout` used to call `setPinnedSet` directly and skip
-   * `onPinChange`, so a consumer mirroring pin state went stale on every restore.
-   */
+  /** THE writer for the pinned set. See DESIGN_NOTES.md § src/AccordionGroup.tsx:497. */
   const commitPinned = (next: ReadonlySet<string>): void => {
     const prev = pinned();
     setPinnedSet(next);
@@ -370,10 +354,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     const current = openList();
     if (!want) {
       if (!current.includes(id)) return;
-      /*
-             * A LEAF is controlled — see `PanelMeta.requestClose`. Editing the open list here would
-             * leave the leaf painting while the group believed it closed.
-             */
+      /* A LEAF is controlled — see `PanelMeta.requestClose`. See DESIGN_NOTES.md § src/AccordionGroup.tsx:553. */
       const requestClose = metaOf(id)?.requestClose;
       if (requestClose !== undefined) {
         requestClose();
@@ -483,16 +464,10 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     },
   });
 
-  /**
-   * Dragging a COLUMN rather than a rail button. A second instance because the two disagree
-   * on both inputs: every panel on Y, versus only the open ones on X.
-   */
+  /** Dragging a COLUMN rather than a rail button. See DESIGN_NOTES.md § src/AccordionGroup.tsx:664. */
   const draggableColumnIds = (): string[] => visualOpenIds().filter((id) => !isLeaf(id));
 
-  /**
-   * Apply a move made in the OPEN subsequence back onto the full order. Closed panels keep
-   * their absolute slots: a drag between columns says nothing about where one should go.
-   */
+  /** Apply a move made in the OPEN subsequence back onto the full order. See DESIGN_NOTES.md § src/AccordionGroup.tsx:677. */
   const moveOpenTo = (fromIndex: number, toIndex: number): void => {
     const visual = draggableColumnIds();
     const moved = visual[fromIndex];
@@ -506,10 +481,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
     const nextOrder = orderIds().map((id) => (openSlots.has(id) ? nextVisual[cursor++] : id));
     commitOrder(nextOrder);
 
-    /*
-         * The static region is ordered by PIN order, so writing only the panel order would paint
-         * nothing for a pinned column. Unconditional: among unpinned columns it is a no-op.
-         */
+    /* The static region is ordered by PIN order, so writing only the panel order would paint nothing for a pinned column. See DESIGN_NOTES.md § src/AccordionGroup.tsx:699. */
     if (railDivider()) {
       commitPinned(
         new Set(repinToVisualOrder({ pinOrder: [...pinned()], nextVisual })),
@@ -534,10 +506,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
    * Built BEFORE `api`, which genuinely depends on it: `activatorElOf` has to know whether a
    * panel's button collapsed into the `⋯` menu. Its own inputs are all available here.
    */
-  /**
-   * The panels the rail is actually serving. Under the divider an OPEN PINNED panel has no
-   * button, and a hidden-but-counted one would reserve rail extent it never paints.
-   */
+  /** The panels the rail is actually serving. See DESIGN_NOTES.md § src/AccordionGroup.tsx:735. */
   const railServedIds = createMemo<readonly string[]>(() =>
     panels()
       .map((m) => m.id)
@@ -609,10 +578,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
         isPinned: (v) => pinned().has(v),
         enabled: railDivider(),
       }),
-    /**
-         * Collapse a column but REMEMBER that it docks. Deliberately NOT the × beside it, which is
-         * close-and-FORGET (`closeAndUnpin`); the only difference is whether `pinned` survives.
-         */
+    /** Collapse a column but REMEMBER that it docks. See DESIGN_NOTES.md § src/AccordionGroup.tsx:817. */
     collapseKeepPin: (id) => setOpen(id, false),
     /**
          * Close a column AND drop its pin — the ×. Its rail button then reopens it as a flyout,
@@ -681,10 +647,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
       // All-or-nothing. An older shape could be missing a field the group now depends on, and a
       // half-restored dock is harder to diagnose than one that visibly fell back to defaults.
       if (layout.version !== ACCORDION_LAYOUT_VERSION) return false;
-      /*
-             * FOUR COMMITS, no raw setters. This used to write the signals directly and hand-fire
-             * the callbacks it remembered — never `onPinChange`.
-             */
+      /** Restore through all four commit functions so change callbacks, including `onPinChange`, fire. See DESIGN_NOTES.md § src/AccordionGroup.tsx:897. */
       commitOrder([...layout.order]);
       commitPinned(new Set(layout.pinned));
       commitSizes({ ...layout.sizes });
@@ -859,10 +822,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
   // `visualOpenIds` sees flyouts for what they are — overlays, not columns.
   isFlyoutId = (id) => autoHide.isFlyout(id);
 
-  /**
-   * Publish the chain against the finished api, the only handle a leaf and its group both
-   * hold. Until this call every `<AccordionLeaf parentId>` painted in open order.
-   */
+  /** Publish the chain against the finished api, the only handle a leaf and its group both hold. See DESIGN_NOTES.md § src/AccordionGroup.tsx:1111. */
   bindLeafChain(api, leafChain);
 
   tearOffApi = createTearOff({
@@ -923,9 +883,7 @@ export function AccordionGroup(props: AccordionGroupProps): JSX.Element {
                            not allow — a reader announcing two selected tabs is being told
                            something contradictory. */
             aria-multiselectable={policy() === 'multi' ? 'true' : undefined}
-            /* NAME MUST MATCH `rail.css`, which selects `data-overflow-mode`. This emitted
-                           `data-overflow`, so every overflow-strategy rule was inert and the rail's
-                           base `overflow-y: auto` stood in both strategies. */
+            /* NAME MUST MATCH `rail.css`, which selects `data-overflow-mode`. See DESIGN_NOTES.md § src/AccordionGroup.tsx:1186. */
             data-overflow-mode={overflowStrategy()}
           >
             <For each={railOverflow.visibleIds()}>

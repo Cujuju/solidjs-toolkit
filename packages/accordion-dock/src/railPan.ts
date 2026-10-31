@@ -13,10 +13,7 @@ const MIDDLE_BUTTON = 1;
 /** Primary button, matching `createReorderList`'s own `e.button !== 0` gate. */
 const PRIMARY_BUTTON = 0;
 
-/**
- * Movement before a press becomes a pan, in px. Mirrors `createReorderList`'s `activateDistance`
- * default (5); duplicated because it is only an inline `?? 5` there, but the value must match.
- */
+/** Movement before a press becomes a pan, in px. See DESIGN_NOTES.md § src/railPan.ts:38. */
 const PAN_ACTIVATE_DISTANCE_PX = 5;
 
 export interface RailPanOptions {
@@ -126,10 +123,7 @@ export function createRailPan(options: RailPanOptions): RailPan {
       isMiddle || (isPrimary && (spaceHeld() ? scrollable() : onButton === null));
     if (!wantsPan) return;
 
-    /**
-         * CAPTURE-PHASE stopPropagation is what keeps a pan from becoming a reorder: the reorder
-         * primitive listens on the button in the bubble phase, so stopping here means it never arms.
-         */
+    /** Stop propagation during capture so the button’s bubble-phase reorder listener never arms during a pan. See DESIGN_NOTES.md § src/railPan.ts:167. */
     e.stopPropagation();
     // Suppresses middle-click autoscroll and text selection during the drag.
     e.preventDefault();

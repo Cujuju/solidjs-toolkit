@@ -12,20 +12,14 @@ import { createCancelListeners } from './gesture';
  */
 export const DEFAULT_MIN_SIZE_PX = 60;
 
-/**
- * How far PAST the minimum the pointer must travel before a drag reads as "collapse this".
- * A 1px trigger would collapse a clamped panel on any firm drag.
- */
+/** How far PAST the minimum the pointer must travel before a drag reads as "collapse this". See DESIGN_NOTES.md § src/resize.ts:44. */
 const COLLAPSE_OVERDRAG_PX = 40;
 
 /** Primary pointer button. A secondary press opens the platform context menu, which
  *  consumes the release, so it must never arm a drag. */
 const PRIMARY_BUTTON = 0;
 
-/**
- * How far one arrow keypress moves the boundary, px. 8px is deliberately fine: a splitter is
- * a precision control, and holding the key (autorepeat) covers distance.
- */
+/** Each arrow keypress moves the boundary 8px; autorepeat covers longer distances. See DESIGN_NOTES.md § src/resize.ts:59. */
 const KEYBOARD_STEP_PX = 8;
 
 /** The coarse step, on Shift+arrow. Ten notches of the fine one, and a round multiple so the
@@ -68,8 +62,7 @@ export function columnFlex(opts: {
     opts.fill && (opts.declaresGrow || (!opts.groupHasDeclaredGrower && opts.trailing));
 
   if (opts.sizePx === undefined) {
-    /* No explicit size. `fill`'s stylesheet rule is `flex: 1 1 0`, so an unsized NON-grower
-           would compete for the surplus — a group with a declared grower pins its others. */
+    /* No explicit size. See DESIGN_NOTES.md § src/resize.ts:185. */
     if (opts.fill && opts.groupHasDeclaredGrower && !opts.declaresGrow) {
       return { flex: '0 0 auto' };
     }
@@ -151,10 +144,7 @@ export function createResize(host: ResizeHost): ResizeApi {
   const [resizing, setResizing] = createSignal(false);
   const [collapseCandidate, setCollapseCandidate] = createSignal<string | null>(null);
 
-  /**
-   * Teardown for the drag in flight, held here so the owner's disposal can run it. Otherwise a
-   * group unmounted mid-drag leaves `pointermove` bound to a dead graph.
-   */
+  /** Teardown for the drag in flight, held here so the owner's disposal can run it. See DESIGN_NOTES.md § src/resize.ts:266. */
   let endActiveDrag: (() => void) | null = null;
   onCleanup(() => endActiveDrag?.());
 

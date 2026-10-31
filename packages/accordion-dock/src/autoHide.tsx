@@ -105,11 +105,7 @@ function inheritedTypographyOf(groupEl: Element | null | undefined): Record<stri
   return style;
 }
 
-/**
- * Class on the popover SHELL. A MARKER ONLY — `autoHide.css` defines no rule for it, because
- * a `display`/`visibility` rule here would beat the UA's `[popover]:not(:popover-open)` and
- * leave closed flyouts painted.
- */
+/** Class on the popover SHELL. See DESIGN_NOTES.md § src/autoHide.tsx:287. */
 const FLYOUT_SHELL_CLASS = 'acc-flyout-shell';
 
 /** Class on the flyout CONTENT element. All visual styling lives in
@@ -129,16 +125,10 @@ const POPOVER_STACK_SELECTOR = '[data-popover-stack]';
  */
 const DISMISS_SUPPRESS_SELECTOR = `${POPOVER_STACK_SELECTOR}, [popover]:not(.${FLYOUT_SHELL_CLASS})`;
 
-/**
- * Why a flyout is open. Drives one thing: whether pointer-leave may dismiss it. A hover-open
- * is a peek, so leaving closes it; a click-open is a decision, so it stays.
- */
+/** Why a flyout is open. See DESIGN_NOTES.md § src/autoHide.tsx:330. */
 type FlyoutOpenCause = 'hover' | 'click';
 
-/**
- * The slice of `AccordionGroupApi` this module consumes. Declared structurally so the module
- * states exactly what it needs and can be tested against a nine-member stub.
- */
+/** The slice of `AccordionGroupApi` this module consumes. See DESIGN_NOTES.md § src/autoHide.tsx:341. */
 export interface AutoHideGroup {
   orientation: Accessor<AccordionOrientation>;
   railSide: Accessor<AccordionRailSide>;
@@ -147,24 +137,16 @@ export interface AutoHideGroup {
   meta: (id: string) => PanelMeta | undefined;
   isOpen: (id: string) => boolean;
   isPinned: (id: string) => boolean;
-  /**
-   * Promote a flyout to a docked column, or demote it back. Required: the flyout renders its
-   * own title bar, so without this it would have no pin affordance at all.
-   */
+  /** Promote a flyout to a docked column, or demote it back. See DESIGN_NOTES.md § src/autoHide.tsx:360. */
   togglePin: (id: string) => void;
   setOpen: (id: string, open: boolean) => void;
   sizeOf: (id: string) => number | undefined;
-  /** The element representing the panel — its rail button, or the `⋯` trigger once that button
-   *  collapses. REACTIVE: the ref fires after first render, and overflow shifts on resize. */
+  /** The element representing the panel — its rail button, or the `⋯` trigger once that button collapses. See DESIGN_NOTES.md § src/autoHide.tsx:372. */
   activatorElOf: (id: string) => HTMLElement | undefined;
   /** Suppresses hover-open mid-gesture — see `onRailPointerEnter`. */
   reorderActiveId: Accessor<string | null>;
   resizing: Accessor<boolean>;
-  /**
-   * OPTIONAL only so this file compiles before the group grows it. A flyout is Portal'd
-   * outside `.acc-group`, so it loses the group's `--acc-*` overrides and would render at
-   * comfortable density.
-   */
+  /** OPTIONAL only so this file compiles before the group grows it. See DESIGN_NOTES.md § src/autoHide.tsx:385. */
   density?: Accessor<'comfortable' | 'compact'>;
 }
 
@@ -188,10 +170,7 @@ export interface AutoHideApi {
   /** Where a flying-out panel's subtree should mount, or undefined when it belongs in its
    *  column. Consumed by `AccordionPanel`'s own Portal. */
   flyoutMountFor: (id: string) => HTMLElement | undefined;
-  /**
-   * Spread on the panel's ACTIVATOR — the rail button in horizontal, the header bar in
-   * vertical. Empty when hover-to-open is off, so the listeners are not attached at all.
-   */
+  /** Spread on the panel's ACTIVATOR — the rail button in horizontal, the header bar in vertical. See DESIGN_NOTES.md § src/autoHide.tsx:430. */
   activatorHoverProps: (id: string) => ActivatorHoverProps;
   /** Dismiss a flyout: closes the panel and returns focus to its rail button if
    *  focus was inside. */
@@ -225,9 +204,7 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
 
   const hoverEnabled = (): boolean => options.hoverToOpen?.() ?? false;
 
-  /* Read at FIRE time, so a reactively computed delay is honoured without re-attaching
-   listeners. A negative or non-finite override falls back to the default — `setTimeout`
-   would treat it as 0. */
+  /* Read at FIRE time, so a reactively computed delay is honoured without re-attaching listeners. See DESIGN_NOTES.md § src/autoHide.tsx:483. */
   const hoverOpenDelay = (): number => {
     const override = options.hoverOpenDelayMs?.();
     return override !== undefined && Number.isFinite(override) && override >= 0
@@ -323,8 +300,7 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
   const dismiss = (id: string): void => {
     cancelLeave(id);
     if (enterTimer?.id === id) cancelEnter();
-    // Focus must never be left on a node about to be removed — the browser drops it to <body>
-    // and the next Tab restarts from the top of the document.
+    // Move focus before removing its node so the next Tab does not restart at the document top. See DESIGN_NOTES.md § src/autoHide.tsx:585.
     const surface = surfaceOf(id);
     const active = document.activeElement;
     if (surface !== undefined && active instanceof Node && surface.contains(active)) {
@@ -334,11 +310,7 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
     group.setOpen(id, false);
   };
 
-  /**
-   * Tab-away dismissal: the primitive covers outside pointerdown and Escape, neither of which
-   * fires when focus leaves by keyboard. `focusin`, not `focusout`, which also fires when the
-   * window loses focus.
-   */
+  /** Tab-away dismissal: the primitive covers outside pointerdown and Escape, neither of which fires when focus leaves by keyboard. See DESIGN_NOTES.md § src/autoHide.tsx:602. */
   /** The whole flyout SURFACE, not just its content mount: focusing the title bar's pin read
    *  as focus leaving. See DESIGN_NOTES.md § src/autoHide.tsx:612. */
   const surfaceOf = (id: string): Element | undefined => {
@@ -444,10 +416,7 @@ function Flyout(props: {
   // component first renders, and a rail re-render can replace the element.
   const anchor = (): HTMLElement | null | undefined => props.group.activatorElOf(props.id);
 
-  /**
-   * The flyout emerges the way panels grow, so it appears in the same place docked or not:
-   * horizontal from the rail's outer edge, vertical downward from the header bar.
-   */
+  /** Flyouts grow from the rail edge horizontally and from the header downward vertically. See DESIGN_NOTES.md § src/autoHide.tsx:765. */
   const placement = (): AnchoredPlacement => {
     if (props.group.orientation() === 'vertical') return 'below-start';
     return props.group.railSide() === 'left' ? 'right-start' : 'left-start';
@@ -473,8 +442,7 @@ function Flyout(props: {
    * exactly the dock's growth-axis extent.
    */
   const maxHeight = (): string => {
-    // Re-runs when the rail button's ref lands. The MEASURED element differs by orientation for
-    // one reason: measure whatever spans the growth axis — the rail, or the group in vertical.
+    // Re-runs when the rail button's ref lands. See DESIGN_NOTES.md § src/autoHide.tsx:803.
     const source =
       props.group.orientation() === 'vertical'
         ? groupEl()
@@ -597,10 +565,7 @@ function labelOf(meta: PanelMeta | undefined): string | undefined {
  * Render a panel's subtree into WHICHEVER surface owns it, without rebuilding it. ONE
  * `<Portal>`: changing `mount` MOVES the nodes. See DESIGN_NOTES.md § src/autoHide.tsx:965.
  */
-/**
- * ⚠ EXPORTED BUT UNUSED — zero callers. `AccordionPanel` renders the same re-targeting Portal
- * inline. Kept because it documents the mechanism a consumer building its own shell would want.
- */
+/** ⚠ EXPORTED BUT UNUSED — zero callers. See DESIGN_NOTES.md § src/autoHide.tsx:991. */
 export function PanelOutlet(props: {
   /** Alternate surfaces, highest priority first. The first one to return an
    *  element wins; if none does, the panel's own docked host is used. */

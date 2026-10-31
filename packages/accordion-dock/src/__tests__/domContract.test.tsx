@@ -11,10 +11,7 @@ import { Breadcrumb } from '../Breadcrumb';
  * component emits fails silently. See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:9.
  */
 
-/*
- * Sources read through Vite's `import.meta.glob`, not `node:fs`: the playground tsconfig
- * carries no Node types, so `readFileSync` typecheck-fails even while the test passes.
- */
+/* Sources read through Vite's `import.meta.glob`, not `node:fs`: the playground tsconfig carries no Node types, so `readFileSync` typecheck-fails even while the test passes. See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:47. */
 const CSS_SOURCES = import.meta.glob('../*.css', {
   query: '?raw',
   import: 'default',
@@ -66,8 +63,7 @@ function renderFixture(): { querySelectorAll: (s: string) => NodeListOf<Element>
   };
 }
 
-/** Comments are stripped from BOTH sides: this file's own prose names `data-overflow`, the
- *  misspelling above, and a scan counting comments would pass a stylesheet still selecting it. */
+/** Strip comments from both sources so prose mentioning the old attribute cannot satisfy the selector assertion. See DESIGN_NOTES.md § src/__tests__/domContract.test.tsx:119. */
 function stripComments(source: string, kind: 'css' | 'ts'): string {
   const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, '');
   return kind === 'css' ? withoutBlocks : withoutBlocks.replace(/^\s*\/\/.*$/gm, '');

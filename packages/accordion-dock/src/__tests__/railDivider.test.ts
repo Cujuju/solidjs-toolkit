@@ -276,10 +276,7 @@ describe('the rail empties when everything is pinned', () => {
 });
 
 describe('a drag actually moves a pinned column (regression)', () => {
-  /**
-   * THE BUG: `partitionAtRail` re-sorted the static region by PIN order, discarding the drag.
-   * Every auto-hide column is pinned, so reorder looked dead. These assert the COMPOSED path.
-   */
+  /** THE BUG: `partitionAtRail` re-sorted the static region by PIN order, discarding the drag. See DESIGN_NOTES.md § src/__tests__/railDivider.test.ts:294. */
   it('reorders the painted static sequence, not just the panel order', () => {
     const pinOrder = ['a', 'b', 'c'];
     // The user drags c to the front.

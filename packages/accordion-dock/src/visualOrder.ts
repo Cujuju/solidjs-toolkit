@@ -19,10 +19,7 @@ export interface VisualOrderInput extends PanelPredicates {
   order: readonly string[];
   /** Open membership, in the sequence panels were opened. */
   open: readonly string[];
-  /**
-   * Sort the open LEAF ids into chain order. Optional and identity by default, because a dock
-   * that never sets `parentId` needs no chain.
-   */
+  /** Sort the open LEAF ids into chain order. See DESIGN_NOTES.md § src/visualOrder.ts:39. */
   orderLeaves?: (openLeafIds: readonly string[]) => readonly string[];
 }
 
@@ -74,10 +71,7 @@ export interface RailPartition {
   isEdgeColumn: (id: string) => boolean;
 }
 
-/**
- * Split the open panels either side of the rail and return every flex `order` the layout
- * needs. Orders start at 1: slot 0 is left free for arbitrary consumer children.
- */
+/** Split the open panels either side of the rail and return every flex `order` the layout needs. See DESIGN_NOTES.md § src/visualOrder.ts:154. */
 export function partitionAtRail(input: RailPartitionInput): RailPartition {
   const open = input.visualOpen;
   const staticIds = input.enabled

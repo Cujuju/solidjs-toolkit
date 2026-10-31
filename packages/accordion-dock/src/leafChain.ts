@@ -32,10 +32,7 @@ export interface LeafChain {
   orderOpen: (openLeafIds: readonly string[]) => string[];
 }
 
-/**
- * Walk `id`'s ancestors, nearest first, stopping at the first repeat. Termination comes from
- * the visited set alone, so a cyclic `parentId` is bounded structurally, not by a depth cap.
- */
+/** Walk `id`'s ancestors, nearest first, stopping at the first repeat. See DESIGN_NOTES.md § src/leafChain.ts:69. */
 function walkAncestors(
   links: ReadonlyMap<string, string>,
   id: string,

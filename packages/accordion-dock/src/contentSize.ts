@@ -9,16 +9,10 @@ import { createEffect } from 'solid-js';
  *  once (see this file's header). */
 export type AccordionDefaultSize = number | 'content';
 
-/**
- * How many extra digit-widths a frozen column carries. ONE — it covers the single rollover a
- * session is exposed to, and the column is draggable if that is wrong.
- */
+/** How many extra digit-widths a frozen column carries. See DESIGN_NOTES.md § src/contentSize.ts:31. */
 export const CONTENT_SLACK_DIGITS = 1;
 
-/**
- * Ceiling on a measured column, as a fraction of the group's extent. Content can be
- * pathological — one unbreakable string would otherwise freeze a 600px column.
- */
+/** Ceiling on a measured column, as a fraction of the group's extent. See DESIGN_NOTES.md § src/contentSize.ts:42. */
 export const CONTENT_MAX_GROUP_FRACTION = 0.4;
 
 /**
@@ -33,10 +27,7 @@ const GROUP_SELECTOR = '.acc-group';
 /** Reused across measurements — creating a canvas per measure is pure garbage. */
 let measureCanvas: HTMLCanvasElement | undefined;
 
-/**
- * The advance width of `'0'` in the element's own font. Built from the LONGHANDS: the
- * shorthand serializes empty, which silently measures the canvas default face.
- */
+/** The advance width of `'0'` in the element's own font. See DESIGN_NOTES.md § src/contentSize.ts:69. */
 export function digitAdvancePx(computed: CSSStyleDeclaration): number {
   const fontSize = parseFloat(computed.fontSize) || 0;
   if (typeof document === 'undefined') return fontSize * DIGIT_ADVANCE_FALLBACK_RATIO;
@@ -84,10 +75,7 @@ export interface ContentSizeInput {
   axis: 'width' | 'height';
 }
 
-/**
- * The size to freeze a content-sized panel at, or `undefined` when layout cannot answer —
- * treating that as zero would freeze every column at the minimum.
- */
+/** Return `undefined` when content size cannot be measured; zero would freeze the column at its minimum. See DESIGN_NOTES.md § src/contentSize.ts:138. */
 export function measureContentSize(input: ContentSizeInput): number | undefined {
   const { host, panel, group, axis } = input;
   if (typeof getComputedStyle !== 'function') return undefined;

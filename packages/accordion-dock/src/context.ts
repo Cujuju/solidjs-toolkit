@@ -25,10 +25,7 @@ export type AccordionAppearance =
    *  siblings by a gap, with the group drawing no frame of its own. */
   | 'cards';
 
-/**
- * Which edge the rail is docked against (`horizontal` only). The rail is the ANCHOR:
- * columns always grow AWAY from it, so a panel emerges from its own button either way.
- */
+/** Which edge the rail is docked against (`horizontal` only). See DESIGN_NOTES.md § src/context.ts:31. */
 export type AccordionRailSide = 'left' | 'right';
 
 /** How open panels consume space along the growth axis. */
@@ -39,10 +36,7 @@ export type AccordionMode =
   /** Each open panel is as big as its content; the group (or its container) scrolls. */
   | 'natural';
 
-/**
- * Where a newly-opened panel lands. There is exactly ONE order, read twice — by the rail and
- * by the columns.
- */
+/** Where a newly-opened panel lands. See DESIGN_NOTES.md § src/context.ts:50. */
 export type AccordionOpenPlacement =
   /** The panel appears in its rail slot. Opening never reorders anything, so the rail
    *  is stable and a column's position is always predictable from its button's. */
@@ -65,10 +59,7 @@ export type AccordionPolicy =
  */
 export type PanelBadge = 'info' | 'success' | 'warning' | 'danger';
 
-/**
- * A panel's chrome, registered as ACCESSORS rather than values: the GROUP renders the rail
- * button, and a snapshot would freeze a count that ticks.
- */
+/** A panel's chrome, registered as ACCESSORS rather than values: the GROUP renders the rail button, and a snapshot would freeze a count that ticks. See DESIGN_NOTES.md § src/context.ts:83. */
 export interface PanelMeta {
   id: string;
   title: Accessor<string | JSX.Element>;
@@ -96,10 +87,7 @@ export interface PanelMeta {
   grow: Accessor<boolean>;
   /** Extra class for this panel's rail button. */
   railClass: Accessor<string | undefined>;
-  /**
-   * The id of this panel's CONTENT element. Published because the rail button that must
-   * reference it is rendered by the GROUP, and `aria-controls` has to name a real id.
-   */
+  /** The id of this panel's CONTENT element. See DESIGN_NOTES.md § src/context.ts:122. */
   contentId: string;
   /**
    * A LEAF is a terminal detail pane with no activator: no rail button, not reorderable, and
@@ -113,10 +101,7 @@ export interface PanelMeta {
   requestClose?: () => void;
 }
 
-/**
- * The complete user-owned arrangement of a group, plain and serialisable. The SAME shape the
- * group persists, so a saved workspace and a session have one migration story.
- */
+/** The complete user-owned arrangement of a group, plain and serialisable. See DESIGN_NOTES.md § src/context.ts:157. */
 export interface AccordionLayout {
   version: number;
   /** Which panels are open. Membership; sequence lives in `order`. */
@@ -131,10 +116,7 @@ export interface AccordionLayout {
  *  different version is IGNORED rather than half-applied. */
 export const ACCORDION_LAYOUT_VERSION = 1;
 
-/**
- * The two listeners hover-to-open attaches to an activator. Spelled out rather than typed as
- * an attribute bag, whose `ref` would have to match at every spread site.
- */
+/** The two listeners hover-to-open attaches to an activator. See DESIGN_NOTES.md § src/context.ts:180. */
 export interface ActivatorHoverProps {
   onPointerEnter?: (e: PointerEvent) => void;
   onPointerLeave?: () => void;
@@ -158,10 +140,7 @@ export interface AccordionGroupApi {
   order: Accessor<readonly string[]>;
   /** Open panels in painted sequence — `order` filtered to open, leaves appended. */
   visualOpenIds: Accessor<readonly string[]>;
-  /**
-   * Does any OPEN member declare `grow`? Read by every member, because a declaration retires
-   * the trailing-member default for the whole group. Scoped to OPEN members.
-   */
+  /** Does any OPEN member declare `grow`? See DESIGN_NOTES.md § src/context.ts:214. */
   hasDeclaredGrower: Accessor<boolean>;
   /** Registered panels (leaves excluded), already sorted into `order`. */
   panels: Accessor<readonly PanelMeta[]>;
@@ -262,10 +241,7 @@ export interface AccordionGroupApi {
    * it through `slotRef` — see there for the two defects a bare `ref` produced.
    */
   activators: ElementSlot;
-  /**
-   * The `⋯` overflow trigger, which STANDS IN for every rail button that did not fit. Needed
-   * as an element: it is the anchor and focus target for those panels.
-   */
+  /** The `⋯` overflow trigger, which STANDS IN for every rail button that did not fit. See DESIGN_NOTES.md § src/context.ts:335. */
   railOverflowSlot: ElementSlot;
   /** Panels currently rendering into their own window. */
   tornOff: Accessor<readonly string[]>;
@@ -297,10 +273,7 @@ export interface AccordionGroupApi {
   /** The group's density, exposed so a PORTALLED surface (a flyout leaves
    *  `.acc-group` and stops inheriting its token overrides) can restate it. */
   density: Accessor<'comfortable' | 'compact'>;
-  /**
-   * The panel's outer element, measured when seeding a resize. A slot because these were
-   * registered with a bare `ref` and never cleared, and a detached node's rect is all zeros.
-   */
+  /** The panel's outer element, measured when seeding a resize. See DESIGN_NOTES.md § src/context.ts:396. */
   panelElements: ElementSlot;
   /** Move DOM focus to another header/rail button in THIS group. `delta` is ±1, or an edge. */
   moveFocus: (fromId: string, delta: 1 | -1 | 'first' | 'last') => void;

@@ -4,14 +4,12 @@
 @layer cujuju-defaults {
   :root {
     --acc-bg: #1a1f2e;
-    /* The panel's CONTENT box. `transparent` so `--acc-bg` shows through and this costs
-     nothing; set it darker for bodies that should read as a well under their contents. */
+    /* The panel's CONTENT box. See DESIGN_NOTES.md § src/styles.css:36. */
     --acc-content-bg: transparent;
     --acc-header-bg: #252d3f;
     --acc-header-bg-hover: #2c3548;
     --acc-header-bg-open: #2f3a52;
-    /* A CLOSED panel's header, which under `appearance: cards` IS the whole card.
-     Defaults to `--acc-header-bg`, so the header ramp is unchanged for anyone not setting it. */
+    /* A CLOSED panel's header, which under `appearance: cards` IS the whole card. See DESIGN_NOTES.md § src/styles.css:48. */
     --acc-header-bg-closed: var(--acc-header-bg);
     --acc-border: #2a2e37;
     --acc-text: #e6e9ef;
@@ -280,9 +278,7 @@
   flex-direction: column;
   align-items: stretch;
   flex: 0 0 auto;
-  /* Before the columns regardless of DOM position. Under the rail divider the group
-   overrides this inline with the slot after the static columns; this stays the
-   non-divider default. */
+  /* Before the columns regardless of DOM position. See DESIGN_NOTES.md § src/styles.css:399. */
   order: -1;
   width: var(--acc-rail-width);
   background: var(--acc-header-bg);
@@ -346,8 +342,7 @@
   color: var(--acc-text);
 }
 
-/* Active marker as an INSET SHADOW, not a border: no layout box, so it cannot shift
-   the label, and flipping edges is a sign change. */
+/* An inset shadow marks active state without shifting the label; changing its sign flips the edge. See DESIGN_NOTES.md § src/styles.css:481. */
 /* STAYS PHYSICAL, and cannot be otherwise: `box-shadow` offsets have no logical spelling.
    The sign comes from `data-rail-side`, which RTL does not flip. */
 .acc-group[data-rail-side='left'] .acc-rail-btn[data-open='true'] {
@@ -376,8 +371,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* The cap is on the LABEL'S OWN inline axis, already turned vertical by `writing-mode`,
-   so it says what it means and survives re-rotation. RTL reading order follows the mode. */
+  /* The cap is on the LABEL'S OWN inline axis, already turned vertical by `writing-mode`, so it says what it means and survives re-rotation. See DESIGN_NOTES.md § src/styles.css:517. */
   max-inline-size: var(--acc-rail-label-max);
 }
 
@@ -456,8 +450,7 @@
   cursor: col-resize;
 }
 
-/* STAYS PHYSICAL. The handle belongs on the edge facing the NEXT column, which comes from
-   `data-rail-side` — a physical choice RTL does not flip. */
+/* STAYS PHYSICAL. See DESIGN_NOTES.md § src/styles.css:609. */
 .acc-group[data-orientation='horizontal'][data-rail-side='left'] .acc-splitter {
   right: calc(-1 * var(--_acc-splitter-overhang));
 }
@@ -513,9 +506,7 @@
   display: none;
 }
 
-/* Column separators sit on each column's RAIL-FACING side, and the column against the
-   rail drops its own. `:first-of-type` cannot express "first column" — hence
-   `data-col-first`. */
+/* Column separators sit on each column's RAIL-FACING side, and the column against the rail drops its own. See DESIGN_NOTES.md § src/styles.css:671. */
 /* STAYS PHYSICAL, like the rail's own border: "rail-facing" is decided by
    `data-rail-side`. The `data-col-first` reset clears both sides, so no direction branch. */
 .acc-group[data-orientation='horizontal'][data-rail-side='left'] > .acc-panel {
@@ -575,9 +566,7 @@
   background: var(--acc-header-bg-closed);
 }
 
-/* ...and the hover this would otherwise EAT: the closed rule outranks `:hover`, leaving a
-   collapsed header with no feedback. Restated higher, because that specificity is
-   load-bearing. */
+/* ...and the hover this would otherwise EAT: the closed rule outranks `:hover`, leaving a collapsed header with no feedback. See DESIGN_NOTES.md § src/styles.css:738. */
 .acc-panel[data-open='false'] > .acc-header-row:hover {
   background: var(--acc-header-bg-hover);
 }
@@ -709,8 +698,7 @@
 
 /* ── Column title bar (horizontal) ──────────────────────────────────────── */
 
-/* EVERYTHING PINNED: the rail serves no panels, so it takes no space rather than
-   leaving a dead 40px strip. */
+/* EVERYTHING PINNED: the rail serves no panels, so it takes no space rather than leaving a dead 40px strip. See DESIGN_NOTES.md § src/styles.css:884. */
 .acc-rail[data-rail-empty='true'] {
   width: 0;
   padding: 0;
@@ -732,8 +720,7 @@
   border-bottom: 1px solid var(--acc-border);
 }
 
-/* The column title bar's activator — collapses a docked column back to a rail button
-   while it stays pinned. Transparent and unpadded so the bar still reads as a label. */
+/* The column title bar's activator — collapses a docked column back to a rail button while it stays pinned. See DESIGN_NOTES.md § src/styles.css:913. */
 .acc-col-activator {
   display: flex;
   align-items: center;
@@ -848,8 +835,7 @@
   overflow: auto;
 }
 
-/* Fill mode needs the content box to be a flex parent. `:not([hidden])` is LOAD-BEARING at
-   (0,3,0): it beats the UA `display: none`, so every `display` rule here must carry it. */
+/* Fill mode needs the content box to be a flex parent. See DESIGN_NOTES.md § src/styles.css:1050. */
 .acc-group[data-mode='fill'] .acc-content:not([hidden]) {
   display: flex;
   flex-direction: column;
@@ -878,9 +864,7 @@
 /* Everything below is gated on `data-animated="true"` (default false), so an un-opted-in
    group is unchanged. See DESIGN_NOTES.md § src/styles.css:1086. */
 
-/* ── horizontal: a column grows out of the rail ──
-   `flex-basis` carries it in `natural`, `flex-grow` + `min-width` in `fill`; all are
-   lengths, so all interpolate. */
+/* Horizontal panels animate lengths: `flex-basis` in natural mode, `flex-grow` and `min-width` in fill mode. See DESIGN_NOTES.md § src/styles.css:1104. */
 .acc-group[data-animated='true'][data-orientation='horizontal'] > .acc-panel[data-open='true'] {
   transition:
     flex-basis var(--acc-open-duration) ease,
@@ -892,9 +876,7 @@
   overflow-clip-margin: var(--_acc-splitter-overhang);
 }
 
-/* The other end of the transition. A collapsed column is `display: none`, so
-   @starting-style supplies the before-change style. Engines without it land on the final
-   values: no animation, no breakage. */
+/* The other end of the transition. See DESIGN_NOTES.md § src/styles.css:1129. */
 @starting-style {
   .acc-group[data-animated='true'][data-orientation='horizontal'] > .acc-panel[data-open='true'] {
     flex-basis: 0;
@@ -917,8 +899,7 @@
   min-width: var(--acc-col-min-width);
 }
 
-/* CLOSING a column is NOT animated: a closed panel's `openIndex` is -1, so its flex `order`
-   clamps to 1 and a closing column would teleport to the rail before shrinking. */
+/* Closing is unanimated because a closed panel’s flex order would move it to the rail before shrinking. See DESIGN_NOTES.md § src/styles.css:1174. */
 
 /* ── vertical + natural: wipe the content open ──
    The panel is the grid container and the content row travels 0fr → 1fr.
@@ -949,8 +930,7 @@
     > .acc-panel
     > .acc-content {
     transition: visibility var(--acc-open-duration);
-    /* Overrides the `auto` given everywhere else, and only safely HERE: a `natural` content
-     box has nothing to scroll at rest, so the only moment it is smaller is mid-wipe. */
+    /* Natural content needs clipping only during the wipe; at rest it has nothing to scroll. See DESIGN_NOTES.md § src/styles.css:1232. */
     overflow: hidden;
   }
 }
@@ -971,8 +951,7 @@
     transition: none !important;
   }
 
-  /* The motion above is geometry — a column travelling its own width — which is exactly what
-   this query suppresses, so the opt-in is overruled and the dock lands at rest. */
+  /* Reduced motion overrides geometric animation so the dock appears at rest. See DESIGN_NOTES.md § src/styles.css:1286. */
   .acc-group[data-animated='true'] > .acc-panel,
   .acc-group[data-animated='true'] > .acc-panel > .acc-content {
     transition: none !important;
@@ -1008,9 +987,7 @@
   background: var(--acc-bg);
 }
 
-/* ── Separator suppression ───────────────────────────────────────────────────
-   In cards the gap already divides; these would double a card's border or strip the
-   borders off the card against the rail. Restated at matching specificity, not reordered. */
+/* Card gaps already separate panels; suppress separators that would double borders or remove the rail-adjacent card border. See DESIGN_NOTES.md § src/styles.css:1335. */
 .acc-group[data-appearance='cards'][data-orientation='vertical'] > .acc-panel + .acc-panel {
   border: 1px solid var(--acc-border);
 }
@@ -1044,9 +1021,7 @@
   background: transparent;
 }
 
-/* ── Splitters land in the GAP ───────────────────────────────────────────────
-   With cards the divide the user sees is the middle of the gap, so the handle moves
-   with it. */
+/* In cards, splitter handles move into the gap where the visible divide sits. See DESIGN_NOTES.md § src/styles.css:1388. */
 .acc-group[data-appearance='cards'][data-orientation='horizontal'][data-rail-side='left']
   .acc-splitter {
   right: calc(-1 * var(--_acc-splitter-overhang));
@@ -1061,5 +1036,4 @@
   bottom: calc(-1 * var(--_acc-splitter-overhang));
 }
 
-/* FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout`'s elevation is what says it
-   floats above the docked cards. Matching its border to theirs would spend that cue. */
+/* FLYOUTS ARE UNCHANGED, and that is the point: `.acc-flyout`'s elevation is what says it floats above the docked cards. See DESIGN_NOTES.md § src/styles.css:1408. */

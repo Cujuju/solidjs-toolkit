@@ -22,11 +22,7 @@ export function RailButton(props: {
   const open = (): boolean => props.group.isOpen(props.meta.id);
   const pinned = (): boolean => props.group.isPinned(props.meta.id);
   const dragProps = (): Record<string, unknown> => props.group.reorderItemProps(props.meta.id);
-  /**
-   * The id is CAPTURED, not read through `props` on each call: `trackedRef`'s cleanup runs
-   * during disposal, when `props.meta` is already undefined and would throw, taking every
-   * later cleanup with it.
-   */
+  /** Capture the panel id before disposal so ref cleanup never reads an undefined `props.meta`. See DESIGN_NOTES.md § src/AccordionGroup.tsx:1256. */
   const panelId = props.meta.id;
   const registerHeaderEl = slotRef(props.group.activators, panelId);
   // The id is passed as an accessor: this button renders from a <For> over reactive metadata,

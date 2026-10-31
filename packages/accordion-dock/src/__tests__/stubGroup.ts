@@ -110,10 +110,7 @@ export function createStubGroup(spec: StubGroupSpec): StubGroup {
   const isLeafId = (id: string): boolean => byId.get(id)?.isLeaf === true;
   const isPinnedId = (id: string): boolean => pinned.has(id);
 
-  /**
-   * The REAL rule, called — not a copy. This used to reimplement `visualOpenIds` and did
-   * drift: the rule gained a flying-out exclusion and nothing here would have noticed.
-   */
+  /** The REAL rule, called — not a copy. See DESIGN_NOTES.md § src/__tests__/stubGroup.ts:139. */
   const userOrderOpenIds = (): readonly string[] =>
     orderVisualOpen({ order: order(), open: openIds, isLeaf: isLeafId });
 

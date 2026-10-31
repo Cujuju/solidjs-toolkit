@@ -67,18 +67,14 @@ const MOVE_DOWN_SHORTCUT = 'Alt+↓';
  * group's own rules. See DESIGN_NOTES.md § src/panelMenu.tsx:85.
  */
 function bulkClosableIds(group: AccordionGroupApi): readonly string[] {
-  // Through the shared rule rather than a hand-written inverse. This used to spell out
-  // `!isPinned && !isLeaf` and only PREDICT what `collapseAll` would do, while greying a row.
+  // Through the shared rule rather than a hand-written inverse. See DESIGN_NOTES.md § src/panelMenu.tsx:102.
   return sharedBulkClosableIds(group.openOrder(), {
     isPinned: (id) => group.isPinned(id),
     isLeaf: (id) => group.meta(id)?.isLeaf === true,
   });
 }
 
-/**
- * True when any panel carries an explicit size. Read through `sizeOf`, the API's only public
- * view, which also covers sizes seeded from `defaultSize`.
- */
+/** True when any panel carries an explicit size. See DESIGN_NOTES.md § src/panelMenu.tsx:114. */
 function hasExplicitSizes(group: AccordionGroupApi): boolean {
   return [...group.panels(), ...group.leaves()].some(
     (meta) => group.sizeOf(meta.id) !== undefined,
@@ -233,19 +229,13 @@ export interface PanelMenu {
   /** Open at an explicit point, for callers that already own an `onContextMenu`
    *  (e.g. one that must also select the panel first). */
   openAt: (e: MouseEvent) => void;
-  /**
-   * Open anchored to an ELEMENT — the keyboard path. A menu reachable only by right-click
-   * hides commands that exist nowhere else; Shift+F10 carries no coordinates.
-   */
+  /** Open anchored to an ELEMENT — the keyboard path. See DESIGN_NOTES.md § src/panelMenu.tsx:298. */
   openAtElement: (el: HTMLElement) => void;
   close: () => void;
   isOpen: Accessor<boolean>;
 }
 
-/**
- * Attach the panel context menu to one activator. The id is an ACCESSOR: the rail button
- * renders from a `<For>`, so a snapshot would act on the wrong panel.
- */
+/** Attach the panel context menu to one activator. See DESIGN_NOTES.md § src/panelMenu.tsx:312. */
 export function createPanelMenu(
   group: AccordionGroupApi,
   id: () => string,

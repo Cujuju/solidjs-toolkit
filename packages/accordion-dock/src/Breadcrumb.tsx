@@ -30,10 +30,7 @@ import {
  *  chevron reads as structure rather than punctuation. */
 const DEFAULT_SEPARATOR = '›';
 
-/**
- * Ref-map key for the elision button, so it joins arrow-key movement. Residual: a panel with
- * this literal id would share the slot, affecting only which element a key focuses.
- */
+/** Ref-map key for the elision button, so it joins arrow-key movement. See DESIGN_NOTES.md § src/Breadcrumb.tsx:43. */
 const ELLIPSIS_KEY = '#acc-breadcrumb-ellipsis';
 
 export interface BreadcrumbProps {
@@ -43,10 +40,7 @@ export interface BreadcrumbProps {
    */
   group?: AccordionGroupApi;
 
-  /**
-   * Render the CONTENT of a crumb, not the element: the wrapper carries the tab stop, click
-   * and keyboard handling. `index` is the position among VISIBLE entries.
-   */
+  /** Render the CONTENT of a crumb, not the element: the wrapper carries the tab stop, click and keyboard handling. See DESIGN_NOTES.md § src/Breadcrumb.tsx:63. */
   renderCrumb?: (crumb: CrumbData, index: number) => JSX.Element;
 
   /**

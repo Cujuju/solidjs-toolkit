@@ -155,10 +155,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
 
   /** Flyout host wins when the panel is an overlay; otherwise the content lives in
    *  its column. Undefined only until the inline host's ref has fired. */
-  /**
-   * Mount precedence: a popup WINDOW outranks a flyout outranks the column. Torn-off is the
-   * most explicit state the user can choose, so nothing here may claim the content back.
-   */
+  /** Mount precedence: a popup WINDOW outranks a flyout outranks the column. See DESIGN_NOTES.md § src/AccordionPanel.tsx:201. */
   const contentMount = (): HTMLElement | undefined =>
     group.tearOffMountFor(props.id) ?? group.flyoutMountFor(props.id) ?? inlineHost();
 
@@ -253,8 +250,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       class={`acc-panel ${props.class ?? ''}`.trim()}
       data-open={open() ? 'true' : 'false'}
       data-pinned={pinned() ? 'true' : 'false'}
-      /* The docked shell of a flying-out panel: still MOUNTED, owning the refs the group
-               measures, but `autoHide.css` takes it out of the column layout. */
+      /* The docked shell of a flying-out panel: still MOUNTED, owning the refs the group measures, but `autoHide.css` takes it out of the column layout. See DESIGN_NOTES.md § src/AccordionPanel.tsx:305. */
       data-flyout={flyoutDataAttr(group.isFlyout(props.id))}
       /* The column against the rail. Flex `order` decides that visually, and CSS has no
                "first by order" selector — so the component says so out loud. */
@@ -328,9 +324,7 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
                               */}
           <button
             {...dragHandle()}
-            /* Claims the activator slot ONLY when no rail button exists. A column bar that
-                           registered unconditionally would hand a flyout a zero-rect anchor, the
-                           docked shell being `display:none`. */
+            /* Claims the activator slot ONLY when no rail button exists. See DESIGN_NOTES.md § src/AccordionPanel.tsx:415. */
             ref={(el) => {
               setColBarEl(el);
               // Released on unmount, as `slotRef` did, so the effect never holds a detached bar.
@@ -389,16 +383,9 @@ export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
       <div
         ref={setInlineHost}
         id={contentId}
-        /*
-                 * The role follows the ACTIVATOR: horizontal's rail is a `tablist`, so content is a
-                 * `tabpanel`; vertical is a disclosure revealing a `region`.
-                 */
+        /* The role follows the ACTIVATOR: horizontal's rail is a `tablist`, so content is a `tabpanel`; vertical is a disclosure revealing a `region`. See DESIGN_NOTES.md § src/AccordionPanel.tsx:503. */
         role={horizontal() ? 'tabpanel' : 'region'}
-        /*
-                 * Referenced only when the labelling element EXISTS. In horizontal `headerId` sits on
-                 * the column bar, which renders only while open — a dangling reference leaves the
-                 * region with no name.
-                 */
+        /* Referenced only when the labelling element EXISTS. See DESIGN_NOTES.md § src/AccordionPanel.tsx:514. */
         aria-labelledby={!horizontal() || open() ? headerId : undefined}
         class={`acc-content ${props.contentClass ?? ''}`.trim()}
         hidden={!open() || group.isFlyout(props.id) || group.isTornOff(props.id)}

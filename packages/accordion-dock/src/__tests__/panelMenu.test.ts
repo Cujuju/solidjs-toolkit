@@ -7,10 +7,7 @@ import {
 } from '../panelMenu';
 import { createStubGroup, type StubGroupSpec } from './stubGroup';
 
-/**
- * The menu's behaviour is its ENABLE/DISABLE MATRIX, asserted as data. HIDDEN when the
- * capability does not exist; DISABLED when state makes it a no-op.
- */
+/** The menu's behaviour is its ENABLE/DISABLE MATRIX, asserted as data. See DESIGN_NOTES.md § src/__tests__/panelMenu.test.ts:10. */
 
 interface Row {
   label: string;

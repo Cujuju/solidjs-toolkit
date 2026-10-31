@@ -10,10 +10,7 @@ import {
   type AccordionOrientation,
 } from '../context';
 
-/**
- * The group's INVARIANTS, tested where they are enforced. Each was violated by one writer
- * while three honoured it — the signature of a rule enforced at callsites.
- */
+/** The group's INVARIANTS, tested where they are enforced. See DESIGN_NOTES.md § src/__tests__/groupInvariants.test.tsx:13. */
 
 /**
  * Mounts a group and hands back its api plus the callback spies. Solid's own `render` rather
@@ -260,10 +257,7 @@ describe('a leaf is controlled — the group asks, it does not command', () => {
   }
 
   it('setOpen(leaf, false) asks the owner instead of editing the open list', () => {
-    /*
-         * THE defect. Editing the list directly left the leaf painting — its `<Show>` reads
-         * `props.open`, which nothing changed — while the group believed it closed.
-         */
+    /* THE defect. See DESIGN_NOTES.md § src/__tests__/groupInvariants.test.tsx:272. */
     const g = mountWithLeaf();
     expect(g.api().isOpen('detail')).toBe(true);
 
@@ -360,11 +354,7 @@ describe('an activator survives its own replacement', () => {
   });
 
   it('keeps one through a vertical→horizontal swap', () => {
-    /*
-         * THE regression test. The activator was lost entirely: the outgoing header's cleanup ran
-         * an unconditional delete after the rail button registered. Both are asserted; the other
-         * direction interleaved harmlessly.
-         */
+    /* THE regression test. See DESIGN_NOTES.md § src/__tests__/groupInvariants.test.tsx:381. */
     const g = mountSwappable();
     g.setOrientation('vertical');
     expect(liveActivator(g.api())).toBe(true);

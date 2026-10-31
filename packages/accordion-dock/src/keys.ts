@@ -8,10 +8,7 @@ export function createActivatorKeyDown(
   group: AccordionGroupApi,
   id: () => string,
   options?: {
-    /**
-         * Open the panel's context menu, anchored to the activator. Handled here because an element
-         * has exactly one `onKeyDown` in JSX, so a second would silently overwrite this.
-         */
+    /** Open the panel's context menu, anchored to the activator. See DESIGN_NOTES.md § src/keys.ts:21. */
     onMenu?: (activator: HTMLElement) => void;
   },
 ): (e: KeyboardEvent) => void {

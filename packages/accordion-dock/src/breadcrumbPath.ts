@@ -1,10 +1,7 @@
 import type { JSX } from 'solid-js';
 import type { AccordionGroupApi, PanelMeta } from './context';
 
-/**
- * The DATA half of the breadcrumb: the open sequence as a path, and its elision. No state —
- * a pure function of `visualOpenIds()` and `meta()`.
- */
+/** The DATA half of the breadcrumb: the open sequence as a path, and its elision. See DESIGN_NOTES.md § src/breadcrumbPath.ts:4. */
 
 /**
  * One position in the path. `label` is renderable and may be JSX; `text` is the plain-string
@@ -74,10 +71,7 @@ export interface CrumbPathOptions {
   onTruncate?: (closedIds: readonly string[], crumb: CrumbData) => void;
 }
 
-/**
- * Renderable label, most specific first. `title` over `railLabel`, which exists only for the
- * rotated rail. The id is the last resort: a blank crumb reads as a bug.
- */
+/** Renderable label, most specific first. See DESIGN_NOTES.md § src/breadcrumbPath.ts:110. */
 function resolveCrumbLabel(meta: PanelMeta): string | JSX.Element {
   const title = meta.title();
   // A JSX title is used verbatim — the panel author chose a node, and there is no
@@ -123,8 +117,7 @@ function applyTruncation(
   );
 
   for (const c of after) {
-    // No leaf special case: `setOpen` on a leaf is a REQUEST routing to `requestClose`, so the
-    // consumer flips the prop and the group follows.
+    // No leaf special case: `setOpen` on a leaf is a REQUEST routing to `requestClose`, so the consumer flips the prop and the group follows. See DESIGN_NOTES.md § src/breadcrumbPath.ts:189.
     group.setOpen(c.id, false);
   }
 }
