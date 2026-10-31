@@ -6,13 +6,6 @@ export type UpdatePlatform = 'win32' | 'darwin' | 'linux';
 
 export const UPDATE_PLATFORMS: readonly UpdatePlatform[] = ['win32', 'darwin', 'linux'];
 
-/** What an update file is: Windows runs an NSIS installer; macOS and Linux swap in a new app. */
-export const UPDATE_FILE_EXTENSION: Record<UpdatePlatform, string> = {
-  win32: '.exe',
-  darwin: '.zip',
-  linux: '.AppImage',
-};
-
 export interface UpdateFile {
   arch: string;
   /** The release asset's name. */

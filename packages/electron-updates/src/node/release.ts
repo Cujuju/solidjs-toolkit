@@ -8,8 +8,10 @@ import { execFileSync } from 'node:child_process';
 import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { isUpdatePlatform, manifestName, UPDATE_FILE_EXTENSION, type UpdateFile, type UpdateManifest, type UpdatePlatform } from '../manifest';
+import { isUpdatePlatform, manifestName, type UpdateFile, type UpdateManifest, type UpdatePlatform } from '../manifest';
 import { publicKeyOf, sha512File, signFile, verifyListing } from '../signing';
+import { buildIndex } from './pack';
+import { indexName, parseIndex } from '../updateIndex';
 import { compareVersions, releaseTag } from '../version';
 
 export interface ReleaseConfig {
@@ -28,8 +30,8 @@ export interface ReleaseConfig {
   version: () => string;
   /** Architectures built per platform; a platform listed here must be published before promote. */
   archs: Partial<Record<UpdatePlatform, string[]>>;
-  /** The update file's name in `dist` (electron-builder artifactName). */
-  updateFile: (platform: UpdatePlatform, arch: string, version: string) => string;
+  /** Target file or unpacked bundle, relative to dist. */
+  updateSource: (platform: UpdatePlatform, arch: string, version: string) => string;
   /** Other files to upload when present: first-install images, blockmaps. */
   extraFiles?: (platform: UpdatePlatform, version: string) => string[];
   /** Tag the release at HEAD; true when the releases repo is the source repo. */
@@ -73,11 +75,17 @@ export async function buildManifest(c: ReleaseConfig, platform: UpdatePlatform, 
   if (!samePem(publicKeyOf(privatePem), publicPem)) fail(`${c.publicKeyFile} is not the public half of ${c.keyFile}`);
   const files: UpdateFile[] = [];
   for (const arch of archs) {
-    const name = c.updateFile(platform, arch, version);
-    if (/\s/.test(name)) fail(`${name}: GitHub renames assets with spaces; drop them from the artifact name`);
-    if (!name.endsWith(UPDATE_FILE_EXTENSION[platform])) fail(`${name}: ${platform} updates are ${UPDATE_FILE_EXTENSION[platform]} files`);
+    const source = c.updateSource(platform, arch, version);
+    const localSource = path.join(c.dist, source);
+    if (!existsSync(localSource)) fail(`${localSource} is missing; package ${platform} ${arch} first`);
+    const stat = statSync(localSource);
+    const extension = { win32: '.exe', linux: '.AppImage', darwin: '.app' }[platform];
+    if (!source.endsWith(extension) || (platform === 'darwin' ? !stat.isDirectory() : !stat.isFile())) fail(`${source}: ${platform} updates require ${extension}`);
+    if (platform === 'darwin' && !readFileSync(path.join(localSource, 'Contents', 'Info.plist'), 'utf8').includes(`<string>${version}</string>`)) fail(`${source} is not version ${version}`);
+    const index = await buildIndex(localSource, platform, arch, c.dist);
+    if (/\s/.test(index.pack)) fail(`${index.pack}: GitHub renames assets with spaces; drop them from the artifact name`);
+    const name = indexName(platform, arch);
     const local = path.join(c.dist, name);
-    if (!existsSync(local)) fail(`${local} is missing; package ${platform} ${arch} first`);
     const unsigned = { arch, name, sha512: await sha512File(local), size: statSync(local).size };
     const fields = { context: c.signatureContext, version, platform, file: unsigned };
     const signature = signFile(privatePem, fields);
@@ -121,7 +129,9 @@ export async function nightly(c: ReleaseConfig, dryRun: boolean): Promise<void> 
   const manifestFile = path.join(c.dist, manifestName(manifest.platform));
   writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
   const extras = (c.extraFiles?.(manifest.platform, version) ?? []).map((f) => path.join(c.dist, f)).filter((f) => existsSync(f));
-  const assets = [...manifest.files.map((f) => path.join(c.dist, f.name)), ...extras, manifestFile];
+  const packs = manifest.files.map((f) => path.join(c.dist, parseIndex(readFileSync(path.join(c.dist, f.name))).pack));
+  const assets = [...new Set([...manifest.files.map((f) => path.join(c.dist, f.name)), ...packs, ...extras, manifestFile])];
+  if (assets.some((f) => /\s/.test(path.basename(f)))) fail('GitHub release asset names must have no whitespace');
   const tag = releaseTag(version);
   const existing = viewRelease(c.repo, tag);
   if (existing && !existing.isPrerelease) fail(`${tag} is already stable; nightlies never change a stable release`);

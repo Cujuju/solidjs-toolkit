@@ -55,7 +55,7 @@ describe('createUpdater', () => {
     expect(updater.status()).toEqual({ state: 'available', version: '0.2.0', nightly: false });
     await updater.download();
     expect(updater.status()).toEqual({ state: 'ready', version: '0.2.0', nightly: false });
-    const file = path.join(dir, 'App-0.2.0-win32-x64.bin');
+    const file = path.join(dir, 'staged', 'App-0.2.0-win32-x64.bin');
     expect(readFileSync(file, 'utf8')).toBe('stable build');
     updater.quitAndInstall();
     expect(app.quit).toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe('createUpdater', () => {
     await auto.updater.check();
     expect(auto.updater.status().state).toBe('ready');
     auto.quit();
-    expect(applied).toEqual([{ path: path.join(auto.dir, 'App-0.2.0-win32-x64.bin'), relaunch: false }]);
+    expect(applied).toEqual([{ path: path.join(auto.dir, 'staged', 'App-0.2.0-win32-x64.bin'), relaunch: false }]);
   });
 
   it('switching nightly → stable drops a staged nightly', async () => {
@@ -97,12 +97,12 @@ describe('createUpdater', () => {
 
   it('rejects a file that does not match its signed listing', async () => {
     const { fetch } = fakeGitHub(REPO, releases);
-    const tampered: typeof fetch = async (url, init) => (url.endsWith('.bin') ? new Response('evil') : fetch(url, init));
+    const tampered: typeof fetch = async (url, init) => (url.endsWith('.index') ? new Response('evil') : fetch(url, init));
     const { updater, dir } = setup({ fetch: tampered });
     await updater.check();
     await updater.download();
     expect(updater.status()).toMatchObject({ state: 'error', message: expect.stringMatching(/does not match/) });
-    expect(existsSync(path.join(dir, 'App-0.2.0-win32-x64.bin'))).toBe(false);
+    expect(existsSync(path.join(dir, 'staged', 'App-0.2.0-win32-x64.bin'))).toBe(false);
   });
 
   it('reports up to date', async () => {

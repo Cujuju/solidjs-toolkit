@@ -2,17 +2,14 @@
  * The one OS-specific step: applying a verified update file once the app has quit.
  * Windows runs the NSIS installer silently; macOS and Linux swap the new app over the old one.
  */
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
-import { access, chmod, readFile, rm } from 'node:fs/promises';
+import { access, chmod, readFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
-import { promisify } from 'node:util';
 import type { UpdatePlatform } from './manifest';
 
-const run = promisify(execFile);
-
-/** macOS' archiver: keeps the bundle's symlinks and attributes, which other unzip tools lose. */
-const DITTO = '/usr/bin/ditto';
+/** NSIS customInstall must use CopyFiles /SILENT "$EXEPATH" "$INSTDIR\update-seed.bin". */
+export const WINDOWS_SEED_NAME = 'update-seed.bin';
 /** macOS runs a downloaded app it hasn't moved from here: a read-only copy that can't be replaced. */
 const TRANSLOCATED = '/AppTranslocation/';
 /** electron-builder's NSIS installer: `--updated` keeps the install folder, `--force-run` starts the app after. */
@@ -74,22 +71,20 @@ export interface StagedUpdate {
   path: string;
 }
 
-/**
- * Prepares a verified download: macOS unpacks the zip and checks it holds this app at `version`;
- * Linux marks the AppImage executable; Windows runs the installer as is.
- */
+export function seedsFor(target: InstallTarget, exe: string, env: Record<string, string | undefined>): string[] {
+  if (target.kind === 'installer') return [join(dirname(exe), WINDOWS_SEED_NAME)];
+  return target.platform === 'darwin' ? [target.path] : env.APPIMAGE ? [env.APPIMAGE] : [];
+}
+
+/** Checks a rebuilt bundle or prepares an executable update file. */
 export async function stage(target: InstallTarget, file: string, version: string, exe: string): Promise<StagedUpdate> {
   if (target.kind === 'installer') return { version, target, path: file };
   if (target.platform === 'linux') {
     await chmod(file, EXECUTABLE_MODE);
     return { version, target, path: file };
   }
-  const unpacked = join(dirname(file), 'unpacked');
-  await rm(unpacked, { recursive: true, force: true });
-  await run(DITTO, ['-x', '-k', file, unpacked]);
-  await rm(file, { force: true });
-  const bundle = join(unpacked, basename(target.path));
-  // The zip holds a bundle with this one's name and executable; anything else isn't this app.
+  if (basename(file) !== basename(target.path)) throw new Error("the download isn't this app's bundle");
+  const bundle = file;
   await access(join(bundle, 'Contents', 'MacOS', basename(exe)));
   const plist = await readFile(join(bundle, 'Contents', 'Info.plist'), 'utf8').catch(() => '');
   if (!plist.includes(`<string>${version}</string>`)) throw new Error(`the download isn't version ${version} of this app`);

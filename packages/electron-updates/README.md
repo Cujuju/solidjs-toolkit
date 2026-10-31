@@ -8,7 +8,7 @@ differs by OS:
 | OS | Update file | Applied by |
 |---|---|---|
 | Windows | NSIS installer (`.exe`) | running it silently (`--updated /S`, plus `--force-run` to relaunch) |
-| macOS | zip of the `.app` | swapping the bundle after the app exits (no Squirrel.Mac, so ad-hoc signed builds update) |
+| macOS | unpacked `.app` bundle | swapping the bundle after the app exits (no Squirrel.Mac, so ad-hoc signed builds update) |
 | Linux | AppImage | swapping the AppImage file (`$APPIMAGE`) after the app exits |
 
 No dependencies; not a Solid package. It doesn't use `electron-updater`.
@@ -24,7 +24,7 @@ No dependencies; not a Solid package. It doesn't use `electron-updater`.
 
 ## Signing
 
-Each update file's listing carries an Ed25519 signature. It covers the app's signature context, the
+Each index asset's listing carries an Ed25519 signature. It covers the app's signature context, the
 version, platform, arch, file name, SHA-512 and size. The app checks the signature before showing the
 update, and checks the downloaded file's hash before staging it.
 
@@ -55,9 +55,25 @@ updater.setAutoCheck(true);                // 1 min after launch, then every 6 h
 
 Bundle the package into the main process (electron-vite: `externalizeDepsPlugin({ exclude: ['@cujuju/electron-updates'] })`).
 
-electron-builder targets: `nsis` on Windows (per-user, so no elevation), `zip` on macOS (keep `dmg` for
-first installs), `AppImage` on Linux. Artifact names must have no spaces, and the macOS name must
-include `${arch}`.
+Updates use Gear CDC on both the release and local seed. The signed listing describes a Brotli-compressed
+`update-<platform>-<arch>.index`; it names chunks in a pack. Only missing chunks are fetched with
+coalesced single-range requests, then verified and assembled byte-identically. No seed uses the same
+path with every chunk missing. Directory packs deduplicate and optionally Brotli-compress chunks;
+installer and AppImage packs are the original files.
+
+Seeds: Windows uses `<install dir>/update-seed.bin`, Linux uses `$APPIMAGE`, and macOS scans regular
+files in the running bundle. Windows keeps an installer-sized seed in the install directory, including
+after manual installs. Every Windows app must add this to its electron-builder NSIS include:
+
+```nsis
+!macro customInstall
+  CopyFiles /SILENT "$EXEPATH" "$INSTDIR\update-seed.bin"
+!macroend
+```
+
+Use `nsis` on Windows and `AppImage` on Linux. On macOS, pass electron-builder's unpacked `.app`
+(e.g. `mac-arm64/MyApp.app`), keeping `dmg` for first installs; updates need no zip. Asset names must
+have no whitespace. `WINDOWS_SEED_NAME` is exported for apps needing the seed filename.
 
 ## Releasing (local)
 
@@ -73,15 +89,15 @@ await runReleaseCli({
   keyFile: process.env.MYAPP_UPDATE_KEY ?? `${os.homedir()}/.config/myapp/update_key`,
   version: () => appVersion(root),
   archs: { win32: ['x64'], darwin: ['arm64', 'x64'], linux: ['x64'] },
-  updateFile: (platform, arch, v) => /* electron-builder artifact name */,
+  updateSource: (platform, arch, v) => platform === 'darwin' ? `${arch === 'arm64' ? 'mac-arm64' : 'mac'}/MyApp.app` : platform === 'win32' ? `MyApp-Setup-${v}.exe` : `MyApp-${v}.AppImage`,
   extraFiles: (platform, v) => platform === 'darwin' ? [`MyApp-${v}-arm64.dmg`, `MyApp-${v}-x64.dmg`] : [],
 });
 ```
 
 - `keygen`: creates the key pair once. Commit the public key; back up the private key outside the repo.
-- `nightly`: run on each OS after packaging. It signs this OS's files, writes `update-<platform>.json`
+- `nightly`: run on each OS after packaging. It builds indexes and packs, signs the indexes, writes `update-<platform>.json`
   and uploads them to prerelease `v<version>`, creating the release if needed. It refuses uncommitted
   tracked changes, an unpushed HEAD, a platform already uploaded for that version, and a stable release.
 - `promote <version>`: makes that nightly the stable release. It refuses a release missing any
   platform in `archs`, or one not newer than the current stable release.
-- `--dry-run` prints the `gh` commands without running them.
+- `--dry-run` writes the index, pack and manifest locally and prints the `gh` commands without running them.

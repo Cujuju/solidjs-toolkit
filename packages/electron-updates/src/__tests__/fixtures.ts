@@ -1,4 +1,7 @@
 import { createHash, generateKeyPairSync } from 'node:crypto';
+import { brotliCompressSync } from 'node:zlib';
+import { CHUNKING } from '../chunker';
+import { indexName } from '../updateIndex';
 import type { Fetch } from '../feed';
 import { manifestName, type UpdateManifest, type UpdatePlatform } from '../manifest';
 import { signFile } from '../signing';
@@ -31,11 +34,16 @@ export function fakeGitHub(repo: string, releases: FakeRelease[]): { fetch: Fetc
     for (const [platform, byArch] of Object.entries(r.builds) as [UpdatePlatform, Record<string, Buffer>][]) {
       const manifest: UpdateManifest = { version: r.version, platform, files: [] };
       for (const [arch, data] of Object.entries(byArch)) {
-        const file = { arch, name: `App-${r.version}-${platform}-${arch}.bin`, sha512: sha512(data), size: data.length };
+        const pack = `App-${r.version}-${platform}-${arch}.bin`;
+        const index = { format: 1, chunking: CHUNKING, pack, chunks: [{ hash: createHash('sha256').update(data).digest('base64'), offset: 0, size: data.length, length: data.length, compressed: false }], entries: [{ type: 'file', path: pack, mode: 0o755, size: data.length, sha512: sha512(data), chunks: [0] }] };
+        const bytes = brotliCompressSync(Buffer.from(JSON.stringify(index)));
+        const file = { arch, name: indexName(platform, arch), sha512: sha512(bytes), size: bytes.length };
         manifest.files.push({ ...file, signature: signFile(PRIVATE_PEM, { context: r.context ?? CONTEXT, version: r.version, platform, file }) });
-        const url = `${BASE}/${r.version}/${file.name}`;
-        bodies.set(url, data);
-        assets.push({ name: file.name, browser_download_url: url });
+        for (const [name, body] of [[pack, data], [file.name, bytes]] as const) {
+          const url = `${BASE}/${r.version}/${name}`;
+          bodies.set(url, body);
+          assets.push({ name, browser_download_url: url });
+        }
       }
       const url = `${BASE}/${r.version}/${manifestName(platform)}`;
       bodies.set(url, JSON.stringify(manifest));

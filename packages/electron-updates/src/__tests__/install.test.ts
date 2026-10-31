@@ -1,9 +1,8 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { appBundleOf, installTarget, stage, swapScript } from '../install';
+import { appBundleOf, installTarget, seedsFor, stage, swapScript, WINDOWS_SEED_NAME } from '../install';
 
 const host = { exe: '/x', env: {}, appName: 'App' };
 
@@ -39,31 +38,28 @@ describe('stage', () => {
   });
 });
 
-describe.skipIf(process.platform !== 'darwin')('stage on macOS', () => {
-  /** A zip of a minimal App.app at `version`, made with ditto as electron-builder's zips are read. */
-  async function zippedBundle(version: string): Promise<{ dir: string; zip: string }> {
+describe('stage on macOS', () => {
+  async function rebuiltBundle(version: string): Promise<string> {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'eu-mac-'));
-    const contents = path.join(dir, 'src', 'App.app', 'Contents');
+    const bundle = path.join(dir, 'App.app');
+    const contents = path.join(bundle, 'Contents');
     mkdirSync(path.join(contents, 'MacOS'), { recursive: true });
     writeFileSync(path.join(contents, 'MacOS', 'App'), '#!/bin/sh\n');
-    writeFileSync(path.join(contents, 'Info.plist'), `<plist><dict><key>CFBundleVersion</key><string>${version}</string></dict></plist>`);
-    const zip = path.join(dir, 'download', 'App-mac.zip');
-    mkdirSync(path.dirname(zip));
-    execFileSync('/usr/bin/ditto', ['-c', '-k', '--keepParent', path.join(dir, 'src', 'App.app'), zip]);
-    return { dir, zip };
+    writeFileSync(path.join(contents, 'Info.plist'), `<string>${version}</string>`);
+    return bundle;
   }
   const target = { kind: 'swap', platform: 'darwin', path: '/Applications/App.app' } as const;
 
-  it('unpacks the bundle and checks its name, executable and version', async () => {
-    const { dir, zip } = await zippedBundle('1.2.3');
-    const staged = await stage(target, zip, '1.2.3', '/Applications/App.app/Contents/MacOS/App');
-    expect(staged.path).toBe(path.join(dir, 'download', 'unpacked', 'App.app'));
+  it('checks the rebuilt bundle name, executable and version', async () => {
+    const root = await rebuiltBundle('1.2.3');
+    const staged = await stage(target, root, '1.2.3', '/Applications/App.app/Contents/MacOS/App');
+    expect(staged.path).toBe(root);
     expect(existsSync(path.join(staged.path, 'Contents', 'MacOS', 'App'))).toBe(true);
   });
 
   it('rejects a bundle of another version', async () => {
-    const { zip } = await zippedBundle('1.2.2');
-    await expect(stage(target, zip, '1.2.3', '/Applications/App.app/Contents/MacOS/App')).rejects.toThrow(/isn't version 1\.2\.3/);
+    const root = await rebuiltBundle('1.2.2');
+    await expect(stage(target, root, '1.2.3', '/Applications/App.app/Contents/MacOS/App')).rejects.toThrow(/isn't version 1\.2\.3/);
   });
 });
 
@@ -82,5 +78,14 @@ describe('swapScript', () => {
   it('finds the bundle from the executable path', () => {
     expect(appBundleOf('/Applications/App.app/Contents/MacOS/App')).toBe('/Applications/App.app');
     expect(appBundleOf('/usr/bin/app')).toBeNull();
+  });
+});
+
+describe('seedsFor', () => {
+  it('uses the installer copy, running bundle or running AppImage', () => {
+    expect(seedsFor({ kind: 'installer' }, path.join('install', 'App.exe'), {})).toEqual([path.join('install', WINDOWS_SEED_NAME)]);
+    expect(seedsFor({ kind: 'swap', platform: 'darwin', path: '/Apps/App.app' }, '/x', {})).toEqual(['/Apps/App.app']);
+    expect(seedsFor({ kind: 'swap', platform: 'linux', path: '/App' }, '/x', { APPIMAGE: '/running.AppImage' })).toEqual(['/running.AppImage']);
+    expect(seedsFor({ kind: 'swap', platform: 'linux', path: '/App' }, '/x', {})).toEqual([]);
   });
 });

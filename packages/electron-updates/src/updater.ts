@@ -4,10 +4,9 @@
  */
 import { EventEmitter } from 'node:events';
 import { mkdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { downloadVerified } from './download';
+import { fetchUpdate } from './sync';
 import { findUpdate, type Fetch, type FoundUpdate, type UpdateChannel } from './feed';
-import { apply, installTarget, stage, type InstallTarget, type StagedUpdate } from './install';
+import { apply, installTarget, seedsFor, stage, type InstallTarget, type StagedUpdate } from './install';
 import { isUpdatePlatform, type UpdatePlatform } from './manifest';
 
 /** Releases are occasional: a few checks a day find one the day it ships, well inside GitHub's anonymous rate limit. */
@@ -130,9 +129,10 @@ export function createUpdater(o: UpdaterOptions) {
     try {
       await rm(o.dir, { recursive: true, force: true });
       await mkdir(o.dir, { recursive: true });
-      const file = join(o.dir, update.file.name);
-      await downloadVerified(o.fetch, update.url, update.file, file, (percent) => set({ state: 'downloading', version, nightly, percent }));
-      staged = await stage(target, file, version, exe);
+      const root = await fetchUpdate({ fetch: o.fetch, listing: update.file, indexUrl: update.url,
+        assets: update.release.assets, seeds: seedsFor(target, exe, o.env ?? process.env), dir: o.dir,
+        onProgress: (percent) => set({ state: 'downloading', version, nightly, percent }) });
+      staged = await stage(target, root, version, exe);
       set({ state: 'ready', version, nightly });
     } catch (err) {
       set({ state: 'error', message: describe(err) });
