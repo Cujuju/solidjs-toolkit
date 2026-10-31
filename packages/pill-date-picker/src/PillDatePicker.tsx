@@ -1,141 +1,30 @@
+import { createEscapeOwner, isEscapeDismissing } from '@cujuju/solidjs-hooks';
 import {
-  createSignal,
-  createMemo,
   createEffect,
-  createUniqueId,
-  untrack,
+  createMemo,
+  createSignal,
   on,
   onCleanup,
-  onMount,
-  For,
-  Show,
+  untrack,
   type JSX,
 } from 'solid-js';
-import { Portal } from 'solid-js/web';
-import { createEscapeOwner, isEscapeDismissing } from '@cujuju/solidjs-hooks';
-import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
-import {
-  daysToExpiration,
-  formatMonthDay,
-  formatLongDate,
-  formatDte,
-  resolveDteColor,
-  DEFAULT_DTE_RAMP,
-  type DteColorStop,
-} from './_internal/dte';
-import {
-  resolvePopoutPosition,
-  isAnchorOutsideViewport,
-  POPOUT_DEFAULT_GAP_PX,
-  POPOUT_DEFAULT_PREFERENCE,
-  type PopoutPosition,
-} from './_internal/popout';
+import type { PopoutPosition } from './_internal/popout';
+import { createDatePickerActions } from './createDatePickerActions';
+import { createPillDateModel, NO_ACTIVE_INDEX } from './createPillDateModel';
+import { renderPillDatePicker } from './PillDatePickerView';
 import {
   type PillDateEntry,
   type PillDateItemState,
-  type PillDateRowContext,
   type PillDatePickerProps,
+  type PillDateRowContext,
 } from './types';
-export type { PillDateEntry, PillDateItemState, PillDateRowContext, PillDatePickerProps };
-
-/** The ISO date of an entry, whichever shape it arrived in. */
-function dateOf(item: PillDateEntry): string {
-  return typeof item === 'string' ? item : item.date;
-}
-
-/** Nothing is active until the user navigates or a selection is found. */
-const NO_ACTIVE_INDEX = -1;
-
-/** Bundler-agnostic dev check — `import.meta.env` exists under Vite, and the
- *  optional chain keeps this harmless anywhere it does not. */
-const isDev = Boolean(
-  (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV,
-);
+export type { PillDateEntry, PillDateItemState, PillDatePickerProps, PillDateRowContext };
 
 export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
   props: PillDatePickerProps<T>,
 ): JSX.Element {
-  /**
-   * Instance id for the ARIA wiring: the combobox keeps DOM focus, so `aria-activedescendant` is
-   * the only way a screen reader can announce the row the arrows are on.
-   */
-  const uid = createUniqueId();
-  const panelId = `${uid}-listbox`;
-  /** Row ids are derived from the row's KEY, so they follow the row across a
-   *  re-supplied ladder exactly as the cursor does. */
-  const rowId = (key: string): string => `${uid}-row-${encodeURIComponent(key)}`;
-
-  const size = (): 'xs' | 'sm' | 'md' => props.size ?? 'md';
-  const now = (): Date => props.now ?? new Date();
-  const ramp = (): readonly DteColorStop[] => props.dteRamp ?? DEFAULT_DTE_RAMP;
-
-  /** ONE definition of this item's DTE — the caller's if they own the number,
-   *  else calendar days. Everything that shows a DTE flows through here. */
-  const dteOf = (item: T): number | null => {
-    const dte = props.dteOf ? props.dteOf(item) : daysToExpiration(dateOf(item), now());
-    // Non-finite is "none to show" too: the documented `null`, for every consumer downstream.
-    return dte !== null && Number.isFinite(dte) ? dte : null;
-  };
-  const labelOf = (iso: string): string =>
-    props.formatDate ? props.formatDate(iso) : formatMonthDay(iso);
-
-  /** The item's selection key — the caller's if they gave one, else its date. Every
-   *  comparison against `value` goes through here; nothing compares dates directly. */
-  const keyOf = (item: T): string => (props.keyOf ? props.keyOf(item) : dateOf(item));
-
-  /**
-   * Caller's verdict per item, memoized per (items × itemState) change: `itemState` can do real
-   * work and is consulted by the renderer, every arrow scan and the commit guard.
-   */
-  const stateByKey = createMemo<Map<string, PillDateItemState>>(() => {
-    const map = new Map<string, PillDateItemState>();
-    for (const item of props.items) {
-      const key = keyOf(item);
-      // A duplicate key is a caller bug: two rows share one state, `value` selects both, and
-      // duplicate row ids make `aria-activedescendant` ambiguous. Dev-only.
-      if (isDev && map.has(key)) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[pill-date-picker] duplicate key "${key}" in items — rows will share state, ` +
-            'selection and DOM ids. Supply a `keyOf` that names the contract, not its date.',
-        );
-      }
-      map.set(key, props.itemState?.(item) ?? 'available');
-    }
-    return map;
-  });
-  const stateOf = (item: T): PillDateItemState => stateByKey().get(keyOf(item)) ?? 'available';
-
-  /**
-   * The ladder as its KEYS. `<For>` reconciles by REFERENCE, so a re-supplied ladder rebuilt
-   * every row; keys compare by value, so equal contents leave the rows alone.
-   */
-  const itemKeys = createMemo<string[]>(
-    () => props.items.map(keyOf),
-    [],
-    { equals: (a, b) => a.length === b.length && a.every((k, i) => k === b[i]) },
-  );
-
-  /**
-   * Key → the CURRENT item under it. A keyed row reads its item through this, so a re-supplied
-   * ladder updates the row in place.
-   */
-  const itemByKey = createMemo<Map<string, T>>(() => {
-    const map = new Map<string, T>();
-    for (const item of props.items) map.set(keyOf(item), item);
-    return map;
-  });
-  /** Out-of-range indices count as disabled so every caller below is total. */
-  const disabledAt = (index: number): boolean => {
-    const item = props.items[index];
-    return !item || stateOf(item) === 'disabled';
-  };
-
-  const selectedItem = createMemo<T | undefined>(() => {
-    const v = props.value;
-    if (v === null || v === undefined) return undefined;
-    return props.items.find((i) => keyOf(i) === v);
-  });
+  const model = createPillDateModel(props);
+  const { rowId, stateOf, disabledAt, setActiveKey, activeIndex, setActiveIndex } = model;
 
   // ── Open state ───────────────────────────────────────────────────────
   const [openUncontrolled, setOpenUncontrolled] = createSignal(false);
@@ -150,83 +39,16 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
    *  controlled parent can hold `open` true across `disabled`. Memo, so only the boolean re-runs effects. */
   const isPanelOpen = createMemo<boolean>(() => isOpen() && !props.disabled);
 
-  /**
-   * The cursor is stored as the row's KEY, never its index: a re-supplied ladder makes "row 3" a
-   * different contract. Keyed, the cursor follows its row or disappears.
-   */
-  const [activeKey, setActiveKey] = createSignal<string | null>(null);
-  const activeIndex = createMemo<number>(() => {
-    const k = activeKey();
-    if (k === null) return NO_ACTIVE_INDEX;
-    return props.items.findIndex((i) => keyOf(i) === k);
-  });
-  const setActiveIndex = (index: number): void => {
-    const item = index === NO_ACTIVE_INDEX ? undefined : props.items[index];
-    setActiveKey(item ? keyOf(item) : null);
-  };
   const [popout, setPopout] = createSignal<PopoutPosition | null>(null);
   let anchorEl: HTMLButtonElement | undefined;
   let panelEl: HTMLDivElement | undefined;
 
-  /**
-   * Measure and place the panel; returns whether the anchor is in view. Re-runs on scroll and
-   * resize — CAPTURING, since the scrolling ancestor is rarely `window`.
-   */
-  const place = (): boolean => {
-    // No anchor to measure: report in-view, because "unknown" must never close the ladder.
-    if (!anchorEl) return true;
-    const a = anchorEl.getBoundingClientRect();
-    // The LAYOUT viewport — the space the rects and `position: fixed` live in, excluding classic scrollbars.
-    const viewport = {
-      width: document.documentElement.clientWidth,
-      height: document.documentElement.clientHeight,
-    };
-    // Hide, never close, here: `place` runs inside opening. Residual: only the viewport is checked, not clipping ancestors.
-    if (isAnchorOutsideViewport(a, viewport)) {
-      setPopout(null);
-      return false;
-    }
-    if (!panelEl) return true;
-    const p = panelEl.getBoundingClientRect();
-    setPopout(
-      resolvePopoutPosition(
-        { top: a.top, left: a.left, width: a.width, height: a.height },
-        { width: p.width, height: p.height },
-        viewport,
-        props.popoutGap ?? POPOUT_DEFAULT_GAP_PX,
-        props.preferPlacement ?? POPOUT_DEFAULT_PREFERENCE,
-      ),
-    );
-    return true;
-  };
+  const { place, close, commit, activeRowKey } = createDatePickerActions(
+    props, model, { get anchorEl() { return anchorEl; }, get panelEl() { return panelEl; } },
+    setOpen, setPopout,
+  );
 
-  const close = (refocus: boolean): void => {
-    setOpen(false);
-    setActiveIndex(NO_ACTIVE_INDEX);
-    // Returning focus to the pill matters: without it, closing from the keyboard drops focus
-    // onto <body> and the tab order restarts from the top of the document.
-    if (refocus) anchorEl?.focus();
-  };
-
-  /**
-   * Fail-closed commit: a disabled item can never reach `onChange`, whatever route asked — a row
-   * click, a click inside a custom `renderRow`, or Enter on a cursor that landed there.
-   */
-  const commit = (index: number): void => {
-    // A control the caller disabled must not act, even with a panel already on screen — the rows
-    // are portalled and still under the pointer.
-    if (props.disabled) return;
-    const item = props.items[index];
-    if (!item) return;
-    if (stateOf(item) === 'disabled') return;
-    props.onChange(item);
-    close(true);
-  };
-
-  /**
-   * Wrap at the ends and STEP OVER disabled rows: a cursor that lands where Enter refuses to act
-   * reads as broken. Bounded, so an all-disabled ladder settles on nothing active.
-   */
+  /** Wrap at the ends, skipping disabled rows. The bounded scan leaves nothing active when every row is disabled. */
   const moveActive = (delta: number): void => {
     const n = props.items.length;
     if (n === 0) return;
@@ -247,10 +69,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     setActiveIndex(NO_ACTIVE_INDEX); // every row disabled — nowhere to go
   };
 
-  /**
-   * Scroll the panel just enough to show the cursor row. Keyboard moves and open only: on hover
-   * it could chain-scroll at the panel's edge, row after row under a still pointer.
-   */
+  /** Reveal the cursor row on keyboard navigation and open. Hover scrolling could move successive rows under a stationary pointer. */
   const revealActiveRow = (): void => {
     const key = activeRowKey();
     if (!panelEl || key === null) return;
@@ -282,10 +101,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
    * Which open picker owns the keyboard: each binds to the DOCUMENT, so two open pickers would
    * both act on one keypress. `createEscapeOwner` holds one toolkit-wide stack on `globalThis`.
    */
-  /**
-   * Escape DISMISSES this picker — but only while it is the topmost open surface in the app, and
-   * it consumes the key, so the surface underneath keeps its own Escape.
-   */
+  /** Consume Escape and dismiss only when this picker is the topmost open surface, preserving the underlying surface. */
   const escapeOwner = createEscapeOwner({
     open: isPanelOpen,
     // Ownership alone, no `isOurs` gate: it made a ladder opened with focus elsewhere
@@ -295,11 +111,7 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     owns: () => [panelEl],
   });
 
-  /**
-   * Everything true only while the pop-out is open: placement, reflow, dismissal, the list's
-   * keyboard. Outside-press closes on `pointerdown`; the document keyboard serves only keys
-   * aimed at the pill or panel.
-   */
+  /** While open, maintain placement, reflow, dismissal and navigation. Outside pointerdown dismisses; document keyboard handling serves keys aimed at the pill or panel. */
   createEffect(() => {
     if (!isPanelOpen()) {
       setPopout(null);
@@ -422,247 +234,12 @@ export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(
     ),
   );
 
-  // ── Collapsed pill ───────────────────────────────────────────────────
-  const collapsedLabel = (): string => {
-    const sel = selectedItem();
-    return sel ? labelOf(dateOf(sel)) : (props.placeholder ?? 'Select');
-  };
-
-  const defaultTooltipEntries = (item: T, dte: number | null): Record<string, string> => ({
-    Expires: formatLongDate(dateOf(item)),
-    DTE: formatDte(dte),
+  return renderPillDatePicker(props, {
+    ...model, isOpen, setOpen, isPanelOpen, close, commit, noneSelectable,
+    place, revealActiveRow, popout,
+    get anchorEl() { return anchorEl; },
+    set anchorEl(el: HTMLButtonElement | undefined) { anchorEl = el; },
+    get panelEl() { return panelEl; },
+    set panelEl(el: HTMLDivElement | undefined) { panelEl = el; },
   });
-
-  /** Empty entries make KvTooltip render nothing at all — which is exactly what an unselected
-   *  pill (nothing to describe) and a disabled tooltip should both do. */
-  const tooltipEntries = (): Record<string, string> => {
-    const sel = selectedItem();
-    if (!sel) return {};
-    const dte = dteOf(sel);
-    return props.tooltipEntries
-      ? props.tooltipEntries(sel, dte)
-      : defaultTooltipEntries(sel, dte);
-  };
-
-  const onTriggerKeyDown = (e: KeyboardEvent): void => {
-    if (props.disabled) return;
-    // Down-arrow-to-open is the listbox convention and costs nothing; without it the ladder
-    // is reachable only by Enter/Space, which reads as a button, not a picker.
-    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-      if (isOpen()) return; // the open-effect's document handler owns these once open
-      e.preventDefault();
-      setOpen(true);
-    }
-  };
-
-  /** The cursor's key only while a row carrying it is rendered — an IDREF to nothing is a lie. */
-  const activeRowKey = (): string | null => (activeIndex() === NO_ACTIVE_INDEX ? null : activeKey());
-
-  const trigger = (): JSX.Element => (
-    <button
-      ref={anchorEl}
-      type="button"
-      class="cpdp-pill"
-      role="combobox"
-      aria-haspopup="listbox"
-      aria-expanded={isPanelOpen()}
-      aria-controls={isPanelOpen() ? panelId : undefined}
-      // Points at the row the arrows are on, and only while open: a closed combobox owning a
-      // descendant that is not in the document is a lie.
-      aria-activedescendant={isPanelOpen() && activeRowKey() !== null ? rowId(activeRowKey()!) : undefined}
-      aria-label={props.ariaLabel}
-      disabled={props.disabled}
-      data-empty={selectedItem() ? undefined : 'true'}
-      onClick={() => {
-        if (props.disabled) return;
-        // Toggle, not open: a second click on the pill is the user asking to put it away.
-        isOpen() ? close(false) : setOpen(true);
-      }}
-      onKeyDown={onTriggerKeyDown}
-    >
-      {collapsedLabel()}
-    </button>
-  );
-
-  /**
-   * The built-in row: date, optional note, DTE. Extracted so `renderRow` and the
-   * default share ONE row element (state attributes, click, cursor) and differ
-   * only in what is drawn inside it.
-   */
-  const DefaultRow = (p: { ctx: PillDateRowContext<T> }): JSX.Element => (
-    <>
-      <span class="cpdp-row-date">{p.ctx.label}</span>
-      <Show when={p.ctx.annotation}>
-        {(note) => <span class="cpdp-row-note">{note()}</span>}
-      </Show>
-      {/* The colour is a style, not a class: the ramp is caller-supplied, so the
-                package cannot know a palette's class names. A disabled row drops the ramp. */}
-      <span
-        class="cpdp-row-dte"
-        style={p.ctx.state === 'disabled' ? undefined : { color: p.ctx.dteColor }}
-      >
-        {p.ctx.dteLabel}
-      </span>
-    </>
-  );
-
-  // ── Pop-out panel ────────────────────────────────────────────────────
-  // Re-place once the panel has been laid out: the first `place()` runs before the
-  // portalled panel is sized, so its measured height can be 0.
-  const PanelBody = (): JSX.Element => {
-    onMount(() => place());
-    // Open with the selection in view, not just under the cursor.
-    onMount(revealActiveRow);
-    // Re-place whenever the panel's own size changes: rows arriving, a status line, a wrapped note.
-    onMount(() => {
-      if (!panelEl || typeof ResizeObserver === 'undefined') return;
-      const observer = new ResizeObserver(() => place());
-      observer.observe(panelEl);
-      onCleanup(() => observer.disconnect());
-    });
-    return (
-      <>
-        {/* Both messages are live regions sitting OUTSIDE the listbox: a listbox may
-                    only contain options, and their text changes underneath a user already
-                    looking at it. `role="status"` is polite. */}
-        <Show when={props.items.length === 0}>
-          <div class="cpdp-empty" role="status">{props.emptyMessage ?? 'No expirations'}</div>
-        </Show>
-        {/* Rows exist but not one of them is takeable. They stay on screen —
-            deleting them would misrepresent the calendar — with the reason
-            stated once at the top. */}
-        <Show when={props.items.length > 0 && noneSelectable()}>
-          <div class="cpdp-empty" role="status">
-            {props.noneSelectableMessage ?? 'Nothing selectable'}
-          </div>
-        </Show>
-        <div
-          id={panelId}
-          class="cpdp-list"
-          role="listbox"
-          tabIndex={-1}
-          aria-label={props.ariaLabel}
-        >
-        {/* Iterating the KEYS, not the items — see `itemKeys`. */}
-        <For each={itemKeys()}>
-          {(key, i) => {
-            /**
-             * This row's CURRENT item, looked up by key rather than captured: the row
-             * outlives any single `items` array. The fallback covers one frame — `<For>`
-             * reconciles keys before disposing departing rows.
-             */
-            let lastItem = itemByKey().get(key)!;
-            const item = (): T => {
-              const fresh = itemByKey().get(key);
-              if (fresh !== undefined) lastItem = fresh;
-              return lastItem;
-            };
-            const iso = (): string => dateOf(item());
-            /**
-             * MEMOIZED, both: every context field is read at least once per pass and
-             * `dte` three times, each read parsing the ISO date and allocating a `Date`.
-             */
-            const dte = createMemo<number | null>(() => dteOf(item()));
-            const label = createMemo<string>(() => labelOf(iso()));
-            // Compare on the KEY, not the date. With two same-date contracts in the ladder
-            // (SPX / SPXW), a date comparison would light up BOTH rows as selected.
-            const selected = (): boolean => props.value === key;
-            const state = (): PillDateItemState => stateByKey().get(key) ?? 'available';
-            /**
-             * Compare KEYS, not indices: `activeIndex` scans the ladder, so asking it per
-             * row turns a cursor move into an O(n²) sweep. The key comparison is O(1).
-             */
-            const isActive = (): boolean => activeKey() === key;
-            const note = (): string | undefined => props.annotation?.(item());
-            /**
-             * ONE object per row, every field a GETTER: a custom row is called once to
-             * build its JSX, so plain values would freeze it. Same values the built-in row
-             * renders.
-             */
-            const ctx: PillDateRowContext<T> = {
-              get item() { return item(); },
-              get index() { return i(); },
-              get date() { return iso(); },
-              get label() { return label(); },
-              get dte() { return dte(); },
-              get dteLabel() { return formatDte(dte()); },
-              get dteColor() {
-                return state() === 'disabled' ? undefined : resolveDteColor(dte(), ramp());
-              },
-              get state() { return state(); },
-              get annotation() { return note(); },
-              get selected() { return selected(); },
-              get active() { return isActive(); },
-            };
-            return (
-              <div
-                id={rowId(key)}
-                class="cpdp-row"
-                role="option"
-                aria-selected={selected()}
-                // Announced, not just styled: `aria-disabled` (not `disabled`) because the row
-                // stays in the listbox and remains readable — unavailable, not absent.
-                aria-disabled={state() === 'disabled' ? 'true' : undefined}
-                data-state={state()}
-                data-active={isActive() ? 'true' : undefined}
-                data-selected={selected() ? 'true' : undefined}
-                // A disabled row never takes the cursor: the highlight must always sit
-                // somewhere Enter will act, or the two inputs disagree about what is
-                // selected.
-                onPointerEnter={() => {
-                  if (state() !== 'disabled') setActiveIndex(i());
-                }}
-                onClick={() => commit(i())}
-              >
-                <Show when={props.renderRow} fallback={<DefaultRow ctx={ctx} />}>
-                  {(render) => render()(ctx)}
-                </Show>
-              </div>
-            );
-          }}
-        </For>
-        </div>
-      </>
-    );
-  };
-
-  return (
-    <div class={`cpdp-root cpdp-size-${size()} ${props.class ?? ''}`.trim()}>
-      {/* The pill shows ONLY the date; the tooltip carries the DTE and is suppressed
-                while open. Always mounted: a `<Show>`'s branches would both claim `anchorEl`. */}
-      <KvTooltip
-        entries={tooltipEntries()}
-        disabled={(props.disableTooltip ?? false) || isPanelOpen()}
-        class="cpdp-trigger-wrap"
-      >
-        {trigger()}
-      </KvTooltip>
-
-      {/* `!props.disabled` as well as `isOpen()`: a controlled parent owns the open
-                flag, so disabling can only ASK it to close. Rendering is ours even when the
-                open state is not. */}
-      <Show when={isPanelOpen()}>
-        <Portal>
-          {/* The positioned, scrolling SHELL — deliberately role-less. The
-              listbox is the row container inside it, so the status messages can
-              be siblings of the list rather than illegal children of it. */}
-          <div
-            ref={panelEl}
-            class={`cpdp-popout cpdp-size-${size()}`}
-            data-placement={popout()?.placement}
-            style={{
-              position: 'fixed',
-              top: `${popout()?.top ?? 0}px`,
-              left: `${popout()?.left ?? 0}px`,
-              // Until the first measurement lands, the panel would otherwise paint at 0,0 for
-              // one frame — a flash in the top-left corner of the screen.
-              visibility: popout() ? 'visible' : 'hidden',
-            }}
-          >
-            <PanelBody />
-          </div>
-        </Portal>
-      </Show>
-    </div>
-  );
 }

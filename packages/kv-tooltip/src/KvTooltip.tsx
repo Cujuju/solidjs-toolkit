@@ -1,157 +1,29 @@
+import { createEscapeOwner } from '@cujuju/solidjs-hooks';
 import {
   children,
-  createSignal,
-  createMemo,
   createEffect,
-  createUniqueId,
+  createMemo,
+  createSignal,
   on,
   onCleanup,
-  onMount,
   Show,
   type JSX,
 } from 'solid-js';
-import { createEscapeOwner } from '@cujuju/solidjs-hooks';
+import { createHoverIntent } from './_internal/hoverIntent';
+import { isTopLayerSurfaceOpen } from './_internal/topLayer';
 import {
   ensureViewportListeners,
   viewportScrollTick,
 } from './clamp';
-import { createHoverIntent } from './_internal/hoverIntent';
-import { isTopLayerSurfaceOpen } from './_internal/topLayer';
 import {
-  TooltipContent,
   filterEntries,
   resolveAnchor,
+  TooltipContent,
   type KvTooltipAnchor,
-  type KvTooltipAnchoringProps,
 } from './TooltipContent';
-
-// ── Wrapper mode: hover-triggered ──────────────────────────────────────────
-export interface KvTooltipProps extends KvTooltipAnchoringProps {
-  entries: Record<string, string>;
-  children: JSX.Element;
-
-  /** Built once per show, owned by the tooltip, and disposed on hide; never read while hidden. */
-  extraContent?: JSX.Element;
-
-  showEmpty?: boolean;
-  disabled?: boolean;
-  mouseOffsetX?: number;
-  mouseOffsetY?: number;
-  hysteresisPx?: number;
-  edgePadPx?: number;
-  interactive?: boolean;
-
-  minWidth?: number | string;
-  maxWidth?: number | string;
-
-  /**
-   * Interactive-mode hide debounce (ms), so the pointer can cross the trigger–panel gap;
-   * re-entering either cancels. Default 100 (derived in `_internal/hoverIntent.ts`).
-   */
-  hideDelayMs?: number;
-
-  /**
-   * Rest delay (ms) before showing, so a pointer sweeping through dense triggers flashes nothing.
-   * Default 0; no derived default, since it depends on trigger density.
-   */
-  showDelayMs?: number;
-
-  /**
-   * Hold entries, cursor point and anchor rect from show until hide, so live sources don't
-   * twitch the panel. `extraContent` stays live; resize/scroll still re-clamp. Default `false`.
-   */
-  freezeOnShow?: boolean;
-
-  /**
-   * Pointerdown on the trigger hides and suppresses re-show until the pointer leaves and
-   * returns, so a pending `showDelayMs` can't paint over what the click opened. Default `false`.
-   */
-  hideOnPointerDown?: boolean;
-
-  /**
-   * Don't show while a non-tooltip popover is open. Covers the degraded no-top-layer path and
-   * deliberate deference. Default `false`: the check is document-global and would break
-   * tooltips inside popovers.
-   */
-  suppressWhileTopLayerOpen?: boolean;
-
-  /**
-   * Hide on any scroll: a fixed panel otherwise strands beside a row that moved. Position
-   * re-derives on scroll regardless; use this when the content goes stale. Default `false`.
-   */
-  hideOnScroll?: boolean;
-
-  ariaLabel?: string;
-  role?: 'tooltip' | 'status';
-
-  /**
-   * Screen-reader text, via `aria-describedby` (the portalled panel is unreachable). Defaults
-   * to "key: value" pairs; `extraContent`-only tooltips MUST pass it or stay mouse-only.
-   */
-  description?: string;
-  /**
-   * `false` opts out of the accessible-description machinery (0.2.x mouse-only). On by
-   * default: an opt-in a11y contract gets forgotten.
-   */
-  describeTrigger?: boolean;
-  /**
-   * Wrapper `tabindex="0"`. Default AUTO: focusable only when it contains no focusable
-   * element, so a wrapped control keeps one tab stop.
-   */
-  focusable?: boolean;
-
-  /**
-   * Wrapper layout: `text` (inline, ellipsis), `control` (inline-flex, no clipping), `block`
-   * (fills a table cell; move cell padding here), `contents` (boxless; child must be
-   * focusable, never anchor to the wrapper).
-   */
-  wrapperLayout?: 'text' | 'control' | 'contents' | 'block';
-
-  class?: string;
-  panelClass?: string;
-  portalTarget?: HTMLElement;
-}
-
-/** Visually hidden. Inline, not a class, so it stays hidden without the package stylesheet. */
-const SR_ONLY_STYLE: JSX.CSSProperties = {
-  position: 'absolute',
-  width: '1px',
-  height: '1px',
-  padding: '0',
-  margin: '-1px',
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-  'white-space': 'nowrap',
-  border: '0',
-};
-
-/** Elements that already take keyboard focus — see the `focusable` prop. */
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [contenteditable=""], [contenteditable="true"], [tabindex]:not([tabindex="-1"]):not(:disabled)';
-
-/** The attributes `FOCUSABLE_SELECTOR` reads — a change to any of them can flip the AUTO probe. */
-const FOCUSABLE_ATTRIBUTES = ['href', 'contenteditable', 'tabindex', 'disabled'];
-
-/**
- * No `position: relative` outside `text`: the portalled fixed panel doesn't need a
- * containing block, and it could create an unwanted stacking context.
- */
-function wrapperStyle(layout: 'text' | 'control' | 'contents' | 'block'): JSX.CSSProperties {
-  if (layout === 'contents') return { display: 'contents' };
-  if (layout === 'block') return { display: 'block', width: '100%' };
-  if (layout === 'control') return { display: 'inline-flex', 'align-items': 'center' };
-  return {
-    position: 'relative',
-    display: 'inline',
-    overflow: 'hidden',
-    'text-overflow': 'ellipsis',
-  };
-}
-
-/** `key: value` per pair — the fallback accessible text for a KV tooltip. */
-function describeEntries(entries: Array<[string, string]>): string {
-  return entries.map(([k, v]) => `${k}: ${v}`).join('. ');
-}
+import { createTooltipDescription, SR_ONLY_STYLE, wrapperStyle } from './tooltipWrapper';
+import type { KvTooltipProps } from './types';
+export type { KvTooltipProps } from './types';
 
 /** Content + reference position held for the lifetime of one show, per `freezeOnShow`. */
 interface FrozenSnapshot {
@@ -171,10 +43,7 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
 
   // A hover may open the panel; whether it has content is known only once shown (see `extraContent`).
   const shouldShow = (): boolean => !(props.disabled ?? false);
-  /**
-   * Each read of a JSX prop builds a new tree under the reader's owner, so `extraContent` is read
-   * only here: once per show, owned by this memo. A read from a hover timer has no owner and leaks.
-   */
+  /** JSX prop reads build owned trees. Read `extraContent` once per show in this memo; a hover timer has no owner and leaks. */
   const extraContent = children(() => (visible() && shouldShow() ? props.extraContent : undefined));
   const interactive = (): boolean => props.interactive ?? false;
   const hideDelayMs = (): number => props.hideDelayMs ?? 100;
@@ -263,97 +132,9 @@ export function KvTooltip(props: KvTooltipProps): JSX.Element {
     ),
   );
 
-  // ── Accessible description ────────────────────────────────────────────────
-  // The hidden node is all a screen reader can reach; always mounted so
-  // `aria-describedby` never dangles.
-  const describeTrigger = (): boolean => props.describeTrigger ?? true;
-  const descriptionId = createUniqueId();
-  const description = (): string => {
-    if (!describeTrigger()) return '';
-    const explicit = props.description?.trim();
-    if (explicit) return explicit;
-    return describeEntries(filtered());
-  };
-  const hasDescription = createMemo(() => description().length > 0);
-
   let wrapperEl: HTMLSpanElement | undefined;
-
-  // Bumped on any DOM change under the wrapper that the trigger probes below
-  // depend on, so they follow the live trigger rather than only prop changes.
-  const [triggerDomTick, setTriggerDomTick] = createSignal(0);
-  onMount(() => {
-    if (!wrapperEl) return;
-    const observer = new MutationObserver(() => setTriggerDomTick((n) => n + 1));
-    observer.observe(wrapperEl, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: FOCUSABLE_ATTRIBUTES,
-    });
-    onCleanup(() => observer.disconnect());
-    // The wrapper only has children once rendered; seed the memo below.
-    setTriggerDomTick((n) => n + 1);
-  });
-
-  /**
-   * The live trigger element. Memo equality absorbs the wrapper churn the observer
-   * reports — Solid's Portal marker enters and leaves on every show.
-   */
-  const triggerChild = createMemo<HTMLElement | null>(() => {
-    triggerDomTick();
-    // The control users reach, even when nested (`<span><button>`); else the first child.
-    return (
-      wrapperEl?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ??
-      (wrapperEl?.firstElementChild as HTMLElement | null) ??
-      null
-    );
-  });
-
-  /**
-   * `aria-describedby` isn't inherited, so it goes on the wrapper AND the child control users
-   * actually reach, preserving the child's existing ids.
-   */
-  createEffect(() => {
-    const child = triggerChild();
-    if (!hasDescription()) return;
-    if (!child || child.id === descriptionId) return;
-    const existing = (child.getAttribute('aria-describedby') ?? '')
-      .split(/\s+/)
-      .filter(Boolean);
-    if (existing.includes(descriptionId)) return;
-    child.setAttribute('aria-describedby', [...existing, descriptionId].join(' '));
-    onCleanup(() => {
-      const left = (child.getAttribute('aria-describedby') ?? '')
-        .split(/\s+/)
-        .filter((id) => id && id !== descriptionId);
-      if (left.length > 0) child.setAttribute('aria-describedby', left.join(' '));
-      else child.removeAttribute('aria-describedby');
-    });
-  });
-
-  /**
-   * AUTO focusability, probed from the live DOM (a `<Show>`-gated control can appear later),
-   * so a wrapped button keeps one tab stop.
-   */
-  const [childFocusable, setChildFocusable] = createSignal(false);
-  createEffect(() => {
-    // Track the description so the probe re-runs on the same edges the wiring
-    // above does; the DOM read itself is untracked by nature.
-    hasDescription();
-    triggerDomTick();
-    const el = wrapperEl;
-    if (!el) return;
-    setChildFocusable(el.querySelector(FOCUSABLE_SELECTOR) !== null);
-  });
-  const wrapperLayout = (): 'text' | 'control' | 'contents' | 'block' => props.wrapperLayout ?? 'text';
-  const wrapperTabIndex = (): number | undefined => {
-    if (!describeTrigger() || !hasDescription()) return undefined;
-    // `display: contents` has no box to draw a focus ring; the child owns the keyboard path.
-    if (wrapperLayout() === 'contents') return undefined;
-    const forced = props.focusable;
-    if (forced !== undefined) return forced ? 0 : undefined;
-    return childFocusable() ? undefined : 0;
-  };
+  const { describeTrigger, descriptionId, description, hasDescription, wrapperLayout, wrapperTabIndex } =
+    createTooltipDescription(props, filtered, () => wrapperEl);
 
   let panelEl: HTMLElement | undefined;
   const withinTooltip = (node: EventTarget | null): boolean =>
