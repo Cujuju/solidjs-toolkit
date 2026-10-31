@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
+import { exportedComponents } from '../../../packages/_shared/contracts/exportedComponents';
 
 /**
  * Coverage contract: every workspace package has a playground page listed in App.tsx, and every
@@ -11,27 +12,10 @@ const ENTRIES = import.meta.glob<string>('../../../packages/*/src/index.ts', { q
 const PAGES = import.meta.glob<string>('../pages/*Page.tsx', { query: '?raw', import: 'default', eager: true });
 const APP = Object.values(import.meta.glob<string>('../App.tsx', { query: '?raw', import: 'default', eager: true }))[0];
 
-/** A component export: PascalCase, unlike hooks (`createX`) and constants (`SCREAMING_CASE`). */
-const COMPONENT_NAME = /^[A-Z](?=\w*[a-z])/;
-
 const packageNames = Object.keys(MANIFESTS).map((path) => path.split('/').at(-2)!);
 const pageIds = Array.from(APP.matchAll(/\{\s*id:\s*'([\w-]+)'/g), (m) => m[1]);
 const pascal = (id: string) => id.split('-').map((part) => part[0].toUpperCase() + part.slice(1)).join('');
 const pageSource = (name: string) => PAGES[`../pages/${pascal(name)}Page.tsx`];
-
-/** Value exports of an entry file: `export { A, B as C, type T }` and `export function|const X`. */
-export function exportedComponents(entry: string): string[] {
-  const names: string[] = [];
-  for (const [, list] of entry.matchAll(/export\s*\{([^}]*)\}/g)) {
-    for (const raw of list.replace(/\/\/.*$/gm, '').split(',')) {
-      const spec = raw.trim();
-      if (!spec || spec.startsWith('type ')) continue;
-      names.push(spec.split(/\s+as\s+/).at(-1)!);
-    }
-  }
-  for (const [, name] of entry.matchAll(/export\s+(?:function|const)\s+(\w+)/g)) names.push(name);
-  return names.filter((name) => COMPONENT_NAME.test(name));
-}
 
 describe('the export scanner itself', () => {
   it('keeps value exports and aliases, drops types, hooks and constants', () => {

@@ -15,6 +15,8 @@ Rules that apply to every `cujuju-solidjs-*` package. Keep them short; add a new
 
 **Why:** Before these existed, the package had THREE different SSR strategies — some hooks used explicit guards, some used try/catch, some had no guard at all and crashed on SolidStart. Consolidating behind primitives guarantees consistent behaviour and one place to change policy.
 
+**Test:** every exported component is server-rendered (`renderToString`, closed and open where it opens) in `src/__tests__/render.ssr.test.tsx`. The shared Vitest config runs `*.ssr.test.tsx` in an `ssr` project (node, SSR compile, solid-js's server build), and a contract test fails when an exported component has no case there.
+
 ---
 
 ## 2. DOM measurement — layout box vs. visual box
