@@ -48,10 +48,15 @@ export function ElectronUpdatesPage(): JSX.Element {
       <h1>@cujuju/electron-updates</h1>
       <p class="note">
         Signed <b>stable</b> and <b>nightly</b> updates for Electron apps, from a public GitHub repo's releases. Windows
-        (NSIS installer), macOS (zip of the <code>.app</code>) and Linux (AppImage) share one path: find the release
+        (NSIS installer), macOS (the <code>.app</code> bundle) and Linux (AppImage) share one path: find the release
         for the channel, read its signed <code>update-&lt;platform&gt;.json</code>, download, verify, stage, apply when
         the app quits. Not a Solid package and not a control: it runs in the main process, so this page documents it
         without a live demo.
+      </p>
+      <p class="note">
+        Downloads are partial, including the first update after a manual install: the app splits what it already has
+        into content-defined chunks and fetches only the chunks it lacks, then rebuilds the update byte for byte. On
+        Windows that needs a copy of the installer in the install folder; see the package README for the NSIS snippet.
       </p>
 
       <h2>App (main process)</h2>
@@ -84,14 +89,14 @@ updater.setAutoCheck(true);                // STARTUP_CHECK_DELAY_MS after launc
         A nightly is a GitHub prerelease tagged <code>v&lt;version&gt;</code>; stable is the latest release, and{' '}
         <code>promote</code> turns a nightly into it with the same files and signatures. Switching from nightly to
         stable never downgrades. Each listing carries an Ed25519 signature over the signature context, version,
-        platform, arch, file name, SHA-512 and size; the app checks it before showing the update and checks the file's
-        hash before staging it.
+        platform, arch, and the name, SHA-512 and size of its chunk index; the index lists every file's SHA-512. The
+        app checks the signature before showing the update and every rebuilt file's hash before staging it.
       </p>
 
       <h2>Releasing (Node)</h2>
       <Code cap="@cujuju/electron-updates/node">{`
 import { runReleaseCli } from '@cujuju/electron-updates/node';
-await runReleaseCli({ appName, repo, signatureContext, dist, publicKeyFile, keyFile, version, archs, updateFile, extraFiles });
+await runReleaseCli({ appName, repo, signatureContext, dist, publicKeyFile, keyFile, version, archs, updateSource, extraFiles });
 // subcommands: keygen | nightly | promote <version>, plus --dry-run
 `}</Code>
     </>
