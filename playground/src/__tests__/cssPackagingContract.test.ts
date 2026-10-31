@@ -112,6 +112,7 @@ function entryBundle(code: string) {
     'index.js': {
       type: 'chunk',
       isEntry: true,
+      name: 'index',
       fileName: 'index.js',
       facadeModuleId: '/src/index.ts',
       code,
@@ -160,9 +161,17 @@ describe('injectCssImport', () => {
     expect(mappingsOf(bundle)).toBe(MAPPINGS.replace(';', ';;'));
   });
 
+  it('leaves an extra entry (a helpers subpath) without the sheet', () => {
+    const bundle = entryBundle(`${SOLID_IMPORT}\nexport {};\n`);
+    bundle['helpers.js'] = { type: 'chunk', isEntry: true, name: 'helpers', fileName: 'helpers.js', code: 'export {};\n' };
+    runInjection(bundle, { '/src/index.ts': { importedIds: ['/src/own.css'] }, 'solid-js/web': { isExternal: true } });
+    expect(bundle['index.js'].code).toBe(`${CSS_IMPORT}\n${SOLID_IMPORT}\nexport {};\n`);
+    expect(bundle['helpers.js'].code).toBe('export {};\n');
+  });
+
   it('refuses a bundle it cannot attribute a sheet in', () => {
     const bundle = entryBundle(`${SOLID_IMPORT}\n`);
-    bundle['chunk2.js'] = { type: 'chunk', isEntry: true, fileName: 'chunk2.js', code: '' };
-    expect(() => runInjection(bundle, {})).toThrow(/one entry chunk and one CSS asset/);
+    bundle['other.css'] = { type: 'asset', fileName: 'other.css', source: '.y{}' };
+    expect(() => runInjection(bundle, {})).toThrow(/one main entry chunk and one CSS asset/);
   });
 });
