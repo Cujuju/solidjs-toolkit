@@ -26,51 +26,6 @@ const KEYBOARD_STEP_PX = 8;
  *  two compose predictably. */
 const KEYBOARD_COARSE_STEP_PX = KEYBOARD_STEP_PX * 10;
 
-/**
- * The flex declaration for ONE open member — panels and leaves alike. In `fill`, a declared
- * `grow` absorbs the remainder. See DESIGN_NOTES.md § src/resize.ts:76.
- */
-export function columnFlex(opts: {
-  /** The panel's explicit size, or `undefined` while it follows the mode. */
-  sizePx: number | undefined;
-  /** `fill` mode — the only mode that owes the group's whole extent to its members. */
-  fill: boolean;
-  /** True when no open member follows this one in visual order. */
-  trailing: boolean;
-  /** This member declares itself the absorber of the group's leftover space. */
-  declaresGrow: boolean;
-  /** Any OPEN member declares it — which retires the trailing default, including for members
-   *  that declare nothing. */
-  groupHasDeclaredGrower: boolean;
-  /** This member is its CONTENT's size, with `sizePx` as a ceiling it scrolls past. */
-  shrinkToContent: boolean;
-  /** The group's growth axis, so a ceiling is applied to the dimension the dock
-   *  actually sizes along. */
-  axis: 'width' | 'height';
-}): { flex: string; maxWidth?: string; maxHeight?: string } | Record<string, never> {
-  if (opts.shrinkToContent) {
-    // `0 1 auto`: never grow past the content, shrink if the group cannot hold every member,
-    // and take the content as the basis.
-    const flex = { flex: '0 1 auto' };
-    if (opts.sizePx === undefined) return flex;
-    return opts.axis === 'width'
-      ? { ...flex, maxWidth: `${opts.sizePx}px` }
-      : { ...flex, maxHeight: `${opts.sizePx}px` };
-  }
-
-  const grows =
-    opts.fill && (opts.declaresGrow || (!opts.groupHasDeclaredGrower && opts.trailing));
-
-  if (opts.sizePx === undefined) {
-    /* No explicit size. See DESIGN_NOTES.md § src/resize.ts:185. */
-    if (opts.fill && opts.groupHasDeclaredGrower && !opts.declaresGrow) {
-      return { flex: '0 0 auto' };
-    }
-    return {};
-  }
-  return { flex: grows ? `1 1 ${opts.sizePx}px` : `0 0 ${opts.sizePx}px` };
-}
-
 export interface ResizeHost {
   /** Growth axis: 'x' for horizontal columns, 'y' for vertical fill panels. */
   axis: Accessor<'x' | 'y'>;
@@ -129,7 +84,10 @@ const OFFSET_ROUNDING_PX = 1;
  * Layout extent on `axis` and visual px per layout px. Sizes written back are LAYOUT sizes
  * (CONTRIBUTING §2), so an ancestor `transform: scale()` must not leak into them.
  */
-function measureAxis(el: HTMLElement, axis: 'x' | 'y'): { layout: number; scale: number } {
+function measureAxis(
+  el: HTMLElement,
+  axis: 'x' | 'y',
+): { layout: number; scale: number } {
   const r = el.getBoundingClientRect();
   const visual = axis === 'x' ? r.width : r.height;
   const offset = axis === 'x' ? el.offsetWidth : el.offsetHeight;
@@ -214,12 +172,16 @@ export function createResize(host: ResizeHost): ResizeApi {
       if (ev.pointerId !== pointerId) return;
       const now = host.axis() === 'x' ? ev.clientX : ev.clientY;
       /*
-                   * Applied from the first pixel — deliberately no activation threshold.
-                   * See DESIGN_NOTES.md § src/resize.ts:348.
-                   */
+       * Applied from the first pixel — deliberately no activation threshold.
+       * See DESIGN_NOTES.md § src/resize.ts:348.
+       */
       const raw = ((now - startPointer) * host.direction()) / scale;
       const delta = clampDelta(raw, p);
-      host.previewSizes({ ...host.sizes(), [id]: p.startA + delta, [p.nextId]: p.startB - delta });
+      host.previewSizes({
+        ...host.sizes(),
+        [id]: p.startA + delta,
+        [p.nextId]: p.startB - delta,
+      });
 
       // Overdrag → collapse, measured against the UNCLAMPED movement: once a panel is pinned at
       // its minimum the clamped size stops changing. Committed on release, not here.
@@ -290,10 +252,16 @@ export function createResize(host: ResizeHost): ResizeApi {
     if (delta === 0) return;
     // Straight to commit: a keypress is already a discrete decision, so there is no intermediate
     // state worth previewing.
-    host.commitSizes({ ...p.seeded, [id]: p.startA + delta, [p.nextId]: p.startB - delta });
+    host.commitSizes({
+      ...p.seeded,
+      [id]: p.startA + delta,
+      [p.nextId]: p.startB - delta,
+    });
   };
 
-  const boundsOf = (id: string): { value: number; min: number; max: number } | undefined => {
+  const boundsOf = (
+    id: string,
+  ): { value: number; min: number; max: number } | undefined => {
     const p = pairFor(id);
     if (p === null) return undefined;
     // The pair's total is fixed, so this panel's ceiling is whatever its neighbour can give up —
@@ -307,3 +275,5 @@ export function createResize(host: ResizeHost): ResizeApi {
 
   return { begin, nudge, boundsOf, resizing, collapseCandidate };
 }
+
+export { columnFlex } from './columnFlex';

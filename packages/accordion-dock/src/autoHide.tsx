@@ -1,183 +1,32 @@
-import {
-  For,
-  Show,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  type Accessor,
-  type JSX,
-} from 'solid-js';
-import { Portal } from 'solid-js/web';
-import { AnchoredPopover, type AnchoredPlacement } from '@cujuju/solidjs-anchored-popover';
 import { getGlobalTarget, safeAddEventListener } from '@cujuju/solidjs-hooks';
-import { Close, Pin, PinOff } from './icons';
-import type {
-  AccordionOrientation,
-  AccordionPolicy,
-  AccordionRailSide,
-  ActivatorHoverProps,
-  PanelMeta,
-} from './context';
-import { SlotIf } from './SlotIf';
+import { For, createEffect, createMemo, createSignal, onCleanup } from 'solid-js';
 
-/**
- * AUTO-HIDE — an unpinned open panel renders as a flyout; pinning promotes it to a column.
- * Flyout-ness is DERIVED. See DESIGN_NOTES.md § src/autoHide.tsx:22.
- */
-
-/** Delay before a hovered activator opens its flyout, ms. Must exceed the incidental dwell
- *  along the rail; 350ms. See DESIGN_NOTES.md § src/autoHide.tsx:100. */
-export const FLYOUT_HOVER_ENTER_DELAY_MS = 350;
-
-/** Grace after the pointer leaves the button or flyout, ms. Shorter than the enter delay:
- *  reopening is the cheaper mistake. See DESIGN_NOTES.md § src/autoHide.tsx:118. */
-export const FLYOUT_HOVER_LEAVE_GRACE_MS = 260;
-
-/** Fallback max height as a fraction of the viewport, used only when the rail cannot be
- *  measured — which means the markup contract below changed. */
-export const FLYOUT_FALLBACK_MAX_HEIGHT_VH = 60;
-
-/** Flyout width when the panel has no dragged size, px. Matches `--acc-col-width` so pinning
- *  does not resize it. */
-export const FLYOUT_DEFAULT_WIDTH_PX = 230;
-
-/**
- * The flyout's CROSS-AXIS sizing. Horizontal uses the panel's own width; vertical uses
- * `max-content`, floored at the anchor. See DESIGN_NOTES.md § src/autoHide.tsx:154.
- */
-export function flyoutCrossAxis(input: {
-  orientation: AccordionOrientation;
-  /** The panel's stored size along the growth axis — a WIDTH only in horizontal. */
-  panelSizePx: number | undefined;
-  /** The group's measured width. `0` when it could not be read. */
-  groupWidthPx: number;
-}): { width: string; minWidth: string; maxWidth?: string } {
-  if (input.orientation !== 'vertical') {
-    const px = input.panelSizePx ?? FLYOUT_DEFAULT_WIDTH_PX;
-    // `maxWidth: 'none'` is written explicitly: a horizontal flyout inheriting the stylesheet's
-    // vertical ceiling would be capped below the width the user dragged, so pinning would resize.
-    return { width: `${px}px`, minWidth: `${px}px`, maxWidth: 'none' };
-  }
-  const floor = input.groupWidthPx > 0 ? Math.round(input.groupWidthPx) : FLYOUT_DEFAULT_WIDTH_PX;
-  // `maxWidth` deliberately ABSENT — the stylesheet's `--acc-flyout-max-width`
-  // applies, and writing it inline here would out-rank a consumer restating it.
-  return { width: 'max-content', minWidth: `${floor}px` };
-}
-
-/**
- * The group's markup contract, read (never written) to measure a flyout's max height: the
- * rail already spans exactly the dock's growth axis.
- */
-const RAIL_SELECTOR = '.acc-rail';
-
-/** The group root, read (never written) as the source of the typography a
- *  Portal'd flyout would otherwise lose — see `inheritedTypographyOf`. */
-const GROUP_SELECTOR = '.acc-group';
-
-/**
- * Typography a Portal'd flyout must be told, because it inherits from `<body>` rather than the
- * group. See DESIGN_NOTES.md § src/autoHide.tsx:221.
- */
-const INHERITED_TYPOGRAPHY = [
-  'font-family',
-  'font-size',
-  'font-weight',
-  'font-style',
-  'line-height',
-  'letter-spacing',
-] as const;
-
-/**
- * Read the group's resolved typography as inline style. LONGHANDS, not the `font` shorthand,
- * which serializes empty. See DESIGN_NOTES.md § src/autoHide.tsx:260.
- */
-function inheritedTypographyOf(groupEl: Element | null | undefined): Record<string, string> {
-  if (groupEl === null || groupEl === undefined) return {};
-  // `typeof` guarded for the jsdom/SSR case, where there is no cascade to read.
-  if (typeof getComputedStyle !== 'function') return {};
-  const computed = getComputedStyle(groupEl);
-  const style: Record<string, string> = {};
-  for (const prop of INHERITED_TYPOGRAPHY) {
-    const value = computed.getPropertyValue(prop);
-    if (value !== '') style[prop] = value;
-  }
-  return style;
-}
-
-/** Class on the popover SHELL. See DESIGN_NOTES.md § src/autoHide.tsx:287. */
-const FLYOUT_SHELL_CLASS = 'acc-flyout-shell';
-
-/** Class on the flyout CONTENT element. All visual styling lives in
- *  `autoHide.css` against this class. */
-const FLYOUT_CONTENT_CLASS = 'acc-flyout';
-
-/**
- * Cross-package WIRE CONTRACT from `@cujuju/solidjs-context-menu`: Portal'd submenus carry
- * `data-popover-stack`, and coexisting host popovers match the same literal attribute.
- * Duplicated, not imported — the package documents the attribute, not the symbol.
- */
-const POPOVER_STACK_SELECTOR = '[data-popover-stack]';
-
-/**
- * Elements whose pointerdown must NOT dismiss a flyout: a right-click menu is Portal'd
- * outside it. See DESIGN_NOTES.md § src/autoHide.tsx:315.
- */
-const DISMISS_SUPPRESS_SELECTOR = `${POPOVER_STACK_SELECTOR}, [popover]:not(.${FLYOUT_SHELL_CLASS})`;
-
-/** Why a flyout is open. See DESIGN_NOTES.md § src/autoHide.tsx:330. */
-type FlyoutOpenCause = 'hover' | 'click';
-
-/** The slice of `AccordionGroupApi` this module consumes. See DESIGN_NOTES.md § src/autoHide.tsx:341. */
-export interface AutoHideGroup {
-  orientation: Accessor<AccordionOrientation>;
-  railSide: Accessor<AccordionRailSide>;
-  policy: Accessor<AccordionPolicy>;
-  openOrder: Accessor<readonly string[]>;
-  meta: (id: string) => PanelMeta | undefined;
-  isOpen: (id: string) => boolean;
-  isPinned: (id: string) => boolean;
-  /** Promote a flyout to a docked column, or demote it back. See DESIGN_NOTES.md § src/autoHide.tsx:360. */
-  togglePin: (id: string) => void;
-  setOpen: (id: string, open: boolean) => void;
-  sizeOf: (id: string) => number | undefined;
-  /** The element representing the panel — its rail button, or the `⋯` trigger once that button collapses. See DESIGN_NOTES.md § src/autoHide.tsx:372. */
-  activatorElOf: (id: string) => HTMLElement | undefined;
-  /** Suppresses hover-open mid-gesture — see `onRailPointerEnter`. */
-  reorderActiveId: Accessor<string | null>;
-  resizing: Accessor<boolean>;
-  /** OPTIONAL only so this file compiles before the group grows it. See DESIGN_NOTES.md § src/autoHide.tsx:385. */
-  density?: Accessor<'comfortable' | 'compact'>;
-}
-
-export interface AutoHideOptions {
-  group: AutoHideGroup;
-  /** The group's `autoHide` prop. Inert in `vertical` orientation — see SCOPE. */
-  enabled: Accessor<boolean>;
-  /** Open a flyout on hover as well as click. Default FALSE — hover is unavailable to keyboard
-   *  and touch, so it must stay an accelerator, never the only way in. */
-  hoverToOpen?: Accessor<boolean>;
-  /** Override for {@link FLYOUT_HOVER_ENTER_DELAY_MS}. Undefined keeps the default, which is
-   *  tuned for the horizontal rail; a vertical dock wants a much smaller one. */
-  hoverOpenDelayMs?: Accessor<number | undefined>;
-}
-
-export interface AutoHideApi {
-  /** True when `id` should render as an overlay rather than a column. The
-   *  derivation at the top of this file, and the only state question this
-   *  module answers. */
-  isFlyout: (id: string) => boolean;
-  /** Where a flying-out panel's subtree should mount, or undefined when it belongs in its
-   *  column. Consumed by `AccordionPanel`'s own Portal. */
-  flyoutMountFor: (id: string) => HTMLElement | undefined;
-  /** Spread on the panel's ACTIVATOR — the rail button in horizontal, the header bar in vertical. See DESIGN_NOTES.md § src/autoHide.tsx:430. */
-  activatorHoverProps: (id: string) => ActivatorHoverProps;
-  /** Dismiss a flyout: closes the panel and returns focus to its rail button if
-   *  focus was inside. */
-  dismiss: (id: string) => void;
-  /** Render ONCE inside the group. Every open flyout's popover lives here. */
-  element: JSX.Element;
-}
+import {
+  DISMISS_SUPPRESS_SELECTOR,
+  FLYOUT_CONTENT_CLASS,
+  FLYOUT_HOVER_ENTER_DELAY_MS,
+  FLYOUT_HOVER_LEAVE_GRACE_MS,
+  type AutoHideApi,
+  type AutoHideOptions,
+  type FlyoutOpenCause,
+} from './autoHideModel';
+import { Flyout } from './Flyout';
+export {
+  FLYOUT_CONTENT_CLASS,
+  FLYOUT_DEFAULT_WIDTH_PX,
+  FLYOUT_FALLBACK_MAX_HEIGHT_VH,
+  FLYOUT_HOVER_ENTER_DELAY_MS,
+  FLYOUT_HOVER_LEAVE_GRACE_MS,
+  FLYOUT_SHELL_CLASS,
+  flyoutCrossAxis,
+} from './autoHideModel';
+export type { AutoHideApi, AutoHideGroup, AutoHideOptions } from './autoHideModel';
+export {
+  PANEL_OUTLET_CONTAINER_ATTR,
+  PANEL_OUTLET_HOST_ATTR,
+  PanelOutlet,
+  flyoutDataAttr,
+} from './PanelOutlet';
 
 /** Per-flyout host element, published reactively so the panel's Portal can
  *  re-target the moment the popover's content div exists. */
@@ -332,7 +181,11 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
       dismiss(id);
     }
   };
-  safeAddEventListener(getGlobalTarget('document'), 'focusin', onFocusIn as EventListener);
+  safeAddEventListener(
+    getGlobalTarget('document'),
+    'focusin',
+    onFocusIn as EventListener,
+  );
 
   onCleanup(() => {
     cancelEnter();
@@ -384,245 +237,3 @@ export function createAutoHide(options: AutoHideOptions): AutoHideApi {
     element,
   };
 }
-
-/**
- * One flyout: the popover shell, its placement inputs, and the host the panel's subtree
- * portals into. It renders no panel content — that arrives from `AccordionPanel`.
- */
-function Flyout(props: {
-  id: string;
-  group: AutoHideGroup;
-  registerHost: (id: string, el: HTMLElement | null) => void;
-  onDismiss: () => void;
-  onPointerEnter: () => void;
-  onPointerLeave: () => void;
-  onCommit: () => void;
-  autoFocus: boolean;
-}): JSX.Element {
-  /** The popover's content element, once it exists — the whole flyout surface. */
-  let surface: HTMLElement | undefined;
-
-  /**
-   * Move focus in once the popover is actually focusable, driven by the primitive's `onShown`.
-   * See DESIGN_NOTES.md § src/autoHide.tsx:734.
-   */
-  const focusSurface = (): void => {
-    if (!props.autoFocus) return;
-    // The surface itself, not its first focusable child — the dialog pattern: the reader
-    // announces the panel's label, and the next Tab enters content in document order.
-    surface?.focus();
-  };
-  // The anchor is READ REACTIVELY, not captured: the rail button's ref fires after this
-  // component first renders, and a rail re-render can replace the element.
-  const anchor = (): HTMLElement | null | undefined => props.group.activatorElOf(props.id);
-
-  /** Flyouts grow from the rail edge horizontally and from the header downward vertically. See DESIGN_NOTES.md § src/autoHide.tsx:765. */
-  const placement = (): AnchoredPlacement => {
-    if (props.group.orientation() === 'vertical') return 'below-start';
-    return props.group.railSide() === 'left' ? 'right-start' : 'left-start';
-  };
-
-  /** The group element — the vertical flyout's width reference, and the source of
-   *  the typography the Portal would otherwise lose. */
-  const groupEl = (): Element | null | undefined => anchor()?.closest(GROUP_SELECTOR);
-
-  /** CROSS-AXIS size. The decision itself is `flyoutCrossAxis` — pure, and
-   *  documented there; this only supplies the two measurements it needs. */
-  const crossAxis = (): { width: string; minWidth: string; maxWidth?: string } => {
-    const el = groupEl();
-    return flyoutCrossAxis({
-      orientation: props.group.orientation(),
-      panelSizePx: props.group.sizeOf(props.id),
-      groupWidthPx: el instanceof HTMLElement ? el.getBoundingClientRect().width : 0,
-    });
-  };
-
-  /**
-   * A flyout is at most as tall as the dock. The rail is measured because it already spans
-   * exactly the dock's growth-axis extent.
-   */
-  const maxHeight = (): string => {
-    // Re-runs when the rail button's ref lands. See DESIGN_NOTES.md § src/autoHide.tsx:803.
-    const source =
-      props.group.orientation() === 'vertical'
-        ? groupEl()
-        : anchor()?.closest(RAIL_SELECTOR);
-    if (source === null || source === undefined) return `${FLYOUT_FALLBACK_MAX_HEIGHT_VH}vh`;
-    return `${Math.round(source.getBoundingClientRect().height)}px`;
-  };
-
-  onCleanup(() => props.registerHost(props.id, null));
-
-  return (
-    <AnchoredPopover
-      open={() => true}
-      anchor={() => anchor() ?? null}
-      placement={placement()}
-      onDismiss={props.onDismiss}
-      onShown={focusSurface}
-      shouldSuppressDismiss={(target) => target.closest(DISMISS_SUPPRESS_SELECTOR) !== null}
-      shellClass={FLYOUT_SHELL_CLASS}
-      shellStyle={() => {
-        const style: Record<string, string> = {
-          // Typography FIRST, so a host restyling through the tokens below still out-ranks the
-          // inherited baseline. Sourced from the group via the anchor, which the flyout already holds.
-          ...inheritedTypographyOf(groupEl()),
-          '--acc-flyout-width': crossAxis().width,
-          '--acc-flyout-min-width': crossAxis().minWidth,
-          '--acc-flyout-max-height': maxHeight(),
-        };
-        // Absent in vertical, so the stylesheet's own ceiling token applies.
-        const maxWidth = crossAxis().maxWidth;
-        if (maxWidth !== undefined) style['--acc-flyout-max-width'] = maxWidth;
-        // The per-panel accent recolours this panel's pin and focus ring. It inherits in the dock;
-        // a Portal'd flyout is not a descendant, so it is restated here.
-        const accent = props.group.meta(props.id)?.accent();
-        if (accent !== undefined) style['--acc-accent'] = accent;
-        return style;
-      }}
-      class={FLYOUT_CONTENT_CLASS}
-      aria-label={labelOf(props.group.meta(props.id))}
-      /* Pointer intent is asked of the WHOLE surface, not the content host: `pointerleave` does
-              not bubble. See DESIGN_NOTES.md § src/autoHide.tsx:857. */
-      contentRef={(el) => {
-        surface = el;
-        // Focusable programmatically but NOT in the tab sequence: the flyout is a destination for
-        // the focus move above and for a click, never something tabbed into from the document.
-        el.tabIndex = -1;
-        // A pointerdown anywhere on the surface promotes the peek to a decision. Bubble phase, so
-        // the pin and close buttons' `stopPropagation` still pre-empts it.
-        el.addEventListener('pointerdown', props.onCommit);
-        el.addEventListener('pointerenter', props.onPointerEnter);
-        el.addEventListener('pointerleave', props.onPointerLeave);
-      }}
-    >
-      {/* The flyout's OWN title bar, carrying a docked column's classes. Without this a flyout
-             had no pin. See DESIGN_NOTES.md § src/autoHide.tsx:886. */}
-      <div class="acc-col-bar">
-        <SlotIf content={props.group.meta(props.id)?.icon()} wrap={(slot) => <span class="acc-icon">{slot}</span>} />
-        <span class="acc-title">{props.group.meta(props.id)?.title()}</span>
-        <Show when={props.group.meta(props.id)?.count() !== undefined}>
-          <span class="acc-count">{props.group.meta(props.id)?.count()}</span>
-        </Show>
-        <div class="acc-header-tail">
-          <Show when={props.group.meta(props.id)?.pinnable() === true}>
-            <button
-              type="button"
-              class="acc-pin"
-              data-no-drag
-              aria-pressed={props.group.isPinned(props.id)}
-              title="Pin — dock this panel as a column instead of a flyout"
-              /* Stops the pointerdown from also reaching `onCommit` below, which
-                 would promote the peek to a click-opened flyout in the same
-                 gesture that is about to dock it outright. */
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => props.group.togglePin(props.id)}
-            >
-              {/* State, not action — see the column bar's pin. A flyout is by
-                  definition unpinned, so this is the un-pinned glyph until the
-                  click that docks it. */}
-              <Show when={props.group.isPinned(props.id)} fallback={<PinOff />}>
-                <Pin />
-              </Show>
-            </button>
-          </Show>
-          <button
-            type="button"
-            class="acc-close"
-            data-no-drag
-            title="Close"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => props.onDismiss()}
-          >
-            <Close />
-          </button>
-        </div>
-      </div>
-
-      <div
-        class="acc-flyout-host"
-        /* Restates the group's density inside the Portal'd surface — see the `density` note on
-           AutoHideGroup. Tokens set here inherit to the flyout's whole subtree. */
-        data-density={props.group.density?.() ?? 'comfortable'}
-        ref={(el) => props.registerHost(props.id, el)}
-      />
-    </AnchoredPopover>
-  );
-}
-
-/** Native-tooltip-or-title as an accessible name, when either is a plain string.
- *  A JSX title cannot become an `aria-label`; the content's own
- *  `aria-labelledby` still names the region in that case. */
-function labelOf(meta: PanelMeta | undefined): string | undefined {
-  if (meta === undefined) return undefined;
-  const tooltip = meta.tooltip();
-  if (tooltip !== undefined) return tooltip;
-  const title = meta.title();
-  return typeof title === 'string' ? title : undefined;
-}
-
-/**
- * Render a panel's subtree into WHICHEVER surface owns it, without rebuilding it. ONE
- * `<Portal>`: changing `mount` MOVES the nodes. See DESIGN_NOTES.md § src/autoHide.tsx:965.
- */
-/** ⚠ EXPORTED BUT UNUSED — zero callers. See DESIGN_NOTES.md § src/autoHide.tsx:991. */
-export function PanelOutlet(props: {
-  /** Alternate surfaces, highest priority first. The first one to return an
-   *  element wins; if none does, the panel's own docked host is used. */
-  mounts: ReadonlyArray<() => HTMLElement | undefined>;
-  children: JSX.Element;
-}): JSX.Element {
-  // Not reactive and does not need to be: created with this component, lives
-  // exactly as long. Portal reads `mount` inside an effect, which runs after
-  // refs are filled.
-  let dockHost!: HTMLDivElement;
-
-  const mount = (): HTMLElement => {
-    for (const candidate of props.mounts) {
-      const el = candidate();
-      if (el !== undefined) return el;
-    }
-    return dockHost;
-  };
-
-  const decorateContainer = (container: HTMLDivElement): void => {
-    container.setAttribute(PANEL_OUTLET_CONTAINER_ATTR, '');
-    // The container is a box in an alternate surface (it must fill the flyout or popup) and a
-    // non-box in the dock. Read when Portal re-runs after a mount change.
-    const docked = mount() === dockHost;
-    container.style.display = docked ? 'contents' : 'flex';
-    if (docked) return;
-    container.style.flexDirection = 'column';
-    container.style.flex = '1 1 auto';
-    container.style.minHeight = '0';
-  };
-
-  return (
-    <div
-      ref={(el) => {
-        dockHost = el;
-        el.setAttribute(PANEL_OUTLET_HOST_ATTR, '');
-      }}
-      style={{ display: 'contents' }}
-    >
-      <Portal mount={mount()} ref={decorateContainer}>
-        {props.children}
-      </Portal>
-    </div>
-  );
-}
-
-/** The two wrappers `PanelOutlet` introduces. Named constants because
- *  `styles.css` has to reference them by name — see the handoff's CSS note. */
-export const PANEL_OUTLET_HOST_ATTR = 'data-acc-outlet-host';
-export const PANEL_OUTLET_CONTAINER_ATTR = 'data-acc-outlet';
-
-/** Convenience for the panel's own element: `data-flyout` drives the CSS that
- *  collapses a flying-out panel's docked shell out of the column layout. */
-export function flyoutDataAttr(isFlyout: boolean): 'true' | 'false' {
-  return isFlyout ? 'true' : 'false';
-}
-
-/** Re-exported so a consumer wiring `Show` around chrome does not have to
- *  duplicate the class name that `autoHide.css` styles. */
-export { FLYOUT_CONTENT_CLASS, FLYOUT_SHELL_CLASS };
