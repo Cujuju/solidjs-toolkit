@@ -130,16 +130,20 @@ export async function nightly(c: ReleaseConfig, dryRun: boolean): Promise<void> 
   writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
   const extras = (c.extraFiles?.(manifest.platform, version) ?? []).map((f) => path.join(c.dist, f)).filter((f) => existsSync(f));
   const packs = manifest.files.map((f) => path.join(c.dist, parseIndex(readFileSync(path.join(c.dist, f.name))).pack));
-  const assets = [...new Set([...manifest.files.map((f) => path.join(c.dist, f.name)), ...packs, ...extras, manifestFile])];
+  const assets = [...new Set([...manifest.files.map((f) => path.join(c.dist, f.name)), ...packs, ...extras])];
   if (assets.some((f) => /\s/.test(path.basename(f)))) fail('GitHub release asset names must have no whitespace');
   const tag = releaseTag(version);
   const existing = viewRelease(c.repo, tag);
   if (existing && !existing.isPrerelease) fail(`${tag} is already stable; nightlies never change a stable release`);
   if (existing?.assets.some((a) => a.name === manifestName(manifest.platform))) fail(`${tag} already has ${platform}'s update; commit and push to make a new version`);
-  if (existing) return gh(['release', 'upload', tag, ...assets, '--repo', c.repo], dryRun);
-  const target = c.tagSourceCommit ? ['--target', git(['rev-parse', 'HEAD'])] : [];
-  const title = `${c.appName} ${version}`;
-  gh(['release', 'create', tag, ...assets, '--repo', c.repo, '--prerelease', '--title', title, '--notes', `${title} nightly`, ...target], dryRun);
+  if (existing) gh(['release', 'upload', tag, ...assets, '--repo', c.repo, '--clobber'], dryRun);
+  else {
+    const target = c.tagSourceCommit ? ['--target', git(['rev-parse', 'HEAD'])] : [];
+    const title = `${c.appName} ${version}`;
+    gh(['release', 'create', tag, ...assets, '--repo', c.repo, '--prerelease', '--title', title, '--notes', `${title} nightly`, ...target], dryRun);
+  }
+  // The manifest marks completion only after every payload upload succeeds.
+  gh(['release', 'upload', tag, manifestFile, '--repo', c.repo], dryRun);
 }
 
 function latestStable(repo: string): string | null {
