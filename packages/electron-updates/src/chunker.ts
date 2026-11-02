@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { open } from 'node:fs/promises';
 import { setImmediate } from 'node:timers/promises';
+import { open } from './diskFs';
 
 /** Small chunks preserve reuse around changed bytes. */
 const MIN_CHUNK = 16 * 1024;

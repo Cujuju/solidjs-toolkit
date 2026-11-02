@@ -50,8 +50,11 @@ async function fixture(directory = false) {
   if (directory) {
     for (const root of [source, seed]) {
       await mkdir(join(root, 'Contents', 'MacOS'), { recursive: true });
+      await mkdir(join(root, 'Contents', 'Resources', 'app.asar.unpacked'), { recursive: true });
       await writeFile(join(root, 'Contents', 'Info.plist'), '<string>1.2.3</string>');
       await writeFile(join(root, 'Contents', 'same'), 'unchanged '.repeat(10000));
+      await writeFile(join(root, 'Contents', 'Resources', 'app.asar'), root === source ? changed : original);
+      await writeFile(join(root, 'Contents', 'Resources', 'app.asar.unpacked', 'native.node'), 'native module bytes');
       await symlink('MacOS/App', join(root, 'Contents', 'current'));
       await writeFile(join(root, 'Contents', 'MacOS', 'App'), root === source ? changed : original);
       await chmod(join(root, 'Contents', 'MacOS', 'App'), 0o755);
@@ -166,7 +169,7 @@ describe('fetchUpdate', () => {
   it.skipIf(process.platform === 'win32')('rebuilds a bundle with nested directories, permissions and symlinks', async () => {
     const f = await fixture(true);
     const root = await f.run();
-    for (const path of ['Contents/Info.plist', 'Contents/same', 'Contents/MacOS/App']) {
+    for (const path of ['Contents/Info.plist', 'Contents/same', 'Contents/MacOS/App', 'Contents/Resources/app.asar', 'Contents/Resources/app.asar.unpacked/native.node']) {
       expect(digest(await readFile(join(root, path)))).toBe(digest(await readFile(join(f.source, path))));
       expect((await lstat(join(root, path))).mode).toBe((await lstat(join(f.source, path))).mode);
     }
