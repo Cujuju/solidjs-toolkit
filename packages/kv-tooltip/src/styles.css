@@ -46,10 +46,17 @@
   pointer-events: auto;
 }
 
-.ckv-row {
-  display: flex;
-  gap: var(--kv-gap);
+/* The panel is the grid; rows are display:contents, so every key shares one max-content
+   track: keys right-align against a common edge, values left-align beside it. */
+.ckv-panel {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--kv-gap);
   align-items: baseline;
+}
+
+.ckv-row {
+  display: contents;
   line-height: var(--kv-line-height);
 }
 
@@ -71,6 +78,7 @@
 }
 
 .ckv-extra {
+  grid-column: 1 / -1;
   margin-top: 4px;
   padding-top: 4px;
   border-top: 1px solid var(--kv-separator-color);
