@@ -1,5 +1,5 @@
 import { createSignal, createEffect, on } from 'solid-js';
-import { effectivePrecision, clampAndRound, formatValue } from './_internal/precision';
+import { effectivePrecision, clampAndRound, formatValue, parseValue } from './_internal/precision';
 import { autoValueWidthPx } from './_internal/layout';
 import { toCssSize } from './_internal/cssSize';
 import type { PnpLayout, PillNumberPickerProps } from './types';
@@ -18,6 +18,12 @@ export function createPickerSession(props: PillNumberPickerProps) {
   // Decimal precision — explicit prop overrides; otherwise infer from step.
   // 0 in either signal means integer mode (current/default behavior).
   const precision = (): number => effectivePrecision(step(), props.precision);
+  const format = (v: number): string => props.preserveInputPrecision ? String(v) : formatValue(v, precision());
+  const parse = (text: string): number | null => {
+    if (!props.preserveInputPrecision) return parseValue(text, precision());
+    const value = text.trim() === '' ? NaN : Number(text);
+    return Number.isFinite(value) ? value : null;
+  };
 
   // Auto-width sized to the widest formatted number (min or max), accounting
   // for precision so '2.50' isn't undercounted vs raw '2.5'.
@@ -26,7 +32,8 @@ export function createPickerSession(props: PillNumberPickerProps) {
 
   // Clamp then round, applied everywhere a new value is produced, so FP drift from
     // accumulated step arithmetic never leaks into props.value.
-  const clamp = (v: number): number => clampAndRound(v, min(), max(), precision());
+  const clamp = (v: number): number => props.preserveInputPrecision
+    ? Math.max(min(), Math.min(max(), v)) : clampAndRound(v, min(), max(), precision());
 
   const excludeZero = (): boolean => props.excludeZero ?? false;
   /** Resolve a candidate produced by MOVEMENT: clamp, then under `excludeZero` skip an exact-0
@@ -102,7 +109,7 @@ export function createPickerSession(props: PillNumberPickerProps) {
   const emit = (next: number): void => {
     // Synced on EVERY publish: while the editor is open the draft IS what the input shows,
             // so a +/- press would otherwise leave stale text for Enter to parse.
-    setDraft(formatValue(next, precision()));
+    setDraft(format(next));
     // `sessionOpen()` too: a draft that outlived its pop-out must not silence the resting pill's publishes.
     if (sessionOpen() && session() !== null) {
       setSession(next);
@@ -114,7 +121,7 @@ export function createPickerSession(props: PillNumberPickerProps) {
   const beginSession = (): void => {
     valueAtOpen = props.value;
     if (commitMode() === 'finish') setSession(props.value);
-    setDraft(formatValue(props.value, precision()));
+    setDraft(format(props.value));
   };
 
   /** Open the editor: the pop-out, with the value cell already in edit mode. Session and
@@ -186,7 +193,7 @@ export function createPickerSession(props: PillNumberPickerProps) {
       // Kept, not reverted: a 'finish' draft was never published, so keeping it means publishing it.
       props.onChange(pending);
     }
-    setDraft(formatValue(restored, precision()));
+    setDraft(format(restored));
     props.onCancel?.(restored);
   };
 
@@ -222,7 +229,7 @@ export function createPickerSession(props: PillNumberPickerProps) {
 
   return {
     min, max, step, size, layout,
-    editable, precision, valueWidth, clamp, resolveStep,
+    editable, precision, format, parse, valueWidth, clamp, resolveStep,
     resolveSet, editing, setEditing, draft, setDraft,
     rootEl, setRootEl, collapsible, isOpen, setOpen,
     isCollapsed, sessionOpen, current, emit, openEditor,

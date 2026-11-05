@@ -1,6 +1,5 @@
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { createEscapeOwner } from '@cujuju/solidjs-hooks';
-import { parseValue, formatValue } from './_internal/precision';
 import { resolvePopoutPosition, POPOUT_DEFAULT_GAP_PX, type PopoutPosition } from './_internal/popout';
 import { createAutoRepeat } from './_internal/autoRepeat';
 import type { PillNumberPickerProps } from './types';
@@ -72,7 +71,7 @@ export function createPickerInteraction(props: PillNumberPickerProps, s: ReturnT
   createEffect(() => {
     // `current()`, not `props.value` — inside a 'finish' session the draft IS the value,
     // and syncing from the (deliberately stale) prop would erase the user's edit.
-    if (!s.editing()) s.setDraft(formatValue(s.current(), s.precision()));
+    if (!s.editing()) s.setDraft(s.format(s.current()));
   });
 
   createEffect(() => {
@@ -97,7 +96,7 @@ export function createPickerInteraction(props: PillNumberPickerProps, s: ReturnT
     if (next === null) return;
     e.preventDefault();
     e.stopPropagation();
-    s.setDraft(formatValue(next, s.precision()));
+    s.setDraft(s.format(next));
     s.emit(next);
   };
 
@@ -129,22 +128,32 @@ export function createPickerInteraction(props: PillNumberPickerProps, s: ReturnT
     // READ THE DRAFT FIRST: `setEditing(false)` re-arms the sync effect, which overwrites
         // the draft with the current value. That ordering shipped in 0.1.0 and silently
         // reverted typed input.
-    const parsed = parseValue(s.draft(), s.precision());
+    const parsed = s.parse(s.draft());
     if (exitEditing) s.setEditing(false);
     if (parsed === null) {
-      s.setDraft(formatValue(s.current(), s.precision()));
+      s.setDraft(s.format(s.current()));
       return;
     }
     // Shared direct-set resolution (clamp + excludeZero-0 handling) — the same
     // rule a segment's `setValue` and the reset segment go through.
     const clamped = s.resolveSet(parsed);
-    s.setDraft(formatValue(clamped, s.precision()));
+    s.setDraft(s.format(clamped));
     if (clamped !== s.current()) s.emit(clamped);
   };
 
   /** Where `steps` steps in `dir` land, or null if nowhere new. The ONE movement rule for
    *  clicks, holds, keys and the wheel (excludeZero skip, bounds, no-op guard). */
   const resolveMove = (dir: 1 | -1, steps = 1): number | null => {
+    if (props.resolveMove) {
+      let next = s.current();
+      for (let count = 0; count < steps; count++) {
+        const candidate = props.resolveMove(next, dir);
+        if (candidate === null || !Number.isFinite(candidate) || (candidate - next) * dir <= 0
+          || candidate < s.min() || candidate > s.max()) break;
+        next = candidate;
+      }
+      return next === s.current() ? null : next;
+    }
     const next = s.resolveStep(s.current() + s.step() * steps * dir, dir);
     return next === s.current() ? null : next;
   };
@@ -188,6 +197,7 @@ export function createPickerInteraction(props: PillNumberPickerProps, s: ReturnT
     let next: number | null = null;
     // Home/End jump TO a bound; under excludeZero a 0 bound resolves one step
     // INWARD (the only legal direction from a bound).
+    if (props.resolveMove) return;
     if (e.key === 'Home') next = s.resolveStep(s.min(), 1);
     else if (e.key === 'End') next = s.resolveStep(s.max(), -1);
     if (next !== null) {
@@ -196,5 +206,5 @@ export function createPickerInteraction(props: PillNumberPickerProps, s: ReturnT
     }
   };
 
-  return { place, commitDraft, stepBy, startRepeat, stopRepeat, onStepperClick, onKeyDown, popout };
+  return { place, commitDraft, resolveMove, stepBy, startRepeat, stopRepeat, onStepperClick, onKeyDown, popout };
 }

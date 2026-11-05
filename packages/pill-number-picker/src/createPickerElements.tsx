@@ -1,5 +1,4 @@
 import { Show, type JSX } from 'solid-js';
-import { formatValue } from './_internal/precision';
 import { toCssSize } from './_internal/cssSize';
 import type { PillNumberPickerProps, PnpSegmentApi, PnpSegment } from './types';
 import type { createPickerSession } from './createPickerSession';
@@ -21,7 +20,7 @@ export function createPickerElements(
         height: toCssSize(props.height),
         'font-size': toCssSize(props.fontSize),
       }}
-      disabled={props.disabled || s.current() >= s.max()}
+      disabled={props.disabled || i.resolveMove(1) === null}
       aria-label={props.incrementLabel ?? 'Increase'}
       onClick={i.onStepperClick(1)}
       onPointerDown={() => i.startRepeat(1)}
@@ -43,7 +42,7 @@ export function createPickerElements(
         height: toCssSize(props.height),
         'font-size': toCssSize(props.fontSize),
       }}
-      disabled={props.disabled || s.current() <= s.min()}
+      disabled={props.disabled || i.resolveMove(-1) === null}
       aria-label={props.decrementLabel ?? 'Decrease'}
       onClick={i.onStepperClick(-1)}
       onPointerDown={() => i.startRepeat(-1)}
@@ -114,7 +113,7 @@ export function createPickerElements(
   const valueText = (): string =>
     s.current() === 0 && props.zeroLabel
       ? props.zeroLabel
-      : (props.displayValue ? props.displayValue(s.current()) : formatValue(s.current(), s.precision()));
+      : (props.displayValue ? props.displayValue(s.current()) : s.format(s.current()));
 
   /**
    * The value cell. `where` matters because a collapsed picker's cell is a DIFFERENT control
@@ -205,7 +204,7 @@ export function createPickerElements(
                 s.cancelSession();
               } else {
                 s.setEditing(false);
-                s.setDraft(formatValue(s.current(), s.precision()));
+                s.setDraft(s.format(s.current()));
               }
             } else {
               i.onKeyDown(e);

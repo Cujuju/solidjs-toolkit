@@ -60,6 +60,10 @@ export interface PillNumberPickerProps {
   min?: number;
   max?: number;
   step?: number;
+  /** Overrides arithmetic stepping for every movement input. Null means no permitted move. */
+  resolveMove?: (current: number, direction: 1 | -1) => number | null;
+  /** Preserve finite typed values without rounding to display precision. Bounds still apply. */
+  preserveInputPrecision?: boolean;
   /**
    * Decimal places for parsing, rounding and display. Defaults to `step`'s own decimals; set
    * explicitly to override, or 0 to force integer mode.

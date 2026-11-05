@@ -34,6 +34,8 @@ const [qty, setQty] = createSignal(1);
 | `onChange(v)` | (required) | Called on any change. |
 | `min`, `max`, `step` | `1`, `100`, `1` | Range + step size. `step` may be non-integer (e.g., `0.5`, `0.01`). |
 | `precision` | (inferred from `step`) | Decimal places for parsing, step rounding, and display. Auto-inferred from `step` (so `step={0.5}` gives precision 1). Set explicitly to override — e.g. `step={1}, precision={2}` for integer steps with two-decimal display ('5.00'). Set to 0 for integer parsing (typed input truncates) with plain `String(value)` display. Step results are not rounded at 0, so pair it with an integer `step`: rounding a half-step would make one direction stick. |
+| `resolveMove` | — | `(current, direction) => number \| null`. Supplies the next value for clicks, repeat, wheel and arrow/page keys; null disables that direction. Results must be finite, inside bounds, and move in the requested direction. Home/End are inactive with a resolver because bounds need not be legal values. |
+| `preserveInputPrecision` | `false` | Parse finite typed numbers and retain their decimals without rounding. Display uses `String(value)` unless overridden. Bounds still apply; useful when display precision is not an input restriction. |
 | `size` | `'md'` | `'xs'` / `'sm'` / `'md'`. |
 | `width`, `height`, `buttonWidth`, `fontSize` | (preset) | Raw overrides. |
 | `layout` | `'value-inc-dec'` | See layout table below. |
