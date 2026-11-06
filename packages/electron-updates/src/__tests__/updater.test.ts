@@ -87,6 +87,27 @@ describe('createUpdater', () => {
     expect(updater.status()).toEqual({ state: 'available', version: '0.2.0', nightly: false });
   });
 
+  it('reads function options when found and at quit, with explicit arming taking precedence', async () => {
+    let enabled = false;
+    const { updater, quit } = setup({ autoDownload: () => enabled, installOnQuit: () => enabled });
+    await updater.check();
+    expect(updater.status().state).toBe('available');
+    enabled = true;
+    await updater.check();
+    expect(updater.status().state).toBe('ready');
+    enabled = false;
+    quit();
+    expect(applied).toEqual([]);
+    enabled = true;
+    quit();
+    expect(applied).toHaveLength(1);
+    expect(applied[0]?.relaunch).toBe(false);
+    enabled = false;
+    updater.installOnQuit(true);
+    quit();
+    expect(applied[1]?.relaunch).toBe(true);
+  });
+
   it('keeps a staged update when the channel still allows it', async () => {
     const { updater } = setup();
     await updater.check();

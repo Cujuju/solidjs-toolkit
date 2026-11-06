@@ -43,8 +43,8 @@ const updater = createUpdater({
   channel: () => settings.updates.channel, // 'stable' | 'nightly', read at each check
   dir: path.join(app.getPath('userData'), 'updates'),
   fetch: net.fetch,
-  autoDownload: false,                     // true: download as soon as found
-  installOnQuit: false,                    // true: any quit applies a staged update
+  autoDownload: false,                     // boolean or () => boolean, read when found
+  installOnQuit: false,                    // boolean or () => boolean, read at quit; explicit arming wins
 });
 updater.on('status', send);                // UpdateStatus
 updater.on('found', notify);               // scheduled checks only, once per version

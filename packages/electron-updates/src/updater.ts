@@ -49,10 +49,10 @@ export interface UpdaterOptions {
   dir: string;
   /** Electron's net.fetch: the system's proxy and certificates. */
   fetch: Fetch;
-  /** Download as soon as an update is found. Default false: download() waits for the user. */
-  autoDownload?: boolean;
-  /** Apply a staged update at any quit, without relaunching. Default false: only quitAndInstall() and installOnQuit() apply it. */
-  installOnQuit?: boolean;
+  /** Read when an update is found. Default false: download() waits for the user. */
+  autoDownload?: boolean | (() => boolean);
+  /** Read at quit; applies a staged update without relaunching. Default false; explicit arming wins. */
+  installOnQuit?: boolean | (() => boolean);
   /** Overrides for tests; default to the running process. */
   platform?: string;
   arch?: string;
@@ -118,7 +118,7 @@ export function createUpdater(o: UpdaterOptions) {
     const { version } = found.release;
     set({ state: 'available', version, nightly: found.release.prerelease });
     if (scheduled && announced !== version) events.emit('found', (announced = version));
-    if (o.autoDownload) await download();
+    if (typeof o.autoDownload === 'function' ? o.autoDownload() : o.autoDownload) await download();
   }
 
   async function download(): Promise<void> {
@@ -140,7 +140,7 @@ export function createUpdater(o: UpdaterOptions) {
   }
 
   o.app.on('quit', () => {
-    const run = armed ?? (o.installOnQuit ? { relaunch: false } : null);
+    const run = armed ?? ((typeof o.installOnQuit === 'function' ? o.installOnQuit() : o.installOnQuit) ? { relaunch: false } : null);
     if (staged && run) apply(staged, run.relaunch, process.pid);
   });
 
