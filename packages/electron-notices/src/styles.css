@@ -1,0 +1,318 @@
+/* Notification overlay page. Import it only in that page: the window is transparent and only notices paint. */
+
+@layer cujuju-defaults {
+  /* Hosts map their palette onto these through NoticeAppearance.vars (inline on .cuj-notices). */
+  :root {
+    --notice-surface: #1e293b;
+    --notice-sunken: #0f172a;
+    --notice-hover: #2d3548;
+    --notice-text: #e2e8f0;
+    --notice-text-secondary: #94a3b8;
+    --notice-border: rgba(255, 255, 255, 0.1);
+    --notice-border-strong: #475569;
+    --notice-accent: #818cf8;
+    --notice-info: #818cf8;
+    --notice-ok: #10b981;
+    --notice-warn: #f59e0b;
+    --notice-error: #ef4444;
+    --notice-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 10px 24px rgba(0, 0, 0, 0.4);
+    --notice-backdrop: rgba(2, 6, 23, 0.6);
+    --notice-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* Console is the one monospace surface: log lines read as a terminal. */
+    --notice-mono: ui-monospace, 'Cascadia Mono', Consolas, 'SF Mono', Menlo, monospace;
+
+    --notice-text-sm: 13px;
+    --notice-text-body: 12px;
+    --notice-text-xs: 11px;
+    --notice-text-xxs: 10px;
+    --notice-space-1: 2px;
+    --notice-space-2: 4px;
+    --notice-space-3: 6px;
+    --notice-space-4: 8px;
+    --notice-space-5: 10px;
+    --notice-space-6: 12px;
+    --notice-space-7: 14px;
+    --notice-radius-small: 4px;
+    --notice-radius: 6px;
+    --notice-radius-card: 10px;
+    --notice-focus-ring: 2px;
+
+    /* Gap from the taskbar or screen edge; also room for the card shadow. */
+    --notice-edge-gap: 12px;
+    --notice-card-width: 320px;
+    --notice-console-width: 400px;
+    /* One line of 13px text plus the glyph tile's padding. */
+    --notice-row-height: 38px;
+    --notice-glyph: 24px;
+    --notice-dismiss: 22px;
+    /* Tint strength of the glyph tile behind its icon. */
+    --notice-tone-wash: 16%;
+    /* Each older card dims by this much. */
+    --notice-age-fade: 0.15;
+    --notice-console-line: 22px;
+    --notice-console-tag: 7ch;
+    --notice-drip-dot: 6px;
+    /* Decelerates without overshoot, so the morph never pokes past the window. */
+    --notice-drip-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --notice-enter-rise: 6px;
+  }
+
+  [data-tone='info'] { --_tone: var(--notice-info); }
+  [data-tone='ok'] { --_tone: var(--notice-ok); }
+  [data-tone='warn'] { --_tone: var(--notice-warn); }
+  [data-tone='error'] { --_tone: var(--notice-error); }
+}
+
+html:has(.cuj-notices),
+body:has(.cuj-notices) {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+/* Sized by its content, never by the window, which main sizes from this element. */
+.cuj-notices {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  font-family: var(--notice-font);
+  color: var(--notice-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Zero specificity, so every class rule below wins over the reset. */
+:where(.cuj-notices button) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+:where(.cuj-notices button:focus-visible) {
+  outline: var(--notice-focus-ring) solid var(--notice-accent);
+  outline-offset: calc(-1 * var(--notice-focus-ring));
+}
+
+.cuj-notices-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cuj-notices-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--notice-glyph);
+  height: var(--notice-glyph);
+  border-radius: var(--notice-radius);
+  color: var(--_tone);
+  background: color-mix(in srgb, var(--_tone) var(--notice-tone-wash), transparent);
+}
+
+.cuj-notices-time {
+  flex: none;
+  font-size: var(--notice-text-xs);
+  color: var(--notice-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cuj-notices-dismiss {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--notice-dismiss);
+  height: var(--notice-dismiss);
+  margin-right: var(--notice-space-3);
+  border-radius: var(--notice-radius);
+  color: var(--notice-text-secondary);
+  opacity: 0;
+}
+
+.cuj-notices-card:hover .cuj-notices-dismiss,
+.cuj-notices-console-row:hover .cuj-notices-dismiss,
+.cuj-notices-dismiss:focus-visible { opacity: 1; }
+.cuj-notices-dismiss:hover { background: var(--notice-hover); color: var(--notice-text); }
+
+/* Tray drip */
+.cuj-notices-tray {
+  display: flex;
+  flex-direction: column;
+  gap: var(--notice-space-3);
+  width: var(--notice-card-width);
+  padding: var(--notice-edge-gap);
+}
+
+.cuj-notices-tray-more {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 var(--notice-space-4);
+  font-size: var(--notice-text-xs);
+  color: var(--notice-text-secondary);
+}
+
+.cuj-notices-tray-more button { color: var(--notice-accent); }
+
+.cuj-notices-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--notice-radius-card);
+  background: var(--notice-surface);
+  border: 1px solid var(--notice-border);
+  box-shadow: var(--notice-shadow);
+  opacity: calc(1 - var(--_age, 0) * var(--notice-age-fade));
+  animation: cuj-notices-in 180ms ease-out both;
+}
+
+.cuj-notices-card:hover { opacity: 1; }
+.cuj-notices-card[data-tone='error'] { border-color: color-mix(in srgb, var(--notice-error) 35%, transparent); }
+
+.cuj-notices-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--notice-space-5);
+  min-height: var(--notice-row-height);
+  padding: var(--notice-space-3) var(--notice-space-4) var(--notice-space-3) var(--notice-space-3);
+  box-sizing: border-box;
+}
+
+.cuj-notices-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: var(--notice-space-3);
+  font-size: var(--notice-text-sm);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.cuj-notices-card-title { flex: none; max-width: 100%; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.cuj-notices-card-body { min-width: 0; color: var(--notice-text-secondary); overflow: hidden; text-overflow: ellipsis; }
+
+/* Hover shows the whole notice. */
+.cuj-notices-card:hover .cuj-notices-card-text { flex-direction: column; gap: var(--notice-space-1); white-space: normal; }
+.cuj-notices-card:hover .cuj-notices-card-title { flex: initial; }
+
+/* Console */
+.cuj-notices-console {
+  margin: var(--notice-edge-gap);
+  width: var(--notice-console-width);
+  font-family: var(--notice-mono);
+  font-size: var(--notice-text-body);
+  background: var(--notice-sunken);
+  border: 1px solid var(--notice-border-strong);
+  box-shadow: var(--notice-space-2) var(--notice-space-2) 0 var(--notice-backdrop);
+}
+
+.cuj-notices-console-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--notice-console-line);
+  padding: 0 var(--notice-space-4);
+  border-bottom: 1px solid var(--notice-border);
+  font-size: var(--notice-text-xxs);
+  letter-spacing: 0.06em;
+  color: var(--notice-text-secondary);
+}
+
+.cuj-notices-console-head button:hover { color: var(--notice-text); }
+
+.cuj-notices-console-row { display: flex; align-items: center; animation: cuj-notices-in 140ms ease-out both; }
+.cuj-notices-console-row:hover { background: var(--notice-hover); }
+.cuj-notices-console-row.cuj-notices-sticky {
+  background: color-mix(in srgb, var(--notice-error) 19%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--notice-error) 35%, transparent);
+  outline-offset: -1px;
+}
+
+.cuj-notices-console-line {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto var(--notice-console-tag) minmax(0, 1fr);
+  gap: var(--notice-space-4);
+  align-items: center;
+  height: var(--notice-console-line);
+  padding: 0 var(--notice-space-4);
+  white-space: nowrap;
+}
+
+.cuj-notices-console-line .cuj-notices-time { font-size: inherit; }
+.cuj-notices-console-tag { color: var(--_tone); font-weight: 600; }
+.cuj-notices-console-msg { overflow: hidden; text-overflow: ellipsis; }
+.cuj-notices-console-body { color: var(--notice-text-secondary); }
+.cuj-notices-console .cuj-notices-dismiss { margin-right: var(--notice-space-2); }
+
+/* Top drip */
+.cuj-notices-drip-frame {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+.cuj-notices-drip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--notice-sunken);
+  color: var(--notice-text);
+  border: 1px solid var(--notice-border);
+  border-top: 0;
+  border-radius: 0 0 var(--_drip-radius) var(--_drip-radius);
+  transition:
+    width var(--_drip-morph) var(--notice-drip-ease),
+    height var(--_drip-morph) var(--notice-drip-ease),
+    border-radius var(--_drip-morph) var(--notice-drip-ease);
+}
+
+.cuj-notices-drip-open {
+  display: flex;
+  align-items: center;
+  gap: var(--notice-space-5);
+  width: 100%;
+  padding: 0 var(--notice-space-7) 0 var(--notice-space-6);
+  box-sizing: border-box;
+  animation: cuj-notices-fade 200ms 120ms both;
+}
+
+.cuj-notices-drip-text { display: flex; flex-direction: column; gap: var(--notice-space-1); min-width: 0; text-align: left; }
+.cuj-notices-drip-title { font-size: var(--notice-text-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cuj-notices-drip-body { font-size: var(--notice-text-body); color: var(--notice-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.cuj-notices-drip-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--notice-space-3);
+  max-width: 100%;
+  padding: 0 var(--notice-space-6);
+  box-sizing: border-box;
+  font-size: var(--notice-text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  animation: cuj-notices-fade 160ms 120ms both;
+}
+
+.cuj-notices-drip-dot { flex: none; width: var(--notice-drip-dot); height: var(--notice-drip-dot); border-radius: 50%; background: var(--_tone); }
+
+@keyframes cuj-notices-in { from { opacity: 0; transform: translateY(var(--notice-enter-rise)); } }
+@keyframes cuj-notices-fade { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cuj-notices *, .cuj-notices *::before, .cuj-notices *::after { animation: none !important; transition: none !important; }
+}

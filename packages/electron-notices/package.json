@@ -1,0 +1,68 @@
+{
+  "name": "@cujuju/electron-notices",
+  "version": "0.1.0",
+  "description": "Injectable Electron notification overlays with SolidJS renderer.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "cujuju-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./renderer": {
+      "cujuju-source": "./src/renderer/index.ts",
+      "types": "./dist/renderer/index.d.ts",
+      "solid": "./src/renderer/index.ts",
+      "import": "./dist/renderer.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "files": [
+    "src",
+    "dist",
+    "!src/__tests__"
+  ],
+  "sideEffects": [
+    "./src/styles.css"
+  ],
+  "license": "MIT",
+  "author": "Cujuju",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cujuju/solidjs-toolkit.git",
+    "directory": "packages/electron-notices"
+  },
+  "homepage": "https://github.com/Cujuju/solidjs-toolkit/tree/main/packages/electron-notices",
+  "bugs": "https://github.com/Cujuju/solidjs-toolkit/issues",
+  "keywords": [
+    "electron",
+    "notifications",
+    "solidjs"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vite build",
+    "prepublishOnly": "vite build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "vitest": "^4.1.12",
+    "solid-js": "^1.9.0",
+    "jsdom": "^26.0.0",
+    "@solidjs/testing-library": "^0.8.10",
+    "@testing-library/jest-dom": "^6.9.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "solid-js": ">=1.7.0"
+  }
+}
