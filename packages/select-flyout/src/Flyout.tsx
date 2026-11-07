@@ -25,6 +25,7 @@ export function Flyout(props: FlyoutProps): JSX.Element {
         }}
         type="button"
         id={props.id}
+        title={props.title}
         class={cx(
           'cujuju-select-flyout-trigger',
           state.open() && 'cujuju-select-flyout-trigger-open',
@@ -66,6 +67,7 @@ export function Flyout(props: FlyoutProps): JSX.Element {
             here, inside the keydown handler's reach, instead of on <body>. */}
         <GlassMenu
           class="cujuju-select-flyout-panel"
+          surface={props.surface}
           tabIndex={-1}
           onKeyDown={state.onPanelKeyDown}
         >
@@ -93,6 +95,7 @@ export function Flyout(props: FlyoutProps): JSX.Element {
                       isFocused() && 'cujuju-select-flyout-option-focused',
                     )}
                     disabled={opt.disabled}
+                    title={opt.title}
                     tabIndex={isFocused() ? 0 : -1}
                     onClick={() => state.selectOption(index())}
                     // Focus follows the highlight: Enter commits `focusedIndex`, so the two must agree.

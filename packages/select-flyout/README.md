@@ -62,6 +62,8 @@ function Example() {
 | `ariaLabel` | `string?` | Accessible name for the trigger (`combobox`) and the `listbox`. |
 | `class` | `string?` | Class applied to the trigger button — for width / margin. The trigger's own structural styles are emitted at single-class specificity, so author rules merge as expected. |
 | `id` | `string?` | Trigger element `id` — useful when an external `<label for=...>` points at it. |
+| `title` | `string?` | Native tooltip on the trigger. |
+| `surface` | `'glass' \| 'plain'?` | Panel surface. `glass` (default) is the smoked `.glass-menu`; `plain` is a solid panel from host tokens. |
 
 ### `FlyoutOption`
 
@@ -70,6 +72,7 @@ function Example() {
 | `value` | `string` | Stable identity passed to `onChange`. |
 | `label` | `string` | Display text — also the type-ahead match target. |
 | `disabled` | `boolean?` | Not focusable, not selectable; skipped by arrow / Home / End navigation. |
+| `title` | `string?` | Native tooltip on the option row. |
 
 ## Keyboard
 

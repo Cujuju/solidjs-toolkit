@@ -59,6 +59,8 @@ interface RenderArgs {
   placeholder?: string;
   disabled?: boolean;
   onChange?: (value: string) => void;
+  surface?: 'glass' | 'plain';
+  title?: string;
 }
 
 function renderSelect(args: RenderArgs = {}): {
@@ -79,6 +81,8 @@ function renderSelect(args: RenderArgs = {}): {
         placeholder={args.placeholder}
         disabled={args.disabled}
         ariaLabel="Fruit picker"
+        surface={args.surface}
+        title={args.title}
       />
     ),
     document.body,
@@ -129,6 +133,23 @@ describe('Flyout', () => {
     expect(opts[0].getAttribute('aria-selected')).toBe('true');
     expect(opts[0].className).toContain('cujuju-select-flyout-option-selected');
     expect(opts[1].getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('surface="plain" paints a solid panel instead of glass', async () => {
+    const { getTrigger } = renderSelect({ initialValue: 'apple', surface: 'plain' });
+    getTrigger().click();
+    await nextFrame();
+    const panel = document.querySelector('.cujuju-select-flyout-panel')!;
+    expect(panel.classList.contains('cujuju-glass-menu--plain')).toBe(true);
+    expect(panel.classList.contains('glass-menu')).toBe(false);
+  });
+
+  it('passes trigger and option titles through as native tooltips', async () => {
+    const { getTrigger, getOptions } = renderSelect({ initialValue: 'apple', title: 'Pick a fruit', options: [{ value: 'apple', label: 'Apple', title: 'Crisp' }] });
+    expect(getTrigger().title).toBe('Pick a fruit');
+    getTrigger().click();
+    await nextFrame();
+    expect(getOptions()[0]!.title).toBe('Crisp');
   });
 
   it('clicking an option fires onChange with that value and closes the panel', async () => {
