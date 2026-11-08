@@ -103,6 +103,13 @@ globalThis.cancelAnimationFrame = ((id: number): void => {
   clearTimeout(id as unknown as NodeJS.Timeout);
 }) as typeof cancelAnimationFrame;
 
+/** jsdom has no scrolling: `scrollBy` moves `scrollTop` so code that scrolls a container can run. */
+if (typeof Element.prototype.scrollBy !== 'function') {
+  Element.prototype.scrollBy = function scrollBy(this: Element, options?: ScrollToOptions | number, y?: number) {
+    this.scrollTop += typeof options === 'number' ? y ?? 0 : options?.top ?? 0;
+  } as Element['scrollBy'];
+}
+
 /**
  * The POPOVER API, stubbed. jsdom (26) implements neither `showPopover` nor top-layer behaviour,
  * so any test opening a flyout threw. See DESIGN_NOTES.md § vitest.setup.ts:133.
