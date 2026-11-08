@@ -1,4 +1,4 @@
-import { minimumSize, type TileLayout, type TileLayoutOptions } from './layout';
+import { computeTileLayout, minimumSize, type TileLayout, type TileLayoutOptions, type TileSize } from './layout';
 import type { TileNode, TilePath, TileSplit } from './tileTree';
 
 /** One arrow press moves a pushing divider this far. */
@@ -49,10 +49,20 @@ function growBottom(node: TileNode, height: number, delta: number, heights: Map<
  * Moves a horizontal divider or the bottom edge `deltaPx`: the tile above it grows or shrinks and everything below
  * shifts, so the workspace's height changes by the same amount. Tiles beside the moved one in a row follow at their
  * own bottom edge. Shrinking stops at the first minimum. Collapsed slots are not supported.
+ * The workspace never ends shorter than `floorPx`: the tiles on its bottom edge take up the difference, so a shrink
+ * at the floor trades height with the bottom row instead.
  */
 export function pushedLayout(
-  root: TileNode, layout: TileLayout, heightPx: number, target: PushTarget, deltaPx: number, options: Options,
+  root: TileNode, layout: TileLayout, size: TileSize, target: PushTarget, deltaPx: number, options: Options, floorPx = 0,
 ): PushedLayout {
+  const pushed = push(root, layout, size.height, target, deltaPx, options);
+  const deficit = floorPx - pushed.heightPx;
+  if (deficit <= 0) return pushed;
+  const after = computeTileLayout(pushed.root, { width: size.width, height: pushed.heightPx }, options);
+  return { root: growBottom(pushed.root, pushed.heightPx, deficit, columnHeights(after)), heightPx: floorPx };
+}
+
+function push(root: TileNode, layout: TileLayout, heightPx: number, target: PushTarget, deltaPx: number, options: Options): PushedLayout {
   const heights = columnHeights(layout);
   if (target === 'bottom') {
     const delta = Math.round(Math.max(deltaPx, -Math.max(0, bottomSlack(root, heightPx, heights, options))));

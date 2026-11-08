@@ -8,8 +8,8 @@ const PRIMARY_BUTTON = 0;
 const snapFor = (event: MouseEvent | KeyboardEvent): ResizeSnap => (event.ctrlKey ? { kind: 'free' } : { kind: 'nearest' });
 /** Auto-scroll starts this close to the scroller's top or bottom edge. */
 const AUTO_SCROLL_EDGE_PX = 48;
-/** Fastest auto-scroll, reached at the edge and beyond it: 20px a frame at 60Hz. Time-based, so fast displays don't scroll faster. */
-const AUTO_SCROLL_MAX_PX_PER_S = 1200;
+/** Fastest auto-scroll, reached at the edge and beyond it: 10px a frame at 60Hz. Time-based, so fast displays don't scroll faster. */
+const AUTO_SCROLL_MAX_PX_PER_S = 600;
 /** A frame gap longer than this (a stall) scrolls as if it were this long, so the page never leaps. */
 const AUTO_SCROLL_MAX_FRAME_MS = 50;
 const MS_PER_S = 1000;
@@ -30,10 +30,11 @@ function scrollerOf(el: HTMLElement): { el: Element; bounds: () => { top: number
 
 /**
  * Pixels per second for a pointer at `y` that was pressed at `origin`: negative near the top, positive near or past the bottom.
- * Each zone starts at the edge band or just past the press point, whichever is further, and speeds up across one band.
+ * Each zone starts at the edge band or just past the press point, whichever is further, and speeds up across one band:
+ * squared, so the first pixels into it creep and the top speed needs the pointer at the edge.
  */
 export function scrollSpeed(y: number, origin: number, top: number, bottom: number): number {
-  const ramp = (depth: number) => Math.min(1, depth / AUTO_SCROLL_EDGE_PX) * AUTO_SCROLL_MAX_PX_PER_S;
+  const ramp = (depth: number) => Math.min(1, depth / AUTO_SCROLL_EDGE_PX) ** 2 * AUTO_SCROLL_MAX_PX_PER_S;
   const down = Math.max(bottom - AUTO_SCROLL_EDGE_PX, origin + AUTO_SCROLL_DEAD_PX);
   const up = Math.min(top + AUTO_SCROLL_EDGE_PX, origin - AUTO_SCROLL_DEAD_PX);
   if (y > down) return ramp(y - down);

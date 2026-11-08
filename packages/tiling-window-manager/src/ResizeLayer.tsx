@@ -24,6 +24,8 @@ export function ResizeLayer(props: {
   onChange: (next: TileNode, heightPx?: number) => void;
   /** Push mode: the height `layout` was computed at. Column dividers and a bottom-edge handle then push instead of trading. */
   pushHeightPx?: number;
+  /** Push mode: the workspace never ends a drag shorter than this; the bottom tiles take up the difference. */
+  pushFloorPx?: number;
   /** Layout options for another layout's tree, for its guides. */
   optionsFor: (root: TileNode) => TileLayoutOptions;
   readout?: boolean;
@@ -54,7 +56,7 @@ export function ResizeLayer(props: {
     if (!valid()) return cancel();
     const { target, root, layout, heightPx } = pushStart!;
     const px = snap.kind === 'by' ? Math.sign(snap.steps) * PUSH_KEY_STEP_PX : delta;
-    props.setDraft(px ? { ...pushedLayout(root, layout, heightPx, target, px, props.optionsFor(root)), holdPx: heightPx } : null);
+    props.setDraft(px ? { ...pushedLayout(root, layout, { width: props.size.width, height: heightPx }, target, px, props.optionsFor(root), props.pushFloorPx), holdPx: heightPx } : null);
   };
   onMount(() => {
     // Shift moves the readout to the divider's other side.

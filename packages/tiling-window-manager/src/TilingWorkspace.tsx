@@ -46,6 +46,8 @@ export interface TilingWorkspaceProps {
    * Once set, or while a drag sets it, the workspace sizes itself: inline `height` and `flex: none` beat the owner's layout.
    */
   heightPx?: number;
+  /** Push mode: the shortest the workspace may be, such as the height that fills its scroller. Shrinking at it trades with the bottom tiles. */
+  minHeightPx?: number;
   /** Tab groups: a centre drop asks Swap or Tab; a drop on a tab target (`data-twm-tab-target`, or the `target` selector) joins as a tab. */
   tabs?: boolean | { target?: string };
   /** Collapsible tiles: `tile.collapse` folds a slot to a strip of `barPx` (in a column) or `stripPx` (in a row). */
@@ -107,7 +109,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   const baseOptions = createMemo(() => optionsFor(props.placing ? [...ids(), props.placing.id] : ids()));
   const minHeight = () => (props.growHeight && props.layout ? minimumSize(props.layout, baseOptions()).height : 0);
   /** Push mode's set height: a live drag's, else the owner's (never under the minimums), else the measured one. */
-  const fixedHeight = () => pushDraft()?.heightPx ?? (props.heightPx === undefined ? undefined : Math.max(props.heightPx, minHeight()));
+  const fixedHeight = () => pushDraft()?.heightPx ?? (props.heightPx === undefined ? undefined : Math.max(props.heightPx, minHeight(), props.minHeightPx ?? 0));
   const layoutSize = () => ({ width: size().width, height: (pushes() ? fixedHeight() : undefined) ?? size().height });
   /** The box: the layout's height, but never under a pushing drag's starting height until it is released. */
   const boxHeight = () => { const d = pushDraft(); const h = fixedHeight(); return d && h !== undefined ? Math.max(h, d.holdPx) : h; };
@@ -208,7 +210,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
         }}
       </For>
       <ResizeLayer root={props.layout} layout={layout()} size={layoutSize()} draft={draft()} setDraft={setDraft} onChange={change}
-        pushHeightPx={pushes() && props.layout ? layoutSize().height : undefined}
+        pushHeightPx={pushes() && props.layout ? layoutSize().height : undefined} pushFloorPx={props.minHeightPx}
         optionsFor={(root) => optionsFor(tileIds(root))} readout={!!props.readout}
         color={typeof props.readout === 'object' ? props.readout.color : undefined} alignWith={props.alignWith} />
       <Show when={dockGesture.preview()}>
