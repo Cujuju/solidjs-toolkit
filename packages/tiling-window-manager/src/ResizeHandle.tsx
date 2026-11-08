@@ -10,6 +10,8 @@ const snapFor = (event: MouseEvent | KeyboardEvent): ResizeSnap => (event.ctrlKe
 const AUTO_SCROLL_EDGE_PX = 48;
 /** Fastest auto-scroll, per animation frame, reached at the edge and beyond it. */
 const AUTO_SCROLL_MAX_PX = 20;
+/** A press already near the edge scrolls only once the pointer moves this much further toward it, so a click never scrolls. */
+const AUTO_SCROLL_DEAD_PX = 8;
 const SCROLLING = new Set(['auto', 'scroll']);
 
 /** The nearest ancestor that scrolls vertically, and its visible top and bottom. */
@@ -23,11 +25,16 @@ function scrollerOf(el: HTMLElement): { el: Element; bounds: () => { top: number
   return { el: document.scrollingElement ?? document.documentElement, bounds: () => ({ top: 0, bottom: window.innerHeight }) };
 }
 
-/** Pixels per frame for a pointer at `y`: negative near the top, positive near or past the bottom. */
-function scrollSpeed(y: number, top: number, bottom: number): number {
-  const depth = (edge: number) => Math.min(1, edge / AUTO_SCROLL_EDGE_PX) * AUTO_SCROLL_MAX_PX;
-  if (y > bottom - AUTO_SCROLL_EDGE_PX) return depth(y - (bottom - AUTO_SCROLL_EDGE_PX));
-  if (y < top + AUTO_SCROLL_EDGE_PX) return -depth(top + AUTO_SCROLL_EDGE_PX - y);
+/**
+ * Pixels per frame for a pointer at `y` that was pressed at `origin`: negative near the top, positive near or past the bottom.
+ * Each zone starts at the edge band or just past the press point, whichever is further, and speeds up across one band.
+ */
+export function scrollSpeed(y: number, origin: number, top: number, bottom: number): number {
+  const ramp = (depth: number) => Math.min(1, depth / AUTO_SCROLL_EDGE_PX) * AUTO_SCROLL_MAX_PX;
+  const down = Math.max(bottom - AUTO_SCROLL_EDGE_PX, origin + AUTO_SCROLL_DEAD_PX);
+  const up = Math.min(top + AUTO_SCROLL_EDGE_PX, origin - AUTO_SCROLL_DEAD_PX);
+  if (y > down) return ramp(y - down);
+  if (y < up) return -ramp(up - y);
   return 0;
 }
 
@@ -41,10 +48,7 @@ export function ResizeHandle(props: {
   /** `pointer` is false for a keyboard step, which commits at once. */
   onBegin: (pointer: boolean) => void;
   onEqualise: () => void;
-  /**
-   * Scroll the nearest scroller while the pointer is near its edge; the scrolled pixels add to the drag.
-   * Downward it keeps extending at a clamped bottom, for a drag that makes its own room.
-   */
+  /** Scroll the nearest scroller while the pointer is dragged toward its edge; the scrolled pixels add to the drag. */
   autoScroll?: boolean;
   label?: string;
 }) {
@@ -72,14 +76,13 @@ export function ResizeHandle(props: {
     const tick = () => {
       frame = 0;
       const { top, bottom } = scroller!.bounds();
-      const speed = scrollSpeed(pointer, top, bottom);
+      const speed = scrollSpeed(pointer, origin, top, bottom);
       if (!speed) return;
       const before = scroller!.el.scrollTop;
       scroller!.el.scrollTop += speed;
+      // Only real scrolling moves the drag; a growing drag makes the room the next frame scrolls into.
       const moved = scroller!.el.scrollTop - before;
-      // Growing past the end still moves the edge: the content grows, and the next frame scrolls into it.
-      scrolled += speed > 0 ? speed : moved;
-      report();
+      if (moved) { scrolled += moved; report(); }
       frame = requestAnimationFrame(tick);
     };
     const move = (next: PointerEvent) => {
