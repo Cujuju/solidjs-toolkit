@@ -9,6 +9,7 @@ Split-pane tiles for SolidJS. Users resize tiles by dragging the gaps, re-dock t
   - `placement="preserve"` (the default): the new tile only splits the tile it is placed on. Both keep their minimums, and every other tile stays put (`planInsertion`).
   - `placement="reflow"`: the new tile takes half the target's share, and other tiles may move but never drop below their minimums (`planReflow`). Use this when a full workspace should still accept tiles.
 - **Grow:** with `growHeight`, the workspace sets its own `min-height` to its tiles' minimums, so placing or moving tiles can make it taller. Put it in a scrolling container.
+- **Push resize:** with `verticalResize="push"`, a horizontal divider resizes the tile above it and moves everything below, and a handle on the bottom edge resizes the bottom tiles. The workspace's height changes with them: `onLayoutChange(next, heightPx)` reports it, and the owner passes it back as `heightPx`. Dragging near the scroller's edge scrolls it. Not with `collapse` (`pushedLayout`).
 
 Opt-in features:
 

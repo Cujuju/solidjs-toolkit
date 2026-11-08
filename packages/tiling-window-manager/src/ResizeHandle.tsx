@@ -6,6 +6,30 @@ import type { SplitDir } from './tileTree';
 const FREE_DRAG_KEY = 'Control';
 const PRIMARY_BUTTON = 0;
 const snapFor = (event: MouseEvent | KeyboardEvent): ResizeSnap => (event.ctrlKey ? { kind: 'free' } : { kind: 'nearest' });
+/** Auto-scroll starts this close to the scroller's top or bottom edge. */
+const AUTO_SCROLL_EDGE_PX = 48;
+/** Fastest auto-scroll, per animation frame, reached at the edge and beyond it. */
+const AUTO_SCROLL_MAX_PX = 20;
+const SCROLLING = new Set(['auto', 'scroll']);
+
+/** The nearest ancestor that scrolls vertically, and its visible top and bottom. */
+function scrollerOf(el: HTMLElement): { el: Element; bounds: () => { top: number; bottom: number } } {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (SCROLLING.has(getComputedStyle(node).overflowY)) {
+      const found = node;
+      return { el: found, bounds: () => found.getBoundingClientRect() };
+    }
+  }
+  return { el: document.scrollingElement ?? document.documentElement, bounds: () => ({ top: 0, bottom: window.innerHeight }) };
+}
+
+/** Pixels per frame for a pointer at `y`: negative near the top, positive near or past the bottom. */
+function scrollSpeed(y: number, top: number, bottom: number): number {
+  const depth = (edge: number) => Math.min(1, edge / AUTO_SCROLL_EDGE_PX) * AUTO_SCROLL_MAX_PX;
+  if (y > bottom - AUTO_SCROLL_EDGE_PX) return depth(y - (bottom - AUTO_SCROLL_EDGE_PX));
+  if (y < top + AUTO_SCROLL_EDGE_PX) return -depth(top + AUTO_SCROLL_EDGE_PX - y);
+  return 0;
+}
 
 /** A divider between two tiles: drag, arrow keys (1% steps) or double-click to equalise. */
 export function ResizeHandle(props: {
@@ -17,6 +41,12 @@ export function ResizeHandle(props: {
   /** `pointer` is false for a keyboard step, which commits at once. */
   onBegin: (pointer: boolean) => void;
   onEqualise: () => void;
+  /**
+   * Scroll the nearest scroller while the pointer is near its edge; the scrolled pixels add to the drag.
+   * Downward it keeps extending at a clamped bottom, for a drag that makes its own room.
+   */
+  autoScroll?: boolean;
+  label?: string;
 }) {
   let cancelDrag: (() => void) | undefined;
   onCleanup(() => cancelDrag?.());
@@ -33,16 +63,38 @@ export function ResizeHandle(props: {
     props.onBegin(true);
     el.setPointerCapture?.(pointerId);
     let delta = 0;
+    let pointer = origin;
+    let snap = snapFor(event);
+    let scrolled = 0;
+    let frame = 0;
+    const scroller = props.autoScroll && props.dir === 'column' ? scrollerOf(el) : null;
+    const report = () => { delta = pointer - origin + scrolled; props.onDraft(delta, snap); };
+    const tick = () => {
+      frame = 0;
+      const { top, bottom } = scroller!.bounds();
+      const speed = scrollSpeed(pointer, top, bottom);
+      if (!speed) return;
+      const before = scroller!.el.scrollTop;
+      scroller!.el.scrollTop += speed;
+      const moved = scroller!.el.scrollTop - before;
+      // Growing past the end still moves the edge: the content grows, and the next frame scrolls into it.
+      scrolled += speed > 0 ? speed : moved;
+      report();
+      frame = requestAnimationFrame(tick);
+    };
     const move = (next: PointerEvent) => {
       if (next.pointerId !== pointerId) return;
-      delta = coordinate(next) - origin;
-      props.onDraft(delta, snapFor(next));
+      pointer = coordinate(next);
+      snap = snapFor(next);
+      report();
+      if (scroller && !frame) frame = requestAnimationFrame(tick);
     };
     // Pressing or releasing the free-drag key re-snaps in place, without waiting for a move.
     const toggleFree = (key: KeyboardEvent) => {
-      if (key.key === FREE_DRAG_KEY && !key.repeat) props.onDraft(delta, snapFor(key));
+      if (key.key === FREE_DRAG_KEY && !key.repeat) { snap = snapFor(key); props.onDraft(delta, snap); }
     };
     const finish = (commit: boolean) => {
+      cancelAnimationFrame(frame);
       window.removeEventListener('keydown', toggleFree);
       window.removeEventListener('keyup', toggleFree);
       el.removeEventListener('pointermove', move);
@@ -76,7 +128,7 @@ export function ResizeHandle(props: {
       class="twm-handle"
       data-dir={props.dir}
       aria-orientation={props.dir === 'row' ? 'vertical' : 'horizontal'}
-      aria-label="Resize tiles (double-click to equalise)"
+      aria-label={props.label ?? 'Resize tiles (double-click to equalise)'}
       style={{ left: `${props.rect.x}px`, top: `${props.rect.y}px`, width: `${props.rect.width}px`, height: `${props.rect.height}px` }}
       onPointerDown={start}
       onKeyDown={(event) => {

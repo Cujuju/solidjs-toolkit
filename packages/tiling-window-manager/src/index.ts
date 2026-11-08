@@ -17,6 +17,7 @@ export {
 } from './plan';
 export { addToTabs, appendTile, dock, insertTile, moveTab, removeTile, resizeSplit, setActiveTab, swapTiles } from './tileEdits';
 export { normalize } from './tileRepair';
+export { pushedLayout, PUSH_KEY_STEP_PX, type PushedLayout, type PushTarget } from './push';
 export {
   canCollapse, canCollapseAlone, canExpandAlone, collapsedIndices, collapseSlotAlone, expandSlotAlone, setSlotCollapsed,
   shareHolders, viewShares, type CollapsePermission,

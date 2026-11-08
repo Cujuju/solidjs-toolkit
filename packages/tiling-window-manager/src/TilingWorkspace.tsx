@@ -23,7 +23,8 @@ const DEFAULT_MIN: TileSize = { width: DEFAULT_MIN_TILE_PX, height: DEFAULT_MIN_
 
 export interface TilingWorkspaceProps {
   layout: TileNode | undefined;
-  onLayoutChange: (next: TileNode | undefined) => void;
+  /** `heightPx` comes with every pushing resize (see `verticalResize`). */
+  onLayoutChange: (next: TileNode | undefined, heightPx?: number) => void;
   /** Renders one tile's content; called once per tile id. */
   children: (tile: TileContext) => JSX.Element;
   minSize?: (id: string) => TileSize;
@@ -34,6 +35,14 @@ export interface TilingWorkspaceProps {
   placement?: PlacementMode;
   /** Grow taller than the given height when the tiles' minimums need it (set `min-height`); the owner scrolls. */
   growHeight?: boolean;
+  /**
+   * `share` (default): a horizontal divider trades height between its two sides. `push`: it resizes the tile above and
+   * moves everything below, a bottom-edge handle resizes the bottom tiles, and the workspace's height changes with them.
+   * Not with `collapse`.
+   */
+  verticalResize?: 'share' | 'push';
+  /** Push mode: the workspace's height, as last passed to `onLayoutChange`. Unset, it fills the height its owner gives it. */
+  heightPx?: number;
   /** Tab groups: a centre drop asks Swap or Tab; a drop on a tab target (`data-twm-tab-target`, or the `target` selector) joins as a tab. */
   tabs?: boolean | { target?: string };
   /** Collapsible tiles: `tile.collapse` folds a slot to a strip of `barPx` (in a column) or `stripPx` (in a row). */
@@ -67,6 +76,10 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   const [size, setSize] = createSignal<TileSize>({ width: 0, height: 0 });
   const [draft, setDraft] = createSignal<ResizeDraft>(null);
   const [centerDrop, setCenterDrop] = createSignal<CenterDrop | null>(null);
+  if (props.verticalResize === 'push' && props.collapse) throw new Error('TilingWorkspace: verticalResize="push" does not support collapse');
+  const pushes = () => props.verticalResize === 'push';
+  const pushDraft = () => { const d = draft(); return d && 'heightPx' in d ? d : null; };
+  const shareDraft = () => { const d = draft(); return d && 'split' in d ? d : null; };
 
   onMount(() => {
     const measure = () => container && setSize({ width: container.clientWidth, height: container.clientHeight });
@@ -89,10 +102,15 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     return { gapPx: props.gapPx ?? DEFAULT_GAP_PX, minSizes: new Map(tiles.map((id) => [id, minFor(id)])), barPx: strips.barPx, stripPx: strips.stripPx };
   };
   const baseOptions = createMemo(() => optionsFor(props.placing ? [...ids(), props.placing.id] : ids()));
-  const layout = createMemo(() => computeTileLayout(props.layout, size(), { ...baseOptions(), draft: draft() }));
-  const targets = createMemo(() => slotRects(layout()));
   const minHeight = () => (props.growHeight && props.layout ? minimumSize(props.layout, baseOptions()).height : 0);
-  const change = (next: TileNode | undefined) => { if (next !== props.layout) props.onLayoutChange(next); };
+  /** Push mode's set height: a live drag's, else the owner's (never under the minimums), else the measured one. */
+  const fixedHeight = () => pushDraft()?.heightPx ?? (props.heightPx === undefined ? undefined : Math.max(props.heightPx, minHeight()));
+  const layoutSize = () => ({ width: size().width, height: (pushes() ? fixedHeight() : undefined) ?? size().height });
+  const layout = createMemo(() => computeTileLayout(pushDraft()?.root ?? props.layout, layoutSize(), { ...baseOptions(), draft: shareDraft() }));
+  const targets = createMemo(() => slotRects(layout()));
+  const change = (next: TileNode | undefined, heightPx?: number) => {
+    if (next !== props.layout || (heightPx !== undefined && heightPx !== props.heightPx)) props.onLayoutChange(next, heightPx);
+  };
 
   const planFor = (movedId: string, targetId: string, zone: DropZone) =>
     (props.layout ? planMove(props.layout, movedId, targetId, zone, size(), baseOptions(), !!props.growHeight) : null);
@@ -151,7 +169,11 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     <div
       ref={container}
       class={`twm${props.class ? ` ${props.class}` : ''}`}
-      style={{ ...props.style, ...(minHeight() ? { 'min-height': `${minHeight()}px` } : {}) }}
+      style={{
+        ...props.style,
+        ...(minHeight() ? { 'min-height': `${minHeight()}px` } : {}),
+        ...(pushes() && fixedHeight() !== undefined ? { height: `${fixedHeight()}px` } : {}),
+      }}
       data-grow={props.growHeight || undefined}
       data-dragging={dockGesture.dragging() !== null || undefined}
     >
@@ -180,7 +202,8 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
           );
         }}
       </For>
-      <ResizeLayer root={props.layout} layout={layout()} size={size()} draft={draft()} setDraft={setDraft} onChange={change}
+      <ResizeLayer root={props.layout} layout={layout()} size={layoutSize()} draft={draft()} setDraft={setDraft} onChange={change}
+        pushHeightPx={pushes() && props.layout ? layoutSize().height : undefined}
         optionsFor={(root) => optionsFor(tileIds(root))} readout={!!props.readout}
         color={typeof props.readout === 'object' ? props.readout.color : undefined} alignWith={props.alignWith} />
       <Show when={dockGesture.preview()}>

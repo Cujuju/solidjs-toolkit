@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { PUSH_KEY_STEP_PX } from '../push';
 import { TilingWorkspace } from '../TilingWorkspace';
 import { tileIds, type TileNode } from '../tileTree';
 
@@ -51,6 +52,22 @@ describe('TilingWorkspace', () => {
     fireEvent.keyDown(container.querySelector('[role="separator"]')!, { key: 'ArrowRight' });
     const next = onLayoutChange.mock.calls[0][0] as Extract<TileNode, { kind: 'split' }>;
     expect(next.sizes[0]).toBeGreaterThan(next.sizes[1]);
+  });
+
+  it('pushes in push mode: an arrow on the bottom edge grows the workspace and reports its height', () => {
+    const stack: TileNode = { kind: 'split', dir: 'column', sizes: [1, 1], children: [t('a'), t('b')] };
+    const onLayoutChange = vi.fn();
+    const { container, getByLabelText } = render(() => (
+      <TilingWorkspace layout={stack} onLayoutChange={onLayoutChange} gapPx={GAP} verticalResize="push" heightPx={HEIGHT}>
+        {(tile) => <div>{tile.id}</div>}
+      </TilingWorkspace>
+    ));
+    expect((container.firstElementChild as HTMLElement).style.height).toBe(`${HEIGHT}px`);
+    fireEvent.keyDown(getByLabelText('Resize the bottom tiles'), { key: 'ArrowDown' });
+    const [next, heightPx] = onLayoutChange.mock.calls[0] as [Extract<TileNode, { kind: 'split' }>, number];
+    expect(heightPx).toBe(HEIGHT + PUSH_KEY_STEP_PX);
+    // The top tile keeps its 145px; the bottom one takes the step.
+    expect(next.sizes).toEqual([145, 145 + PUSH_KEY_STEP_PX]);
   });
 
   it('removes a tile', () => {
