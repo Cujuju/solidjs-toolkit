@@ -14,6 +14,7 @@ const bridge: NoticeBridge = {
   action: () => undefined,
   pin: () => undefined,
   closed: () => undefined,
+  ready: () => undefined,
 };
 
 describe('server render', () => {

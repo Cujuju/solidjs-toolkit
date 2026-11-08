@@ -7,6 +7,7 @@ afterEach(() => vi.useRealTimers());
 it('holds pending notices until subscribe and replays remaining time on remount', async () => {
   vi.useFakeTimers(); const h = createLocalNoticeHost({ view });
   const result = h.show(notice(1)); const received = vi.fn((n: Notice) => h.bridge.ack(n.id));
+  h.bridge.ready();
   const off = h.bridge.onNotice(received); expect(await result).toEqual({ delivered: true }); off();
   vi.advanceTimersByTime(1000); h.bridge.onNotice(received);
   expect(received).toHaveBeenLastCalledWith({ ...notice(1), remainingMs: 5000 });

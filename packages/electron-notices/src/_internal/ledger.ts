@@ -14,6 +14,7 @@ export function createNoticeLedger(o: LedgerOptions) {
     if (!e) return;
     clearTimeout(e.timer); entries.delete(id);
     if (!e.delivered) for (const resolve of e.resolvers) resolve({ delivered: false });
+    o.onClose?.(e.notice);
   }
   function withdraw(ref: NoticeRef): void {
     for (const [id, e] of entries) if ('id' in ref ? id === ref.id : e.notice.key === ref.key) drop(id);
@@ -26,7 +27,7 @@ export function createNoticeLedger(o: LedgerOptions) {
       const pending: Entry['resolvers'] = [];
       if (n.key !== undefined) for (const [id, e] of entries) if (e.notice.key === n.key) {
         if (!e.delivered) pending.push(...e.resolvers);
-        clearTimeout(e.timer); entries.delete(id);
+        e.resolvers = []; drop(id);
       }
       if (entries.size >= MAX_KEPT_NOTICES) {
         const oldest = [...entries.values()].find((e) => !e.notice.pinned) ?? entries.values().next().value!;

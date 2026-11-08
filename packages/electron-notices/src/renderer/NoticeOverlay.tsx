@@ -1,4 +1,4 @@
-import { createSignal, Match, onCleanup, onMount, Show, Switch } from 'solid-js';
+import { createEffect, createSignal, Match, on, onCleanup, onMount, Show, Switch } from 'solid-js';
 import {
   BASIC_TONES, DEFAULT_NOTICE_CONFIG, deliversTo, isSticky, noticeDuration,
   type Notice, type NoticeBridge, type NoticePlacement, type NoticeView,
@@ -62,8 +62,12 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
     queueMicrotask(ackRendered);
   }));
   onCleanup(bridge.onWithdraw((ref) => queue.withdraw(ref)));
+  // Listeners are attached; main sends the view and pending notices only after this.
+  bridge.ready();
 
   const config = () => view().config;
+  // Turning the overlay off retires its notices (each reports closed), so turning it back on cannot resurrect them.
+  createEffect(on(() => deliversTo(config().delivery).overlay, (shown) => { if (!shown) queue.clear(); }));
   const sticky = (n: Notice) => isSticky(n, view());
   const open = (n: Notice) => {
     bridge.open(n.id);

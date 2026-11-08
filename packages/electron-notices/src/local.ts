@@ -23,7 +23,7 @@ export function createLocalNoticeHost(o: LocalNoticeHostOptions): LocalNoticeHos
       onNotice(cb) { const remount = notices.size === 0; notices.add(cb); if (remount) ledger.replay(); return () => { notices.delete(cb); }; },
       onView(cb) { views.add(cb); emitView(cb); return () => { views.delete(cb); }; },
       onWithdraw(cb) { withdrawals.add(cb); return () => { withdrawals.delete(cb); }; },
-      resize() {}, pointer() {}, ack: ledger.ack, open: ledger.open, action: ledger.action, pin: ledger.pin, closed: ledger.closed,
+      ready() {}, resize() {}, pointer() {}, ack: ledger.ack, open: ledger.open, action: ledger.action, pin: ledger.pin, closed: ledger.closed,
     },
   };
 }

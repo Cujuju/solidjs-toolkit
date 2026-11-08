@@ -76,10 +76,11 @@ export const deliversTo = (d: NoticeDelivery): { system: boolean; overlay: boole
 export type NoticeRef = { key: string } | { id: number };
 export interface NoticeDeliveryResult { delivered: boolean }
 export const NOTICE_CHANNELS = {
-  notice: 'notices:notice', view: 'notices:view', withdraw: 'notices:withdraw', resize: 'notices:resize', pointer: 'notices:pointer',
+  ready: 'notices:ready', notice: 'notices:notice', view: 'notices:view', withdraw: 'notices:withdraw', resize: 'notices:resize', pointer: 'notices:pointer',
   ack: 'notices:ack', open: 'notices:open', action: 'notices:action', pin: 'notices:pin', closed: 'notices:closed',
 } as const;
 export interface NoticeBridge {
+  ready(): void;
   onNotice(cb: (n: Notice) => void): () => void;
   onView(cb: (v: NoticeView, placement: NoticePlacement) => void): () => void;
   onWithdraw(cb: (ref: NoticeRef) => void): () => void;

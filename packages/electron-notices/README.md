@@ -13,6 +13,9 @@ The host owns meaning; the package owns presentation and lifecycle.
 - **`key`**: a notice with the key of a live notice replaces it and becomes the newest. If the replaced notice was not yet delivered, its `show()` result follows the replacement's. `withdraw({ key })` or `withdraw({ id })` removes notices.
 - **`actions`**: footer buttons on tray cards; clicks reach `onAction(notice, actionId)`. `pinnable` adds a pin toggle. Clicking the card calls `onOpen(notice)` and dismisses it.
 - **`content`**: `{ kind, data }` is drawn below the title by the renderer registered for `kind` (`renderers` prop). `data` crosses IPC, so it must be structured-clone safe. Tray only; Console and Top drip show title and body.
+- **Handshake**: `NoticeOverlay` calls `bridge.ready()` once its listeners are attached; the overlay sends the view and pending notices only then, so a page that mounts late loses nothing.
+- **Delivery off**: a view whose delivery excludes the overlay clears its notices; re-enabling does not bring them back.
+- **Host events**: `onOpen`, `onAction`, and `onClose(notice)`, called once whenever a notice leaves the ledger, for per-notice host state.
 - **Delivery**: `show()` resolves `{ delivered: true }` once the renderer has the notice on the page, and `{ delivered: false }` after `ackTimeoutMs` (default `NOTICE_ACK_TIMEOUT_MS`), on renderer crash, on destroy, or when delivery excludes the overlay. A timed-out notice is withdrawn so the host's fallback cannot double-show.
 - **Recovery**: after an overlay renderer crash, the next `show()` recreates the window and replays live notices with their remaining time. Residual: time paused under the mouse is not mirrored to main, so a replayed notice can expire early.
 - **Placement**: `config.position` is `auto` or one of six placements; `auto` picks the corner nearest the taskbar (inline: bottom right). Top drip is always top centre. `config.trayVisible` cards show at once; older ones fold into a counter. At most `MAX_KEPT_NOTICES` (8) are kept; the oldest unpinned is evicted first.
@@ -55,6 +58,8 @@ import { NoticeOverlay } from '@cujuju/electron-notices/renderer';
 import '@cujuju/electron-notices/styles.css';
 <NoticeOverlay bridge={window.notices} icons={icons} renderers={renderers} />;
 ```
+
+`overlay.warm()` creates and loads the window ahead of the first notice; call it after startup when the overlay page is heavy enough to miss `ackTimeoutMs` on a cold load. `handleNoticeIpc` ignores messages from any window but the overlay's own, so a preload shared by several windows cannot drive it.
 
 On Windows, Chromium scales frameless windows as they show and hide. Call `app.commandLine.appendSwitch('wm-window-animations-disabled')` before app readiness if that motion is unwanted; it applies to every frameless window in the app.
 

@@ -29,11 +29,12 @@ export const NOTICE_ACK_TIMEOUT_MS = 5000;
 export interface NoticeSink {
   refresh(): void; show(n: Notice): Promise<NoticeDeliveryResult>; withdraw(ref: NoticeRef): void; destroy(): void;
 }
-export interface NoticeHostEvents { onOpen?(n: Notice): void; onAction?(n: Notice, actionId: string): void }
+export interface NoticeHostEvents { onOpen?(n: Notice): void; onAction?(n: Notice, actionId: string): void; onClose?(n: Notice): void }
 export interface NoticeOverlayOptions extends NoticeHostEvents {
   createWindow(): OverlayWindow; primaryDisplay(): DisplayArea; view(): NoticeView; platform: string; ackTimeoutMs?: number;
 }
 export interface NoticeOverlay extends NoticeSink {
+  warm(): void; ready(): void; owns(sender: unknown): boolean;
   resize(w: unknown, h: unknown): void; pointer(over: unknown): void; ack(id: unknown): void;
   open(id: unknown): void; action(id: unknown, actionId: unknown): void;
   pin(id: unknown, pinned: unknown): void; closed(id: unknown): void;
@@ -60,10 +61,6 @@ export function createNoticeOverlay(o: NoticeOverlayOptions): NoticeOverlay {
     if (o.platform === 'darwin') w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     if (o.platform !== 'linux') w.setIgnoreMouseEvents(true, { forward: true });
     w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    w.webContents.on('did-finish-load', () => {
-      if (win !== w) return;
-      loaded = true; sendView(); ledger.replay();
-    });
     w.webContents.on('render-process-gone', () => { reset(w); if (!w.isDestroyed()) w.destroy(); });
     w.on('closed', () => reset(w));
     return w;
@@ -77,6 +74,9 @@ export function createNoticeOverlay(o: NoticeOverlayOptions): NoticeOverlay {
     if (!w.isVisible()) w.showInactive();
   }
   return {
+    warm() { ensure(); },
+    ready() { if (!live()) return; loaded = true; sendView(); ledger.replay(); },
+    owns(sender) { const w = live(); return !!w && sender === w.webContents; },
     refresh() {
       const n = o.view().config;
       if (deliversTo(n.delivery).overlay && n.style === 'drip' && n.dripLip) ensure();

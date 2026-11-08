@@ -33,3 +33,19 @@ describe('renderer acknowledgment', () => {
     await expect(result).resolves.toEqual({ delivered: false });
   });
 });
+
+describe('delivery off', () => {
+  it('retires notices, and turning delivery back on does not restore them', async () => {
+    let current = view;
+    const onClose = vi.fn();
+    const host = createLocalNoticeHost({ view: () => current, ackTimeoutMs: ACK_TIMEOUT_MS, onClose });
+    const { container } = render(() => <NoticeOverlay bridge={host.bridge} inline />);
+    await expect(host.show({ ...notice(3), durationMs: 0 })).resolves.toEqual({ delivered: true });
+    current = { ...view, config: { ...view.config, delivery: 'system' } };
+    host.refresh();
+    expect(onClose).toHaveBeenCalledWith(expect.objectContaining({ id: 3 }));
+    current = view;
+    host.refresh();
+    expect(container.querySelector('[data-notice-id="3"]')).toBeNull();
+  });
+});
