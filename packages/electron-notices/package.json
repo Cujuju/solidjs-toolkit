@@ -10,6 +10,7 @@
     ".": {
       "cujuju-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
+      "solid": "./src/index.ts",
       "import": "./dist/index.js"
     },
     "./renderer": {

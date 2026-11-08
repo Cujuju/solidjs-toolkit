@@ -85,9 +85,14 @@ body:has(.cuj-notices:not([data-inline])) {
 }
 
 /* Inline: pinned to the viewport; only painted surfaces take the pointer. */
-.cuj-notices[data-inline] { position: fixed; top: auto; left: auto; z-index: var(--notice-z); pointer-events: none; }
+/* Scrolls inside the viewport (below host chrome, above the bottom safe area) instead of running past it. */
+.cuj-notices[data-inline] {
+  position: fixed; top: auto; left: auto; z-index: var(--notice-z); pointer-events: none;
+  max-height: calc(100dvh - var(--notice-inline-inset-top) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto; overscroll-behavior: contain;
+}
 .cuj-notices[data-inline][data-placement^='top'] { top: var(--notice-inline-inset-top); }
-.cuj-notices[data-inline][data-placement^='bottom'] { bottom: 0; }
+.cuj-notices[data-inline][data-placement^='bottom'] { bottom: env(safe-area-inset-bottom, 0px); }
 .cuj-notices[data-inline][data-placement$='left'] { left: 0; }
 .cuj-notices[data-inline][data-placement$='right'] { right: 0; }
 .cuj-notices[data-inline][data-placement$='center'] { left: 50%; transform: translateX(-50%); }
