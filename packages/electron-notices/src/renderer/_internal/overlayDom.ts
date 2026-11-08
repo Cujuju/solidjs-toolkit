@@ -44,3 +44,6 @@ export function watchPointer(selector: string, report: (over: boolean) => void):
 
 /** Local clock time of a notice. */
 export const clockTime = (at: number): string => new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+/** Whether the notice with `id` is rendered under `root` (its element carries data-notice-id). */
+export const hasNoticeElement = (root: HTMLElement, id: number): boolean => root.querySelector(`[data-notice-id="${id}"]`) !== null;

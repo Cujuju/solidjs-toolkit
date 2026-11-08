@@ -1,10 +1,6 @@
 import { createSignal, type Accessor } from 'solid-js';
-import { isSticky, MAX_CONSOLE_LINES, type Notice } from '../types';
-
-/** Windows' default toast time (5 s) plus a second for the slide-in. */
-export const NOTICE_VISIBLE_MS = 6000;
-/** Console's largest tail; other styles show fewer. */
-const MAX_KEPT = MAX_CONSOLE_LINES;
+import { MAX_KEPT_NOTICES, type Notice, type NoticeRef } from '../types';
+export { NOTICE_VISIBLE_MS } from '../types';
 
 interface Clock { timer: ReturnType<typeof setTimeout> | null; deadline: number; remaining: number }
 
@@ -12,14 +8,17 @@ export interface NoticeQueue {
   items: Accessor<Notice[]>;
   push(n: Notice): void;
   dismiss(id: number): void;
+  withdraw(ref: NoticeRef): void;
+  pin(id: number, pinned: boolean): void;
   clear(): void;
+  dispose(): void;
   /** Hover holds every notice on screen; leaving restarts each with the time it had left. */
   pause(): void;
   resume(): void;
 }
 
-/** Notices on screen, oldest first. Errors stay until dismissed; the rest expire. */
-export function createNoticeQueue(visibleMs = NOTICE_VISIBLE_MS): NoticeQueue {
+/** Notices on screen, oldest first. */
+export function createNoticeQueue(durationOf: (n: Notice) => number, onClosed?: (id: number) => void): NoticeQueue {
   const [items, setItems] = createSignal<Notice[]>([]);
   const clocks = new Map<number, Clock>();
   let paused = false;
@@ -33,23 +32,36 @@ export function createNoticeQueue(visibleMs = NOTICE_VISIBLE_MS): NoticeQueue {
     clocks.set(id, { timer: paused ? null : setTimeout(() => dismiss(id), ms), deadline: Date.now() + ms, remaining: ms });
   };
   function dismiss(id: number): void {
+    if (!items().some((n) => n.id === id)) return;
     stop(id);
     setItems((xs) => xs.filter((x) => x.id !== id));
+    onClosed?.(id);
   }
 
   return {
     items,
     push(n) {
-      const kept = [...items(), n].slice(-MAX_KEPT);
-      for (const x of items()) if (!kept.includes(x)) stop(x.id);
-      setItems(kept);
-      if (!isSticky(n)) run(n.id, visibleMs);
+      const old = n.key === undefined ? undefined : items().find((x) => x.key === n.key);
+      if (old) dismiss(old.id);
+      const xs = items();
+      if (xs.length >= MAX_KEPT_NOTICES) dismiss((xs.find((x) => !x.pinned) ?? xs[0]).id);
+      setItems((kept) => [...kept, n]);
+      const ms = n.remainingMs ?? durationOf(n);
+      if (!n.pinned && ms !== 0) run(n.id, ms);
     },
     dismiss,
-    clear() {
-      for (const id of [...clocks.keys()]) stop(id);
-      setItems([]);
+    withdraw(ref) { for (const n of items()) if ('id' in ref ? n.id === ref.id : n.key === ref.key) dismiss(n.id); },
+    pin(id, pinned) {
+      const n = items().find((x) => x.id === id);
+      if (!n) return;
+      stop(id);
+      const next = { ...n, pinned };
+      setItems((xs) => xs.map((x) => x.id === id ? next : x));
+      const ms = durationOf(next);
+      if (!pinned && ms !== 0) run(id, ms);
     },
+    clear() { for (const n of items()) dismiss(n.id); },
+    dispose() { for (const id of clocks.keys()) stop(id); setItems([]); },
     pause() {
       if (paused) return;
       paused = true;

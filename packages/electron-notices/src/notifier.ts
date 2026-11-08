@@ -1,11 +1,13 @@
 import { deliversTo, type NoticeDelivery, type NoticeInput } from './types';
-import type { NoticeOverlay } from './overlay';
-export interface NotifierOptions { overlay: Pick<NoticeOverlay, 'show'>; delivery(): NoticeDelivery; system?(n: NoticeInput): void }
-export function createNotifier(o: NotifierOptions): { notify(input: NoticeInput): void } {
+import type { NoticeSink } from './overlay';
+export interface NotifierOptions { overlay: Pick<NoticeSink, 'show'>; delivery(): NoticeDelivery; system?(n: NoticeInput): void }
+export function createNotifier(o: NotifierOptions): { notify(input: NoticeInput): Promise<{ id: number; delivered: boolean }> } {
   let nextId = 1;
-  return { notify(input) {
+  return { async notify(input) {
+    const n = { ...input, id: nextId++, at: Date.now(), pinned: false };
     const to = deliversTo(o.delivery());
     if (to.system) o.system?.(input);
-    if (to.overlay) o.overlay.show({ ...input, id: nextId++, at: Date.now() });
+    const result = to.overlay ? await o.overlay.show(n) : { delivered: false };
+    return { id: n.id, delivered: result.delivered };
   } };
 }

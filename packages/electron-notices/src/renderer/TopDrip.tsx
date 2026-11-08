@@ -1,5 +1,6 @@
 import { createEffect, createSignal, on, onCleanup, Show } from 'solid-js';
-import { isSticky, type Notice } from '../types';
+import type { Notice, NoticeTones } from '../types';
+import { toneVars } from './_internal/tone';
 import { NoticeGlyph, type NoticeIcon } from './NoticeGlyph';
 
 /** How long a notice stays open before the drip settles. */
@@ -24,7 +25,9 @@ export interface TopDripProps {
   lip: boolean;
   /** The drip's own palette (NoticeAppearance.dripVars); it reads as dark in every theme. */
   vars?: Record<string, string>;
+  tones: NoticeTones;
   icons?: Record<string, NoticeIcon>;
+  sticky: (n: Notice) => boolean;
   onOpen: (n: Notice) => void;
 }
 
@@ -47,7 +50,7 @@ export function TopDrip(props: TopDripProps) {
 
   const unhandledError = () => {
     const n = props.latest;
-    return n && isSticky(n) && handled() !== n.id ? n : null;
+    return n && props.sticky(n) && handled() !== n.id ? n : null;
   };
   const shape = (): Shape => (open() && props.latest ? 'open' : unhandledError() ? 'chip' : props.lip ? 'lip' : 'none');
 
@@ -80,6 +83,7 @@ export function TopDrip(props: TopDripProps) {
           type="button"
           class="cuj-notices-drip"
           data-shape={shape()}
+          data-notice-id={props.latest?.id}
           aria-label={props.latest ? `${props.latest.title}. ${shape() === 'open' ? 'Open' : 'Show'}` : 'Notifications'}
           style={{ ...props.vars, width: px(SIZE[shape()].width), height: px(SIZE[shape()].height), '--_drip-radius': px(SIZE[shape()].radius) }}
           onClick={click}
@@ -89,7 +93,7 @@ export function TopDrip(props: TopDripProps) {
           <Show when={shape() === 'open' && props.latest}>
             {(n) => (
               <span class="cuj-notices-drip-open">
-                <NoticeGlyph notice={n()} icons={props.icons} />
+                <NoticeGlyph notice={n()} tones={props.tones} icons={props.icons} />
                 <span class="cuj-notices-drip-text">
                   <span class="cuj-notices-drip-title">{n().title}</span>
                   <Show when={n().body}><span class="cuj-notices-drip-body">{n().body}</span></Show>
@@ -99,7 +103,7 @@ export function TopDrip(props: TopDripProps) {
           </Show>
           <Show when={shape() === 'chip' && unhandledError()}>
             {(n) => (
-              <span class="cuj-notices-drip-chip" data-tone={n().tone}>
+              <span class="cuj-notices-drip-chip" style={toneVars(n().tone, props.tones)}>
                 <span class="cuj-notices-drip-dot" />
                 {n().short ?? n().title}
               </span>

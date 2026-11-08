@@ -1,4 +1,4 @@
-/* Notification overlay page. Import it only in that page: the window is transparent and only notices paint. */
+/* Notice surface. Overlay page: the window is transparent and only notices paint. Inline ([data-inline]): fixed over the app page. */
 
 @layer cujuju-defaults {
   /* Hosts map their palette onto these through NoticeAppearance.vars (inline on .cuj-notices). */
@@ -55,16 +55,19 @@
     /* Decelerates without overshoot, so the morph never pokes past the window. */
     --notice-drip-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     --notice-enter-rise: 6px;
+    --notice-tool: 22px;
+    /* Tint of a sticky card's border and a sticky console line. */
+    --notice-sticky-border: 35%;
+    --notice-sticky-wash: 19%;
+    /* Inline only: above app content; the host raises it over its own overlays if needed. */
+    --notice-z: 9999;
+    /* Inline only: room for host chrome (a title or header bar) above top placements. */
+    --notice-inline-inset-top: 0px;
   }
-
-  [data-tone='info'] { --_tone: var(--notice-info); }
-  [data-tone='ok'] { --_tone: var(--notice-ok); }
-  [data-tone='warn'] { --_tone: var(--notice-warn); }
-  [data-tone='error'] { --_tone: var(--notice-error); }
 }
 
-html:has(.cuj-notices),
-body:has(.cuj-notices) {
+html:has(.cuj-notices:not([data-inline])),
+body:has(.cuj-notices:not([data-inline])) {
   margin: 0;
   background: transparent;
   overflow: hidden;
@@ -80,6 +83,15 @@ body:has(.cuj-notices) {
   color: var(--notice-text);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Inline: pinned to the viewport; only painted surfaces take the pointer. */
+.cuj-notices[data-inline] { position: fixed; top: auto; left: auto; z-index: var(--notice-z); pointer-events: none; }
+.cuj-notices[data-inline][data-placement^='top'] { top: var(--notice-inline-inset-top); }
+.cuj-notices[data-inline][data-placement^='bottom'] { bottom: 0; }
+.cuj-notices[data-inline][data-placement$='left'] { left: 0; }
+.cuj-notices[data-inline][data-placement$='right'] { right: 0; }
+.cuj-notices[data-inline][data-placement$='center'] { left: 50%; transform: translateX(-50%); }
+.cuj-notices[data-inline] :is(.cuj-notices-card, .cuj-notices-tray-more, .cuj-notices-console, .cuj-notices-drip) { pointer-events: auto; }
 
 /* Zero specificity, so every class rule below wins over the reset. */
 :where(.cuj-notices button) {
@@ -150,6 +162,9 @@ body:has(.cuj-notices) {
   padding: var(--notice-edge-gap);
 }
 
+/* Top placements: newest nearest the top edge, the fold counter farthest from it. */
+[data-placement^='top'] .cuj-notices-tray { flex-direction: column-reverse; }
+
 .cuj-notices-tray-more {
   display: flex;
   justify-content: space-between;
@@ -163,7 +178,7 @@ body:has(.cuj-notices) {
 .cuj-notices-card {
   position: relative;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   border-radius: var(--notice-radius-card);
   background: var(--notice-surface);
   border: 1px solid var(--notice-border);
@@ -173,7 +188,9 @@ body:has(.cuj-notices) {
 }
 
 .cuj-notices-card:hover { opacity: 1; }
-.cuj-notices-card[data-tone='error'] { border-color: color-mix(in srgb, var(--notice-error) 35%, transparent); }
+.cuj-notices-card[data-sticky] { border-color: color-mix(in srgb, var(--_tone) var(--notice-sticky-border), transparent); }
+
+.cuj-notices-card-head { display: flex; align-items: center; }
 
 .cuj-notices-card-main {
   flex: 1;
@@ -204,6 +221,36 @@ body:has(.cuj-notices) {
 .cuj-notices-card:hover .cuj-notices-card-text { flex-direction: column; gap: var(--notice-space-1); white-space: normal; }
 .cuj-notices-card:hover .cuj-notices-card-title { flex: initial; }
 
+.cuj-notices-pin-mark { flex: none; display: grid; place-items: center; color: var(--notice-text-secondary); }
+
+/* Host content: below the title, aligned with the text column. */
+.cuj-notices-card-content {
+  padding: 0 var(--notice-space-4) var(--notice-space-3) calc(var(--notice-space-3) + var(--notice-glyph) + var(--notice-space-5));
+  font-size: var(--notice-text-body);
+  min-width: 0;
+}
+
+.cuj-notices-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--notice-space-1);
+  padding: var(--notice-space-2) var(--notice-space-3);
+  border-top: 1px solid var(--notice-border);
+}
+
+.cuj-notices-tool {
+  display: grid;
+  place-items: center;
+  min-width: var(--notice-tool);
+  height: var(--notice-tool);
+  border-radius: var(--notice-radius);
+  color: var(--notice-text-secondary);
+}
+
+.cuj-notices-tool:hover { background: var(--notice-hover); color: var(--notice-text); }
+.cuj-notices-tool[aria-pressed='true'] { color: var(--notice-accent); }
+.cuj-notices-tool-text { padding: 0 var(--notice-space-3); font-size: var(--notice-text-xs); font-weight: 600; }
+
 /* Console */
 .cuj-notices-console {
   margin: var(--notice-edge-gap);
@@ -232,8 +279,8 @@ body:has(.cuj-notices) {
 .cuj-notices-console-row { display: flex; align-items: center; animation: cuj-notices-in 140ms ease-out both; }
 .cuj-notices-console-row:hover { background: var(--notice-hover); }
 .cuj-notices-console-row.cuj-notices-sticky {
-  background: color-mix(in srgb, var(--notice-error) 19%, transparent);
-  outline: 1px solid color-mix(in srgb, var(--notice-error) 35%, transparent);
+  background: color-mix(in srgb, var(--_tone) var(--notice-sticky-wash), transparent);
+  outline: 1px solid color-mix(in srgb, var(--_tone) var(--notice-sticky-border), transparent);
   outline-offset: -1px;
 }
 

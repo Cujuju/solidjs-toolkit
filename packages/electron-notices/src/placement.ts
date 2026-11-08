@@ -1,22 +1,19 @@
-import type { NoticeStyle } from './types';
-
+import type { NoticePlacement, NoticePosition, NoticeStyle } from './types';
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface DisplayArea { bounds: Rect; workArea: Rect }
-
-/**
- * Bounds flush with the work area: drip at top centre, other styles nearest the tray.
- */
-export function overlayBounds(style: NoticeStyle, size: { width: number; height: number }, display: DisplayArea): Rect {
+export function resolvePlacement(style: NoticeStyle, position: NoticePosition, display?: DisplayArea): NoticePlacement {
+  if (style === 'drip') return 'top-center';
+  if (position !== 'auto') return position;
+  if (!display) return 'bottom-right';
   const { bounds: b, workArea: a } = display;
+  return `${a.y > b.y ? 'top' : 'bottom'}-${a.x > b.x ? 'left' : 'right'}`;
+}
+export function overlayBounds(placement: NoticePlacement, size: { width: number; height: number }, display: DisplayArea): Rect {
+  const a = display.workArea;
   const width = Math.min(Math.round(size.width), a.width);
   const height = Math.min(Math.round(size.height), a.height);
-  if (style === 'drip') return { x: a.x + Math.round((a.width - width) / 2), y: a.y, width, height };
-  const barOnLeft = a.x > b.x;
-  const barOnTop = a.y > b.y;
   return {
-    x: barOnLeft ? a.x : a.x + a.width - width,
-    y: barOnTop ? a.y : a.y + a.height - height,
-    width,
-    height,
+    x: a.x + (placement.endsWith('center') ? Math.round((a.width - width) / 2) : placement.endsWith('left') ? 0 : a.width - width),
+    y: a.y + (placement.startsWith('top') ? 0 : a.height - height), width, height,
   };
 }
