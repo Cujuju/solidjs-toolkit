@@ -1,4 +1,4 @@
-import { computeTileLayout, minimumSize, type TileLayout, type TileLayoutOptions, type TileSize } from './layout';
+import { minimumSize, type TileLayout, type TileLayoutOptions } from './layout';
 import type { TileNode, TilePath, TileSplit } from './tileTree';
 
 /** One arrow press moves a pushing divider this far. */
@@ -13,8 +13,8 @@ export interface PushedLayout { root: TileNode; heightPx: number }
 type Options = Pick<TileLayoutOptions, 'gapPx' | 'minSizes'>;
 
 /** Every column split's child heights on screen. */
-function columnHeights(layout: TileLayout): Map<TileSplit, number[]> {
-  const heights = new Map<TileSplit, number[]>();
+function columnHeights(layout: TileLayout): Heights {
+  const heights: Heights = new Map();
   for (const handle of layout.handles) {
     if (handle.split.dir === 'column') heights.set(handle.split, handle.childRects.map((rect) => rect.height));
   }
@@ -25,24 +25,33 @@ function columnHeights(layout: TileLayout): Map<TileSplit, number[]> {
  * Pixels the node's bottom edge can rise before a tile on that edge reaches its minimum.
  * Only tiles touching the edge give way, so the tiles above them never move.
  */
-function bottomSlack(node: TileNode, height: number, heights: Map<TileSplit, number[]>, options: Options): number {
+function bottomSlack(node: TileNode, height: number, heights: Heights, options: Options): number {
   if (node.kind !== 'split') return height - minimumSize(node, options).height;
   if (node.dir === 'row') return Math.min(...node.children.map((child) => bottomSlack(child, height, heights, options)));
   const last = node.children.length - 1;
   return bottomSlack(node.children[last], heights.get(node)![last], heights, options);
 }
 
+/** Pixel heights of each column split's children, for the layout's splits and every split an edit creates. */
+type Heights = Map<TileSplit, number[]>;
+
 /** The node grown `delta` at its bottom edge: the tiles touching that edge take it, the rest keep their pixels. */
-function growBottom(node: TileNode, height: number, delta: number, heights: Map<TileSplit, number[]>): TileNode {
+function growBottom(node: TileNode, height: number, delta: number, heights: Heights): TileNode {
   if (node.kind !== 'split') return node;
   if (node.dir === 'row') return { ...node, children: node.children.map((child) => growBottom(child, height, delta, heights)) };
   const px = heights.get(node)!;
   const last = node.children.length - 1;
-  return {
+  return withHeights({
     ...node,
     sizes: px.map((h, i) => (i === last ? h + delta : h)),
     children: node.children.map((child, i) => (i === last ? growBottom(child, px[i], delta, heights) : child)),
-  };
+  }, heights);
+}
+
+/** Records a new column split's pixel heights (its shares are pixels), so a later edit in the same move can read them. */
+function withHeights(split: TileSplit, heights: Heights): TileSplit {
+  heights.set(split, split.sizes);
+  return split;
 }
 
 /**
@@ -53,37 +62,35 @@ function growBottom(node: TileNode, height: number, delta: number, heights: Map<
  * at the floor trades height with the bottom row instead.
  */
 export function pushedLayout(
-  root: TileNode, layout: TileLayout, size: TileSize, target: PushTarget, deltaPx: number, options: Options, floorPx = 0,
+  root: TileNode, layout: TileLayout, heightPx: number, target: PushTarget, deltaPx: number, options: Options, floorPx = 0,
 ): PushedLayout {
-  const pushed = push(root, layout, size.height, target, deltaPx, options);
-  const deficit = floorPx - pushed.heightPx;
-  if (deficit <= 0) return pushed;
-  const after = computeTileLayout(pushed.root, { width: size.width, height: pushed.heightPx }, options);
-  return { root: growBottom(pushed.root, pushed.heightPx, deficit, columnHeights(after)), heightPx: floorPx };
-}
-
-function push(root: TileNode, layout: TileLayout, heightPx: number, target: PushTarget, deltaPx: number, options: Options): PushedLayout {
   const heights = columnHeights(layout);
+  /** How far the workspace can shrink before the floor gives the rest back to the bottom tiles. */
+  const headroom = Math.max(0, heightPx - floorPx);
   if (target === 'bottom') {
-    const delta = Math.round(Math.max(deltaPx, -Math.max(0, bottomSlack(root, heightPx, heights, options))));
+    const delta = Math.round(Math.max(deltaPx, -Math.max(0, Math.min(headroom, bottomSlack(root, heightPx, heights, options)))));
     return { root: delta ? growBottom(root, heightPx, delta, heights) : root, heightPx: heightPx + delta };
   }
-  // Every tile that moves its bottom edge: the one above the divider, and row neighbours along the way up.
+  // Tiles whose bottom edge moves up by the whole shrink: the one above the divider, and row neighbours along the way
+  // up. A neighbour on the workspace's bottom edge gets back what the floor returns, so it only loses the headroom.
   let slack = Infinity;
-  const measure = (node: TileNode, height: number, depth: number) => {
+  const measure = (node: TileNode, height: number, depth: number, onBottom: boolean) => {
     if (node.kind !== 'split') return;
     if (depth === target.path.length) {
       slack = Math.min(slack, bottomSlack(node.children[target.gap], heights.get(node)![target.gap], heights, options));
       return;
     }
     const index = target.path[depth];
+    const last = node.children.length - 1;
     node.children.forEach((child, i) => {
       const childHeight = node.dir === 'row' ? height : heights.get(node)![i];
-      if (i === index) measure(child, childHeight, depth + 1);
-      else if (node.dir === 'row') slack = Math.min(slack, bottomSlack(child, childHeight, heights, options));
+      if (i === index) return measure(child, childHeight, depth + 1, onBottom && (node.dir === 'row' || i === last));
+      if (node.dir !== 'row') return;
+      const neighbour = bottomSlack(child, childHeight, heights, options);
+      if (!onBottom || neighbour < headroom) slack = Math.min(slack, neighbour);
     });
   };
-  measure(root, heightPx, 0);
+  measure(root, heightPx, 0, true);
   const delta = Math.round(Math.max(deltaPx, -Math.max(0, slack)));
   if (!delta) return { root, heightPx };
 
@@ -96,11 +103,17 @@ function push(root: TileNode, layout: TileLayout, heightPx: number, target: Push
       return { ...node, children: node.children.map((child, i) => (i === index ? grow(child, height) : growBottom(child, height, delta, heights))) };
     }
     const px = heights.get(node)!;
-    return {
+    return withHeights({
       ...node,
       sizes: px.map((h, i) => (i === index ? h + delta : h)),
       children: node.children.map((child, i) => (i === index ? grow(child, px[i]) : child)),
-    };
+    }, heights);
   };
-  return { root: push(root, heightPx, 0), heightPx: heightPx + delta };
+  const pushed = push(root, heightPx, 0);
+  const pushedHeight = heightPx + delta;
+  // Heights recorded during the push let the floor's give-back run on the edited tree without laying it out.
+  const deficit = floorPx - pushedHeight;
+  return deficit > 0
+    ? { root: growBottom(pushed, pushedHeight, deficit, heights), heightPx: floorPx }
+    : { root: pushed, heightPx: pushedHeight };
 }

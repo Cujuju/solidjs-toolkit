@@ -17,7 +17,7 @@ const options = (mins: Record<string, number> = {}) => ({
 function push(root: TileNode, heightPx: number, target: PushTarget, delta: number, mins: Record<string, number> = {}, floorPx = 0) {
   const size: TileSize = { width: WIDTH, height: heightPx };
   const before = computeTileLayout(root, size, options(mins));
-  const next = pushedLayout(root, before, size, target, delta, options(mins), floorPx);
+  const next = pushedLayout(root, before, heightPx, target, delta, options(mins), floorPx);
   const after = computeTileLayout(next.root, { width: WIDTH, height: next.heightPx }, options(mins));
   const rects = Object.fromEntries([...after.tiles].map(([id, rect]) => [id, { y: rect.y, height: rect.height }]));
   return { heightPx: next.heightPx, rects };
@@ -81,6 +81,13 @@ describe('pushedLayout', () => {
     expectRects(result.rects, { a: [0, 210], b: [0, 70], c: [80, 130] });
   });
 
+  it('lets a row neighbour at its minimum stay put while the pair beside it trades at the floor', () => {
+    const root = row([1, 1], t('a'), col([1, 1], t('b'), t('c')));
+    const result = push(root, 210, { path: [1], gap: 0 }, -30, { a: 210, b: 60, c: 60 }, 210);
+    expect(result.heightPx).toBe(210);
+    expectRects(result.rects, { a: [0, 210], b: [0, 70], c: [80, 130] });
+  });
+
   it('stops the bottom edge at the floor and still grows past it', () => {
     expect(push(stack, 310, 'bottom', -50, {}, 290).heightPx).toBe(290);
     expect(push(stack, 310, 'bottom', 50, {}, 290).heightPx).toBe(360);
@@ -88,7 +95,7 @@ describe('pushedLayout', () => {
 
   it('rounds to whole pixels and leaves the tree alone for no movement', () => {
     const before = computeTileLayout(stack, { width: WIDTH, height: 310 }, options());
-    expect(pushedLayout(stack, before, { width: WIDTH, height: 310 }, 'bottom', 0.3, options())).toEqual({ root: stack, heightPx: 310 });
+    expect(pushedLayout(stack, before, 310, 'bottom', 0.3, options())).toEqual({ root: stack, heightPx: 310 });
     expect(push(t('only'), 200, 'bottom', 25.6).heightPx).toBe(226);
   });
 });

@@ -58,7 +58,7 @@ export function ResizeLayer(props: {
     if (!valid()) return cancel();
     const { target, root, layout, heightPx } = pushStart!;
     const px = snap.kind === 'by' ? Math.sign(snap.steps) * PUSH_KEY_STEP_PX : delta;
-    const pushed = pushedLayout(root, layout, { width: props.size.width, height: heightPx }, target, px, props.optionsFor(root), props.pushFloorPx);
+    const pushed = pushedLayout(root, layout, heightPx, target, px, props.optionsFor(root), props.pushFloorPx);
     // Shrinking the box mid-drag would let the page clamp its scroll and pull the divider under the pointer: hold the tallest.
     pushStart!.holdPx = Math.max(pushStart!.holdPx, pushed.heightPx);
     props.setDraft({ ...pushed, holdPx: pushStart!.holdPx });
