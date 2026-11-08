@@ -8,8 +8,8 @@ import { resizeSplit } from './tileEdits';
 import { nodeAt, type TileNode, type TileSplit } from './tileTree';
 
 /**
- * A trading drag's new shares for one split, or a pushing drag's whole tree and height. `holdPx` is the height the
- * pushing drag started at: the box keeps it until release, so a shrinking page never scrolls under the pointer.
+ * A trading drag's new shares for one split, or a pushing drag's whole tree and height. `holdPx` is the tallest the
+ * pushing drag has made the workspace: the box keeps it until release, so a shrinking page never scrolls under the pointer.
  */
 export type ResizeDraft = { split: TileSplit; sizes: number[] } | (PushedLayout & { holdPx: number }) | null;
 const BOTTOM_KEY = 'bottom';
@@ -34,7 +34,7 @@ export function ResizeLayer(props: {
 }) {
   let start: LayoutHandle | undefined;
   /** A pushing drag's target and the geometry it started from. */
-  let pushStart: { target: PushTarget; root: TileNode; layout: TileLayout; heightPx: number } | undefined;
+  let pushStart: { target: PushTarget; root: TileNode; layout: TileLayout; heightPx: number; holdPx: number } | undefined;
   let guides: ResizeGuide[] = [];
   const [readout, setReadout] = createSignal<{ key: string; side: ReadoutSide; alignedWith?: string } | null>(null);
 
@@ -43,20 +43,25 @@ export function ResizeLayer(props: {
   const commit = () => {
     const pending = props.draft;
     if (valid() && pending) {
-      if ('heightPx' in pending) props.onChange(pending.root, pending.heightPx);
+      if ('heightPx' in pending) {
+        if (pending.root !== pushStart!.root || pending.heightPx !== pushStart!.heightPx) props.onChange(pending.root, pending.heightPx);
+      }
       else props.onChange(resizeSplit(props.root!, start!.path, pending.sizes));
     }
     cancel();
   };
   const beginPush = (target: PushTarget) => {
     cancel();
-    if (props.root && props.pushHeightPx !== undefined) pushStart = { target, root: props.root, layout: props.layout, heightPx: props.pushHeightPx };
+    if (props.root && props.pushHeightPx !== undefined) pushStart = { target, root: props.root, layout: props.layout, heightPx: props.pushHeightPx, holdPx: props.pushHeightPx };
   };
   const draftPush = (delta: number, snap: ResizeSnap) => {
     if (!valid()) return cancel();
     const { target, root, layout, heightPx } = pushStart!;
     const px = snap.kind === 'by' ? Math.sign(snap.steps) * PUSH_KEY_STEP_PX : delta;
-    props.setDraft(px ? { ...pushedLayout(root, layout, { width: props.size.width, height: heightPx }, target, px, props.optionsFor(root), props.pushFloorPx), holdPx: heightPx } : null);
+    const pushed = pushedLayout(root, layout, { width: props.size.width, height: heightPx }, target, px, props.optionsFor(root), props.pushFloorPx);
+    // Shrinking the box mid-drag would let the page clamp its scroll and pull the divider under the pointer: hold the tallest.
+    pushStart!.holdPx = Math.max(pushStart!.holdPx, pushed.heightPx);
+    props.setDraft({ ...pushed, holdPx: pushStart!.holdPx });
   };
   onMount(() => {
     // Shift moves the readout to the divider's other side.

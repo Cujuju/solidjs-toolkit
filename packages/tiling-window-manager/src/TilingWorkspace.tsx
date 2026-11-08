@@ -5,6 +5,7 @@ import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type Layout
 import { PlacementLayer, type Placing } from './PlacementLayer';
 import { planMove, type PlacementMode } from './plan';
 import { ResizeLayer, type ResizeDraft } from './ResizeLayer';
+import { scrollerOf } from './scroller';
 import type { AlignLayout } from './resizeGuides';
 import {
   canCollapse, canCollapseAlone, canExpandAlone, collapseSlotAlone, expandSlotAlone, setSlotCollapsed, type CollapsePermission,
@@ -80,6 +81,16 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   let container: HTMLDivElement | undefined;
   const [size, setSize] = createSignal<TileSize>({ width: 0, height: 0 });
   const [draft, setDraft] = createSignal<ResizeDraft>(null);
+  /**
+   * After a pushing drag shrank the workspace, its box keeps the drag's tallest height and gives it up only as the
+   * scroller scrolls above it: shrinking at once would clamp the scroll and jump everything under the pointer.
+   */
+  const [trail, setTrail] = createSignal<number | undefined>(undefined);
+  const endDraft = (next: ResizeDraft) => {
+    const previous = draft();
+    if (!next && previous && 'holdPx' in previous) setTrail(Math.max(trail() ?? 0, previous.holdPx));
+    setDraft(next);
+  };
   const [centerDrop, setCenterDrop] = createSignal<CenterDrop | null>(null);
   if (props.verticalResize === 'push' && props.collapse) throw new Error('TilingWorkspace: verticalResize="push" does not support collapse');
   const pushes = () => props.verticalResize === 'push';
@@ -112,7 +123,22 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   const fixedHeight = () => pushDraft()?.heightPx ?? (props.heightPx === undefined ? undefined : Math.max(props.heightPx, minHeight(), props.minHeightPx ?? 0));
   const layoutSize = () => ({ width: size().width, height: (pushes() ? fixedHeight() : undefined) ?? size().height });
   /** The box: the layout's height, but never under a pushing drag's starting height until it is released. */
-  const boxHeight = () => { const d = pushDraft(); const h = fixedHeight(); return d && h !== undefined ? Math.max(h, d.holdPx) : h; };
+  const boxHeight = () => {
+    const h = fixedHeight();
+    return h === undefined ? h : Math.max(h, pushDraft()?.holdPx ?? 0, trail() ?? 0);
+  };
+  const trailing = createMemo(() => trail() !== undefined);
+  createEffect(() => {
+    if (!trailing() || !container) return;
+    const scroller = scrollerOf(container);
+    const release = () => {
+      const visible = scroller.bounds().bottom - container!.getBoundingClientRect().top;
+      const next = Math.min(trail() ?? 0, visible);
+      setTrail(next > (fixedHeight() ?? 0) ? next : undefined);
+    };
+    window.addEventListener('scroll', release, true);
+    onCleanup(() => window.removeEventListener('scroll', release, true));
+  });
   const layout = createMemo(() => computeTileLayout(pushDraft()?.root ?? props.layout, layoutSize(), { ...baseOptions(), draft: shareDraft() }));
   const targets = createMemo(() => slotRects(layout()));
   const change = (next: TileNode | undefined, heightPx?: number) => {
@@ -209,7 +235,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
           );
         }}
       </For>
-      <ResizeLayer root={props.layout} layout={layout()} size={layoutSize()} draft={draft()} setDraft={setDraft} onChange={change}
+      <ResizeLayer root={props.layout} layout={layout()} size={layoutSize()} draft={draft()} setDraft={endDraft} onChange={change}
         pushHeightPx={pushes() && props.layout ? layoutSize().height : undefined} pushFloorPx={props.minHeightPx}
         optionsFor={(root) => optionsFor(tileIds(root))} readout={!!props.readout}
         color={typeof props.readout === 'object' ? props.readout.color : undefined} alignWith={props.alignWith} />

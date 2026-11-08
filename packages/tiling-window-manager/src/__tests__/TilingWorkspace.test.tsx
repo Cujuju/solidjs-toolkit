@@ -70,6 +70,26 @@ describe('TilingWorkspace', () => {
     expect(next.sizes).toEqual([145, 145 + PUSH_KEY_STEP_PX]);
   });
 
+  it('keeps a pushed workspace box after a shrink until it scrolls out of view, so nothing jumps', () => {
+    const stack: TileNode = { kind: 'split', dir: 'column', sizes: [1, 1], children: [t('a'), t('b')] };
+    const [heightPx, setHeightPx] = createSignal(HEIGHT);
+    const { container, getByLabelText } = render(() => (
+      <TilingWorkspace layout={stack} onLayoutChange={(_next, h) => h !== undefined && setHeightPx(h)} gapPx={GAP}
+        verticalResize="push" heightPx={heightPx()}>
+        {(tile) => <div>{tile.id}</div>}
+      </TilingWorkspace>
+    ));
+    const workspace = container.firstElementChild as HTMLElement;
+    fireEvent.keyDown(getByLabelText('Resize the bottom tiles'), { key: 'ArrowUp' });
+    expect(heightPx()).toBe(HEIGHT - PUSH_KEY_STEP_PX);
+    expect(workspace.style.height).toBe(`${HEIGHT}px`);
+    // Scrolled so the window ends above the new bottom: the held space is out of view and goes.
+    const scrolledTop = window.innerHeight - HEIGHT / 2;
+    workspace.getBoundingClientRect = () => ({ top: scrolledTop, left: 0, right: WIDTH, bottom: scrolledTop + HEIGHT, width: WIDTH, height: HEIGHT, x: 0, y: scrolledTop, toJSON: () => ({}) });
+    window.dispatchEvent(new Event('scroll'));
+    expect(workspace.style.height).toBe(`${HEIGHT - PUSH_KEY_STEP_PX}px`);
+  });
+
   it('removes a tile', () => {
     const { getByText, layout } = setup(pair);
     fireEvent.click(getByText('Remove a'));

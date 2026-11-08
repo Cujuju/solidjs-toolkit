@@ -1,4 +1,5 @@
 import { onCleanup } from 'solid-js';
+import { scrollerOf } from './scroller';
 import { RESIZE_KEY_STEPS, type LayoutRect, type ResizeSnap } from './layout';
 import type { SplitDir } from './tileTree';
 
@@ -15,18 +16,6 @@ const AUTO_SCROLL_MAX_FRAME_MS = 50;
 const MS_PER_S = 1000;
 /** A press already near the edge scrolls only once the pointer moves this much further toward it, so a click never scrolls. */
 const AUTO_SCROLL_DEAD_PX = 8;
-const SCROLLING = new Set(['auto', 'scroll']);
-
-/** The nearest ancestor that scrolls vertically, and its visible top and bottom. */
-function scrollerOf(el: HTMLElement): { el: Element; bounds: () => { top: number; bottom: number } } {
-  for (let node = el.parentElement; node; node = node.parentElement) {
-    if (SCROLLING.has(getComputedStyle(node).overflowY)) {
-      const found = node;
-      return { el: found, bounds: () => found.getBoundingClientRect() };
-    }
-  }
-  return { el: document.scrollingElement ?? document.documentElement, bounds: () => ({ top: 0, bottom: window.innerHeight }) };
-}
 
 /**
  * Pixels per second for a pointer at `y` that was pressed at `origin`: negative near the top, positive near or past the bottom.
