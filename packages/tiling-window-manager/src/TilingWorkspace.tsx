@@ -41,7 +41,10 @@ export interface TilingWorkspaceProps {
    * Not with `collapse`.
    */
   verticalResize?: 'share' | 'push';
-  /** Push mode: the workspace's height, as last passed to `onLayoutChange`. Unset, it fills the height its owner gives it. */
+  /**
+   * Push mode: the workspace's height, as last passed to `onLayoutChange`. Unset, it fills the height its owner gives it.
+   * Once set, or while a drag sets it, the workspace sizes itself: inline `height` and `flex: none` beat the owner's layout.
+   */
   heightPx?: number;
   /** Tab groups: a centre drop asks Swap or Tab; a drop on a tab target (`data-twm-tab-target`, or the `target` selector) joins as a tab. */
   tabs?: boolean | { target?: string };
@@ -106,6 +109,8 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   /** Push mode's set height: a live drag's, else the owner's (never under the minimums), else the measured one. */
   const fixedHeight = () => pushDraft()?.heightPx ?? (props.heightPx === undefined ? undefined : Math.max(props.heightPx, minHeight()));
   const layoutSize = () => ({ width: size().width, height: (pushes() ? fixedHeight() : undefined) ?? size().height });
+  /** The box: the layout's height, but never under a pushing drag's starting height until it is released. */
+  const boxHeight = () => { const d = pushDraft(); const h = fixedHeight(); return d && h !== undefined ? Math.max(h, d.holdPx) : h; };
   const layout = createMemo(() => computeTileLayout(pushDraft()?.root ?? props.layout, layoutSize(), { ...baseOptions(), draft: shareDraft() }));
   const targets = createMemo(() => slotRects(layout()));
   const change = (next: TileNode | undefined, heightPx?: number) => {
@@ -172,7 +177,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
       style={{
         ...props.style,
         ...(minHeight() ? { 'min-height': `${minHeight()}px` } : {}),
-        ...(pushes() && fixedHeight() !== undefined ? { height: `${fixedHeight()}px` } : {}),
+        ...(pushes() && boxHeight() !== undefined ? { height: `${boxHeight()}px`, flex: 'none' } : {}),
       }}
       data-grow={props.growHeight || undefined}
       data-dragging={dockGesture.dragging() !== null || undefined}

@@ -7,8 +7,11 @@ import { handleCentre, nearestGuide, resizeGuides, type AlignLayout, type Resize
 import { resizeSplit } from './tileEdits';
 import { nodeAt, type TileNode, type TileSplit } from './tileTree';
 
-/** A trading drag's new shares for one split, or a pushing drag's whole tree and height. */
-export type ResizeDraft = { split: TileSplit; sizes: number[] } | PushedLayout | null;
+/**
+ * A trading drag's new shares for one split, or a pushing drag's whole tree and height. `holdPx` is the height the
+ * pushing drag started at: the box keeps it until release, so a shrinking page never scrolls under the pointer.
+ */
+export type ResizeDraft = { split: TileSplit; sizes: number[] } | (PushedLayout & { holdPx: number }) | null;
 const BOTTOM_KEY = 'bottom';
 
 /** The dividers of a workspace, with the optional drag readout and guides to other layouts' dividers. */
@@ -51,7 +54,7 @@ export function ResizeLayer(props: {
     if (!valid()) return cancel();
     const { target, root, layout, heightPx } = pushStart!;
     const px = snap.kind === 'by' ? Math.sign(snap.steps) * PUSH_KEY_STEP_PX : delta;
-    props.setDraft(px ? pushedLayout(root, layout, heightPx, target, px, props.optionsFor(root)) : null);
+    props.setDraft(px ? { ...pushedLayout(root, layout, heightPx, target, px, props.optionsFor(root)), holdPx: heightPx } : null);
   };
   onMount(() => {
     // Shift moves the readout to the divider's other side.
