@@ -49,6 +49,8 @@
     --notice-tone-wash: 16%;
     /* Each older card dims by this much. */
     --notice-age-fade: 0.15;
+    /* Opacity floor for the oldest cards, so a long tray stays readable. */
+    --notice-age-min-opacity: 0.4;
     --notice-console-line: 22px;
     --notice-console-tag: 7ch;
     --notice-drip-dot: 6px;
@@ -188,7 +190,7 @@ body:has(.cuj-notices:not([data-inline])) {
   background: var(--notice-surface);
   border: 1px solid var(--notice-border);
   box-shadow: var(--notice-shadow);
-  opacity: calc(1 - var(--_age, 0) * var(--notice-age-fade));
+  opacity: max(var(--notice-age-min-opacity), calc(1 - var(--_age, 0) * var(--notice-age-fade)));
   animation: cuj-notices-in 180ms ease-out both;
 }
 

@@ -1,4 +1,4 @@
-import { deliversTo, MAX_KEPT_NOTICES, noticeDuration, type Notice, type NoticeDeliveryResult, type NoticeRef, type NoticeView } from '../types';
+import { deliversTo, noticeDuration, type Notice, type NoticeDeliveryResult, type NoticeRef, type NoticeView } from '../types';
 import type { NoticeHostEvents } from '../overlay';
 interface Entry {
   notice: Notice; delivered: boolean; deadline?: number;
@@ -29,7 +29,7 @@ export function createNoticeLedger(o: LedgerOptions) {
         if (!e.delivered) pending.push(...e.resolvers);
         e.resolvers = []; drop(id);
       }
-      if (entries.size >= MAX_KEPT_NOTICES) {
+      if (entries.size >= o.view().config.maxKept) {
         const oldest = [...entries.values()].find((e) => !e.notice.pinned) ?? entries.values().next().value!;
         withdraw({ id: oldest.notice.id });
       }

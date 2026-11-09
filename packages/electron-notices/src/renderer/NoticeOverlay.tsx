@@ -42,6 +42,7 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
       bridge.closed(id);
       if (latest()?.id === id) setLatest(null);
     },
+    () => view().config.maxKept,
   );
   onCleanup(() => queue.dispose());
   // Ack only what is on the page: a host may push before mount or inside batch(), and a throwing renderer leaves no element.

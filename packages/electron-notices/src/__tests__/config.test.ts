@@ -13,6 +13,9 @@ it('normalizes placement, tray count and duration', () => {
   expect(normalizeNoticeConfig({ position: 'bad', trayVisible: Infinity, durationMs: -1 })).toEqual(DEFAULT_NOTICE_CONFIG);
   expect(normalizeNoticeConfig({ trayVisible: -1 }).trayVisible).toBe(1);
   expect(normalizeNoticeConfig({ trayVisible: 99 }).trayVisible).toBe(8);
+  expect(normalizeNoticeConfig({ maxKept: 20, trayVisible: 99 })).toMatchObject({ maxKept: 20, trayVisible: 20 });
+  expect(normalizeNoticeConfig({ maxKept: 999 }).maxKept).toBe(50);
+  expect(normalizeNoticeConfig({ maxKept: 2 })).toMatchObject({ maxKept: 2, trayVisible: 2 });
 });
 it('resolves durations by notice, tone, then config; invalid values stay sticky', () => {
   const v = { config: DEFAULT_NOTICE_CONFIG, appearance: { vars: {} }, tones: BASIC_TONES };

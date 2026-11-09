@@ -18,7 +18,7 @@ The host owns meaning; the package owns presentation and lifecycle.
 - **Host events**: `onOpen`, `onAction`, and `onClose(notice)`, called once whenever a notice leaves the ledger, for per-notice host state.
 - **Delivery**: `show()` resolves `{ delivered: true }` once the renderer has the notice on the page, and `{ delivered: false }` after `ackTimeoutMs` (default `NOTICE_ACK_TIMEOUT_MS`), on renderer crash, on destroy, or when delivery excludes the overlay. A timed-out notice is withdrawn so the host's fallback cannot double-show.
 - **Recovery**: after an overlay renderer crash, the next `show()` recreates the window and replays live notices with their remaining time. Residual: time paused under the mouse is not mirrored to main, so a replayed notice can expire early.
-- **Placement**: `config.position` is `auto` or one of six placements; `auto` picks the corner nearest the taskbar (inline: bottom right). Top drip is always top centre. `config.trayVisible` cards show at once; older ones fold into a counter. At most `MAX_KEPT_NOTICES` (8) are kept; the oldest unpinned is evicted first.
+- **Placement**: `config.position` is `auto` or one of six placements; `auto` picks the corner nearest the taskbar (inline: bottom right). Top drip is always top centre. `config.trayVisible` cards show at once; older ones fold into a counter. At most `config.maxKept` (default `MAX_KEPT_NOTICES`, 8; up to `MAX_KEPT_LIMIT`, 50) are kept; the oldest unpinned is evicted first. `trayVisible` never exceeds it.
 
 ## Overlay window
 

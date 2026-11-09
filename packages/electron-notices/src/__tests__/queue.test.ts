@@ -12,6 +12,19 @@ describe('createNoticeQueue', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  it('keeps at most maxKept, read on each push', () => createRoot((dispose) => {
+    let max = 2;
+    const q = createNoticeQueue(() => 0, undefined, () => max);
+    const [a, b, c] = [notice(), notice(), notice()];
+    q.push(a); q.push(b); q.push(c);
+    expect(ids(q)).toEqual([b.id, c.id]);
+    max = 3;
+    const d = notice();
+    q.push(d);
+    expect(ids(q)).toEqual([b.id, c.id, d.id]);
+    dispose();
+  }));
+
   it('expires notices but keeps errors until dismissed', () => createRoot((dispose) => {
     const q = createNoticeQueue((n) => n.tone === 'error' ? 0 : VISIBLE_MS);
     const info = notice('info');

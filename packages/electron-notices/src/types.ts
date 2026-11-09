@@ -8,20 +8,27 @@ export const NOTICE_POSITIONS = ['auto', ...NOTICE_PLACEMENTS] as const;
 export type NoticePosition = (typeof NOTICE_POSITIONS)[number];
 export const MIN_CONSOLE_LINES = 2;
 export const MAX_CONSOLE_LINES = 8;
+/** Default `config.maxKept`. */
 export const MAX_KEPT_NOTICES = MAX_CONSOLE_LINES;
+/** Upper bound on `config.maxKept`: past this a tray is a log, not notices. */
+export const MAX_KEPT_LIMIT = 50;
 export const MIN_TRAY_VISIBLE = 1;
 /** Windows' default toast time (5 s) plus a second for the slide-in. */
 export const NOTICE_VISIBLE_MS = 6000;
 export interface NoticeConfig {
   delivery: NoticeDelivery; style: NoticeStyle; dripLip: boolean; consoleLines: number;
   position: NoticePosition; trayVisible: number; durationMs: number;
+  /** Notices kept at once; past it the oldest unpinned is evicted. */
+  maxKept: number;
 }
 export const DEFAULT_NOTICE_CONFIG: NoticeConfig = {
   delivery: 'overlay', style: 'tray', dripLip: false, consoleLines: 3,
-  position: 'auto', trayVisible: 3, durationMs: NOTICE_VISIBLE_MS,
+  position: 'auto', trayVisible: 3, durationMs: NOTICE_VISIBLE_MS, maxKept: MAX_KEPT_NOTICES,
 };
 export function normalizeNoticeConfig(raw: unknown, fallback = DEFAULT_NOTICE_CONFIG): NoticeConfig {
   const r = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  const maxKept = typeof r.maxKept === 'number' && Number.isFinite(r.maxKept)
+    ? Math.max(MIN_TRAY_VISIBLE, Math.min(MAX_KEPT_LIMIT, Math.round(r.maxKept))) : fallback.maxKept;
   return {
     delivery: NOTICE_DELIVERIES.includes(r.delivery as NoticeDelivery) ? r.delivery as NoticeDelivery : fallback.delivery,
     style: NOTICE_STYLES.includes(r.style as NoticeStyle) ? r.style as NoticeStyle : fallback.style,
@@ -30,8 +37,9 @@ export function normalizeNoticeConfig(raw: unknown, fallback = DEFAULT_NOTICE_CO
       ? Math.max(MIN_CONSOLE_LINES, Math.min(MAX_CONSOLE_LINES, Math.round(r.consoleLines))) : fallback.consoleLines,
     position: NOTICE_POSITIONS.includes(r.position as NoticePosition) ? r.position as NoticePosition : fallback.position,
     trayVisible: typeof r.trayVisible === 'number' && Number.isFinite(r.trayVisible)
-      ? Math.max(MIN_TRAY_VISIBLE, Math.min(MAX_KEPT_NOTICES, Math.round(r.trayVisible))) : fallback.trayVisible,
+      ? Math.max(MIN_TRAY_VISIBLE, Math.min(maxKept, Math.round(r.trayVisible))) : Math.min(maxKept, fallback.trayVisible),
     durationMs: typeof r.durationMs === 'number' && Number.isFinite(r.durationMs) && r.durationMs >= 0 ? r.durationMs : fallback.durationMs,
+    maxKept,
   };
 }
 export interface NoticeToneDef { color: string; durationMs?: number; tag?: string; icon?: string }

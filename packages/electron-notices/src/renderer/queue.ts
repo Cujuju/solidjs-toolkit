@@ -18,7 +18,10 @@ export interface NoticeQueue {
 }
 
 /** Notices on screen, oldest first. */
-export function createNoticeQueue(durationOf: (n: Notice) => number, onClosed?: (id: number) => void): NoticeQueue {
+/** `maxKept`: read on each push; past it the oldest unpinned notice is dismissed. */
+export function createNoticeQueue(
+  durationOf: (n: Notice) => number, onClosed?: (id: number) => void, maxKept: () => number = () => MAX_KEPT_NOTICES,
+): NoticeQueue {
   const [items, setItems] = createSignal<Notice[]>([]);
   const clocks = new Map<number, Clock>();
   let paused = false;
@@ -44,7 +47,7 @@ export function createNoticeQueue(durationOf: (n: Notice) => number, onClosed?: 
       const old = n.key === undefined ? undefined : items().find((x) => x.key === n.key);
       if (old) dismiss(old.id);
       const xs = items();
-      if (xs.length >= MAX_KEPT_NOTICES) dismiss((xs.find((x) => !x.pinned) ?? xs[0]).id);
+      if (xs.length >= maxKept()) dismiss((xs.find((x) => !x.pinned) ?? xs[0]).id);
       setItems((kept) => [...kept, n]);
       const ms = n.remainingMs ?? durationOf(n);
       if (!n.pinned && ms !== 0) run(n.id, ms);

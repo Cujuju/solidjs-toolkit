@@ -53,3 +53,15 @@ it.each(['closed', 'withdraw', 'timeout', 'eviction', 'replace', 'gone', 'destro
   expect(onClose.mock.calls.filter(([n]) => n.id === 1)).toEqual([[first]]);
   await result;
 });
+
+it('evicts the oldest unpinned notice at config.maxKept', () => {
+  const withdraw = vi.fn();
+  const ledger = createNoticeLedger({
+    view: () => ({ config: { ...DEFAULT_NOTICE_CONFIG, maxKept: 2 }, appearance: { vars: {} }, tones: BASIC_TONES }),
+    ackTimeoutMs: 1000, send: vi.fn(), withdraw,
+  });
+  const notice = (id: number) => ({ id, at: 0, pinned: id === 1, title: 't', tone: 'info' });
+  for (const id of [1, 2, 3]) void ledger.show(notice(id));
+  expect(withdraw).toHaveBeenCalledExactlyOnceWith({ id: 2 });
+  ledger.destroy();
+});
