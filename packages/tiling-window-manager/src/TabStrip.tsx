@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onCleanup, Show, untrack, type JSX } from 'solid-js';
+import { createEffect, createSignal, For, on, onCleanup, Show, untrack, type JSX } from 'solid-js';
 import { DOCK_THRESHOLD_PX } from './createDockGesture';
 import { planTabFold, tabShowsName, type TabFold, type TabWidths } from './tabStripFold';
 import type { TileContext } from './tileContext';
@@ -68,6 +68,14 @@ export function TabStrip(props: TabStripProps) {
     window.addEventListener('pointerdown', close, true);
     onCleanup(() => window.removeEventListener('pointerdown', close, true));
   });
+  // The group that saw the menu open hears it close, even after this tile leaves the group.
+  let reportMenu: ((open: boolean) => void) | undefined;
+  createEffect(on(menu, (open) => {
+    if (open) reportMenu = group()?.menuChanged;
+    reportMenu?.(open);
+    if (!open) reportMenu = undefined;
+  }, { defer: true }));
+  onCleanup(() => reportMenu?.(false));
 
   const select = (index: number) => {
     const g = group();

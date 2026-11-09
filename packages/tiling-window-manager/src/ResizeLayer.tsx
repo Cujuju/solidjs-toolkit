@@ -31,6 +31,8 @@ export function ResizeLayer(props: {
   readout?: boolean;
   color?: (id: string) => string;
   alignWith?: readonly AlignLayout[];
+  /** A pointer drag of a divider began (true) or ended (false); keyboard steps report nothing. */
+  onPointerDrag?: (active: boolean) => void;
 }) {
   let start: LayoutHandle | undefined;
   /** A pushing drag's target and the geometry it started from. */
@@ -38,7 +40,9 @@ export function ResizeLayer(props: {
   let guides: ResizeGuide[] = [];
   const [readout, setReadout] = createSignal<{ key: string; side: ReadoutSide; alignedWith?: string } | null>(null);
 
-  const cancel = () => { start = undefined; pushStart = undefined; guides = []; props.setDraft(null); setReadout(null); };
+  let dragging = false;
+  const setDragging = (active: boolean) => { if (active !== dragging) { dragging = active; props.onPointerDrag?.(active); } };
+  const cancel = () => { start = undefined; pushStart = undefined; guides = []; props.setDraft(null); setReadout(null); setDragging(false); };
   const valid = () => (pushStart ? props.root === pushStart.root : !!start && !!props.root && nodeAt(props.root, start.path) === start.split);
   const commit = () => {
     const pending = props.draft;
@@ -92,7 +96,7 @@ export function ResizeLayer(props: {
               {(current) => (
                 <Show when={!pushes()} fallback={
                   <ResizeHandle dir="column" rect={current().rect} autoScroll
-                    onBegin={() => beginPush({ path: current().path, gap: current().gap })}
+                    onBegin={(pointer) => { beginPush({ path: current().path, gap: current().gap }); setDragging(pointer); }}
                     onDraft={draftPush} onCommit={commit} onCancel={cancel}
                     onEqualise={() => props.root && props.onChange(resizeSplit(props.root, current().path, equalisedShares(current())))} />
                 }>
@@ -103,6 +107,7 @@ export function ResizeLayer(props: {
                     cancel();
                     start = current();
                     if (!pointer) return;
+                    setDragging(true);
                     if (props.readout) {
                       // The side is fixed here so the readout does not jump when the two panes cross in size.
                       const axis = start.split.dir === 'row' ? 'width' : 'height';
@@ -133,7 +138,7 @@ export function ResizeLayer(props: {
       <Show when={props.pushHeightPx !== undefined && props.root}>
         <ResizeHandle dir="column" autoScroll label="Resize the bottom tiles"
           rect={{ x: 0, y: props.pushHeightPx!, width: props.size.width, height: props.optionsFor(props.root!).gapPx }}
-          onBegin={() => beginPush(BOTTOM_KEY)} onDraft={draftPush} onCommit={commit} onCancel={cancel} onEqualise={() => undefined} />
+          onBegin={(pointer) => { beginPush(BOTTOM_KEY); setDragging(pointer); }} onDraft={draftPush} onCommit={commit} onCancel={cancel} onEqualise={() => undefined} />
       </Show>
       <Show when={readoutView()}>
         {(view) => <ResizeReadout handle={view().handle} shares={view().shares} side={view().side} alignedWith={view().alignedWith} color={props.color} />}

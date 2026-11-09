@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show, untrack, type JSX } from 'solid-js';
 import { createDockGesture, DEFAULT_TAB_TARGET, type CenterDrop, type DragPhase } from './createDockGesture';
 import { DockMenu } from './DockMenu';
 import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout';
@@ -66,6 +66,11 @@ export interface TilingWorkspaceProps {
   onDropOutside?: (id: string, event: PointerEvent) => void;
   /** A drag began, left or re-entered the window, or ended; `end` comes before `onDropOutside`. */
   onDragPhase?: (phase: DragPhase) => void;
+  /**
+   * Workspace UI over the tiles opened (true) or closed (false): a tile or divider drag, the placement layer, the Swap/Tab
+   * menu or a tab strip's More menu. Lets a host hide native views drawn over tiles meanwhile.
+   */
+  onOverlayChange?: (open: boolean) => void;
   /** Shown while the layout has no tiles. */
   empty?: JSX.Element;
   class?: string;
@@ -148,6 +153,15 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     get onDragPhase() { return props.onDragPhase; },
   });
 
+  const [resizing, setResizing] = createSignal(false);
+  /** Tiles whose tab strip has its More menu open. */
+  const [tabMenus, setTabMenus] = createSignal<ReadonlySet<string>>(new Set());
+  const overlayOpen = createMemo(() =>
+    dockGesture.dragging() !== null || resizing() || centerDrop() !== null || tabMenus().size > 0 || !!(props.layout && props.placing));
+  // Opening at mount (a placement layer) reports too; a closed start does not.
+  createEffect(on(overlayOpen, (open, before) => { if (before !== undefined || open) props.onOverlayChange?.(open); }));
+  onCleanup(() => { if (untrack(overlayOpen)) props.onOverlayChange?.(false); });
+
   const place = (id: string, next: TileNode) => (props.onPlace ? props.onPlace(id, next) : change(next));
   // An empty workspace has one place for the tile, so it skips the placement layer.
   createEffect(() => {
@@ -164,6 +178,11 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
       select: (index) => props.layout && change(setActiveTab(props.layout, id, index)),
       move: (tabId, toIndex) => props.layout && change(moveTab(props.layout, tabId, toIndex)),
       drag: (tabId, event) => dockGesture.begin(tabId, event),
+      menuChanged: (open) => setTabMenus((before) => {
+        const next = new Set(before);
+        if (open) next.add(id); else next.delete(id);
+        return next;
+      }),
     };
   };
 
@@ -221,7 +240,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
       </For>
       <ResizeLayer root={props.layout} layout={layout()} size={layoutSize()} draft={draft()} setDraft={endDraft} onChange={change}
         pushHeightPx={pushes() && props.layout ? layoutSize().height : undefined} pushFloorPx={props.minHeightPx}
-        optionsFor={(root) => optionsFor(tileIds(root))} readout={!!props.readout}
+        optionsFor={(root) => optionsFor(tileIds(root))} readout={!!props.readout} onPointerDrag={setResizing}
         color={typeof props.readout === 'object' ? props.readout.color : undefined} alignWith={props.alignWith} />
       <Show when={dockGesture.preview()}>
         {(preview) => (

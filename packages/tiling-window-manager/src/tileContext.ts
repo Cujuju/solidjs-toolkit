@@ -28,6 +28,8 @@ export interface TabGroup {
   move: (id: string, toIndex: number) => void;
   /** Continues a pointer drag of tab `id` as a dock drag, from `event`. */
   drag: (id: string, event: MouseEvent) => void;
+  /** Reports the strip's More menu opening or closing, for the workspace's `onOverlayChange`. */
+  menuChanged?: (open: boolean) => void;
 }
 
 export interface TileContext {

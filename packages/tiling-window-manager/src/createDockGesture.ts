@@ -1,4 +1,4 @@
-import { createSignal, onCleanup } from 'solid-js';
+import { batch, createSignal, onCleanup } from 'solid-js';
 import type { LayoutRect } from './layout';
 import { tileHitAt, type TileHit } from './plan';
 import type { DropZone } from './tileTree';
@@ -103,7 +103,8 @@ export function createDockGesture(deps: {
       }
       setPreview(hitTest(movedId, next));
     };
-    const release = (next: PointerEvent) => {
+    // One batch: a centre drop's menu opens in the same update that ends the drag, so no state in between shows.
+    const release = (next: PointerEvent) => batch(() => {
       const leftWindow = dragging() !== null && !insideViewport(next);
       const target = dragging() ? hitTest(movedId, next) : null;
       finish();
@@ -115,7 +116,7 @@ export function createDockGesture(deps: {
       if (target.tab) deps.onTab?.(movedId, target.targetId);
       else if (target.zone === 'center' && deps.onCenterDrop) deps.onCenterDrop({ movedId, targetId: target.targetId, x: next.clientX, y: next.clientY });
       else deps.onDrop(movedId, target.targetId, target.zone);
-    };
+    });
     const keydown = (next: KeyboardEvent) => {
       if (next.key !== 'Escape') return;
       next.preventDefault();
