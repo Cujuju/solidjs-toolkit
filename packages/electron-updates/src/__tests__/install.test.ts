@@ -1,14 +1,33 @@
 import { existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { appBundleOf, installTarget, seedsFor, stage, swapScript, WINDOWS_SEED_NAME } from '../install';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { apply, appBundleOf, installTarget, seedsFor, stage, swapScript, WINDOWS_SEED_NAME, type StagedUpdate } from '../install';
+
+/** Per spawn, in order: started, failed with an errno code (emitted next tick, as Node does), or thrown. */
+type Outcome = 'started' | { emits: string } | { throws: string };
+const spawns = vi.hoisted(() => ({ calls: [] as { file: string; args: string[] }[], outcomes: [] as Outcome[] }));
+vi.mock('node:child_process', async () => {
+  const { EventEmitter } = await import('node:events');
+  const errno = (code: string) => Object.assign(new Error(`spawn ${code}`), { code });
+  return {
+    spawn: (file: string, args: string[]) => {
+      spawns.calls.push({ file, args });
+      const outcome = spawns.outcomes.shift() ?? 'started';
+      if (outcome !== 'started' && 'throws' in outcome) throw errno(outcome.throws);
+      const child = Object.assign(new EventEmitter(), { unref: () => undefined });
+      if (outcome !== 'started') process.nextTick(() => child.emit('error', errno(outcome.emits)));
+      return child;
+    },
+  };
+});
 
 const host = { exe: '/x', env: {}, appName: 'App' };
 
 describe('installTarget', () => {
   it('Windows runs the installer', () => {
-    expect(installTarget({ ...host, platform: 'win32' })).toEqual({ kind: 'installer' });
+    const exe = path.join('install', 'App.exe');
+    expect(installTarget({ ...host, platform: 'win32', exe })).toEqual({ kind: 'installer', elevate: path.join('install', 'resources', 'elevate.exe') });
   });
 
   it('macOS swaps the app bundle it runs from', () => {
@@ -83,9 +102,58 @@ describe('swapScript', () => {
 
 describe('seedsFor', () => {
   it('uses the installer copy, running bundle or running AppImage', () => {
-    expect(seedsFor({ kind: 'installer' }, path.join('install', 'App.exe'), {})).toEqual([path.join('install', WINDOWS_SEED_NAME)]);
+    expect(seedsFor({ kind: 'installer', elevate: 'elevate.exe' }, path.join('install', 'App.exe'), {})).toEqual([path.join('install', WINDOWS_SEED_NAME)]);
     expect(seedsFor({ kind: 'swap', platform: 'darwin', path: '/Apps/App.app' }, '/x', {})).toEqual(['/Apps/App.app']);
     expect(seedsFor({ kind: 'swap', platform: 'linux', path: '/App' }, '/x', { APPIMAGE: '/running.AppImage' })).toEqual(['/running.AppImage']);
     expect(seedsFor({ kind: 'swap', platform: 'linux', path: '/App' }, '/x', {})).toEqual([]);
+  });
+});
+
+describe('apply', () => {
+  const elevate = 'C:/App/resources/elevate.exe';
+  const update: StagedUpdate = { version: '1.0.0', target: { kind: 'installer', elevate }, path: 'C:/up/App.bin' };
+  /** After every pending spawn error, including one from the elevate.exe retry. */
+  const settled = () => new Promise((resolve) => setImmediate(resolve));
+  beforeEach(() => {
+    spawns.calls.length = 0;
+    spawns.outcomes.length = 0;
+  });
+
+  it('runs a per-user installer directly', async () => {
+    const failed = vi.fn();
+    apply(update, true, 1, failed);
+    await settled();
+    expect(spawns.calls).toEqual([{ file: update.path, args: ['--updated', '/S', '--force-run'] }]);
+    expect(failed).not.toHaveBeenCalled();
+  });
+
+  it('retries a per-machine installer Windows refuses unelevated through elevate.exe', async () => {
+    spawns.outcomes.push({ emits: 'EACCES' });
+    const failed = vi.fn();
+    apply(update, false, 1, failed);
+    await settled();
+    expect(spawns.calls).toEqual([
+      { file: update.path, args: ['--updated', '/S'] },
+      { file: elevate, args: [update.path, '--updated', '/S'] },
+    ]);
+    expect(failed).not.toHaveBeenCalled();
+  });
+
+  it('reports, never throws, when a start fails', async () => {
+    const failed = vi.fn();
+    const linux: StagedUpdate = { ...update, target: { kind: 'swap', platform: 'linux', path: '/App' } };
+    const cases: [Outcome[], StagedUpdate][] = [
+      [[{ emits: 'ENOENT' }], update],
+      [[{ emits: 'EACCES' }, { emits: 'ENOENT' }], update],
+      [[{ emits: 'EACCES' }, { throws: 'UNKNOWN' }], update],
+      [[{ throws: 'UNKNOWN' }], linux],
+    ];
+    for (const [outcomes, u] of cases) {
+      spawns.outcomes.push(...outcomes);
+      expect(() => apply(u, false, 1, failed)).not.toThrow();
+      await settled();
+    }
+    expect(failed.mock.calls.map(([err]) => err.code)).toEqual(['ENOENT', 'ENOENT', 'UNKNOWN', 'UNKNOWN']);
+    expect(spawns.calls.map((c) => c.file)).toEqual([update.path, update.path, elevate, update.path, elevate, '/bin/sh']);
   });
 });

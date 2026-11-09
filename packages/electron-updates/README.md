@@ -7,7 +7,7 @@ differs by OS:
 
 | OS | Update file | Applied by |
 |---|---|---|
-| Windows | NSIS installer (`.exe`) | running it silently (`--updated /S`, plus `--force-run` to relaunch) |
+| Windows | NSIS installer (`.exe`) | running it silently (`--updated /S`, plus `--force-run` to relaunch); per-machine installs show a UAC prompt |
 | macOS | unpacked `.app` bundle | swapping the bundle after the app exits (no Squirrel.Mac, so ad-hoc signed builds update) |
 | Linux | AppImage | swapping the AppImage file (`$APPIMAGE`) after the app exits |
 
@@ -74,6 +74,23 @@ after manual installs. Every Windows app must add this to its electron-builder N
 Use `nsis` on Windows and `AppImage` on Linux. On macOS, pass electron-builder's unpacked `.app`
 (e.g. `mac-arm64/MyApp.app`), keeping `dmg` for first installs; updates need no zip. Asset names must
 have no whitespace. `WINDOWS_SEED_NAME` is exported for apps needing the seed filename.
+
+### Per-machine Windows installs
+
+A `nsis.perMachine: true` installer requires administrator rights, so Windows refuses to start it from
+the unelevated app (`EACCES`). The updater then starts it through `resources/elevate.exe`, which
+electron-builder packs into every perMachine build. elevate.exe calls `ShellExecuteEx` with verb `runas`,
+so the user sees a UAC prompt. Nothing elevates silently, and no shell command is built. `--force-run`
+still relaunches the app unelevated (the NSIS template uses `StdUtils.ExecShellAsUser`). Per-user installs
+start the installer directly, as before.
+
+If the update can't start (for example, elevate.exe is missing), status becomes `error` during quit
+instead of throwing. Log it from your `status` listener: the app is already quitting.
+
+Limit: the app can't tell when the user declines the UAC prompt (Windows error 1223). The prompt appears
+after the app has exited, and elevate.exe exits with 1 for every launch failure. The old version stays
+installed, and the next check finds the same update again. To show "update not installed", record the
+version you install at quit and compare it with `app.getVersion()` at the next launch.
 
 ## Releasing (local)
 

@@ -23,6 +23,7 @@ export type UpdateStatus =
   | { state: 'downloading'; version: string; nightly: boolean; percent: number }
   /** Verified and staged: applied at the next quit, or now by quitAndInstall(). */
   | { state: 'ready'; version: string; nightly: boolean }
+  /** Also sent during quit when the staged update can't start. */
   | { state: 'error'; message: string };
 
 /** The parts of Electron's `app` the updater uses. */
@@ -141,7 +142,7 @@ export function createUpdater(o: UpdaterOptions) {
 
   o.app.on('quit', () => {
     const run = armed ?? ((typeof o.installOnQuit === 'function' ? o.installOnQuit() : o.installOnQuit) ? { relaunch: false } : null);
-    if (staged && run) apply(staged, run.relaunch, process.pid);
+    if (staged && run) apply(staged, run.relaunch, process.pid, (err) => set({ state: 'error', message: `The update couldn't start: ${describe(err)}` }));
   });
 
   return {

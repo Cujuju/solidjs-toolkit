@@ -15,12 +15,17 @@ const TRANSLOCATED = '/AppTranslocation/';
 /** electron-builder's NSIS installer: `--updated` keeps the install folder, `--force-run` starts the app after. */
 const NSIS_SILENT = ['--updated', '/S'];
 const NSIS_RELAUNCH = '--force-run';
+/** electron-builder packs it into every Electron NSIS build (forced for perMachine): ShellExecuteEx verb `runas`. */
+const ELEVATE_EXE = join('resources', 'elevate.exe');
+/** Node's code when Windows won't start a requireAdministrator exe unelevated (a per-machine installer). */
+const ELEVATION_REQUIRED = 'EACCES';
 /** Owner rwx, others rx: an AppImage must be executable. */
 const EXECUTABLE_MODE = 0o755;
 
 /** Where the running app is installed, and how it is replaced. */
 export type InstallTarget =
-  | { kind: 'installer' }
+  /** `elevate`: electron-builder's elevate.exe, which starts the installer behind a UAC prompt. */
+  | { kind: 'installer'; elevate: string }
   | { kind: 'swap'; platform: 'darwin' | 'linux'; path: string };
 
 export interface InstallHost {
@@ -49,7 +54,7 @@ const writable = (dir: string): boolean => {
 
 /** How this install updates, or why it can't (a string to show the user). */
 export function installTarget(h: InstallHost): InstallTarget | string {
-  if (h.platform === 'win32') return { kind: 'installer' };
+  if (h.platform === 'win32') return { kind: 'installer', elevate: join(dirname(h.exe), ELEVATE_EXE) };
   if (h.platform === 'darwin') {
     const bundle = appBundleOf(h.exe);
     if (!bundle) return `${h.appName} isn't running from an app bundle.`;
@@ -111,15 +116,28 @@ export function swapScript(pid: number, target: string, staged: string, relaunch
 const relaunchCommand = (platform: 'darwin' | 'linux', path: string): string =>
   platform === 'darwin' ? `open ${quoted(path)}` : `nohup ${quoted(path)} >/dev/null 2>&1 &`;
 
-/** Starts applying `update`, detached so it outlives this process. Call while quitting. */
-export function apply(update: StagedUpdate, relaunch: boolean, pid: number): void {
+/** Starts `file` detached so it outlives this process. A failed start throws or emits 'error'; both reach `failed`. */
+function launch(file: string, args: string[], failed: (err: NodeJS.ErrnoException) => void): void {
+  try {
+    const child = spawn(file, args, { detached: true, stdio: 'ignore' });
+    child.on('error', failed);
+    child.unref();
+  } catch (err) {
+    failed(err as NodeJS.ErrnoException);
+  }
+}
+
+/**
+ * Starts applying `update`, detached so it outlives this process. Call while quitting. An installer Windows
+ * won't start unelevated is retried through elevate.exe. `failed` gets why the update couldn't start.
+ */
+export function apply(update: StagedUpdate, relaunch: boolean, pid: number, failed: (err: Error) => void): void {
   const { target } = update;
-  const child =
-    target.kind === 'installer'
-      ? spawn(update.path, relaunch ? [...NSIS_SILENT, NSIS_RELAUNCH] : NSIS_SILENT, { detached: true, stdio: 'ignore' })
-      : spawn('/bin/sh', ['-c', swapScript(pid, target.path, update.path, relaunch ? relaunchCommand(target.platform, target.path) : null)], {
-          detached: true,
-          stdio: 'ignore',
-        });
-  child.unref();
+  if (target.kind === 'installer') {
+    const args = relaunch ? [...NSIS_SILENT, NSIS_RELAUNCH] : NSIS_SILENT;
+    return launch(update.path, args, (err) =>
+      err.code === ELEVATION_REQUIRED ? launch(target.elevate, [update.path, ...args], failed) : failed(err));
+  }
+  const relaunchWith = relaunch ? relaunchCommand(target.platform, target.path) : null;
+  launch('/bin/sh', ['-c', swapScript(pid, target.path, update.path, relaunchWith)], failed);
 }
