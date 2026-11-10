@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createHoverIntent, type HoverIntentApi } from '../_internal/hoverIntent';
+import { createHoverIntent, type HoverIntentApi } from '../_internal/hoverIntent.js';
 
 /** Hover-intent state machine tests; fake timers drive hideDelayMs deterministically. */
 

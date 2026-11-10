@@ -1,7 +1,7 @@
 import { createEffect, createSignal, For, Show, type JSX } from 'solid-js';
-import type { LayoutHandle } from './layout';
-import { collapsedIndices, viewShares } from './tileCollapse';
-import { slotKey, type TileNode } from './tileTree';
+import type { LayoutHandle } from './layout.js';
+import { collapsedIndices, viewShares } from './tileCollapse.js';
+import { slotKey, type TileNode } from './tileTree.js';
 
 /** Which side of the divider the readout sits on: before (`a`) or after (`b`). */
 export type ReadoutSide = 'a' | 'b';

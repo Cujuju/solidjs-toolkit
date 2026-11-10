@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createPersistedSet } from '../createPersistedSet';
-import { installLocalStorageMock } from './testUtils';
+import { createPersistedSet } from '../createPersistedSet.js';
+import { installLocalStorageMock } from './testUtils.js';
 
 const KEY = 'createPersistedSet-test';
 

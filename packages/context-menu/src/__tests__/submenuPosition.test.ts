@@ -5,7 +5,7 @@ import {
   SCROLLABLE_SUBMENU_MAX_VH,
   POPOVER_PARENT_UNDER_OVERLAP_PX,
   type SubmenuStyleInput,
-} from '../submenuPosition';
+} from '../submenuPosition.js';
 
 const VW = 1000;
 const VH = 800;

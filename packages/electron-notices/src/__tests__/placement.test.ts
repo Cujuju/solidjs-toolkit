@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { overlayBounds, resolvePlacement, type DisplayArea } from '../placement';
+import { overlayBounds, resolvePlacement, type DisplayArea } from '../placement.js';
 
 const SCREEN = { x: 0, y: 0, width: 1920, height: 1080 };
 const TASKBAR = 48;

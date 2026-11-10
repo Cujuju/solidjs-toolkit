@@ -1,6 +1,6 @@
 import { Show, type JSX } from 'solid-js';
-import { type AccordionGroupApi } from './context';
-import { Close, Pin, PinOff } from './icons';
+import { type AccordionGroupApi } from './context.js';
+import { Close, Pin, PinOff } from './icons.js';
 
 /** Shared so the vertical header and the horizontal column bar cannot drift. */
 export function PanelPinButton(props: {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
-import { ContextMenu } from '../ContextMenu';
-import type { ContextMenuEntry } from '../types';
+import { ContextMenu } from '../ContextMenu.js';
+import type { ContextMenuEntry } from '../types.js';
 
 // jsdom has no Popover API; stub no-op showPopover/hidePopover and a `:popover-open` matcher,
 // falling back for every other selector.

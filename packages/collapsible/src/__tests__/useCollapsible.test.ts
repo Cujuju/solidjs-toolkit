@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
-import { useCollapsible } from '../useCollapsible';
+import { useCollapsible } from '../useCollapsible.js';
 
 // In-memory localStorage mock — matches pattern used in cujuju-solidjs-hooks tests.
 function installLocalStorageMock(): void {

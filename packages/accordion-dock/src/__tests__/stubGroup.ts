@@ -1,11 +1,11 @@
-import type { AccordionGroupApi, PanelBadge, PanelMeta } from '../context';
-import { ACCORDION_LAYOUT_VERSION } from '../context';
+import type { AccordionGroupApi, PanelBadge, PanelMeta } from '../context.js';
+import { ACCORDION_LAYOUT_VERSION } from '../context.js';
 import {
   orderVisualOpen,
   partitionAtRail,
   showsRailButton,
   survivesBulkClose,
-} from '../visualOrder';
+} from '../visualOrder.js';
 
 /**
  * A hand-built `AccordionGroupApi`: the modules under test are pure functions of group STATE.

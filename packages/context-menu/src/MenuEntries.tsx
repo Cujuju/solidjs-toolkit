@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createSignal, For, on, Show } from 'solid-js';
-import { SliderRow } from './SliderRow';
-import { SubmenuItem } from './SubmenuItem';
+import { SliderRow } from './SliderRow.js';
+import { SubmenuItem } from './SubmenuItem.js';
 import {
   type ContextMenuEntry,
   type ContextMenuItem,
@@ -9,8 +9,8 @@ import {
   isDivider,
   isSlider,
   isSubmenu,
-} from './types';
-export { submenuCloseDelayMs } from './submenuTiming';
+} from './types.js';
+export { submenuCloseDelayMs } from './submenuTiming.js';
 
 /** Surface shared by a menu and its submenus: `'glass'` (default) is the `GlassMenu` shell,
  *  `'solid'` a plain opaque card. Threaded through every level. */

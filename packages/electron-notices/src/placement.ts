@@ -1,4 +1,4 @@
-import type { NoticePlacement, NoticePosition, NoticeStyle } from './types';
+import type { NoticePlacement, NoticePosition, NoticeStyle } from './types.js';
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface DisplayArea { bounds: Rect; workArea: Rect }
 export function resolvePlacement(style: NoticeStyle, position: NoticePosition, display?: DisplayArea): NoticePlacement {

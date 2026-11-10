@@ -1,5 +1,5 @@
-import { deliversTo, type NoticeDelivery, type NoticeInput } from './types';
-import type { NoticeSink } from './overlay';
+import { deliversTo, type NoticeDelivery, type NoticeInput } from './types.js';
+import type { NoticeSink } from './overlay.js';
 export interface NotifierOptions { overlay: Pick<NoticeSink, 'show'>; delivery(): NoticeDelivery; system?(n: NoticeInput): void }
 export function createNotifier(o: NotifierOptions): { notify(input: NoticeInput): Promise<{ id: number; delivered: boolean }> } {
   let nextId = 1;

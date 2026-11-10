@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent, createSignal, Show, type JSX } from 'solid-js';
-import { KvTooltip } from '../KvTooltip';
-import { DEFAULT_ANCHOR_GAP_PX } from '../clamp';
+import { KvTooltip } from '../KvTooltip.js';
+import { DEFAULT_ANCHOR_GAP_PX } from '../clamp.js';
 
 /**
  * Accessibility contract: the portalled panel's `role="tooltip"` announces nothing, so a

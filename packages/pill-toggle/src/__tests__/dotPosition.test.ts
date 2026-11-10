@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { centerOffset, DOT_INSET_PX, dotTranslate } from '../_internal/dotPosition';
+import { centerOffset, DOT_INSET_PX, dotTranslate } from '../_internal/dotPosition.js';
 
 describe('DOT_INSET_PX', () => {
   it('is the 2px track gap the stylesheet mirrors as --tp-dot-inset', () => {

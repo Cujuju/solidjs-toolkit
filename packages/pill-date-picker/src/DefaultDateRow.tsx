@@ -1,5 +1,5 @@
 import { Show, type JSX } from 'solid-js';
-import type { PillDateEntry, PillDateRowContext } from './types';
+import type { PillDateEntry, PillDateRowContext } from './types.js';
 
   /** Built-in date, annotation and DTE content. Custom and default rendering share the same outer row, state attributes, click and cursor handling. */
 export const DefaultRow = <T extends PillDateEntry>(p: { ctx: PillDateRowContext<T> }): JSX.Element => (

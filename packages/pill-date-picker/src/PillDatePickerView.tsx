@@ -1,11 +1,11 @@
 import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
 import { createMemo, For, onCleanup, onMount, Show, type Accessor, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { formatDte, formatLongDate, resolveDteColor } from './_internal/dte';
-import type { PopoutPosition } from './_internal/popout';
-import { dateOf, NO_ACTIVE_INDEX, type createPillDateModel } from './createPillDateModel';
-import { DefaultRow } from './DefaultDateRow';
-import type { PillDateEntry, PillDateItemState, PillDatePickerProps, PillDateRowContext } from './types';
+import { formatDte, formatLongDate, resolveDteColor } from './_internal/dte.js';
+import type { PopoutPosition } from './_internal/popout.js';
+import { dateOf, NO_ACTIVE_INDEX, type createPillDateModel } from './createPillDateModel.js';
+import { DefaultRow } from './DefaultDateRow.js';
+import type { PillDateEntry, PillDateItemState, PillDatePickerProps, PillDateRowContext } from './types.js';
 
 interface DatePickerViewState<T extends PillDateEntry> extends ReturnType<typeof createPillDateModel<T>> {
   isOpen: Accessor<boolean>;

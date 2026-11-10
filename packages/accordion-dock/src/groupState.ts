@@ -1,12 +1,12 @@
 import { createMemo, createSignal } from 'solid-js';
-import type { AccordionGroupProps } from './AccordionGroup.types';
+import type { AccordionGroupProps } from './AccordionGroup.types.js';
 import {
   ACCORDION_LAYOUT_VERSION,
   createMapSlot,
   type ElementSlot,
   type PanelMeta,
-} from './context';
-import { readPersisted, writePersisted, type PersistedState } from './persistence';
+} from './context.js';
+import { readPersisted, writePersisted, type PersistedState } from './persistence.js';
 
 export function createGroupState(deps: { props: AccordionGroupProps }) {
   const { props } = deps;

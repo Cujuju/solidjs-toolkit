@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { MAX_CONSOLE_LINES, type Notice } from '../types';
-import { createNoticeQueue } from '../renderer/queue';
+import { MAX_CONSOLE_LINES, type Notice } from '../types.js';
+import { createNoticeQueue } from '../renderer/queue.js';
 
 const VISIBLE_MS = 1000;
 let nextId = 1;

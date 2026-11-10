@@ -1,2 +1,2 @@
 import './styles.css';
-export { PillToggle, type PillToggleProps } from './PillToggle';
+export { PillToggle, type PillToggleProps } from './PillToggle.js';

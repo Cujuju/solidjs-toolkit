@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createNotifier } from '../notifier';
-import type { NoticeInput } from '../types';
+import { createNotifier } from '../notifier.js';
+import type { NoticeInput } from '../types.js';
 const input: NoticeInput = { tone: 'error', target: 'proxy', title: 'Proxy stopped', body: 'Exit code 1', short: 'Proxy stopped' };
 describe('notify', () => {
   it.each([['overlay', 0, 1], ['system', 1, 0], ['both', 1, 1]] as const)('%s delivery', async (delivery, systemCount, overlayCount) => {

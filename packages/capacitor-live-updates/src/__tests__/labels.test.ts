@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bundleLabelRev, parseNativeVersion } from '../labels';
+import { bundleLabelRev, parseNativeVersion } from '../labels.js';
 
 describe('bundleLabelRev', () => {
   it('reads the rev a bundle is labelled with', () => {

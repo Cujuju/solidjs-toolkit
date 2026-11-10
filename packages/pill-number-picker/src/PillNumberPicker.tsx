@@ -1,11 +1,11 @@
 import { onMount, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import type { PillNumberPickerProps } from './types';
-import { createPickerSession } from './createPickerSession';
-import { createPickerInteraction } from './createPickerInteraction';
-import { createPickerElements } from './createPickerElements';
+import type { PillNumberPickerProps } from './types.js';
+import { createPickerSession } from './createPickerSession.js';
+import { createPickerInteraction } from './createPickerInteraction.js';
+import { createPickerElements } from './createPickerElements.js';
 
-export type { PnpLayout, PnpSegmentApi, PnpSegment, PillNumberPickerProps } from './types';
+export type { PnpLayout, PnpSegmentApi, PnpSegment, PillNumberPickerProps } from './types.js';
 
 export function PillNumberPicker(props: PillNumberPickerProps): JSX.Element {
   const s = createPickerSession(props);

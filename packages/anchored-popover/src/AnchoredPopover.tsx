@@ -1,5 +1,5 @@
-import type { AnchoredPopoverProps } from './types';
-export type { AnchoredPlacement, AnchoredPopoverProps } from './types';
+import type { AnchoredPopoverProps } from './types.js';
+export type { AnchoredPlacement, AnchoredPopoverProps } from './types.js';
 import {
   createAfterPaint,
   createEscapeOwner,

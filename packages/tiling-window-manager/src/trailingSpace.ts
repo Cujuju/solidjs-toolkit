@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, onCleanup } from 'solid-js';
-import { scrollerOf } from './scroller';
+import { scrollerOf } from './scroller.js';
 
 /** Layout rounds to sub-pixels; within this the content already ends where it should. */
 const SETTLE_TOLERANCE_PX = 1;

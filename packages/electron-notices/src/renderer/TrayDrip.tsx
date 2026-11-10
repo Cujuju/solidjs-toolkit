@@ -1,9 +1,9 @@
 import { createMemo, For, Show, type Component } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import type { Notice, NoticeTones } from '../types';
-import { clockTime } from './_internal/overlayDom';
-import { toneVars } from './_internal/tone';
-import { DismissButton, NoticeGlyph, PinMark, ToolButton, type NoticeIcon } from './NoticeGlyph';
+import type { Notice, NoticeTones } from '../types.js';
+import { clockTime } from './_internal/overlayDom.js';
+import { toneVars } from './_internal/tone.js';
+import { DismissButton, NoticeGlyph, PinMark, ToolButton, type NoticeIcon } from './NoticeGlyph.js';
 
 /** Draws a notice's `content` for one `content.kind`; `data` is that content's payload. */
 export type NoticeContentRenderer = Component<{ notice: Notice; data: unknown }>;

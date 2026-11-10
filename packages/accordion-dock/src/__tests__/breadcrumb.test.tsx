@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
-import { Breadcrumb } from '../Breadcrumb';
-import { createStubGroup } from './stubGroup';
+import { Breadcrumb } from '../Breadcrumb.js';
+import { createStubGroup } from './stubGroup.js';
 
 /**
  * The `…` button's keyboard contract: activating it unmounts the focused element, so

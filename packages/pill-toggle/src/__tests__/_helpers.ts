@@ -1,6 +1,6 @@
 import { render } from 'solid-js/web';
 import { createComponent } from 'solid-js';
-import { PillToggle } from '../PillToggle';
+import { PillToggle } from '../PillToggle.js';
 
 /** Shared mount helper for the pill-toggle test files (not a test file itself). */
 export function renderToggle(props: Parameters<typeof PillToggle>[0]): {

@@ -20,7 +20,7 @@ import {
   knobsEqual,
   readMenuTintKnobsFromStorage,
   writeMenuTintKnobsToStorage,
-} from './menuTint';
+} from './menuTint.js';
 
 /**
  * Menu tint settings: five knob sliders + presets. Writes knobs (not a final colour) to the root

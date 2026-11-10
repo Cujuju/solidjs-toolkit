@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { scrollSpeed } from '../ResizeHandle';
+import { scrollSpeed } from '../ResizeHandle.js';
 
 const TOP = 0;
 const BOTTOM = 900;
@@ -24,7 +24,7 @@ describe('scrollSpeed', () => {
 describe('ResizeHandle drag', () => {
   it('measures in workspace pixels, so scrolling mid-drag keeps the divider under a still pointer', async () => {
     const { fireEvent, render } = await import('@solidjs/testing-library');
-    const { ResizeHandle } = await import('../ResizeHandle');
+    const { ResizeHandle } = await import('../ResizeHandle.js');
     const onDraft = vi.fn();
     const { container } = render(() => (
       <div data-testid="workspace">

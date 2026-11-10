@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { computeTileLayout, type TileSize } from '../layout';
-import { pushedLayout, type PushTarget } from '../push';
-import type { TileNode, TileSplit } from '../tileTree';
+import { computeTileLayout, type TileSize } from '../layout.js';
+import { pushedLayout, type PushTarget } from '../push.js';
+import type { TileNode, TileSplit } from '../tileTree.js';
 
 const t = (id: string): TileNode => ({ kind: 'tile', id });
 const row = (sizes: number[], ...children: TileNode[]): TileSplit => ({ kind: 'split', dir: 'row', sizes, children });

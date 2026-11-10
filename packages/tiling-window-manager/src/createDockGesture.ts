@@ -1,7 +1,7 @@
 import { batch, createSignal, onCleanup } from 'solid-js';
-import type { LayoutRect } from './layout';
-import { tileHitAt, type TileHit } from './plan';
-import type { DropZone } from './tileTree';
+import type { LayoutRect } from './layout.js';
+import { tileHitAt, type TileHit } from './plan.js';
+import type { DropZone } from './tileTree.js';
 
 /** Pointer travel before a press on a tile's grip becomes a drag, so a plain click stays a click. */
 export const DOCK_THRESHOLD_PX = 6;

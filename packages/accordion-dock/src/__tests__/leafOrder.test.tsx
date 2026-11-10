@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import { AccordionLeaf } from '../AccordionLeaf';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import { AccordionLeaf } from '../AccordionLeaf.js';
 
 /**
  * A leaf is the terminal pane in BOTH orientations: without a flex `order` it sits at 0

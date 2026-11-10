@@ -7,7 +7,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
-import { PillDatePicker, type PillDateItemState, type PillDateRowContext } from '../PillDatePicker';
+import { PillDatePicker, type PillDateItemState, type PillDateRowContext } from '../PillDatePicker.js';
 
 let dispose: (() => void) | null = null;
 

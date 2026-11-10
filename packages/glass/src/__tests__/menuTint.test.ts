@@ -14,7 +14,7 @@ import {
   writeMenuTintKnobsToStorage,
   clearMenuTintKnobsFromStorage,
   applyMenuTintKnobs,
-} from '../menuTint';
+} from '../menuTint.js';
 
 describe('normalizeMenuTintKnobs', () => {
   it('clamps out-of-range fields to the knob range', () => {

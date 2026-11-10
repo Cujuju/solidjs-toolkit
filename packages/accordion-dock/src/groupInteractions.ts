@@ -1,11 +1,11 @@
 import { createReorderList } from '@cujuju/solid-reorder-list';
-import { type AccordionOrientation, type AccordionRailSide } from './context';
-import { createGroupActions } from './groupActions';
-import { createGroupOrder } from './groupOrder';
-import { createGroupState } from './groupState';
-import { createRailOverflow } from './railOverflow';
-import { createResize, DEFAULT_MIN_SIZE_PX } from './resize';
-import { repinToVisualOrder } from './visualOrder';
+import { type AccordionOrientation, type AccordionRailSide } from './context.js';
+import { createGroupActions } from './groupActions.js';
+import { createGroupOrder } from './groupOrder.js';
+import { createGroupState } from './groupState.js';
+import { createRailOverflow } from './railOverflow.js';
+import { createResize, DEFAULT_MIN_SIZE_PX } from './resize.js';
+import { repinToVisualOrder } from './visualOrder.js';
 
 export function createGroupInteractions(deps: {
   getRailOverflow: () => ReturnType<typeof createRailOverflow>;

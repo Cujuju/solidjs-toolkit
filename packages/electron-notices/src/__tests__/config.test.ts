@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { DEFAULT_NOTICE_CONFIG, normalizeNoticeConfig, isSticky, noticeDuration, BASIC_TONES } from '../types';
+import { DEFAULT_NOTICE_CONFIG, normalizeNoticeConfig, isSticky, noticeDuration, BASIC_TONES } from '../types.js';
 it('normalizes fields independently with caller defaults', () => {
   expect(normalizeNoticeConfig(null)).toEqual(DEFAULT_NOTICE_CONFIG);
   const fallback = { ...DEFAULT_NOTICE_CONFIG, delivery: 'system' as const, dripLip: true };

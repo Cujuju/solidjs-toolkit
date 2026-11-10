@@ -4,8 +4,8 @@ import {
   buildPanelMenuItems,
   PANEL_MENU_LABELS,
   PANEL_MENU_DISABLED_TOOLTIPS,
-} from '../panelMenu';
-import { createStubGroup, type StubGroupSpec } from './stubGroup';
+} from '../panelMenu.js';
+import { createStubGroup, type StubGroupSpec } from './stubGroup.js';
 
 /** The menu's behaviour is its ENABLE/DISABLE MATRIX, asserted as data. See DESIGN_NOTES.md § src/__tests__/panelMenu.test.ts:10. */
 

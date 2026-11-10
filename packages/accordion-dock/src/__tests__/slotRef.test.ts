@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, onCleanup } from 'solid-js';
-import { createMapSlot, slotRef, type ElementSlot } from '../context';
+import { createMapSlot, slotRef, type ElementSlot } from '../context.js';
 
 /**
  * `slotRef` is the contract that element registrations are undone. Solid calls a `ref` once,

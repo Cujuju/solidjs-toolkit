@@ -1,6 +1,6 @@
 import { createSignal, type Accessor } from 'solid-js';
-import { MAX_KEPT_NOTICES, type Notice, type NoticeRef } from '../types';
-export { NOTICE_VISIBLE_MS } from '../types';
+import { MAX_KEPT_NOTICES, type Notice, type NoticeRef } from '../types.js';
+export { NOTICE_VISIBLE_MS } from '../types.js';
 
 interface Clock { timer: ReturnType<typeof setTimeout> | null; deadline: number; remaining: number }
 

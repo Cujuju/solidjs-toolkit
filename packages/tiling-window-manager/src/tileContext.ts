@@ -1,6 +1,6 @@
-import type { LayoutRect } from './layout';
-import type { CollapsePermission } from './tileCollapse';
-import type { CollapseEdge } from './tileTree';
+import type { LayoutRect } from './layout.js';
+import type { CollapsePermission } from './tileCollapse.js';
+import type { CollapseEdge } from './tileTree.js';
 
 /** Collapse actions for a tile's slot. They do nothing while the workspace's `collapse` prop is off. */
 export interface CollapseControls {

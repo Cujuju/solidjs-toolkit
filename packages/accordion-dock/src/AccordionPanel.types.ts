@@ -1,6 +1,6 @@
 import type { JSX } from 'solid-js';
-import type { AccordionDefaultSize } from './contentSize';
-import type { PanelBadge } from './context';
+import type { AccordionDefaultSize } from './contentSize.js';
+import type { PanelBadge } from './context.js';
 
 export interface AccordionPanelProps {
   /** Stable identity within the group — the key for open/pinned/order/size state. Must be

@@ -16,11 +16,11 @@ import {
   untrack,
   type JSX,
 } from 'solid-js';
-import { getGlobalTarget, safeAddEventListener } from './_internal/safeEvent';
-import { DEFAULT_PANEL_MIN, renderChipFlyout } from './ChipFlyoutView';
-import { createChipOptions } from './createChipOptions';
-import type { ChipFlyoutProps } from './types';
-export type { ChipFlyoutProps, ChipFlyoutTab, ChipOption } from './types';
+import { getGlobalTarget, safeAddEventListener } from './_internal/safeEvent.js';
+import { DEFAULT_PANEL_MIN, renderChipFlyout } from './ChipFlyoutView.js';
+import { createChipOptions } from './createChipOptions.js';
+import type { ChipFlyoutProps } from './types.js';
+export type { ChipFlyoutProps, ChipFlyoutTab, ChipOption } from './types.js';
 
 /** Start the next page this far before the list bottom scrolls into view. */
 const LOAD_MORE_PREFETCH_PX = 120;

@@ -6,8 +6,8 @@ import type {
   AccordionPolicy,
   AccordionRailSide,
   PanelMeta,
-} from './accordionTypes';
-import type { ElementSlot } from './elementSlot';
+} from './accordionTypes.js';
+import type { ElementSlot } from './elementSlot.js';
 
 /** The two listeners hover-to-open attaches to an activator. See DESIGN_NOTES.md § src/context.ts:180. */
 export interface ActivatorHoverProps {
@@ -189,7 +189,7 @@ export function useAccordionGroup(): AccordionGroupApi {
   return ctx;
 }
 
-export * from './accordionTypes';
+export * from './accordionTypes.js';
 
-export { createMapSlot, RAIL_OVERFLOW_SLOT_KEY, slotRef } from './elementSlot';
-export type { ElementSlot } from './elementSlot';
+export { createMapSlot, RAIL_OVERFLOW_SLOT_KEY, slotRef } from './elementSlot.js';
+export type { ElementSlot } from './elementSlot.js';

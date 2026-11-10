@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { TriStateChip } from '../index';
+import { TriStateChip } from '../index.js';
 
 describe('server render', () => {
   it.each(['unselected', 'included', 'excluded'] as const)('renders %s', (value) => {

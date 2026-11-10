@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { HoldIndicator } from '../index';
+import { HoldIndicator } from '../index.js';
 
 describe('server render', () => {
   it.each(['circle', 'rect', 'bar'] as const)('renders shape=%s', (shape) => {

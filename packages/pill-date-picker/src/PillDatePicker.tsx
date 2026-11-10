@@ -8,16 +8,16 @@ import {
   untrack,
   type JSX,
 } from 'solid-js';
-import type { PopoutPosition } from './_internal/popout';
-import { createDatePickerActions } from './createDatePickerActions';
-import { createPillDateModel, NO_ACTIVE_INDEX } from './createPillDateModel';
-import { renderPillDatePicker } from './PillDatePickerView';
+import type { PopoutPosition } from './_internal/popout.js';
+import { createDatePickerActions } from './createDatePickerActions.js';
+import { createPillDateModel, NO_ACTIVE_INDEX } from './createPillDateModel.js';
+import { renderPillDatePicker } from './PillDatePickerView.js';
 import {
   type PillDateEntry,
   type PillDateItemState,
   type PillDatePickerProps,
   type PillDateRowContext,
-} from './types';
+} from './types.js';
 export type { PillDateEntry, PillDateItemState, PillDatePickerProps, PillDateRowContext };
 
 export function PillDatePicker<T extends PillDateEntry = PillDateEntry>(

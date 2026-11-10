@@ -1,7 +1,7 @@
-import { collapsedIndices, ownShares, peekEdgeOf, shareHolders, viewShares } from './tileCollapse';
-import { slotIds, slotKey, type CollapseEdge, type TileNode, type TileSlot, type TileSplit } from './tileTree';
+import { collapsedIndices, ownShares, peekEdgeOf, shareHolders, viewShares } from './tileCollapse.js';
+import { slotIds, slotKey, type CollapseEdge, type TileNode, type TileSlot, type TileSplit } from './tileTree.js';
 
-export { equalisedShares, resizedShares, RESIZE_KEY_STEPS, RESIZE_STEP_RATIO, type ResizeSnap } from './resize';
+export { equalisedShares, resizedShares, RESIZE_KEY_STEPS, RESIZE_STEP_RATIO, type ResizeSnap } from './resize.js';
 
 export interface TileSize { width: number; height: number }
 export interface LayoutRect extends TileSize { x: number; y: number }

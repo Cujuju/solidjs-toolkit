@@ -1,7 +1,7 @@
 import { createEffect, createSignal, For, on, onCleanup, Show, untrack, type JSX } from 'solid-js';
-import { DOCK_THRESHOLD_PX } from './createDockGesture';
-import { planTabFold, tabShowsName, type TabFold, type TabWidths } from './tabStripFold';
-import type { TileContext } from './tileContext';
+import { DOCK_THRESHOLD_PX } from './createDockGesture.js';
+import { planTabFold, tabShowsName, type TabFold, type TabWidths } from './tabStripFold.js';
+import type { TileContext } from './tileContext.js';
 
 /** Space between a tab's icon and its name; it folds away with the name. */
 const ICON_NAME_GAP_PX = 6;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { AccordionGroup, AccordionLeaf, AccordionPanel, Breadcrumb, createTearOff, TearOffOutlet } from '../index';
+import { AccordionGroup, AccordionLeaf, AccordionPanel, Breadcrumb, createTearOff, TearOffOutlet } from '../index.js';
 
 describe('server render', () => {
   it.each([false, true])('a group renders its panels and leaf, open=%s', (open) => {

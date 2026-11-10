@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import type { AccordionGroupApi } from '../context';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import type { AccordionGroupApi } from '../context.js';
 
 /**
  * Rail drag-reorder measures only the buttons the rail actually renders. A panel with no

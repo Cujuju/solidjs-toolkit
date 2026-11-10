@@ -2,7 +2,7 @@
  * Where the view should be after rows change size or come and go. Offsets are bottom-relative: `L` is how far the
  * viewport's bottom edge sits above the canvas bottom.
  */
-import type { Layout } from './layout';
+import type { Layout } from './layout.js';
 
 interface Pin {
   key: string;

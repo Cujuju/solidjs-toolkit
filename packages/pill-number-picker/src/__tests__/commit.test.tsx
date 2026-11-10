@@ -7,7 +7,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
-import { PillNumberPicker } from '../PillNumberPicker';
+import { PillNumberPicker } from '../PillNumberPicker.js';
 
 let dispose: (() => void) | null = null;
 

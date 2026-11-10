@@ -1,9 +1,9 @@
 import { batch, createEffect, createMemo, on, untrack } from 'solid-js';
-import { safeResizeObserver, blockSize, toDevicePx } from './_internal/dom';
+import { safeResizeObserver, blockSize, toDevicePx } from './_internal/dom.js';
 
-import { NEWER_LOOKAHEAD_VIEWPORTS } from './_internal/constants';
-import type { VirtualLogOptions } from './types';
-import type { createLogLayout } from './createLogLayout';
+import { NEWER_LOOKAHEAD_VIEWPORTS } from './_internal/constants.js';
+import type { VirtualLogOptions } from './types.js';
+import type { createLogLayout } from './createLogLayout.js';
 
 export function createLogMeasurement<R>(o: VirtualLogOptions<R>, s: ReturnType<typeof createLogLayout<R>>) {
   // Rows: sizes stay with their keys; the anchors captured before the change say where the view goes.

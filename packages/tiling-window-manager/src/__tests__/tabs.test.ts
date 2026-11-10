@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computeTileLayout, minimumSize } from '../layout';
-import { planInsertion, planMove } from '../plan';
-import { planTabFold } from '../tabStripFold';
-import { addToTabs, dock, insertTile, moveTab, removeTile, setActiveTab, swapTiles } from '../tileEdits';
-import { normalize } from '../tileRepair';
-import { findSlot, tileIds, type TileNode, type TileSplit, type TileTabs } from '../tileTree';
+import { computeTileLayout, minimumSize } from '../layout.js';
+import { planInsertion, planMove } from '../plan.js';
+import { planTabFold } from '../tabStripFold.js';
+import { addToTabs, dock, insertTile, moveTab, removeTile, setActiveTab, swapTiles } from '../tileEdits.js';
+import { normalize } from '../tileRepair.js';
+import { findSlot, tileIds, type TileNode, type TileSplit, type TileTabs } from '../tileTree.js';
 
 const t = (id: string) => ({ kind: 'tile' as const, id });
 const tabs = (active: number, ...ids: string[]): TileTabs => ({ kind: 'tabs', active, children: ids.map(t) });

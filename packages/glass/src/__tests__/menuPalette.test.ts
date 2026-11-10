@@ -15,7 +15,7 @@ import {
   GLASS_MENU_PALETTE_DEFAULTS,
   applyGlassMenuPalette,
   resetGlassMenuPalette,
-} from '../menuPalette';
+} from '../menuPalette.js';
 
 const root = () => document.documentElement;
 

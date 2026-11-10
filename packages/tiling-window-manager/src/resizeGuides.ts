@@ -1,5 +1,5 @@
-import { computeTileLayout, type LayoutHandle, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
-import type { TileNode } from './tileTree';
+import { computeTileLayout, type LayoutHandle, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout.js';
+import type { TileNode } from './tileTree.js';
 
 /**
  * Pointer distance at which a divider locks onto another layout's divider.

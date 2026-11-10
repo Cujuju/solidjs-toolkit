@@ -1,5 +1,5 @@
 import { type Accessor } from 'solid-js';
-import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';
+import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent.js';
 
 export interface CreateClickOutsideOptions {
   /** Reactive gate. When returns false, handler is suppressed. */

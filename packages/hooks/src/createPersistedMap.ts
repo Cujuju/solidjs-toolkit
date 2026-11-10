@@ -1,5 +1,5 @@
 import { createSignal, type Accessor } from 'solid-js';
-import { safeStorageRead, safeStorageWrite } from './_internal/safeStorage';
+import { safeStorageRead, safeStorageWrite } from './_internal/safeStorage.js';
 
 export interface CreatePersistedMapOptions<K, V> {
   serializeKey?: (k: K) => string;

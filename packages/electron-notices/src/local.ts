@@ -1,7 +1,7 @@
-import { createNoticeLedger } from './_internal/ledger';
-import { NOTICE_ACK_TIMEOUT_MS, type NoticeHostEvents, type NoticeSink } from './overlay';
-import { resolvePlacement } from './placement';
-import type { Notice, NoticeBridge, NoticePlacement, NoticeRef, NoticeView } from './types';
+import { createNoticeLedger } from './_internal/ledger.js';
+import { NOTICE_ACK_TIMEOUT_MS, type NoticeHostEvents, type NoticeSink } from './overlay.js';
+import { resolvePlacement } from './placement.js';
+import type { Notice, NoticeBridge, NoticePlacement, NoticeRef, NoticeView } from './types.js';
 export interface LocalNoticeHostOptions extends NoticeHostEvents { view(): NoticeView; ackTimeoutMs?: number }
 export interface LocalNoticeHost extends NoticeSink { bridge: NoticeBridge }
 export function createLocalNoticeHost(o: LocalNoticeHostOptions): LocalNoticeHost {

@@ -1,7 +1,7 @@
 import { getGlobalTarget, safeAddEventListener } from '@cujuju/solidjs-hooks';
 import { createSignal, onCleanup } from 'solid-js';
 
-import { prepareDocument } from './tearOffDocument';
+import { prepareDocument } from './tearOffDocument.js';
 import {
   TEAR_OFF_CLOSE_POLL_MS,
   TEAR_OFF_DEFAULT_HEIGHT_PX,
@@ -16,7 +16,7 @@ import {
   type TearOffOptions,
   type TearOffResult,
   type TornWindow,
-} from './tearOffModel';
+} from './tearOffModel.js';
 export {
   TEAR_OFF_CLOSE_POLL_MS,
   TEAR_OFF_DEFAULT_HEIGHT_PX,
@@ -24,7 +24,7 @@ export {
   TEAR_OFF_GEOMETRY_VERSION,
   TEAR_OFF_MIN_WINDOW_PX,
   TEAR_OFF_ORPHAN_WATCHDOG_MS,
-} from './tearOffModel';
+} from './tearOffModel.js';
 export type {
   AccordionTearOffApi,
   TearOffController,
@@ -32,8 +32,8 @@ export type {
   TearOffGeometry,
   TearOffOptions,
   TearOffResult,
-} from './tearOffModel';
-export { TearOffOutlet } from './TearOffOutlet';
+} from './tearOffModel.js';
+export { TearOffOutlet } from './TearOffOutlet.js';
 
 /**
  * TEAR-OFF — pop a docked panel into its own browser window. Only CONTENT is portalled;

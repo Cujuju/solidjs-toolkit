@@ -7,12 +7,12 @@ import {
   onMount,
   type JSX,
 } from 'solid-js';
-import type { AccordionPanelProps } from './AccordionPanel.types';
-import { seedDefaultSize } from './contentSize';
-import { slotRef, type AccordionGroupApi } from './context';
-import { createActivatorKeyDown } from './keys';
-import { createPanelMenu } from './panelMenu';
-import { columnFlex } from './resize';
+import type { AccordionPanelProps } from './AccordionPanel.types.js';
+import { seedDefaultSize } from './contentSize.js';
+import { slotRef, type AccordionGroupApi } from './context.js';
+import { createActivatorKeyDown } from './keys.js';
+import { createPanelMenu } from './panelMenu.js';
+import { columnFlex } from './resize.js';
 
 export function createPanelState(deps: {
   contentId: string;

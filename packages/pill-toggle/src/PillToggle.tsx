@@ -1,5 +1,5 @@
 import { children, type JSX, Show } from 'solid-js';
-import { centerOffset, DOT_INSET_PX, dotTranslate } from './_internal/dotPosition';
+import { centerOffset, DOT_INSET_PX, dotTranslate } from './_internal/dotPosition.js';
 
 /** Larger than any pill: corners clamp to half the rendered height, whatever unit set it.
  *  `calc(height / 2)` fails for `%`, which resolves against the box's own size. */

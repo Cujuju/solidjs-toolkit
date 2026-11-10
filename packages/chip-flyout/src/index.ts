@@ -8,7 +8,7 @@ export {
   type ChipFlyoutProps,
   type ChipOption,
   type ChipFlyoutTab,
-} from './ChipFlyout';
+} from './ChipFlyout.js';
 
 // Re-exported for convenience — a `tri-state` ChipFlyout consumer needs
 // the value shape and its empty literal to seed and reset state.

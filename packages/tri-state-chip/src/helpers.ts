@@ -6,4 +6,4 @@ export {
   EMPTY_TRI_STATE,
   type TriState,
   type TriStateValue,
-} from './cycleTriState';
+} from './cycleTriState.js';

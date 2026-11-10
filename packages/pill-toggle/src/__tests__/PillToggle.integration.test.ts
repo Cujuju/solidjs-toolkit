@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanupToggles, dotOf, dotX, renderToggle } from './_helpers';
+import { cleanupToggles, dotOf, dotX, renderToggle } from './_helpers.js';
 
 /**
  * Integration tests: mount in jsdom and check the JSX wiring against the props contract.

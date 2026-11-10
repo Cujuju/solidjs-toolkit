@@ -9,8 +9,8 @@ import {
   type AutoHideApi,
   type AutoHideOptions,
   type FlyoutOpenCause,
-} from './autoHideModel';
-import { Flyout } from './Flyout';
+} from './autoHideModel.js';
+import { Flyout } from './Flyout.js';
 export {
   FLYOUT_CONTENT_CLASS,
   FLYOUT_DEFAULT_WIDTH_PX,
@@ -19,14 +19,14 @@ export {
   FLYOUT_HOVER_LEAVE_GRACE_MS,
   FLYOUT_SHELL_CLASS,
   flyoutCrossAxis,
-} from './autoHideModel';
-export type { AutoHideApi, AutoHideGroup, AutoHideOptions } from './autoHideModel';
+} from './autoHideModel.js';
+export type { AutoHideApi, AutoHideGroup, AutoHideOptions } from './autoHideModel.js';
 export {
   PANEL_OUTLET_CONTAINER_ATTR,
   PANEL_OUTLET_HOST_ATTR,
   PanelOutlet,
   flyoutDataAttr,
-} from './PanelOutlet';
+} from './PanelOutlet.js';
 
 /** Per-flyout host element, published reactively so the panel's Portal can
  *  re-target the moment the popover's content div exists. */

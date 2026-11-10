@@ -1,10 +1,10 @@
 import { createSignal, createMemo, createEffect, on, onCleanup, Show, type JSX } from 'solid-js';
-import { measureLayoutBox } from './_internal/measure';
-import { strokeOuterOffset as computeStrokeOuterOffset } from './_internal/placement';
-import { applyEasing } from './_internal/easing';
+import { measureLayoutBox } from './_internal/measure.js';
+import { strokeOuterOffset as computeStrokeOuterOffset } from './_internal/placement.js';
+import { applyEasing } from './_internal/easing.js';
 
-import type { HoldIndicatorProps } from './HoldIndicator.types';
-export type { HoldIndicatorProps } from './HoldIndicator.types';
+import type { HoldIndicatorProps } from './HoldIndicator.types.js';
+export type { HoldIndicatorProps } from './HoldIndicator.types.js';
 
 const ZERO_OFFSETS = { t: 0, r: 0, b: 0, l: 0 };
 /** An SVG circle's stroke starts at 3 o'clock; this rotation moves it to 12. */

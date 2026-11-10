@@ -1,11 +1,11 @@
 import { batch, createMemo, untrack } from 'solid-js';
-import { safeAddEventListener, isBrowser } from './_internal/dom';
-import { alignedOffset } from './core/anchor';
+import { safeAddEventListener, isBrowser } from './_internal/dom.js';
+import { alignedOffset } from './core/anchor.js';
 
-import { DEFAULT_OVERSCAN, MAX_FOLD, OWN_WRITE_PX, OWN_WRITE_MS, NAV_KEYS, sameKeys } from './_internal/constants';
-import type { VirtualLogOptions, VirtualLogController } from './types';
-import type { createLogLayout } from './createLogLayout';
-import type { createLogMeasurement } from './createLogMeasurement';
+import { DEFAULT_OVERSCAN, MAX_FOLD, OWN_WRITE_PX, OWN_WRITE_MS, NAV_KEYS, sameKeys } from './_internal/constants.js';
+import type { VirtualLogOptions, VirtualLogController } from './types.js';
+import type { createLogLayout } from './createLogLayout.js';
+import type { createLogMeasurement } from './createLogMeasurement.js';
 
 export function createLogController<R>(
   o: VirtualLogOptions<R>,

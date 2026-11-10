@@ -46,8 +46,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "vite build",
-    "prepublishOnly": "vite build"
+    "build": "vite build && node ../_shared/checkNodeNext.mjs",
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "@capacitor/core": "^8.5.2",

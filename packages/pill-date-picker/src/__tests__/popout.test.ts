@@ -9,7 +9,7 @@ import {
   isAnchorOutsideViewport,
   POPOUT_VIEWPORT_MARGIN_PX,
   POPOUT_DEFAULT_GAP_PX,
-} from '../_internal/popout';
+} from '../_internal/popout.js';
 
 const VIEWPORT = { width: 1000, height: 800 };
 const PANEL = { width: 140, height: 200 };

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
-import AnchoredPopover from '../AnchoredPopover';
+import AnchoredPopover from '../AnchoredPopover.js';
 
 // jsdom lacks the Popover API; per-test stubs count showPopover/hidePopover calls and
 // control `:popover-open`.

@@ -1,11 +1,11 @@
 import { Show, type JSX } from 'solid-js';
-import { slotRef, type AccordionGroupApi, type PanelMeta } from './context';
-import { Pin } from './icons';
-import { createActivatorKeyDown } from './keys';
-import { createPanelMenu } from './panelMenu';
-import { RAIL_ITEM_ATTR } from './railOverflow';
-import { flyoutDataAttr, type AutoHideApi } from './autoHide';
-import { SlotIf } from './SlotIf';
+import { slotRef, type AccordionGroupApi, type PanelMeta } from './context.js';
+import { Pin } from './icons.js';
+import { createActivatorKeyDown } from './keys.js';
+import { createPanelMenu } from './panelMenu.js';
+import { RAIL_ITEM_ATTR } from './railOverflow.js';
+import { flyoutDataAttr, type AutoHideApi } from './autoHide.js';
+import { SlotIf } from './SlotIf.js';
 
 /**
  * One button in the horizontal rail. Reads its label through the meta ACCESSORS rather than a

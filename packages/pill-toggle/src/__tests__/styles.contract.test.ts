@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { DOT_INSET_PX } from '../_internal/dotPosition';
-import { cleanupToggles, renderToggle } from './_helpers';
+import { DOT_INSET_PX } from '../_internal/dotPosition.js';
+import { cleanupToggles, renderToggle } from './_helpers.js';
 
 /**
  * Stylesheet contract tests. jsdom neither substitutes var() nor tracks

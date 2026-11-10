@@ -1,7 +1,7 @@
 import { Show, type Component, type JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import type { NoticeInput, NoticeTones } from '../types';
-import { iconKey, toneVars } from './_internal/tone';
+import type { NoticeInput, NoticeTones } from '../types.js';
+import { iconKey, toneVars } from './_internal/tone.js';
 
 /** A host icon component, such as a lucide-solid icon. */
 export type NoticeIcon = Component<{ size?: number }>;

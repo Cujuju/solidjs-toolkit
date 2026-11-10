@@ -13,13 +13,13 @@ import {
   createMapSlot,
   slotRef,
   type AccordionGroupApi,
-} from './context';
+} from './context.js';
 import {
   buildCrumbPath,
   elideCrumbs,
   type BreadcrumbEntry,
   type CrumbData,
-} from './breadcrumbPath';
+} from './breadcrumbPath.js';
 
 /**
  * The path across the open columns: `src › components › AppShell.tsx`. It owns NO open state
@@ -254,4 +254,4 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
   );
 }
 
-export type { CrumbData, BreadcrumbEntry } from './breadcrumbPath';
+export type { CrumbData, BreadcrumbEntry } from './breadcrumbPath.js';

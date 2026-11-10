@@ -1,6 +1,6 @@
 import { For, Show, createEffect, createMemo, createSignal, on, onCleanup, onMount, type Accessor, type JSX } from 'solid-js';
-import { toDevicePx } from './_internal/dom';
-import type { VirtualLogController } from './createVirtualLog';
+import { toDevicePx } from './_internal/dom.js';
+import type { VirtualLogController } from './createVirtualLog.js';
 
 export interface VirtualLogProps<R> {
   log: VirtualLogController<R>;

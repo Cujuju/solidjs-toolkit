@@ -1,5 +1,5 @@
 import { createSignal, onCleanup, type Accessor } from 'solid-js';
-import { createCancelListeners } from './gesture';
+import { createCancelListeners } from './gesture.js';
 
 /**
  * Splitter drag engine. A drag moves the boundary between two adjacent open panels, so the
@@ -276,4 +276,4 @@ export function createResize(host: ResizeHost): ResizeApi {
   return { begin, nudge, boundsOf, resizing, collapseCandidate };
 }
 
-export { columnFlex } from './columnFlex';
+export { columnFlex } from './columnFlex.js';

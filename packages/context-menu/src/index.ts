@@ -3,8 +3,8 @@
 // `@cujuju/solidjs-glass-menu` when `ContextMenu` imports `GlassMenu`.
 import './context-menu.css';
 
-export { ContextMenu, type ContextMenuProps } from './ContextMenu';
-export type { ContextMenuSurface } from './MenuEntries';
+export { ContextMenu, type ContextMenuProps } from './ContextMenu.js';
+export type { ContextMenuSurface } from './MenuEntries.js';
 export type {
   ContextMenuItem,
   ContextMenuDivider,
@@ -13,4 +13,4 @@ export type {
   ContextMenuButtonRow,
   ContextMenuCustom,
   ContextMenuEntry,
-} from './types';
+} from './types.js';

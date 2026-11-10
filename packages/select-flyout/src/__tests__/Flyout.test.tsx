@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
-import { Flyout, type FlyoutOption } from '../Flyout';
+import { Flyout, type FlyoutOption } from '../Flyout.js';
 
 const originalMatches = HTMLElement.prototype.matches;
 

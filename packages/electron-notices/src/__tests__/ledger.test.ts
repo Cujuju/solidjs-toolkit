@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { createNoticeLedger } from '../_internal/ledger';
-import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, MAX_KEPT_NOTICES } from '../types';
+import { createNoticeLedger } from '../_internal/ledger.js';
+import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, MAX_KEPT_NOTICES } from '../types.js';
 
 afterEach(() => vi.useRealTimers());
 it.each(['ack', 'timeout', 'withdraw', 'gone', 'destroy'] as const)('settles superseded pending deliveries with the replacement on %s', async (end) => {

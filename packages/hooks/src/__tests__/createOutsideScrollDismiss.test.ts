@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
-import { createOutsideScrollDismiss } from '../createOutsideScrollDismiss';
+import { createOutsideScrollDismiss } from '../createOutsideScrollDismiss.js';
 
 function flush(): Promise<void> {
   return Promise.resolve();

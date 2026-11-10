@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { SegButton, SegGroup } from '../index';
+import { SegButton, SegGroup } from '../index.js';
 
 describe('server render', () => {
   it('renders a group and a standalone button', () => {

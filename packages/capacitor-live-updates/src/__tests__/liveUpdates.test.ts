@@ -12,7 +12,7 @@ const updater = vi.hoisted(() => ({
 }));
 vi.mock('@capgo/capacitor-updater', () => ({ CapacitorUpdater: updater }));
 
-import { prepareLiveUpdates, startLiveUpdates, type LiveUpdatesOptions } from '../liveUpdates';
+import { prepareLiveUpdates, startLiveUpdates, type LiveUpdatesOptions } from '../liveUpdates.js';
 
 const FINGERPRINT = '1a2b3c4d5e6f';
 const MANIFEST_URL = 'https://example.test/manifest.json';

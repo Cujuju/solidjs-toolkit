@@ -6,8 +6,8 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
-import { PillDatePicker } from '../PillDatePicker';
-import { POPOUT_VIEWPORT_MARGIN_PX } from '../_internal/popout';
+import { PillDatePicker } from '../PillDatePicker.js';
+import { POPOUT_VIEWPORT_MARGIN_PX } from '../_internal/popout.js';
 
 let dispose: (() => void) | null = null;
 function mount(ui: () => any): HTMLDivElement {

@@ -1,4 +1,4 @@
-import type { AccordionGroupApi } from './context';
+import type { AccordionGroupApi } from './context.js';
 
 /**
  * Roving keyboard nav for a panel's activator — one implementation for both orientations.

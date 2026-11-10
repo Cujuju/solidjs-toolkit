@@ -1,8 +1,8 @@
-import { collapsedIndices, expandedSlot, repairCollapse, setSlotCollapsed, shareHolders, viewShares } from './tileCollapse';
+import { collapsedIndices, expandedSlot, repairCollapse, setSlotCollapsed, shareHolders, viewShares } from './tileCollapse.js';
 import {
   canonicalize, EVEN_SPLIT_PARTS, findSlot, findTile, isShare, nodeAt, replaceNode, splitAxis, tileIds, UNIT_SHARE,
   type DockSide, type DropZone, type InsertionShares, type TileLeaf, type TileNode, type TilePath, type TileSlot, type TileSplit,
-} from './tileTree';
+} from './tileTree.js';
 
 const finish = (root: TileNode): TileNode => repairCollapse(canonicalize(root));
 const atStart = (side: DockSide): boolean => side === 'left' || side === 'top';

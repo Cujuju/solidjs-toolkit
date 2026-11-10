@@ -1,5 +1,5 @@
-import { repairCollapse } from './tileCollapse';
-import { canonicalize, isShare, repairShares, UNIT_SHARE, type CollapseEdge, type TileLeaf, type TileNode, type TileSlot } from './tileTree';
+import { repairCollapse } from './tileCollapse.js';
+import { canonicalize, isShare, repairShares, UNIT_SHARE, type CollapseEdge, type TileLeaf, type TileNode, type TileSlot } from './tileTree.js';
 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
 const EDGES: readonly unknown[] = ['left', 'right', 'top', 'bottom'] satisfies CollapseEdge[];

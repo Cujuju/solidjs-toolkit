@@ -4,8 +4,8 @@ import {
   type ContextMenuEntry,
   type ContextMenuSurface,
 } from '@cujuju/solidjs-context-menu';
-import type { AccordionGroupApi } from './context';
-import { bulkClosableIds as sharedBulkClosableIds } from './visualOrder';
+import type { AccordionGroupApi } from './context.js';
+import { bulkClosableIds as sharedBulkClosableIds } from './visualOrder.js';
 
 /**
  * The right-click menu for a panel's ACTIVATOR. Renders NO chrome of its own and holds NO

@@ -5,10 +5,10 @@
 import AnchoredPopover from '@cujuju/solidjs-anchored-popover';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import { For, type JSX } from 'solid-js';
-import { ChevronDownIcon } from './ChevronDownIcon';
-import { createFlyoutState } from './createFlyoutState';
-import type { FlyoutProps } from './types';
-export type { FlyoutOption, FlyoutProps } from './types';
+import { ChevronDownIcon } from './ChevronDownIcon.js';
+import { createFlyoutState } from './createFlyoutState.js';
+import type { FlyoutProps } from './types.js';
+export type { FlyoutOption, FlyoutProps } from './types.js';
 
 function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');

@@ -3,4 +3,4 @@
 // `@cujuju/solidjs-glass-menu` when `Flyout` imports `GlassMenu`.
 import './select-flyout.css';
 
-export { Flyout, type FlyoutOption, type FlyoutProps } from './Flyout';
+export { Flyout, type FlyoutOption, type FlyoutProps } from './Flyout.js';

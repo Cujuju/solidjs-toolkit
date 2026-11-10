@@ -1,13 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
-import { MenuTintSection } from '../MenuTintSection';
+import { MenuTintSection } from '../MenuTintSection.js';
 import {
   DEFAULT_MENU_TINT_STORAGE_KEY,
   MENU_TINT_DEFAULTS,
   MENU_TINT_DARKEN_CSS_VAR,
   applyMenuTintKnobs,
   writeMenuTintKnobsToStorage,
-} from '../menuTint';
+} from '../menuTint.js';
 
 afterEach(() => {
   localStorage.removeItem(DEFAULT_MENU_TINT_STORAGE_KEY);

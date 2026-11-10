@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { ContextMenu, type ContextMenuEntry } from '../index';
+import { ContextMenu, type ContextMenuEntry } from '../index.js';
 
 const ITEMS: ContextMenuEntry[] = [
   { label: 'Rename', onClick: () => {} },

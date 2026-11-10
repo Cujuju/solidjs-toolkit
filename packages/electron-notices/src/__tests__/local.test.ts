@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { createLocalNoticeHost } from '../local';
-import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, type Notice } from '../types';
+import { createLocalNoticeHost } from '../local.js';
+import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, type Notice } from '../types.js';
 const view = () => ({ config: DEFAULT_NOTICE_CONFIG, tones: BASIC_TONES, appearance: { vars: {} } });
 const notice = (id: number): Notice => ({ id, at: 0, title: 't', tone: 'info', pinned: false });
 afterEach(() => vi.useRealTimers());

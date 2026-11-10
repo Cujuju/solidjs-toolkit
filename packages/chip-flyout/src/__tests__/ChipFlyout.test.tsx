@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
-import { ChipFlyout, VIEWPORT_MARGIN_PX, type ChipOption } from '../ChipFlyout';
+import { ChipFlyout, VIEWPORT_MARGIN_PX, type ChipOption } from '../ChipFlyout.js';
 import { EMPTY_TRI_STATE, type TriStateValue } from '@cujuju/solidjs-tri-state-chip';
 
 // Dispose each render, then hard-clear the body: ChipFlyout Portals its panel to

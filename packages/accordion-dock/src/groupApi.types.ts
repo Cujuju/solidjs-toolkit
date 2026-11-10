@@ -1,18 +1,18 @@
 import { createReorderList } from '@cujuju/solid-reorder-list';
-import type { AccordionGroupProps } from './AccordionGroup.types';
-import { type AutoHideApi } from './autoHide';
+import type { AccordionGroupProps } from './AccordionGroup.types.js';
+import { type AutoHideApi } from './autoHide.js';
 import {
   type AccordionMode,
   type AccordionOrientation,
   type AccordionPolicy,
   type AccordionRailSide,
-} from './context';
-import { createGroupActions } from './groupActions';
-import { createGroupOrder } from './groupOrder';
-import { createGroupState } from './groupState';
-import { createRailOverflow } from './railOverflow';
-import { createResize } from './resize';
-import { type TearOffController } from './tearOff';
+} from './context.js';
+import { createGroupActions } from './groupActions.js';
+import { createGroupOrder } from './groupOrder.js';
+import { createGroupState } from './groupState.js';
+import { createRailOverflow } from './railOverflow.js';
+import { createResize } from './resize.js';
+import { type TearOffController } from './tearOff.js';
 
 export interface GroupApiDependencies {
   orientation: () => AccordionOrientation;

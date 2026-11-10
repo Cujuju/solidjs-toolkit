@@ -1,38 +1,38 @@
-export { createClickOutside, type CreateClickOutsideOptions } from './createClickOutside';
-export { contains } from './contains';
-export { createEscapeKey, type CreateEscapeKeyOptions } from './createEscapeKey';
+export { createClickOutside, type CreateClickOutsideOptions } from './createClickOutside.js';
+export { contains } from './contains.js';
+export { createEscapeKey, type CreateEscapeKeyOptions } from './createEscapeKey.js';
 export {
   createEscapeOwner,
   isEscapeDismissing,
   ESCAPE_OWNERS_KEY,
   type CreateEscapeOwnerOptions,
   type CreateEscapeOwnerReturn,
-} from './createEscapeOwner';
-export { createHotkey, type CreateHotkeyOptions } from './createHotkey';
-export { createLocalStorage } from './createLocalStorage';
+} from './createEscapeOwner.js';
+export { createHotkey, type CreateHotkeyOptions } from './createHotkey.js';
+export { createLocalStorage } from './createLocalStorage.js';
 export {
   createPersistedSet,
   type CreatePersistedSetOptions,
   type CreatePersistedSetReturn,
-} from './createPersistedSet';
+} from './createPersistedSet.js';
 export {
   createPersistedMap,
   type CreatePersistedMapOptions,
   type CreatePersistedMapReturn,
-} from './createPersistedMap';
-export { createMediaQuery } from './createMediaQuery';
-export { createResizeObserver } from './createResizeObserver';
-export { createIntersectionObserver } from './createIntersectionObserver';
-export { createDebounce } from './createDebounce';
-export { createDebouncedCallback } from './createDebouncedCallback';
-export { createDocumentVisibility } from './createDocumentVisibility';
+} from './createPersistedMap.js';
+export { createMediaQuery } from './createMediaQuery.js';
+export { createResizeObserver } from './createResizeObserver.js';
+export { createIntersectionObserver } from './createIntersectionObserver.js';
+export { createDebounce } from './createDebounce.js';
+export { createDebouncedCallback } from './createDebouncedCallback.js';
+export { createDocumentVisibility } from './createDocumentVisibility.js';
 export {
   createAsyncStatus,
   type AsyncStatus,
   type CreateAsyncStatusOptions,
   type CreateAsyncStatusReturn,
-} from './createAsyncStatus';
-export { createAfterPaint } from './createAfterPaint';
-export { createOutsideScrollDismiss } from './createOutsideScrollDismiss';
+} from './createAsyncStatus.js';
+export { createAfterPaint } from './createAfterPaint.js';
+export { createOutsideScrollDismiss } from './createOutsideScrollDismiss.js';
 // The CONTRIBUTING §1 listener primitive, public so sibling packages stop hand-rolling SSR guards.
-export { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';
+export { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent.js';

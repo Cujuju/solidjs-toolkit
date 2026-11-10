@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { NoticeOverlay } from '../renderer';
-import type { NoticeBridge } from '../types';
+import { NoticeOverlay } from '../renderer/index.js';
+import type { NoticeBridge } from '../types.js';
 
 const bridge: NoticeBridge = {
   onNotice: () => () => undefined,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createEscapeKey } from '../createEscapeKey';
+import { createEscapeKey } from '../createEscapeKey.js';
 
 describe('createEscapeKey', () => {
   it('fires on Escape', () => {

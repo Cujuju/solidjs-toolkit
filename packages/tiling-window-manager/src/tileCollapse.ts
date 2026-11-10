@@ -1,4 +1,4 @@
-import { findSlot, MIN_SHARE_RATIO, replaceNode, slotKey, type CollapseEdge, type SplitDir, type TileNode, type TileSlot, type TileSplit } from './tileTree';
+import { findSlot, MIN_SHARE_RATIO, replaceNode, slotKey, type CollapseEdge, type SplitDir, type TileNode, type TileSlot, type TileSplit } from './tileTree.js';
 
 /**
  * Collapse folds a slot to a strip on its split's axis. `split.sizes[i]` is always slot i's own share;

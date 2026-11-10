@@ -1,8 +1,8 @@
 import { Show, type JSX } from 'solid-js';
-import { toCssSize } from './_internal/cssSize';
-import type { PillNumberPickerProps, PnpSegmentApi, PnpSegment } from './types';
-import type { createPickerSession } from './createPickerSession';
-import type { createPickerInteraction } from './createPickerInteraction';
+import { toCssSize } from './_internal/cssSize.js';
+import type { PillNumberPickerProps, PnpSegmentApi, PnpSegment } from './types.js';
+import type { createPickerSession } from './createPickerSession.js';
+import type { createPickerInteraction } from './createPickerInteraction.js';
 
 export function createPickerElements(
   props: PillNumberPickerProps,

@@ -1,7 +1,7 @@
 import { createEffect, createSignal, on, onCleanup, Show } from 'solid-js';
-import type { Notice, NoticeTones } from '../types';
-import { toneVars } from './_internal/tone';
-import { NoticeGlyph, type NoticeIcon } from './NoticeGlyph';
+import type { Notice, NoticeTones } from '../types.js';
+import { toneVars } from './_internal/tone.js';
+import { NoticeGlyph, type NoticeIcon } from './NoticeGlyph.js';
 
 /** How long a notice stays open before the drip settles. */
 const DRIP_SETTLE_MS = 4000;

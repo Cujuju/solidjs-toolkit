@@ -2,11 +2,11 @@ import { createSignal, createMemo, createEffect, on, onMount, Show, type JSX } f
 import { Portal } from 'solid-js/web';
 import { createAfterPaint, createEscapeOwner } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
-import type { ContextMenuEntry } from './types';
-import { MenuEntries, type ContextMenuSurface } from './MenuEntries';
-import { VIEWPORT_MARGIN_PX } from './submenuPosition';
-import { createDocumentListener } from './_internal/createDocumentListener';
-import { POPOVER_STACK_ATTR_SELECTOR } from './_internal/popoverStack';
+import type { ContextMenuEntry } from './types.js';
+import { MenuEntries, type ContextMenuSurface } from './MenuEntries.js';
+import { VIEWPORT_MARGIN_PX } from './submenuPosition.js';
+import { createDocumentListener } from './_internal/createDocumentListener.js';
+import { POPOVER_STACK_ATTR_SELECTOR } from './_internal/popoverStack.js';
 
 export interface ContextMenuProps {
   /** The entries to render. */

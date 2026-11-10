@@ -1,8 +1,8 @@
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { Show, createEffect, createSignal, on, type JSX } from 'solid-js';
-import { GripVerticalIcon, PencilIcon, Trash2Icon } from './_internal/icons';
-import type { ConfirmDeleteParams, EditableListRowProps, SelectionMode } from './types';
-export type { ConfirmDeleteParams, EditableListRowProps, SelectionMode } from './types';
+import { GripVerticalIcon, PencilIcon, Trash2Icon } from './_internal/icons.js';
+import type { ConfirmDeleteParams, EditableListRowProps, SelectionMode } from './types.js';
+export type { ConfirmDeleteParams, EditableListRowProps, SelectionMode } from './types.js';
 
 export default function EditableListRow(props: EditableListRowProps): JSX.Element {
   const [renaming, setRenaming] = createSignal(false);

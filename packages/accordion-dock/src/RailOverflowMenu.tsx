@@ -1,7 +1,7 @@
 import { createSignal, Show, type Accessor, type JSX } from 'solid-js';
 import { ContextMenu, type ContextMenuEntry } from '@cujuju/solidjs-context-menu';
-import { slotRef, RAIL_OVERFLOW_SLOT_KEY, type AccordionGroupApi } from './context';
-import { RAIL_OVERFLOW_ATTR } from './railOverflow';
+import { slotRef, RAIL_OVERFLOW_SLOT_KEY, type AccordionGroupApi } from './context.js';
+import { RAIL_OVERFLOW_ATTR } from './railOverflow.js';
 
 /** The `⋯` at the end of the rail: the panels that did not fit, reachable as a menu instead of behind a scrollbar. See DESIGN_NOTES.md § src/RailOverflowMenu.tsx:6. */
 

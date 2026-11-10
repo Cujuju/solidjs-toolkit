@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { useHoldAction } from '../useHoldAction';
+import { useHoldAction } from '../useHoldAction.js';
 
 /**
  * Test harness: one shared clock drives both `performance.now()` and the

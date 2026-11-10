@@ -1,7 +1,7 @@
 import { type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
-import type { TearOffController } from './tearOffModel';
+import type { TearOffController } from './tearOffModel.js';
 /** Both wrappers the Portal path introduces. `display: contents` when docked, so they cost no
  *  layout — but they DO sit in the selector chain, which the nested-group rules must allow for. */
 const TEAR_OFF_HOST_ATTR = 'data-acc-tearoff-host';

@@ -1,5 +1,5 @@
-import type { AccordionGroupApi } from './context';
-import type { GroupApiDependencies } from './groupApi.types';
+import type { AccordionGroupApi } from './context.js';
+import type { GroupApiDependencies } from './groupApi.types.js';
 
 export function createGroupRegistration(
   deps: GroupApiDependencies,

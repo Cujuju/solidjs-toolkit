@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { KvTooltip, KvTooltipPanel } from '../index';
+import { KvTooltip, KvTooltipPanel } from '../index.js';
 
 describe('server render', () => {
   it('renders the trigger and a positioned panel', () => {

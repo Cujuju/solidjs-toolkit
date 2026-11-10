@@ -1,11 +1,11 @@
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
-import { equalisedShares, resizedShares, type LayoutHandle, type ResizeSnap, type TileLayout, type TileLayoutOptions, type TileSize } from './layout';
-import { ResizeHandle } from './ResizeHandle';
-import { ResizeReadout, type ReadoutSide } from './ResizeReadout';
-import { pushedLayout, PUSH_KEY_STEP_PX, type PushedLayout, type PushTarget } from './push';
-import { handleCentre, nearestGuide, resizeGuides, type AlignLayout, type ResizeGuide } from './resizeGuides';
-import { resizeSplit } from './tileEdits';
-import { nodeAt, type TileNode, type TileSplit } from './tileTree';
+import { equalisedShares, resizedShares, type LayoutHandle, type ResizeSnap, type TileLayout, type TileLayoutOptions, type TileSize } from './layout.js';
+import { ResizeHandle } from './ResizeHandle.js';
+import { ResizeReadout, type ReadoutSide } from './ResizeReadout.js';
+import { pushedLayout, PUSH_KEY_STEP_PX, type PushedLayout, type PushTarget } from './push.js';
+import { handleCentre, nearestGuide, resizeGuides, type AlignLayout, type ResizeGuide } from './resizeGuides.js';
+import { resizeSplit } from './tileEdits.js';
+import { nodeAt, type TileNode, type TileSplit } from './tileTree.js';
 
 /**
  * A trading drag's new shares for one split, or a pushing drag's whole tree and height. `holdPx` is the tallest the

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createIntersectionObserver } from '../createIntersectionObserver';
+import { createIntersectionObserver } from '../createIntersectionObserver.js';
 
 describe('createIntersectionObserver', () => {
   it('wires up without throwing when element is present', () => {

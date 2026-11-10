@@ -15,7 +15,7 @@ import {
   viewportSize,
   DEFAULT_ANCHOR_GAP_PX,
   type KvTooltipPlacement,
-} from './clamp';
+} from './clamp.js';
 
 export function filterEntries(
   entries: Record<string, string>,

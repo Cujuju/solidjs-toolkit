@@ -4,7 +4,7 @@ import {
   createTearOff,
   TEAR_OFF_MIN_WINDOW_PX,
   type TearOffController,
-} from '../tearOff';
+} from '../tearOff.js';
 
 /**
  * Tear-off, smoke-tested against a stubbed `window.open`. Proves the WIRING only; jsdom has no

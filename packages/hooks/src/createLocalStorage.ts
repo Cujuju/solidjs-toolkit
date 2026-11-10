@@ -1,5 +1,5 @@
 import { createSignal, type Accessor } from 'solid-js';
-import { safeStorageRead, safeStorageRemove, safeStorageWrite } from './_internal/safeStorage';
+import { safeStorageRead, safeStorageRemove, safeStorageWrite } from './_internal/safeStorage.js';
 
 /**
  * Reactive JSON-serialized localStorage signal, shaped like `createSignal`; falls back to

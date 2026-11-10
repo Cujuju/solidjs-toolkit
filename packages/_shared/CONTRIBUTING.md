@@ -112,6 +112,16 @@ Primitive lives at `cujuju-solidjs-hold-action/_internal/measure.ts`. Duplicate 
 
 ---
 
+## 10. Relative imports carry `.js`
+
+**Rule:** every relative import in `src` names its emitted file: `'./foo.js'`, `'./dir/index.js'`. Vite, Vitest and Bundler resolution map `.js` to the `.ts`/`.tsx` source.
+
+**Why:** `.d.ts` files keep the specifiers as written. NodeNext consumers cannot resolve extensionless ones (TS2834), and with `skipLibCheck` every export silently becomes `any` (#29, #30).
+
+**Enforced by** `_shared/checkNodeNext.mjs`, which each package's `build` runs after `vite build`: it type-checks every typed export subpath of `dist` as a NodeNext consumer with `skipLibCheck` off.
+
+---
+
 ## When to add a new rule here
 
 - A bug reproduced twice across different packages or hooks.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { EditableListFlyout } from '../index';
+import { EditableListFlyout } from '../index.js';
 
 describe('server render', () => {
   it.each([false, true])('renders with open=%s', (open) => {

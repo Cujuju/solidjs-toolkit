@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createMediaQuery } from '../createMediaQuery';
+import { createMediaQuery } from '../createMediaQuery.js';
 
 describe('createMediaQuery', () => {
   it('returns an accessor without throwing', () => {

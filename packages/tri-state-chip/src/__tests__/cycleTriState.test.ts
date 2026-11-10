@@ -4,7 +4,7 @@ import {
   tristateOf,
   applyTriState,
   EMPTY_TRI_STATE,
-} from '../cycleTriState';
+} from '../cycleTriState.js';
 
 describe('cycleTriState', () => {
   it('unselected → included', () => {

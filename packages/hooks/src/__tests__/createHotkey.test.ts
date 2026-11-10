@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createHotkey } from '../createHotkey';
+import { createHotkey } from '../createHotkey.js';
 
 describe('createHotkey', () => {
   it('fires on matching combo (ctrl+k)', () => {

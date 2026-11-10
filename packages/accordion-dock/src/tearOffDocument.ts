@@ -1,6 +1,6 @@
 import { DelegatedEvents, delegateEvents } from 'solid-js/web';
 
-import { TEAR_OFF_ORPHAN_WATCHDOG_MS } from './tearOffModel';
+import { TEAR_OFF_ORPHAN_WATCHDOG_MS } from './tearOffModel.js';
 /** Marks the style nodes THIS module put in the popup head, so a re-sync can
  *  replace exactly those and leave anything else alone. */
 const TEAR_OFF_STYLE_MARKER_ATTR = 'data-acc-tearoff-style';

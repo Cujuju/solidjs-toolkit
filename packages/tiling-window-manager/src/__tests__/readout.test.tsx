@@ -1,11 +1,11 @@
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { computeTileLayout } from '../layout';
-import { percentTenths } from '../ResizeReadout';
-import { GUIDE_SNAP_PX, nearestGuide, resizeGuides } from '../resizeGuides';
-import { TilingWorkspace } from '../TilingWorkspace';
-import type { TileNode, TileSplit } from '../tileTree';
+import { computeTileLayout } from '../layout.js';
+import { percentTenths } from '../ResizeReadout.js';
+import { GUIDE_SNAP_PX, nearestGuide, resizeGuides } from '../resizeGuides.js';
+import { TilingWorkspace } from '../TilingWorkspace.js';
+import type { TileNode, TileSplit } from '../tileTree.js';
 
 const WIDTH = 410;
 const HEIGHT = 300;

@@ -1,9 +1,9 @@
-import { computeTileLayout, minimumSize, type LayoutRect, type TileLayout, type TileLayoutOptions, type TileSize } from './layout';
-import { dock, insertTile, swapTiles } from './tileEdits';
+import { computeTileLayout, minimumSize, type LayoutRect, type TileLayout, type TileLayoutOptions, type TileSize } from './layout.js';
+import { dock, insertTile, swapTiles } from './tileEdits.js';
 import {
   dropZoneAt, EVEN_SPLIT_PARTS, findSlot, slotKey, splitAxis, UNIT_SHARE,
   type DockSide, type DropZone, type InsertionShares, type TileNode,
-} from './tileTree';
+} from './tileTree.js';
 
 /** A millionth of a CSS pixel permits float roundoff, never a visible neighbour resize. */
 const RECT_TOLERANCE_PX = 0.000001;

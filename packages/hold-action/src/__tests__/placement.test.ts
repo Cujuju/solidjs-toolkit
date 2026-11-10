@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { strokeOuterOffset } from '../_internal/placement';
+import { strokeOuterOffset } from '../_internal/placement.js';
 
 const NO_BORDER = { t: 0, r: 0, b: 0, l: 0 };
 const BORDER_1 = { t: 1, r: 1, b: 1, l: 1 };

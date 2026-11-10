@@ -5,7 +5,7 @@ import {
   DEFAULT_ANCHOR_GAP_PX,
   type AnchorRectLike,
   type KvTooltipPlacement,
-} from '../clamp';
+} from '../clamp.js';
 
 /**
  * Contract tests for `placeAgainstRect`. Invariant: the panel never overlaps its anchor (the

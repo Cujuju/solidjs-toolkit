@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
-import EditableListRow from '../EditableListRow';
+import EditableListRow from '../EditableListRow.js';
 
 let dispose: (() => void) | null = null;
 

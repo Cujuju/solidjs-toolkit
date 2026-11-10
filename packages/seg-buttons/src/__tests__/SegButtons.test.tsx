@@ -7,14 +7,14 @@
 import { describe, it, expect, afterEach, vi, onTestFinished } from 'vitest';
 import { render, Portal } from 'solid-js/web';
 import { createSignal, For, type JSX } from 'solid-js';
-import { SegGroup } from '../SegGroup';
-import { SegButton } from '../SegButton';
+import { SegGroup } from '../SegGroup.js';
+import { SegButton } from '../SegButton.js';
 import {
   setSegTooltipHost,
   setSegTooltipDefaults,
   segTooltipDefaults,
   type SegTooltipHostProps,
-} from '../tooltipHost';
+} from '../tooltipHost.js';
 
 let dispose: (() => void) | null = null;
 

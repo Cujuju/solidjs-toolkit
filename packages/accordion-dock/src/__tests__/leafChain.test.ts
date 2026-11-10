@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createLeafChain, bindLeafChain, leafChainFor } from '../leafChain';
-import { createStubGroup } from './stubGroup';
+import { createLeafChain, bindLeafChain, leafChainFor } from '../leafChain.js';
+import { createStubGroup } from './stubGroup.js';
 
 /**
  * The leaf chain's whole job is `orderOpen`. Everything worth testing is a case where the

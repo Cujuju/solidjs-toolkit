@@ -2,7 +2,7 @@
 // document-wide.
 import './glass.css';
 
-export { MenuTintSection, type MenuTintSectionProps } from './MenuTintSection';
+export { MenuTintSection, type MenuTintSectionProps } from './MenuTintSection.js';
 
 // The menu palette. The ONLY supported runtime route to the six
 // `.glass-menu` colours plus the chrome backing — see menuPalette.ts for why overriding them is
@@ -19,7 +19,7 @@ export {
   type GlassMenuPalette,
   applyGlassMenuPalette,
   resetGlassMenuPalette,
-} from './menuPalette';
+} from './menuPalette.js';
 
 export {
   DEFAULT_MENU_TINT_STORAGE_KEY,
@@ -54,4 +54,4 @@ export {
   clearMenuTintKnobsFromStorage,
   applyMenuTintKnobs,
   bootstrapMenuTintFromStorage,
-} from './menuTint';
+} from './menuTint.js';

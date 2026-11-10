@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent, createSignal, getOwner, onCleanup } from 'solid-js';
-import { KvTooltip } from '../KvTooltip';
-import { DEFAULT_ANCHOR_GAP_PX } from '../clamp';
+import { KvTooltip } from '../KvTooltip.js';
+import { DEFAULT_ANCHOR_GAP_PX } from '../clamp.js';
 
 /**
  * Mounts KvTooltip in jsdom to lock what hoverIntent unit tests can't: handler wiring, and

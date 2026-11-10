@@ -1,5 +1,5 @@
-import { NOTICE_CHANNELS, type Notice, type NoticeBridge, type NoticePlacement, type NoticeRef, type NoticeView } from './types';
-import type { NoticeOverlay } from './overlay';
+import { NOTICE_CHANNELS, type Notice, type NoticeBridge, type NoticePlacement, type NoticeRef, type NoticeView } from './types.js';
+import type { NoticeOverlay } from './overlay.js';
 export interface IpcMainLike { handle(channel: string, listener: (event: { sender?: unknown }, ...args: unknown[]) => unknown): void }
 export function handleNoticeIpc(ipcMain: IpcMainLike, overlay: NoticeOverlay): void {
   ipcMain.handle(NOTICE_CHANNELS.ready, (e) => { if (overlay.owns(e.sender)) overlay.ready(); });

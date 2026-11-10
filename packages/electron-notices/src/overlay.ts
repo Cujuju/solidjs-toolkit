@@ -1,6 +1,6 @@
-import { NOTICE_CHANNELS, deliversTo, type Notice, type NoticeView, type NoticeDeliveryResult, type NoticeRef } from './types';
-import { createNoticeLedger } from './_internal/ledger';
-import { resolvePlacement, overlayBounds, type Rect, type DisplayArea } from './placement';
+import { NOTICE_CHANNELS, deliversTo, type Notice, type NoticeView, type NoticeDeliveryResult, type NoticeRef } from './types.js';
+import { createNoticeLedger } from './_internal/ledger.js';
+import { resolvePlacement, overlayBounds, type Rect, type DisplayArea } from './placement.js';
 
 export const OVERLAY_WINDOW_OPTIONS = {
   width: 1, height: 1, show: false, frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false,

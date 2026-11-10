@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import { FLYOUT_HOVER_ENTER_DELAY_MS } from '../autoHide';
-import type { AccordionGroupApi } from '../context';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import { FLYOUT_HOVER_ENTER_DELAY_MS } from '../autoHide.js';
+import type { AccordionGroupApi } from '../context.js';
 
 /**
  * THE HOVER-OPEN DELAY IS A HOST DECISION. The 350ms default suits the horizontal RAIL's

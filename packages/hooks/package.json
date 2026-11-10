@@ -48,8 +48,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "vite build",
-    "prepublishOnly": "vite build"
+    "build": "vite build && node ../_shared/checkNodeNext.mjs",
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "@solidjs/testing-library": "^0.8.0",

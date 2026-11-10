@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, createUniqueId, onCleanup, onMount, type Accessor, type JSX } from 'solid-js';
-import type { KvTooltipProps } from './types';
+import type { KvTooltipProps } from './types.js';
 
 /** Visually hidden. Inline, not a class, so it stays hidden without the package stylesheet. */
 export const SR_ONLY_STYLE: JSX.CSSProperties = {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
-import { TriStateChip } from '../TriStateChip';
+import { TriStateChip } from '../TriStateChip.js';
 
 let dispose: (() => void) | null = null;
 

@@ -9,21 +9,21 @@ import {
   Show,
   type JSX,
 } from 'solid-js';
-import { createHoverIntent } from './_internal/hoverIntent';
-import { isTopLayerSurfaceOpen } from './_internal/topLayer';
+import { createHoverIntent } from './_internal/hoverIntent.js';
+import { isTopLayerSurfaceOpen } from './_internal/topLayer.js';
 import {
   ensureViewportListeners,
   viewportScrollTick,
-} from './clamp';
+} from './clamp.js';
 import {
   filterEntries,
   resolveAnchor,
   TooltipContent,
   type KvTooltipAnchor,
-} from './TooltipContent';
-import { createTooltipDescription, SR_ONLY_STYLE, wrapperStyle } from './tooltipWrapper';
-import type { KvTooltipProps } from './types';
-export type { KvTooltipProps } from './types';
+} from './TooltipContent.js';
+import { createTooltipDescription, SR_ONLY_STYLE, wrapperStyle } from './tooltipWrapper.js';
+import type { KvTooltipProps } from './types.js';
+export type { KvTooltipProps } from './types.js';
 
 /** Content + reference position held for the lifetime of one show, per `freezeOnShow`. */
 interface FrozenSnapshot {

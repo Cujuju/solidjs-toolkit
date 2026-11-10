@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { computeTileLayout, equalisedShares, resizedShares, type LayoutRect } from '../layout';
-import { planInsertion, planMove, planReflow, tileHitAt, TOO_SMALL } from '../plan';
-import { insertTile } from '../tileEdits';
-import type { TileNode, TileSplit } from '../tileTree';
+import { computeTileLayout, equalisedShares, resizedShares, type LayoutRect } from '../layout.js';
+import { planInsertion, planMove, planReflow, tileHitAt, TOO_SMALL } from '../plan.js';
+import { insertTile } from '../tileEdits.js';
+import type { TileNode, TileSplit } from '../tileTree.js';
 
 const t = (id: string): TileNode => ({ kind: 'tile', id });
 const row = (sizes: number[], ...children: TileNode[]): TileSplit => ({ kind: 'split', dir: 'row', sizes, children });

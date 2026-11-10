@@ -16,7 +16,7 @@ import {
   createEscapeOwner,
   isEscapeDismissing,
   ESCAPE_OWNERS_KEY,
-} from '../createEscapeOwner';
+} from '../createEscapeOwner.js';
 
 interface Registry {
   stack: unknown[];
@@ -391,7 +391,7 @@ describe('two separately bundled copies of the module', () => {
     const solid = await import('solid-js');
     vi.doMock('solid-js', () => solid);
     vi.resetModules();
-    const copyB = (await import('../createEscapeOwner')) as typeof import('../createEscapeOwner');
+    const copyB = (await import('../createEscapeOwner.js')) as typeof import('../createEscapeOwner.js');
     vi.doUnmock('solid-js');
     expect(copyB.createEscapeOwner, 'vi.resetModules returned the same module instance').not.toBe(
       createEscapeOwner,

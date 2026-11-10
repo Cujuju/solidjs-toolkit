@@ -1,4 +1,4 @@
-import type { NoticeInput, NoticeTones } from '../../types';
+import type { NoticeInput, NoticeTones } from '../../types.js';
 
 /** Tones already reported missing, so a bad tone warns once instead of on every render. */
 const reported = new Set<string>();

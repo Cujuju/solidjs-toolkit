@@ -1,7 +1,7 @@
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
-import { computeTileLayout, slotRects, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout';
-import { planInsertion, planReflow, planTab, tileHitAt, type InsertionPlan, type PlacementMode } from './plan';
-import type { DockSide, DropZone, InsertionShares, TileNode } from './tileTree';
+import { computeTileLayout, slotRects, type LayoutRect, type TileLayoutOptions, type TileSize } from './layout.js';
+import { planInsertion, planReflow, planTab, tileHitAt, type InsertionPlan, type PlacementMode } from './plan.js';
+import type { DockSide, DropZone, InsertionShares, TileNode } from './tileTree.js';
 
 /** A new tile splits a tile; with tab groups on, the centre adds it as a tab. */
 const SPLIT_ZONES: readonly DropZone[] = ['left', 'right', 'top', 'bottom'];

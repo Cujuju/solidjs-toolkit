@@ -1,6 +1,6 @@
-import type { LayoutHandle } from './layout';
-import { collapsedIndices, heldBy, shareHolders, tradeShares, viewShares } from './tileCollapse';
-import { EVEN_SPLIT_PARTS, MIN_SHARE_RATIO } from './tileTree';
+import type { LayoutHandle } from './layout.js';
+import { collapsedIndices, heldBy, shareHolders, tradeShares, viewShares } from './tileCollapse.js';
+import { EVEN_SPLIT_PARTS, MIN_SHARE_RATIO } from './tileTree.js';
 
 /** Saved shares land on 0.5% of the split, so equal percents give equal layouts. */
 export const RESIZE_STEP_RATIO = 0.005;

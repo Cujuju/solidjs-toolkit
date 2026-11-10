@@ -1,10 +1,10 @@
 import { batch, createSignal, onCleanup, untrack } from 'solid-js';
-import { isBrowser, nextFrame } from './_internal/dom';
-import { alignedOffset, anchoredOffset, captureAnchor, clamp, type Align, type AnchorSnap } from './core/anchor';
-import { createLayout } from './core/layout';
-import { createSettle } from './core/settle';
-import { DEFAULT_OLDER_THRESHOLD, DEFAULT_RUNWAY_VIEWPORTS, END_SLOP_PX, MIN_ESTIMATE_SCALE, MAX_ESTIMATE_SCALE, ESTIMATE_SCALE_STEP, defaultKey } from './_internal/constants';
-import type { VirtualLogOptions } from './types';
+import { isBrowser, nextFrame } from './_internal/dom.js';
+import { alignedOffset, anchoredOffset, captureAnchor, clamp, type Align, type AnchorSnap } from './core/anchor.js';
+import { createLayout } from './core/layout.js';
+import { createSettle } from './core/settle.js';
+import { DEFAULT_OLDER_THRESHOLD, DEFAULT_RUNWAY_VIEWPORTS, END_SLOP_PX, MIN_ESTIMATE_SCALE, MAX_ESTIMATE_SCALE, ESTIMATE_SCALE_STEP, defaultKey } from './_internal/constants.js';
+import type { VirtualLogOptions } from './types.js';
 
 export function createLogLayout<R>(o: VirtualLogOptions<R>, checkEdges: () => void) {
   const getKey = o.getKey ?? defaultKey;

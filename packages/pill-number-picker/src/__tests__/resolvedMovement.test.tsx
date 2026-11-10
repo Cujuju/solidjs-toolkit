@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createSignal, type JSX } from 'solid-js';
 import { render } from 'solid-js/web';
-import { PillNumberPicker } from '../PillNumberPicker';
+import { PillNumberPicker } from '../PillNumberPicker.js';
 
 let dispose: (() => void) | undefined;
 afterEach(() => { dispose?.(); document.body.innerHTML = ''; });

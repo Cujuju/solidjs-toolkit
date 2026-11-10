@@ -1,7 +1,7 @@
 import { Show, onCleanup, onMount, type JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { useSegGroupContext } from './SegGroup';
-import { useSegTooltipHost, segTooltipDefaults } from './tooltipHost';
+import { useSegGroupContext } from './SegGroup.js';
+import { useSegTooltipHost, segTooltipDefaults } from './tooltipHost.js';
 
 export interface SegButtonProps<T = string> {
   label: string;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
-import { createResize, DEFAULT_MIN_SIZE_PX, type ResizeApi, type ResizeHost } from '../resize';
+import { createResize, DEFAULT_MIN_SIZE_PX, type ResizeApi, type ResizeHost } from '../resize.js';
 
 /** The splitter engine, driven through pointer events. See DESIGN_NOTES.md § src/__tests__/resize.test.ts:5. */
 

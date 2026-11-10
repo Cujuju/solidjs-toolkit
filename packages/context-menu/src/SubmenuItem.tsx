@@ -2,11 +2,11 @@ import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { createEffect, createSignal, onCleanup, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { POPOVER_STACK_ATTR } from './_internal/popoverStack';
-import { MenuEntries, type ContextMenuSurface } from './MenuEntries';
-import { computeSubmenuStyle } from './submenuPosition';
-import { submenuCloseDelayMs } from './submenuTiming';
-import { isDivider, type ContextMenuSubmenu } from './types';
+import { POPOVER_STACK_ATTR } from './_internal/popoverStack.js';
+import { MenuEntries, type ContextMenuSurface } from './MenuEntries.js';
+import { computeSubmenuStyle } from './submenuPosition.js';
+import { submenuCloseDelayMs } from './submenuTiming.js';
+import { isDivider, type ContextMenuSubmenu } from './types.js';
 
 /** First control a keyboard-opened submenu focuses: an enabled row button or slider. */
 const FLYOUT_FOCUS_SELECTOR = 'button:not(:disabled), input';

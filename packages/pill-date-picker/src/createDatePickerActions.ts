@@ -1,7 +1,7 @@
 import type { Setter } from 'solid-js';
-import { isAnchorOutsideViewport, POPOUT_DEFAULT_GAP_PX, POPOUT_DEFAULT_PREFERENCE, resolvePopoutPosition, type PopoutPosition } from './_internal/popout';
-import { NO_ACTIVE_INDEX, type createPillDateModel } from './createPillDateModel';
-import type { PillDateEntry, PillDatePickerProps } from './types';
+import { isAnchorOutsideViewport, POPOUT_DEFAULT_GAP_PX, POPOUT_DEFAULT_PREFERENCE, resolvePopoutPosition, type PopoutPosition } from './_internal/popout.js';
+import { NO_ACTIVE_INDEX, type createPillDateModel } from './createPillDateModel.js';
+import type { PillDateEntry, PillDatePickerProps } from './types.js';
 
 export function createDatePickerActions<T extends PillDateEntry>(
   props: PillDatePickerProps<T>,

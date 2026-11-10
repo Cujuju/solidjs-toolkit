@@ -8,8 +8,8 @@ import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import { ESCAPE_OWNERS_KEY } from '@cujuju/solidjs-hooks';
 import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
-import AnchoredPopover from '../../../anchored-popover/src/AnchoredPopover';
-import { PillDatePicker } from '../PillDatePicker';
+import AnchoredPopover from '../../../anchored-popover/src/AnchoredPopover.js';
+import { PillDatePicker } from '../PillDatePicker.js';
 
 const escapeStack = (): unknown[] =>
   (globalThis as unknown as Record<symbol, { stack: unknown[] }>)[ESCAPE_OWNERS_KEY].stack;

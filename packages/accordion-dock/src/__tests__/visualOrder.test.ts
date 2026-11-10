@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orderVisualOpen, survivesBulkClose, bulkClosableIds } from '../visualOrder';
+import { orderVisualOpen, survivesBulkClose, bulkClosableIds } from '../visualOrder.js';
 
 /**
  * CONTRACT tests, not callsite tests: before the extraction each rule was copied into three

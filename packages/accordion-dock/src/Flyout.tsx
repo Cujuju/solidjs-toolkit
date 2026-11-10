@@ -3,9 +3,9 @@ import {
   type AnchoredPlacement,
 } from '@cujuju/solidjs-anchored-popover';
 import { Show, onCleanup, type JSX } from 'solid-js';
-import type { PanelMeta } from './context';
-import { Close, Pin, PinOff } from './icons';
-import { SlotIf } from './SlotIf';
+import type { PanelMeta } from './context.js';
+import { Close, Pin, PinOff } from './icons.js';
+import { SlotIf } from './SlotIf.js';
 
 import {
   DISMISS_SUPPRESS_SELECTOR,
@@ -17,7 +17,7 @@ import {
   flyoutCrossAxis,
   inheritedTypographyOf,
   type AutoHideGroup,
-} from './autoHideModel';
+} from './autoHideModel.js';
 /**
  * One flyout: the popover shell, its placement inputs, and the host the panel's subtree
  * portals into. It renders no panel content — that arrives from `AccordionPanel`.

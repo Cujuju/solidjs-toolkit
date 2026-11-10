@@ -1,6 +1,6 @@
 import { EMPTY_TRI_STATE, TriStateChip, applyTriState, tristateOf, type TriState } from '@cujuju/solidjs-tri-state-chip';
 import { createMemo, createUniqueId, on, type Accessor, type JSX } from 'solid-js';
-import type { ChipFlyoutProps, ChipFlyoutTab, ChipOption } from './types';
+import type { ChipFlyoutProps, ChipFlyoutTab, ChipOption } from './types.js';
 
 /** Multi chips toggle between unselected and included, overriding the default three-state cycle so excluded is unreachable. */
 function multiNextState(current: TriState): TriState {

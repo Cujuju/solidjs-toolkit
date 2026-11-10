@@ -1,8 +1,8 @@
 import { createSignal, createEffect, on } from 'solid-js';
-import { effectivePrecision, clampAndRound, formatValue, parseValue } from './_internal/precision';
-import { autoValueWidthPx } from './_internal/layout';
-import { toCssSize } from './_internal/cssSize';
-import type { PnpLayout, PillNumberPickerProps } from './types';
+import { effectivePrecision, clampAndRound, formatValue, parseValue } from './_internal/precision.js';
+import { autoValueWidthPx } from './_internal/layout.js';
+import { toCssSize } from './_internal/cssSize.js';
+import type { PnpLayout, PillNumberPickerProps } from './types.js';
 
 export function createPickerSession(props: PillNumberPickerProps) {
   let inputEl: HTMLInputElement | undefined;

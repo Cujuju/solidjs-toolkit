@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSignal } from 'solid-js';
 import { renderToString } from 'solid-js/web';
-import { createVirtualLog, VirtualLog } from '../index';
+import { createVirtualLog, VirtualLog } from '../index.js';
 
 describe('server render', () => {
   it('renders', () => {

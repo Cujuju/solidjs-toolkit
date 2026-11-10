@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
-import EditableListFlyout from '../EditableListFlyout';
+import EditableListFlyout from '../EditableListFlyout.js';
 
 // jsdom popover API stubs — same shape as anchored-popover package.
 const originalMatches = HTMLElement.prototype.matches;

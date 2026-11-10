@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { TilingWorkspace } from '../TilingWorkspace';
-import type { TileNode } from '../tileTree';
+import { TilingWorkspace } from '../TilingWorkspace.js';
+import type { TileNode } from '../tileTree.js';
 
 const WIDTH = 410;
 const HEIGHT = 300;

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalize, dropZoneAt, findTile, tileIds,
   type TileNode, type TileSplit,
-} from '../tileTree';
-import { appendTile, dock, insertTile, removeTile, resizeSplit, swapTiles } from '../tileEdits';
-import { normalize } from '../tileRepair';
+} from '../tileTree.js';
+import { appendTile, dock, insertTile, removeTile, resizeSplit, swapTiles } from '../tileEdits.js';
+import { normalize } from '../tileRepair.js';
 
 const t = (id: string): TileNode => ({ kind: 'tile', id });
 const row = (sizes: number[], ...children: TileNode[]): TileSplit => ({ kind: 'split', dir: 'row', sizes, children });

@@ -7,7 +7,7 @@ import {
   type AccordionOrientation,
   type AccordionPolicy,
   type AccordionRailSide,
-} from './context';
+} from './context.js';
 
 export interface AccordionGroupProps {
   children: JSX.Element;

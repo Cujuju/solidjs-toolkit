@@ -7,8 +7,8 @@ import {
   useContext,
   type JSX,
 } from 'solid-js';
-import type { AccordionGroupProps } from './AccordionGroup.types';
-import { createAutoHide, type AutoHideApi } from './autoHide';
+import type { AccordionGroupProps } from './AccordionGroup.types.js';
+import { createAutoHide, type AutoHideApi } from './autoHide.js';
 import {
   AccordionGroupContext,
   type AccordionAppearance,
@@ -18,21 +18,21 @@ import {
   type AccordionPolicy,
   type AccordionRailSide,
   type PanelMeta,
-} from './context';
-import { createGroupActions } from './groupActions';
-import { createGroupApi } from './groupApi';
-import { createGroupInteractions } from './groupInteractions';
-import { createGroupOrder } from './groupOrder';
-import { createGroupState } from './groupState';
-import { bindLeafChain } from './leafChain';
-import { RailButton } from './RailButton';
-import { createRailOverflow } from './railOverflow';
-import { RailOverflowMenu } from './RailOverflowMenu';
-import { createRailPan } from './railPan';
-import { createTearOff, type TearOffController } from './tearOff';
-import { showsRailButton } from './visualOrder';
+} from './context.js';
+import { createGroupActions } from './groupActions.js';
+import { createGroupApi } from './groupApi.js';
+import { createGroupInteractions } from './groupInteractions.js';
+import { createGroupOrder } from './groupOrder.js';
+import { createGroupState } from './groupState.js';
+import { bindLeafChain } from './leafChain.js';
+import { RailButton } from './RailButton.js';
+import { createRailOverflow } from './railOverflow.js';
+import { RailOverflowMenu } from './RailOverflowMenu.js';
+import { createRailPan } from './railPan.js';
+import { createTearOff, type TearOffController } from './tearOff.js';
+import { showsRailButton } from './visualOrder.js';
 
-export type { AccordionGroupProps } from './AccordionGroup.types';
+export type { AccordionGroupProps } from './AccordionGroup.types.js';
 
 /**
  * Drag activation is skipped on anything matching this. The primitive's default would disable

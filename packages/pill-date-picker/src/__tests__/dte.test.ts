@@ -14,7 +14,7 @@ import {
   DEFAULT_DTE_RAMP,
   DTE_URGENT_MAX_DAYS,
   DTE_NEAR_MAX_DAYS,
-} from '../_internal/dte';
+} from '../_internal/dte.js';
 
 describe('parseIsoDate', () => {
   it('reads Y/M/D off a bare ISO date', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { Flyout } from '../index';
+import { Flyout } from '../index.js';
 
 describe('server render', () => {
   it('renders', () => {

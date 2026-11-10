@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createLayout } from '../core/layout';
+import { createLayout } from '../core/layout.js';
 
 const keys = (n: number, from = 0): string[] => Array.from({ length: n }, (_, i) => `k${from + i}`);
 

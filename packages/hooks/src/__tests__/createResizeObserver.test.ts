@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createResizeObserver } from '../createResizeObserver';
+import { createResizeObserver } from '../createResizeObserver.js';
 
 describe('createResizeObserver', () => {
   it('wires up without throwing when element is present', () => {

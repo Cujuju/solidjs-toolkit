@@ -1,9 +1,9 @@
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { createEscapeOwner } from '@cujuju/solidjs-hooks';
-import { resolvePopoutPosition, POPOUT_DEFAULT_GAP_PX, type PopoutPosition } from './_internal/popout';
-import { createAutoRepeat } from './_internal/autoRepeat';
-import type { PillNumberPickerProps } from './types';
-import type { createPickerSession } from './createPickerSession';
+import { resolvePopoutPosition, POPOUT_DEFAULT_GAP_PX, type PopoutPosition } from './_internal/popout.js';
+import { createAutoRepeat } from './_internal/autoRepeat.js';
+import type { PillNumberPickerProps } from './types.js';
+import type { createPickerSession } from './createPickerSession.js';
 
 /** PageUp/PageDown move ±step×10, as documented in the README (Keyboard). */
 const PAGE_STEPS = 10;

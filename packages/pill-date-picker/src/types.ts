@@ -1,6 +1,6 @@
 import type { JSX } from 'solid-js';
-import type { DteColorStop } from './_internal/dte';
-import type { PopoutPlacement } from './_internal/popout';
+import type { DteColorStop } from './_internal/dte.js';
+import type { PopoutPlacement } from './_internal/popout.js';
 
 /**
  * An entry: a bare ISO string, or an object so a caller can hang their own payload off it —

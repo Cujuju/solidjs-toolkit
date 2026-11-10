@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { createNoticeOverlay } from '../overlay';
-import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, NOTICE_CHANNELS, type NoticeView } from '../types';
+import { createNoticeOverlay } from '../overlay.js';
+import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, NOTICE_CHANNELS, type NoticeView } from '../types.js';
 function setup(platform = 'win32') {
   const events: Record<string, () => void> = {};
   const w = { setBounds: vi.fn(), showInactive: vi.fn(), hide: vi.fn(), isVisible: () => false, isDestroyed: () => false,

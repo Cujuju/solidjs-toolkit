@@ -6,8 +6,8 @@ import {
   CRUMB_HEAD_COUNT,
   CRUMB_TAIL_COUNT,
   type CrumbData,
-} from '../breadcrumbPath';
-import { createStubGroup } from './stubGroup';
+} from '../breadcrumbPath.js';
+import { createStubGroup } from './stubGroup.js';
 
 /** A path of `n` open panels named p0…p(n-1), all open, in order. */
 function pathOf(n: number) {

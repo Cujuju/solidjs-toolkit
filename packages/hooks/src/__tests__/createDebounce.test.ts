@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
-import { createDebounce } from '../createDebounce';
+import { createDebounce } from '../createDebounce.js';
 
 // Fake timers race Solid's scheduler; flush microtasks between reactive updates and timer advances.
 async function flush(): Promise<void> {

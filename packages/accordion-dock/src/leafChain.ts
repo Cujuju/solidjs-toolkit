@@ -1,5 +1,5 @@
 import { createSignal, type Accessor } from 'solid-js';
-import type { AccordionGroupApi } from './context';
+import type { AccordionGroupApi } from './context.js';
 
 /**
  * Leaf chains: a leaf can be a WAYPOINT, opening another leaf beside it. Order comes from a

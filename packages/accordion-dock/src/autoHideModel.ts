@@ -5,7 +5,7 @@ import type {
   AccordionRailSide,
   ActivatorHoverProps,
   PanelMeta,
-} from './context';
+} from './context.js';
 
 /**
  * AUTO-HIDE — an unpinned open panel renders as a flyout; pinning promotes it to a column.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { EditableListRow } from '../index';
+import { EditableListRow } from '../index.js';
 
 describe('server render', () => {
   it.each([false, true])('renders with checked=%s', (checked) => {

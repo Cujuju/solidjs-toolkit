@@ -2,8 +2,8 @@
 import { vi } from 'vitest';
 import { render } from '@solidjs/testing-library';
 import { createSignal, type Accessor } from 'solid-js';
-import { createVirtualLog, type VirtualLogOptions } from '../createVirtualLog';
-import { VirtualLog } from '../VirtualLog';
+import { createVirtualLog, type VirtualLogOptions } from '../createVirtualLog.js';
+import { VirtualLog } from '../VirtualLog.js';
 
 export type Row = { key: string; h: number };
 

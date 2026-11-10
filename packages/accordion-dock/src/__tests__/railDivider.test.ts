@@ -4,8 +4,8 @@ import {
   partitionAtRail,
   repinToVisualOrder,
   showsRailButton,
-} from '../visualOrder';
-import { createStubGroup } from './stubGroup';
+} from '../visualOrder.js';
+import { createStubGroup } from './stubGroup.js';
 
 /**
  * THE RAIL AS THE STATIC/DYNAMIC DIVIDER. `pinned` means "opens as a docked column"; open and

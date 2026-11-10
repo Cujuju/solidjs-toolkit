@@ -1,7 +1,7 @@
-import { ACCORDION_LAYOUT_VERSION, type AccordionGroupApi } from './context';
-import type { GroupApiDependencies } from './groupApi.types';
-import { createGroupRegistration } from './groupRegistration';
-import { showsRailButton, survivesBulkClose } from './visualOrder';
+import { ACCORDION_LAYOUT_VERSION, type AccordionGroupApi } from './context.js';
+import type { GroupApiDependencies } from './groupApi.types.js';
+import { createGroupRegistration } from './groupRegistration.js';
+import { showsRailButton, survivesBulkClose } from './visualOrder.js';
 
 export function createGroupApi(deps: GroupApiDependencies) {
   const {

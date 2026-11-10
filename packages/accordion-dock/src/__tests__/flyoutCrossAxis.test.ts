@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { flyoutCrossAxis, FLYOUT_DEFAULT_WIDTH_PX } from '../autoHide';
+import { flyoutCrossAxis, FLYOUT_DEFAULT_WIDTH_PX } from '../autoHide.js';
 
 /**
  * A FLYOUT MUST NEVER BE THE REASON ITS OWN CONTENT CLIPS. A vertical flyout took the GROUP's

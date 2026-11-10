@@ -8,12 +8,12 @@ import {
   DEFAULT_DTE_RAMP,
   formatMonthDay,
   type DteColorStop,
-} from './_internal/dte';
+} from './_internal/dte.js';
 import {
   type PillDateEntry,
   type PillDateItemState,
   type PillDatePickerProps,
-} from './types';
+} from './types.js';
 
 /** The ISO date of an entry, whichever shape it arrived in. */
 export function dateOf(item: PillDateEntry): string {

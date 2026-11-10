@@ -1,5 +1,5 @@
-import { minimumSize, type TileLayout, type TileLayoutOptions } from './layout';
-import type { TileNode, TilePath, TileSplit } from './tileTree';
+import { minimumSize, type TileLayout, type TileLayoutOptions } from './layout.js';
+import type { TileNode, TilePath, TileSplit } from './tileTree.js';
 
 /** One arrow press moves a pushing divider this far. */
 export const PUSH_KEY_STEP_PX = 10;

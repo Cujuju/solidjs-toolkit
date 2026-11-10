@@ -1,6 +1,6 @@
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { createEffect, createSignal, createUniqueId, on, onCleanup } from 'solid-js';
-import type { FlyoutProps } from './types';
+import type { FlyoutProps } from './types.js';
 
 /** Native-select feel: long enough for a multi-character prefix, short enough that an idle
  *  return starts a new one. */

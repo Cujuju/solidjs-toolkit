@@ -6,8 +6,8 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { ESCAPE_OWNERS_KEY } from '@cujuju/solidjs-hooks';
-import { PillDatePicker } from '../PillDatePicker';
-import { PillNumberPicker } from '../../../pill-number-picker/src/PillNumberPicker';
+import { PillDatePicker } from '../PillDatePicker.js';
+import { PillNumberPicker } from '../../../pill-number-picker/src/PillNumberPicker.js';
 
 const escapeStack = (): unknown[] =>
   (globalThis as unknown as Record<symbol, { stack: unknown[] }>)[ESCAPE_OWNERS_KEY].stack;

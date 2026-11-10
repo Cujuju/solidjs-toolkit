@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createDebouncedCallback } from '../createDebouncedCallback';
+import { createDebouncedCallback } from '../createDebouncedCallback.js';
 
 describe('createDebouncedCallback', () => {
   beforeEach(() => {

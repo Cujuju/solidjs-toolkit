@@ -5,7 +5,7 @@ import {
   clampAndRound,
   parseValue,
   formatValue,
-} from '../_internal/precision';
+} from '../_internal/precision.js';
 
 describe('decimalsOf', () => {
   it.each([

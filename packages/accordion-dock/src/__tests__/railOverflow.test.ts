@@ -5,7 +5,7 @@ import {
   MIN_VISIBLE_RAIL_ITEMS,
   RAIL_ITEM_ATTR,
   type RailOverflow,
-} from '../railOverflow';
+} from '../railOverflow.js';
 
 /**
  * The rail's fit algorithm. Every box is stated by the test — the only way to assert a fit

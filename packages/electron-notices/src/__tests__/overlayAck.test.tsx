@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { batch } from 'solid-js';
 import { cleanup, render } from '@solidjs/testing-library';
-import { createLocalNoticeHost } from '../local';
-import { NoticeOverlay } from '../renderer';
-import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, type Notice, type NoticeView } from '../types';
+import { createLocalNoticeHost } from '../local.js';
+import { NoticeOverlay } from '../renderer/index.js';
+import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, type Notice, type NoticeView } from '../types.js';
 
 const ACK_TIMEOUT_MS = 50;
 const view: NoticeView = { config: DEFAULT_NOTICE_CONFIG, appearance: { vars: {} }, tones: BASIC_TONES };

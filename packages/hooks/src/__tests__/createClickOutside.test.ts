@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createClickOutside } from '../createClickOutside';
-import { contains } from '../contains';
+import { createClickOutside } from '../createClickOutside.js';
+import { contains } from '../contains.js';
 
 /**
  * happy-dom stamps `timeStamp = performance.now()` at construction, so these events postdate the

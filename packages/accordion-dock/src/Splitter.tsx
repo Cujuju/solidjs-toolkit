@@ -1,5 +1,5 @@
 import { Show, type JSX } from 'solid-js';
-import { useAccordionGroup } from './context';
+import { useAccordionGroup } from './context.js';
 
 /**
  * The drag handle on a panel's TRAILING edge. A focusable window splitter, operable by arrows,

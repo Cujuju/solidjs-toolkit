@@ -1,7 +1,7 @@
 import { onCleanup } from 'solid-js';
-import { scrollerOf } from './scroller';
-import { RESIZE_KEY_STEPS, type LayoutRect, type ResizeSnap } from './layout';
-import type { SplitDir } from './tileTree';
+import { scrollerOf } from './scroller.js';
+import { RESIZE_KEY_STEPS, type LayoutRect, type ResizeSnap } from './layout.js';
+import type { SplitDir } from './tileTree.js';
 
 /** Ctrl drags freely. Alt is taken by OS window-drag tools (PowerToys Grab And Move swallows it). */
 const FREE_DRAG_KEY = 'Control';

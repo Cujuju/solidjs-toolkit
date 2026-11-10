@@ -1,5 +1,5 @@
 import './styles.css';
-export { TriStateChip, type TriStateChipProps } from './TriStateChip';
+export { TriStateChip, type TriStateChipProps } from './TriStateChip.js';
 export {
   cycleTriState,
   tristateOf,
@@ -7,4 +7,4 @@ export {
   EMPTY_TRI_STATE,
   type TriState,
   type TriStateValue,
-} from './cycleTriState';
+} from './cycleTriState.js';

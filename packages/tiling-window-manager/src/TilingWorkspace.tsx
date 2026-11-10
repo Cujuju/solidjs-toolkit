@@ -1,20 +1,20 @@
 import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show, untrack, type JSX } from 'solid-js';
-import { createDockGesture, DEFAULT_TAB_TARGET, type CenterDrop, type DragPhase } from './createDockGesture';
-import { DockMenu } from './DockMenu';
-import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout';
-import { PlacementLayer, type Placing } from './PlacementLayer';
-import { planMove, type PlacementMode } from './plan';
-import { ResizeLayer, type ResizeDraft } from './ResizeLayer';
-import { createTrailingSpace } from './trailingSpace';
-import type { AlignLayout } from './resizeGuides';
+import { createDockGesture, DEFAULT_TAB_TARGET, type CenterDrop, type DragPhase } from './createDockGesture.js';
+import { DockMenu } from './DockMenu.js';
+import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout.js';
+import { PlacementLayer, type Placing } from './PlacementLayer.js';
+import { planMove, type PlacementMode } from './plan.js';
+import { ResizeLayer, type ResizeDraft } from './ResizeLayer.js';
+import { createTrailingSpace } from './trailingSpace.js';
+import type { AlignLayout } from './resizeGuides.js';
 import {
   canCollapse, canCollapseAlone, canExpandAlone, collapseSlotAlone, expandSlotAlone, setSlotCollapsed, type CollapsePermission,
-} from './tileCollapse';
-import type { CollapseControls, TabGroup, TileContext } from './tileContext';
-import { addToTabs, insertTile, moveTab, removeTile, setActiveTab, swapTiles } from './tileEdits';
-import { findSlot, slotIds, slotKey, tileIds, type DropZone, type TileNode } from './tileTree';
+} from './tileCollapse.js';
+import type { CollapseControls, TabGroup, TileContext } from './tileContext.js';
+import { addToTabs, insertTile, moveTab, removeTile, setActiveTab, swapTiles } from './tileEdits.js';
+import { findSlot, slotIds, slotKey, tileIds, type DropZone, type TileNode } from './tileTree.js';
 
-export type { CollapseControls, TabGroup, TileContext } from './tileContext';
+export type { CollapseControls, TabGroup, TileContext } from './tileContext.js';
 
 /** Gap between tiles; it is also the divider's hit area. */
 export const DEFAULT_GAP_PX = 8;

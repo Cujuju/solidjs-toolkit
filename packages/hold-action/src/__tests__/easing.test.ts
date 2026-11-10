@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyEasing } from '../_internal/easing';
+import { applyEasing } from '../_internal/easing.js';
 
 describe('applyEasing', () => {
   it('returns raw progress unchanged when no easing is supplied (linear default)', () => {

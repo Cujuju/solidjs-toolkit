@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { PillDatePicker } from '../index';
+import { PillDatePicker } from '../index.js';
 
 describe('server render', () => {
   it('renders', () => {

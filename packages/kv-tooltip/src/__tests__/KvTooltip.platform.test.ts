@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent, createSignal, type JSX } from 'solid-js';
-import { KvTooltip } from '../KvTooltip';
-import { KvTooltipPanel } from '../KvTooltipPanel';
-import { isTopLayerSurfaceOpen } from '../_internal/topLayer';
-import AnchoredPopover from '../../../anchored-popover/src/AnchoredPopover';
+import { KvTooltip } from '../KvTooltip.js';
+import { KvTooltipPanel } from '../KvTooltipPanel.js';
+import { isTopLayerSurfaceOpen } from '../_internal/topLayer.js';
+import AnchoredPopover from '../../../anchored-popover/src/AnchoredPopover.js';
 
 /**
  * Platform contract (`popover="hint"`). jsdom has no Popover API, so this tests OUR side: the

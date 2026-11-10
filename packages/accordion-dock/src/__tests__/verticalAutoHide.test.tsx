@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Show, createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import type { AccordionGroupApi, AccordionOrientation } from '../context';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import type { AccordionGroupApi, AccordionOrientation } from '../context.js';
 
 /**
  * AUTO-HIDE IN `vertical` — the parity contract. jsdom has no layout, so the overlay is

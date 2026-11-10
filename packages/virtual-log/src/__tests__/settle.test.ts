@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSettle } from '../core/settle';
+import { createSettle } from '../core/settle.js';
 
 function harness(over: { inBounds?: () => boolean } = {}) {
   let t = 0;

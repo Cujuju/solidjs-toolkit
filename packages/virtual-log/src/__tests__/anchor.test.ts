@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { alignedOffset, anchoredOffset, captureAnchor, clamp } from '../core/anchor';
-import { createLayout } from '../core/layout';
+import { alignedOffset, anchoredOffset, captureAnchor, clamp } from '../core/anchor.js';
+import { createLayout } from '../core/layout.js';
 
 /** 20 rows of 10px, k0 oldest; k19 spans 0-10, k10 spans 90-100. */
 const make = () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTopLayerSurfaceOpen } from '../_internal/topLayer';
+import { isTopLayerSurfaceOpen } from '../_internal/topLayer.js';
 
 /**
  * jsdom rejects `:popover-open` with SyntaxError — the unsupported-engine path. Asserts the safe

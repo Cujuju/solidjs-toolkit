@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createLocalStorage } from '../createLocalStorage';
-import { installLocalStorageMock } from './testUtils';
+import { createLocalStorage } from '../createLocalStorage.js';
+import { installLocalStorageMock } from './testUtils.js';
 
 const KEY = 'createLocalStorage-test';
 

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@solidjs/testing-library';
 import { createEffect, createRoot, createSignal } from 'solid-js';
-import { installFakes, mount, rowsOf } from './harness';
-import { createVirtualLog } from '../createVirtualLog';
-import { VirtualLog } from '../VirtualLog';
+import { installFakes, mount, rowsOf } from './harness.js';
+import { createVirtualLog } from '../createVirtualLog.js';
+import { VirtualLog } from '../VirtualLog.js';
 
 beforeEach(installFakes);
 afterEach(() => {

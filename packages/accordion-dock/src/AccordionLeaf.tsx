@@ -10,13 +10,13 @@ import {
   type JSX,
 } from 'solid-js';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
-import { SlotIf } from './SlotIf';
-import { seedDefaultSize, type AccordionDefaultSize } from './contentSize';
-import { slotRef, useAccordionGroup } from './context';
-import { Close } from './icons';
-import { leafChainFor } from './leafChain';
-import { columnFlex } from './resize';
-import { Splitter } from './Splitter';
+import { SlotIf } from './SlotIf.js';
+import { seedDefaultSize, type AccordionDefaultSize } from './contentSize.js';
+import { slotRef, useAccordionGroup } from './context.js';
+import { Close } from './icons.js';
+import { leafChainFor } from './leafChain.js';
+import { columnFlex } from './resize.js';
+import { Splitter } from './Splitter.js';
 
 export interface AccordionLeafProps {
   /** Stable identity — the key for size persistence. */

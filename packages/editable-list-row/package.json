@@ -50,8 +50,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "vite build",
-    "prepublishOnly": "vite build"
+    "build": "vite build && node ../_shared/checkNodeNext.mjs",
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "@cujuju/solidjs-hooks": "workspace:^",

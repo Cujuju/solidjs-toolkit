@@ -1,9 +1,9 @@
 import { createMemo } from 'solid-js';
-import type { AccordionGroupProps } from './AccordionGroup.types';
-import { type AccordionOrientation } from './context';
-import { createGroupState } from './groupState';
-import { createLeafChain } from './leafChain';
-import { orderVisualOpen, partitionAtRail } from './visualOrder';
+import type { AccordionGroupProps } from './AccordionGroup.types.js';
+import { type AccordionOrientation } from './context.js';
+import { createGroupState } from './groupState.js';
+import { createLeafChain } from './leafChain.js';
+import { orderVisualOpen, partitionAtRail } from './visualOrder.js';
 
 export function createGroupOrder(deps: {
   orderIds: ReturnType<typeof createGroupState>['orderIds'];

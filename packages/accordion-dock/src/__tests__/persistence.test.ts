@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ACCORDION_LAYOUT_VERSION } from '../context';
-import { readPersisted, writePersisted } from '../persistence';
+import { ACCORDION_LAYOUT_VERSION } from '../context.js';
+import { readPersisted, writePersisted } from '../persistence.js';
 
 const KEY = 'persistence-test';
 const VALID = { version: ACCORDION_LAYOUT_VERSION, open: ['a'], pinned: ['b'], order: ['a', 'b'], sizes: { a: 120 } };

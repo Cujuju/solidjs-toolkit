@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createAsyncStatus } from '../createAsyncStatus';
+import { createAsyncStatus } from '../createAsyncStatus.js';
 
 describe('createAsyncStatus', () => {
   beforeEach(() => {

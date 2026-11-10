@@ -1,5 +1,5 @@
 import type { JSX } from 'solid-js';
-import type { AccordionGroupApi, PanelMeta } from './context';
+import type { AccordionGroupApi, PanelMeta } from './context.js';
 
 /** The DATA half of the breadcrumb: the open sequence as a path, and its elision. See DESIGN_NOTES.md § src/breadcrumbPath.ts:4. */
 

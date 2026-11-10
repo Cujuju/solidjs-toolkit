@@ -2,8 +2,8 @@ import AnchoredPopover from '@cujuju/solidjs-anchored-popover';
 import EditableListRow from '@cujuju/solidjs-editable-list-row';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
 import { For, Show, createMemo, createSignal, untrack, type Accessor, type JSX } from 'solid-js';
-import type { EditableListFlyoutItemConfig, EditableListFlyoutProps } from './types';
-export type { EditableListFlyoutItemConfig, EditableListFlyoutProps } from './types';
+import type { EditableListFlyoutItemConfig, EditableListFlyoutProps } from './types.js';
+export type { EditableListFlyoutItemConfig, EditableListFlyoutProps } from './types.js';
 
 /**
  * Anchored popover over EditableListRow entries with an optional footer add affordance.

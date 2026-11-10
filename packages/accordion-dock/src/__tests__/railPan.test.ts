@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createRailPan, type RailPan } from '../railPan';
-import type { AccordionGroupApi } from '../context';
+import { createRailPan, type RailPan } from '../railPan.js';
+import type { AccordionGroupApi } from '../context.js';
 
 /**
  * Rail pan TEARDOWN. A touch drag the UA claims fires `pointercancel` and no `pointerup`;

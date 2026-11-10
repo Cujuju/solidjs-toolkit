@@ -1,6 +1,6 @@
 import { type JSX, Show } from 'solid-js';
-import type { TriState } from './cycleTriState';
-import { cycleTriState } from './cycleTriState';
+import type { TriState } from './cycleTriState.js';
+import { cycleTriState } from './cycleTriState.js';
 
 export interface TriStateChipProps {
   /** Display content for the chip body. Plain text or arbitrary JSX. */

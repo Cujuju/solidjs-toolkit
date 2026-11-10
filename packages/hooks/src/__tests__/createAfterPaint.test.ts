@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'solid-js';
-import { createAfterPaint } from '../createAfterPaint';
+import { createAfterPaint } from '../createAfterPaint.js';
 
 /** Wait for the next animation frame so scheduled callbacks fire. */
 function nextFrame(): Promise<void> {

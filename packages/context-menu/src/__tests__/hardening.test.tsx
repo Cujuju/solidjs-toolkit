@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createRoot, createSignal, Show } from 'solid-js';
 import { createEscapeOwner } from '@cujuju/solidjs-hooks';
-import { ContextMenu } from '../ContextMenu';
-import { submenuCloseDelayMs, type ContextMenuSurface } from '../MenuEntries';
-import { POPOVER_PARENT_UNDER_OVERLAP_PX } from '../submenuPosition';
-import type { ContextMenuEntry } from '../types';
+import { ContextMenu } from '../ContextMenu.js';
+import { submenuCloseDelayMs, type ContextMenuSurface } from '../MenuEntries.js';
+import { POPOVER_PARENT_UNDER_OVERLAP_PX } from '../submenuPosition.js';
+import type { ContextMenuEntry } from '../types.js';
 
 // Per-element Popover API stub. `topLayer` records top-layer order the way
 // the browser does: LIFO of showPopover() calls, last entry paints on top.

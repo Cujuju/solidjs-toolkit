@@ -1,5 +1,5 @@
 import type { Accessor } from 'solid-js';
-import type { Align } from './core/anchor';
+import type { Align } from './core/anchor.js';
 
 export interface VirtualLogOptions<R> {
   /** Chronological: oldest first. */

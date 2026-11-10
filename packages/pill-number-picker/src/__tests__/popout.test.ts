@@ -3,7 +3,7 @@ import {
   resolvePopoutPosition,
   POPOUT_VIEWPORT_MARGIN_PX,
   POPOUT_DEFAULT_GAP_PX,
-} from '../_internal/popout';
+} from '../_internal/popout.js';
 
 /** A 1000x800 viewport, and a 120x28 panel — a picker's real proportions. */
 const VIEWPORT = { width: 1000, height: 800 };

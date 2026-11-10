@@ -1,5 +1,5 @@
 import { CapacitorUpdater, type BundleInfo } from '@capgo/capacitor-updater';
-import { bundleLabelRev, parseNativeVersion } from './labels';
+import { bundleLabelRev, parseNativeVersion } from './labels.js';
 
 /**
  * 'immediate': switch to a new bundle once downloaded (the page reloads).

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import type { AccordionGroupApi, AccordionOrientation } from '../context';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import type { AccordionGroupApi, AccordionOrientation } from '../context.js';
 
 /**
  * `appearance` is chrome: these assert that switching to `cards` changes NOTHING about

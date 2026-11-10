@@ -1,5 +1,5 @@
-import { deliversTo, noticeDuration, type Notice, type NoticeDeliveryResult, type NoticeRef, type NoticeView } from '../types';
-import type { NoticeHostEvents } from '../overlay';
+import { deliversTo, noticeDuration, type Notice, type NoticeDeliveryResult, type NoticeRef, type NoticeView } from '../types.js';
+import type { NoticeHostEvents } from '../overlay.js';
 interface Entry {
   notice: Notice; delivered: boolean; deadline?: number;
   timer?: ReturnType<typeof setTimeout>; resolvers: Array<(result: NoticeDeliveryResult) => void>;

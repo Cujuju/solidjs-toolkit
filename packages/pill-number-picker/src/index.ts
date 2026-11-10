@@ -5,4 +5,4 @@ export {
   type PnpLayout,
   type PnpSegment,
   type PnpSegmentApi,
-} from './PillNumberPicker';
+} from './PillNumberPicker.js';

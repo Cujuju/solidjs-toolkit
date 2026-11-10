@@ -1,7 +1,7 @@
-import type { AccordionGroupProps } from './AccordionGroup.types';
-import { type AccordionOpenPlacement, type AccordionPolicy } from './context';
-import { createGroupOrder } from './groupOrder';
-import { createGroupState } from './groupState';
+import type { AccordionGroupProps } from './AccordionGroup.types.js';
+import { type AccordionOpenPlacement, type AccordionPolicy } from './context.js';
+import { createGroupOrder } from './groupOrder.js';
+import { createGroupState } from './groupState.js';
 
 export function createGroupActions(deps: {
   openList: ReturnType<typeof createGroupState>['openList'];

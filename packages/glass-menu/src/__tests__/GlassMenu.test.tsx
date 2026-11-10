@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { createSignal, onCleanup } from 'solid-js';
 import { render, fireEvent, cleanup } from '@solidjs/testing-library';
-import { GlassMenu } from '../GlassMenu';
+import { GlassMenu } from '../GlassMenu.js';
 
 describe('GlassMenu', () => {
   it('renders the title', () => {

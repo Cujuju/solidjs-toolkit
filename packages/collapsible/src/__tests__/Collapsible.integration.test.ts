@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent, createSignal } from 'solid-js';
-import { Collapsible } from '../Collapsible';
+import { Collapsible } from '../Collapsible.js';
 
 /**
  * JSX contract the CSS animation needs: `.ccl-content-wrapper` always rendered, `data-animated`

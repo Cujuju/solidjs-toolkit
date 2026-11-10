@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import type { AccordionGroupApi } from '../context';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import type { AccordionGroupApi } from '../context.js';
 
 /** Test that group-level `grow` derives from open members and reaches panel elements. See DESIGN_NOTES.md § src/__tests__/growDeclaration.test.tsx:7. */
 

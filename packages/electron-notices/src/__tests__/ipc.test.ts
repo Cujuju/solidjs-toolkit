@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
-import { createNoticeBridge, handleNoticeIpc } from '../ipc';
-import { NOTICE_CHANNELS } from '../types';
+import { createNoticeBridge, handleNoticeIpc } from '../ipc.js';
+import { NOTICE_CHANNELS } from '../types.js';
 it('bridges all channels and unsubscribes', async () => {
   const ipc = { on: vi.fn(), removeListener: vi.fn(), invoke: vi.fn().mockRejectedValue(new Error('closed')) };
   const b = createNoticeBridge(ipc), cb = vi.fn();

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import { ACCORDION_LAYOUT_VERSION, type AccordionGroupApi } from '../context';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import { ACCORDION_LAYOUT_VERSION, type AccordionGroupApi } from '../context.js';
 
 // apiRef fires before the panels register, so a restore there must outrank their defaultOpen.
 

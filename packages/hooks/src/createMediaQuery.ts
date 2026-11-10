@@ -1,5 +1,5 @@
 import { createSignal, type Accessor } from 'solid-js';
-import { safeAddEventListener } from './_internal/safeEvent';
+import { safeAddEventListener } from './_internal/safeEvent.js';
 
 /**
  * Reactive media query matcher.

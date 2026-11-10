@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
-import { computeTileLayout, ResizeReadout, TabStrip, TilingWorkspace, type TileNode } from '../index';
+import { computeTileLayout, ResizeReadout, TabStrip, TilingWorkspace, type TileNode } from '../index.js';
 
 const LAYOUT: TileNode = {
   kind: 'split', dir: 'row', sizes: [1, 1],

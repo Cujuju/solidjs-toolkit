@@ -1,8 +1,8 @@
 import { For, Show } from 'solid-js';
-import { clockTime } from './_internal/overlayDom';
-import { toneTag, toneVars } from './_internal/tone';
-import { DismissButton } from './NoticeGlyph';
-import type { NoticeListProps } from './TrayDrip';
+import { clockTime } from './_internal/overlayDom.js';
+import { toneTag, toneVars } from './_internal/tone.js';
+import { DismissButton } from './NoticeGlyph.js';
+import type { NoticeListProps } from './TrayDrip.js';
 
 /** Console: notices as log lines, newest at the bottom; sticky lines stay highlighted until handled. Lines carry no actions or content. */
 export function ConsoleTail(props: NoticeListProps & { lines: number; label: string }) {

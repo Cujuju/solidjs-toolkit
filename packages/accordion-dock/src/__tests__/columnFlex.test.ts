@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { columnFlex } from '../resize';
+import { columnFlex } from '../resize.js';
 
 /**
  * WHO ABSORBS THE GROUP'S LEFTOVER EXTENT. Three answers pinned: trailing by default, declared

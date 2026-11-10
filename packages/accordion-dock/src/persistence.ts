@@ -1,4 +1,4 @@
-import { ACCORDION_LAYOUT_VERSION, type AccordionLayout } from './context';
+import { ACCORDION_LAYOUT_VERSION, type AccordionLayout } from './context.js';
 
 /**
  * What goes to localStorage. `AccordionLayout` itself rather than a parallel shape: a saved

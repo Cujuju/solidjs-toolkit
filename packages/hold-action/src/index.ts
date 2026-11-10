@@ -4,5 +4,5 @@ export {
   type UseHoldActionReturn,
   type UseHoldActionHandlers,
   type HoldStage,
-} from './useHoldAction';
-export { HoldIndicator, type HoldIndicatorProps } from './HoldIndicator';
+} from './useHoldAction.js';
+export { HoldIndicator, type HoldIndicatorProps } from './HoldIndicator.js';

@@ -1,8 +1,8 @@
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import { For, Show, type Accessor, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import type { createChipOptions } from './createChipOptions';
-import type { ChipFlyoutProps } from './types';
+import type { createChipOptions } from './createChipOptions.js';
+import type { ChipFlyoutProps } from './types.js';
 
 export const DEFAULT_PANEL_MIN = 280;
 const DEFAULT_PANEL_MAX = 480;

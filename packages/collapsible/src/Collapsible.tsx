@@ -1,5 +1,5 @@
 import { Show, children, createMemo, createUniqueId, type JSX } from 'solid-js';
-import { useCollapsible } from './useCollapsible';
+import { useCollapsible } from './useCollapsible.js';
 
 export interface CollapsibleProps {
   title: string | JSX.Element;

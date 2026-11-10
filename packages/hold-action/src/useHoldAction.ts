@@ -1,5 +1,5 @@
 import { createSignal, onCleanup, type Accessor } from 'solid-js';
-import { safeAddEventListener } from './_internal/safeEvent';
+import { safeAddEventListener } from './_internal/safeEvent.js';
 
 export interface HoldStage {
   /** ms from hold start — when elapsed time crosses this, `onReach` fires once. */

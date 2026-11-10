@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionLeaf } from '../AccordionLeaf';
-import { AccordionPanel } from '../AccordionPanel';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionLeaf } from '../AccordionLeaf.js';
+import { AccordionPanel } from '../AccordionPanel.js';
 import {
   ACCORDION_LAYOUT_VERSION,
   type AccordionGroupApi,
   type AccordionOrientation,
-} from '../context';
+} from '../context.js';
 
 /** The group's INVARIANTS, tested where they are enforced. See DESIGN_NOTES.md § src/__tests__/groupInvariants.test.tsx:13. */
 

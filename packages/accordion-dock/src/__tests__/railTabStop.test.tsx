@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Show, createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
-import { AccordionGroup } from '../AccordionGroup';
-import { AccordionPanel } from '../AccordionPanel';
-import type { AccordionGroupApi } from '../context';
-import { RAIL_ITEM_ATTR } from '../railOverflow';
+import { AccordionGroup } from '../AccordionGroup.js';
+import { AccordionPanel } from '../AccordionPanel.js';
+import type { AccordionGroupApi } from '../context.js';
+import { RAIL_ITEM_ATTR } from '../railOverflow.js';
 
 /**
  * The rail `tablist` has ONE Tab stop; the arrow keys (`keys.ts`) move between tabs.

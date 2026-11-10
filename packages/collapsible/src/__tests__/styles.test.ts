@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent } from 'solid-js';
-import { Collapsible } from '../Collapsible';
+import { Collapsible } from '../Collapsible.js';
 
 /**
  * Markup/stylesheet cascade contract: jsdom applies UA `[hidden] { display: none }` under

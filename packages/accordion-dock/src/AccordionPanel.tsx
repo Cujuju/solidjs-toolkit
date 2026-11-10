@@ -1,15 +1,15 @@
 import { Show, createUniqueId, onCleanup, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { flyoutDataAttr } from './autoHide';
-import { useAccordionGroup } from './context';
-import { Chevron } from './icons';
-import { createPanelState } from './panelState';
-import { SlotIf } from './SlotIf';
-import { Splitter } from './Splitter';
+import { flyoutDataAttr } from './autoHide.js';
+import { useAccordionGroup } from './context.js';
+import { Chevron } from './icons.js';
+import { createPanelState } from './panelState.js';
+import { SlotIf } from './SlotIf.js';
+import { Splitter } from './Splitter.js';
 
-import type { AccordionPanelProps } from './AccordionPanel.types';
-import { CloseButton, PanelPinButton } from './PanelButtons';
-export type { AccordionPanelProps } from './AccordionPanel.types';
+import type { AccordionPanelProps } from './AccordionPanel.types.js';
+import { CloseButton, PanelPinButton } from './PanelButtons.js';
+export type { AccordionPanelProps } from './AccordionPanel.types.js';
 export function AccordionPanel(props: AccordionPanelProps): JSX.Element {
   const group = useAccordionGroup();
 

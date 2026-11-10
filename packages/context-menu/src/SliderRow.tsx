@@ -1,5 +1,5 @@
 import { createUniqueId } from 'solid-js';
-import type { ContextMenuSlider } from './types';
+import type { ContextMenuSlider } from './types.js';
 
 /** A labelled range-slider row. Focuses the input on hover so the
  *  arrow keys adjust it without a click. */

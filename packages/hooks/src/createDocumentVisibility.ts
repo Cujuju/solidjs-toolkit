@@ -1,5 +1,5 @@
 import { createSignal, type Accessor } from 'solid-js';
-import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent';
+import { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent.js';
 
 /**
  * Reactive `document.visibilityState`. Updates when the user switches tabs

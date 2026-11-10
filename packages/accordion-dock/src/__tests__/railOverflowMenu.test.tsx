@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'solid-js/web';
-import { RailOverflowMenu } from '../RailOverflowMenu';
-import { createStubGroup } from './stubGroup';
+import { RailOverflowMenu } from '../RailOverflowMenu.js';
+import { createStubGroup } from './stubGroup.js';
 
 /**
  * The `⋯` trigger is a TOGGLE (`aria-expanded`). ContextMenu dismisses on document

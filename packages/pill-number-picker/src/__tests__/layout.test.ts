@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseLayout, clampValue, autoValueWidthPx } from '../_internal/layout';
+import { parseLayout, clampValue, autoValueWidthPx } from '../_internal/layout.js';
 
 describe('parseLayout', () => {
   it.each([

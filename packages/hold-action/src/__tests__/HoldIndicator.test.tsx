@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
-import { HoldIndicator } from '../HoldIndicator';
+import { HoldIndicator } from '../HoldIndicator.js';
 
 /**
  * jsdom has no layout: offsetWidth/offsetHeight are stubbed from the inline

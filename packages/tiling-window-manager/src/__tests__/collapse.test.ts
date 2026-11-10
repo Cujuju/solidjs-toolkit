@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { computeTileLayout, resizedShares } from '../layout';
+import { computeTileLayout, resizedShares } from '../layout.js';
 import {
   canCollapse, canCollapseAlone, collapseSlotAlone, expandSlotAlone, setSlotCollapsed, shareHolders,
-} from '../tileCollapse';
-import { dock, removeTile } from '../tileEdits';
-import { normalize } from '../tileRepair';
-import { findSlot, type CollapseEdge, type TileLeaf, type TileNode, type TileSplit } from '../tileTree';
+} from '../tileCollapse.js';
+import { dock, removeTile } from '../tileEdits.js';
+import { normalize } from '../tileRepair.js';
+import { findSlot, type CollapseEdge, type TileLeaf, type TileNode, type TileSplit } from '../tileTree.js';
 
 const t = (id: string, edge?: CollapseEdge): TileLeaf => (edge ? { kind: 'tile', id, collapsed: { edge } } : { kind: 'tile', id });
 const row = (sizes: number[], ...children: TileNode[]): TileSplit => ({ kind: 'split', dir: 'row', sizes, children });

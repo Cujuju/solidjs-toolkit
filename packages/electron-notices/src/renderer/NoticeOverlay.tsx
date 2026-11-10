@@ -2,13 +2,13 @@ import { createEffect, createSignal, Match, on, onCleanup, onMount, Show, Switch
 import {
   BASIC_TONES, DEFAULT_NOTICE_CONFIG, deliversTo, isSticky, noticeDuration,
   type Notice, type NoticeBridge, type NoticePlacement, type NoticeView,
-} from '../types';
-import { hasNoticeElement, watchPointer, watchSize } from './_internal/overlayDom';
-import { ConsoleTail } from './ConsoleTail';
-import type { NoticeIcon } from './NoticeGlyph';
-import { createNoticeQueue } from './queue';
-import { TopDrip } from './TopDrip';
-import { TrayDrip, type NoticeContentRenderer } from './TrayDrip';
+} from '../types.js';
+import { hasNoticeElement, watchPointer, watchSize } from './_internal/overlayDom.js';
+import { ConsoleTail } from './ConsoleTail.js';
+import type { NoticeIcon } from './NoticeGlyph.js';
+import { createNoticeQueue } from './queue.js';
+import { TopDrip } from './TopDrip.js';
+import { TrayDrip, type NoticeContentRenderer } from './TrayDrip.js';
 
 /** Painted surfaces that take clicks; the window's transparent rest passes them through. */
 const INTERACTIVE = '.cuj-notices-card, .cuj-notices-tray-more, .cuj-notices-console, .cuj-notices-drip';

@@ -1,5 +1,5 @@
 import type { JSX } from 'solid-js';
-import type { KvTooltipAnchoringProps } from './TooltipContent';
+import type { KvTooltipAnchoringProps } from './TooltipContent.js';
 
 // ── Wrapper mode: hover-triggered ──────────────────────────────────────────
 export interface KvTooltipProps extends KvTooltipAnchoringProps {
