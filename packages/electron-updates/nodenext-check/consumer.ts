@@ -1,5 +1,5 @@
-// NodeNext + skipLibCheck consumer of the built dist (#29). An unresolved .d.ts import turns
-// exports into `any`, so each @ts-expect-error below goes unused and tsc fails.
+// NodeNext consumer of the built dist (#29). skipLibCheck is off so any unresolved .d.ts import
+// fails (TS2834); the @ts-expect-error lines catch exports degrading to `any`.
 import { createUpdater } from '@cujuju/electron-updates';
 import { buildManifest } from '@cujuju/electron-updates/node';
 
