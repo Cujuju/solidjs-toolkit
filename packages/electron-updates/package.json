@@ -45,8 +45,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "vite build",
-    "prepublishOnly": "vite build"
+    "build": "vite build && tsc -p nodenext-check",
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

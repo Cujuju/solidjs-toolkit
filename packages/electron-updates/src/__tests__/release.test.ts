@@ -2,11 +2,11 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildManifest, keygen, type ReleaseConfig } from '../node/release';
-import { parseIndex } from '../updateIndex';
+import { buildManifest, keygen, type ReleaseConfig } from '../node/release.js';
+import { parseIndex } from '../updateIndex.js';
 import { brotliDecompressSync } from 'node:zlib';
-import { verifyListing } from '../signing';
-import { CONTEXT } from './fixtures';
+import { verifyListing } from '../signing.js';
+import { CONTEXT } from './fixtures.js';
 
 function config(): ReleaseConfig {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'eu-rel-'));

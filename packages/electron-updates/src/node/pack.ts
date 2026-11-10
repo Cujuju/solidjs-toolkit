@@ -1,9 +1,9 @@
 import { lstat, open, readdir, readlink, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { brotliCompressSync, constants } from 'node:zlib';
-import { CHUNKING, chunkFile } from '../chunker';
-import { indexName, type UpdateIndex } from '../updateIndex';
-import { sha512File } from '../signing';
+import { CHUNKING, chunkFile } from '../chunker.js';
+import { indexName, type UpdateIndex } from '../updateIndex.js';
+import { sha512File } from '../signing.js';
 
 /** Quality 4 favors release speed; throughput has not been measured. */
 const BROTLI_QUALITY = 4;

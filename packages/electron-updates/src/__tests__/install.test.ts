@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'nod
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { apply, appBundleOf, installTarget, seedsFor, stage, swapScript, WINDOWS_SEED_NAME, type StagedUpdate } from '../install';
+import { apply, appBundleOf, installTarget, seedsFor, stage, swapScript, WINDOWS_SEED_NAME, type StagedUpdate } from '../install.js';
 
 /** Per spawn, in order: started, failed with an errno code (emitted next tick, as Node does), or thrown. */
 type Outcome = 'started' | { emits: string } | { throws: string };

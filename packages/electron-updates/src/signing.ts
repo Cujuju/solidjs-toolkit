@@ -1,7 +1,7 @@
 /** Ed25519 signatures over update files: the release script signs, the app verifies. */
 import { createHash, createPrivateKey, createPublicKey, sign, verify, type KeyObject } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import type { UpdateFile, UpdatePlatform } from './manifest';
+import type { UpdateFile, UpdatePlatform } from './manifest.js';
 
 /** What a signature covers besides the file's hash. */
 export interface SignedFields {

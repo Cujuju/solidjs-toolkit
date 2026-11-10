@@ -8,11 +8,11 @@ import { execFileSync } from 'node:child_process';
 import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { isUpdatePlatform, manifestName, type UpdateFile, type UpdateManifest, type UpdatePlatform } from '../manifest';
-import { publicKeyOf, sha512File, signFile, verifyListing } from '../signing';
-import { buildIndex } from './pack';
-import { indexName, parseIndex } from '../updateIndex';
-import { compareVersions, releaseTag } from '../version';
+import { isUpdatePlatform, manifestName, type UpdateFile, type UpdateManifest, type UpdatePlatform } from '../manifest.js';
+import { publicKeyOf, sha512File, signFile, verifyListing } from '../signing.js';
+import { buildIndex } from './pack.js';
+import { indexName, parseIndex } from '../updateIndex.js';
+import { compareVersions, releaseTag } from '../version.js';
 
 export interface ReleaseConfig {
   appName: string;

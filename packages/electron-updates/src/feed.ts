@@ -2,9 +2,9 @@
  * Finds the update for a channel in a GitHub repo's releases. Stable: the repo's latest release.
  * Nightly: the newest release, prereleases included. Both need this platform's manifest.
  */
-import { manifestName, parseManifest, type UpdateFile, type UpdateManifest, type UpdatePlatform } from './manifest';
-import { verifyListing } from './signing';
-import { compareVersions, tagVersion } from './version';
+import { manifestName, parseManifest, type UpdateFile, type UpdateManifest, type UpdatePlatform } from './manifest.js';
+import { verifyListing } from './signing.js';
+import { compareVersions, tagVersion } from './version.js';
 
 export type UpdateChannel = 'stable' | 'nightly';
 

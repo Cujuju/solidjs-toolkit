@@ -1,10 +1,10 @@
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { brotliCompressSync } from 'node:zlib';
-import { CHUNKING } from '../chunker';
-import { indexName } from '../updateIndex';
-import type { Fetch } from '../feed';
-import { manifestName, type UpdateManifest, type UpdatePlatform } from '../manifest';
-import { signFile } from '../signing';
+import { CHUNKING } from '../chunker.js';
+import { indexName } from '../updateIndex.js';
+import type { Fetch } from '../feed.js';
+import { manifestName, type UpdateManifest, type UpdatePlatform } from '../manifest.js';
+import { signFile } from '../signing.js';
 
 export const CONTEXT = 'test-app-update-v1';
 const keys = generateKeyPairSync('ed25519');

@@ -4,10 +4,10 @@
  */
 import { EventEmitter } from 'node:events';
 import { mkdir, rm } from 'node:fs/promises';
-import { fetchUpdate } from './sync';
-import { findUpdate, type Fetch, type FoundUpdate, type UpdateChannel } from './feed';
-import { apply, installTarget, seedsFor, stage, type InstallTarget, type StagedUpdate } from './install';
-import { isUpdatePlatform, type UpdatePlatform } from './manifest';
+import { fetchUpdate } from './sync.js';
+import { findUpdate, type Fetch, type FoundUpdate, type UpdateChannel } from './feed.js';
+import { apply, installTarget, seedsFor, stage, type InstallTarget, type StagedUpdate } from './install.js';
+import { isUpdatePlatform, type UpdatePlatform } from './manifest.js';
 
 /** Releases are occasional: a few checks a day find one the day it ships, well inside GitHub's anonymous rate limit. */
 export const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60_000;

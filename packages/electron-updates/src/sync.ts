@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
-import { chunkFile } from './chunker';
-import { chmod, lstat, mkdir, open, readdir, rm, symlink } from './diskFs';
-import type { Fetch } from './feed';
-import type { UpdateFile } from './manifest';
-import { parseIndex, type IndexChunk, type UpdateIndex } from './updateIndex';
+import { chunkFile } from './chunker.js';
+import { chmod, lstat, mkdir, open, readdir, rm, symlink } from './diskFs.js';
+import type { Fetch } from './feed.js';
+import type { UpdateFile } from './manifest.js';
+import { parseIndex, type IndexChunk, type UpdateIndex } from './updateIndex.js';
 
 /** A small gap costs less than another redirect round trip. */
 const RANGE_GAP = 256 * 1024;

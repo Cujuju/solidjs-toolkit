@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { findUpdate, type FindOptions } from '../feed';
-import { parseManifest } from '../manifest';
-import { compareVersions, tagVersion } from '../version';
-import { CONTEXT, fakeGitHub, PUBLIC_PEM, type FakeRelease } from './fixtures';
+import { findUpdate, type FindOptions } from '../feed.js';
+import { parseManifest } from '../manifest.js';
+import { compareVersions, tagVersion } from '../version.js';
+import { CONTEXT, fakeGitHub, PUBLIC_PEM, type FakeRelease } from './fixtures.js';
 
 const REPO = 'me/app-updates';
 const bin = (s: string) => Buffer.from(s);

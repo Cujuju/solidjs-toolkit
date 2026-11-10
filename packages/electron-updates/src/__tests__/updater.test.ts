@@ -2,15 +2,15 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UpdateChannel } from '../feed';
-import { createUpdater, type UpdaterOptions, type UpdateStatus } from '../updater';
-import { CONTEXT, fakeGitHub, PUBLIC_PEM, type FakeRelease } from './fixtures';
+import type { UpdateChannel } from '../feed.js';
+import { createUpdater, type UpdaterOptions, type UpdateStatus } from '../updater.js';
+import { CONTEXT, fakeGitHub, PUBLIC_PEM, type FakeRelease } from './fixtures.js';
 
 const applied = vi.hoisted(() => [] as { path: string; relaunch: boolean }[]);
 /** Set to make the next apply fail to start. */
 const applyFailure = vi.hoisted(() => ({ next: null as Error | null }));
-vi.mock('../install', async (orig) => ({
-  ...(await orig<typeof import('../install')>()),
+vi.mock('../install.js', async (orig) => ({
+  ...(await orig<typeof import('../install.js')>()),
   apply: (u: { path: string }, relaunch: boolean, _pid: number, failed: (err: Error) => void) => {
     applied.push({ path: u.path, relaunch });
     if (applyFailure.next) failed(applyFailure.next);

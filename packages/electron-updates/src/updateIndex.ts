@@ -1,6 +1,6 @@
 import { posix } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
-import { CHUNKING } from './chunker';
+import { CHUNKING } from './chunker.js';
 
 export interface IndexChunk { hash: string; offset: number; size: number; length: number; compressed: boolean }
 export type IndexEntry =

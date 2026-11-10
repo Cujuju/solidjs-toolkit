@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { brotliCompressSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { CHUNKING, chunkFile } from '../chunker';
-import { buildIndex } from '../node/pack';
-import { parseIndex, indexName, type UpdateIndex } from '../updateIndex';
-import { fetchUpdate } from '../sync';
-import type { Fetch } from '../feed';
+import { CHUNKING, chunkFile } from '../chunker.js';
+import { buildIndex } from '../node/pack.js';
+import { parseIndex, indexName, type UpdateIndex } from '../updateIndex.js';
+import { fetchUpdate } from '../sync.js';
+import type { Fetch } from '../feed.js';
 
 const digest = (b: Uint8Array): string => createHash('sha512').update(b).digest('base64');
 function bytes(): Buffer {

@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
 import { access, chmod, readFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
-import type { UpdatePlatform } from './manifest';
+import type { UpdatePlatform } from './manifest.js';
 
 /** NSIS customInstall must use CopyFiles /SILENT "$EXEPATH" "$INSTDIR\update-seed.bin". */
 export const WINDOWS_SEED_NAME = 'update-seed.bin';

@@ -5,11 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
 import { afterEach, expect, it, vi } from 'vitest';
-import { manifestName, type UpdateManifest, type UpdatePlatform } from '../manifest';
-import { keygen, nightly, promote, type ReleaseConfig } from '../node/release';
-import { verifyListing } from '../signing';
-import { indexName, parseIndex } from '../updateIndex';
-import { CONTEXT } from './fixtures';
+import { manifestName, type UpdateManifest, type UpdatePlatform } from '../manifest.js';
+import { keygen, nightly, promote, type ReleaseConfig } from '../node/release.js';
+import { verifyListing } from '../signing.js';
+import { indexName, parseIndex } from '../updateIndex.js';
+import { CONTEXT } from './fixtures.js';
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }));
 const platforms: UpdatePlatform[] = ['win32', 'darwin', 'linux'];
