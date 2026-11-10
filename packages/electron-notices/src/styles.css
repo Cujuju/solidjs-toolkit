@@ -172,6 +172,9 @@ body:has(.cuj-notices:not([data-inline])) {
   padding: var(--notice-edge-gap);
 }
 
+/* Inline only: never wider than the app window. The overlay window is sized from this element, so a viewport width there would size itself. */
+.cuj-notices[data-inline] .cuj-notices-tray { max-width: calc(100vw - 2 * var(--notice-edge-gap)); }
+
 /* Bottom placements: an overflowing stack starts scrolled to its bottom, where the newest card sits. */
 .cuj-notices[data-placement^='bottom'] { display: flex; flex-direction: column-reverse; }
 
