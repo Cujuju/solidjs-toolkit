@@ -49,7 +49,7 @@ export function createNoticeOverlay(o: NoticeOverlayOptions): NoticeOverlay {
     send: (n) => { if (loaded) live()?.webContents.send(NOTICE_CHANNELS.notice, n); },
     withdraw: (ref) => { if (loaded) live()?.webContents.send(NOTICE_CHANNELS.withdraw, ref); },
   });
-  function sendView(): void { live()?.webContents.send(NOTICE_CHANNELS.view, o.view(), placement()); }
+  function sendView(): void { live()?.webContents.send(NOTICE_CHANNELS.view, o.view(), placement(), o.primaryDisplay().workArea.height); }
   function reset(w: OverlayWindow): void {
     if (win !== w) return;
     win = null; loaded = false; content = { width: 0, height: 0 };

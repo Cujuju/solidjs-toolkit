@@ -34,6 +34,7 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
   const bridge = props.bridge;
   const [view, setView] = createSignal<NoticeView>(INITIAL_VIEW);
   const [placement, setPlacement] = createSignal<NoticePlacement>(INITIAL_PLACEMENT);
+  const [maxHeight, setMaxHeight] = createSignal<number | undefined>();
   const [latest, setLatest] = createSignal<Notice | null>(null);
   const queue = createNoticeQueue(
     (n) => noticeDuration(n, view()),
@@ -52,9 +53,10 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
     if (!root) return;
     for (const id of unacked) if (hasNoticeElement(root, id)) { unacked.delete(id); bridge.ack(id); }
   };
-  onCleanup(bridge.onView((v, p) => {
+  onCleanup(bridge.onView((v, p, h) => {
     setView(v);
     setPlacement(p);
+    setMaxHeight(h);
   }));
   onCleanup(bridge.onNotice((n) => {
     queue.push(n);
@@ -98,7 +100,10 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
       class="cuj-notices"
       data-inline={props.inline ? '' : undefined}
       data-placement={placement()}
-      style={{ ...view().appearance.vars, 'color-scheme': view().appearance.colorScheme }}
+      style={{
+        ...view().appearance.vars, 'color-scheme': view().appearance.colorScheme,
+        '--notice-overlay-max-height': !props.inline && maxHeight() ? `${maxHeight()}px` : undefined,
+      }}
       onMouseEnter={() => queue.pause()}
       onMouseLeave={() => queue.resume()}
     >

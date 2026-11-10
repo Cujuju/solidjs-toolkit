@@ -21,7 +21,7 @@ it('creates lazily, sends view before queued notices and resets on close', async
   events['did-finish-load']?.();
   expect(w.webContents.send).not.toHaveBeenCalled();
   overlay.ready();
-  expect(w.webContents.send.mock.calls).toEqual([[NOTICE_CHANNELS.view, view, 'bottom-right'], [NOTICE_CHANNELS.notice, n]]);
+  expect(w.webContents.send.mock.calls).toEqual([[NOTICE_CHANNELS.view, view, 'bottom-right', 800], [NOTICE_CHANNELS.notice, n]]);
   overlay.ack(1); expect(await result).toEqual({ delivered: true });
   overlay.resize(300, 100); expect(w.setBounds).toHaveBeenCalledWith({ x: 700, y: 700, width: 300, height: 100 });
   expect(w.showInactive).toHaveBeenCalled();
@@ -37,7 +37,7 @@ it.each(['darwin', 'linux'])('applies platform policy for %s and creates the res
   expect(w.setVisibleOnAllWorkspaces).toHaveBeenCalledTimes(platform === 'darwin' ? 1 : 0);
   overlay.pointer(true); expect(w.setIgnoreMouseEvents).toHaveBeenCalledTimes(platform === 'linux' ? 0 : 2);
   expect(w.webContents.setWindowOpenHandler.mock.calls[0][0]()).toEqual({ action: 'deny' });
-  overlay.ready(); overlay.refresh(); expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.view, view, 'top-center');
+  overlay.ready(); overlay.refresh(); expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.view, view, 'top-center', 800);
 });
 
 afterEach(() => vi.useRealTimers());
@@ -48,7 +48,7 @@ it('times out, withdraws and ignores late acknowledgments', async () => {
   vi.advanceTimersByTime(5000); expect(await result).toEqual({ delivered: false });
   expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.withdraw, { id: 1 });
   overlay.ack(1); overlay.ready();
-  expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.view, expect.anything(), 'bottom-right'); overlay.destroy();
+  expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.view, expect.anything(), 'bottom-right', 800); overlay.destroy();
 });
 it('does not create an overlay for system delivery', async () => {
   const { overlay, view, createWindow } = setup(); view.config.delivery = 'system';
@@ -62,7 +62,7 @@ it('fails pending on renderer crash and replays delivered notices with time left
   const next = overlay.show(notice(3)); expect(createWindow).toHaveBeenCalledTimes(2);
   w.webContents.send.mockClear(); overlay.ready();
   expect(w.webContents.send.mock.calls).toEqual([
-    [NOTICE_CHANNELS.view, expect.anything(), 'bottom-right'],
+    [NOTICE_CHANNELS.view, expect.anything(), 'bottom-right', 800],
     [NOTICE_CHANNELS.notice, { ...notice(1), remainingMs: 5000 }], [NOTICE_CHANNELS.notice, notice(3)],
   ]); overlay.destroy(); await next;
 });

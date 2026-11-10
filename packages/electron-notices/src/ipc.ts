@@ -26,7 +26,7 @@ export function createNoticeBridge(ipcRenderer: IpcRendererLike): NoticeBridge {
   return {
     ready: () => invoke(NOTICE_CHANNELS.ready),
     onNotice: (cb) => on<[Notice]>(NOTICE_CHANNELS.notice, cb),
-    onView: (cb) => on<[NoticeView, NoticePlacement]>(NOTICE_CHANNELS.view, cb),
+    onView: (cb) => on<[NoticeView, NoticePlacement, number?]>(NOTICE_CHANNELS.view, cb),
     onWithdraw: (cb) => on<[NoticeRef]>(NOTICE_CHANNELS.withdraw, cb),
     resize: (width, height) => invoke(NOTICE_CHANNELS.resize, width, height),
     pointer: (over) => invoke(NOTICE_CHANNELS.pointer, over),

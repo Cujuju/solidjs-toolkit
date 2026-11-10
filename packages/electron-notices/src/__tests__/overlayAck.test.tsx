@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { batch } from 'solid-js';
 import { cleanup, render } from '@solidjs/testing-library';
 import { createLocalNoticeHost } from '../local';
@@ -31,6 +31,27 @@ describe('renderer acknowledgment', () => {
     // The render error surfaces when the batch flushes.
     try { batch(() => { result = host.show(notice(2, 'bad')); }); } catch { /* expected */ }
     await expect(result).resolves.toEqual({ delivered: false });
+  });
+});
+
+describe('work-area height', () => {
+  const WORK_AREA_HEIGHT = 900;
+  const bridgeWithHeight = () => ({
+    ...createLocalNoticeHost({ view: () => view }).bridge,
+    onView: (cb: (v: NoticeView, p: 'bottom-right', h?: number) => void) => { cb(view, 'bottom-right', WORK_AREA_HEIGHT); return () => undefined; },
+  });
+  const maxHeightVar = (c: HTMLElement) => (c.querySelector('.cuj-notices') as HTMLElement).style.getPropertyValue('--notice-overlay-max-height');
+
+  it('caps the overlay window stack at the height main sends', () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    onTestFinished(() => { vi.unstubAllGlobals(); });
+    const { container } = render(() => <NoticeOverlay bridge={bridgeWithHeight()} />);
+    expect(maxHeightVar(container)).toBe(`${WORK_AREA_HEIGHT}px`);
+  });
+
+  it('leaves the inline stack to its viewport rule', () => {
+    const { container } = render(() => <NoticeOverlay bridge={bridgeWithHeight()} inline />);
+    expect(maxHeightVar(container)).toBe('');
   });
 });
 

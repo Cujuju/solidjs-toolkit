@@ -90,7 +90,8 @@ export const NOTICE_CHANNELS = {
 export interface NoticeBridge {
   ready(): void;
   onNotice(cb: (n: Notice) => void): () => void;
-  onView(cb: (v: NoticeView, placement: NoticePlacement) => void): () => void;
+  /** maxHeight: overlay window only, the display's work-area height the stack must fit; inline hosts omit it. */
+  onView(cb: (v: NoticeView, placement: NoticePlacement, maxHeight?: number) => void): () => void;
   onWithdraw(cb: (ref: NoticeRef) => void): () => void;
   resize(width: number, height: number): void; pointer(over: boolean): void;
   ack(id: number): void; open(id: number): void; action(id: number, actionId: string): void;

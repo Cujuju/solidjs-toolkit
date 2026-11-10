@@ -75,12 +75,16 @@ body:has(.cuj-notices:not([data-inline])) {
   overflow: hidden;
 }
 
-/* Sized by its content, never by the window, which main sizes from this element. */
+/* Sized by its content, never by the window, which main sizes from this element. Past the work-area height it scrolls. */
 .cuj-notices {
   position: absolute;
   left: 0;
   top: 0;
   width: max-content;
+  max-height: var(--notice-overlay-max-height, none);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   font-family: var(--notice-font);
   color: var(--notice-text);
   -webkit-font-smoothing: antialiased;
@@ -91,7 +95,6 @@ body:has(.cuj-notices:not([data-inline])) {
 .cuj-notices[data-inline] {
   position: fixed; top: auto; left: auto; z-index: var(--notice-z); pointer-events: none;
   max-height: calc(100dvh - var(--notice-inline-inset-top) - env(safe-area-inset-bottom, 0px));
-  overflow-y: auto; overscroll-behavior: contain;
 }
 .cuj-notices[data-inline][data-placement^='top'] { top: var(--notice-inline-inset-top); }
 .cuj-notices[data-inline][data-placement^='bottom'] { bottom: env(safe-area-inset-bottom, 0px); }
@@ -168,6 +171,9 @@ body:has(.cuj-notices:not([data-inline])) {
   width: var(--notice-card-width);
   padding: var(--notice-edge-gap);
 }
+
+/* Bottom placements: an overflowing stack starts scrolled to its bottom, where the newest card sits. */
+.cuj-notices[data-placement^='bottom'] { display: flex; flex-direction: column-reverse; }
 
 /* Top placements: newest nearest the top edge, the fold counter farthest from it. */
 [data-placement^='top'] .cuj-notices-tray { flex-direction: column-reverse; }
