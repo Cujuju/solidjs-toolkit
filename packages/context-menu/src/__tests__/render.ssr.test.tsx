@@ -24,7 +24,6 @@ describe('server render', () => {
         ) }]}
         onClose={() => {}}
         parentMenuRef={() => null}
-        flyouts={new Set()}
       />
     ));
     expect(html).toContain('More actions');

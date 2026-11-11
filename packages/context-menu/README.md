@@ -135,6 +135,7 @@ hover — the custom content owns its layout and interactions.
 Use this component inside a `custom` entry at any menu level. It renders
 a menu item button with your `children`, plus any `class` you supply.
 Pass a `ContextMenuSubmenu` as `submenu` and set `disabled` when needed.
+Its `label` and `icon` are not rendered or searched; `children` supplies the trigger content.
 It shares hover, keyboard, and flyout behavior with built-in submenu rows;
 opening either kind closes any other flyout at the same level.
 
@@ -192,8 +193,7 @@ Each Portal'd submenu also carries `data-popover-stack` — see
   / `transform` ancestor that would otherwise re-anchor their
   `position: fixed`. Each Portal'd submenu carries the
   `data-popover-stack` attribute.
-- **Dismiss.** The menu closes on outside `mousedown` and on `Escape`.
-  From inside a flyout, `Escape` closes that flyout and returns focus to its trigger.
+- **Dismiss.** The whole menu closes on outside `mousedown` or on `Escape`, including from inside a flyout.
   A click inside any element matching `[data-popover-stack]` counts as
   inside — so submenu clicks never dismiss the menu. If your app has
   its own popover machinery (e.g. an anchored-popover dismiss-skip

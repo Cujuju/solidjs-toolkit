@@ -8,7 +8,6 @@ export interface SubmenuMenuOptions {
   parentMenuRef: () => HTMLElement | null;
   surface?: ContextMenuSurface;
   promoteAncestors?: () => void;
-  flyouts: Set<HTMLDivElement>;
 }
 
 export interface SubmenuScope {

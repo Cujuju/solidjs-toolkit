@@ -23,7 +23,7 @@ function labelText(label: unknown): string {
 }
 
 interface SubmenuTriggerProps {
-  /** The flyout's entries and options; same type as a built-in submenu entry (label used for search). */
+  /** Flyout entries and options; label and icon are not rendered or searched. */
   submenu: ContextMenuSubmenu;
   /** Trigger content; rendered inside the library's trigger button. */
   children: JSX.Element;
@@ -101,6 +101,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
 
   function openFromKeyboard() {
     if (props.disabled) return;
+    cancelClose();
     if (isOpen() && flyoutRef?.matches(':popover-open')) {
       focusFlyout();
       return;
@@ -121,14 +122,17 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     openFromKeyboard();
   }
 
-  // Close only this level and return focus. Left in the search field still moves its caret.
+  // ArrowLeft closes only this level. Left in the search field still moves its caret.
   function onFlyoutKeyDown(e: KeyboardEvent) {
-    if (e.defaultPrevented) return;
-    if (e.key !== 'Escape' && (e.key !== 'ArrowLeft' || e.target instanceof HTMLInputElement)) return;
+    if (e.key !== 'ArrowLeft' || e.target instanceof HTMLInputElement) return;
     e.preventDefault();
     e.stopPropagation();
     close();
     triggerRef?.focus();
+  }
+
+  function stopFlyoutClick(e: MouseEvent) {
+    e.stopPropagation();
   }
 
   function cancelClose() {
@@ -238,8 +242,6 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
   const setFlyout = (el: HTMLDivElement) => {
     flyoutRef = el;
     el.setAttribute('popover', 'manual');
-    menu.flyouts.add(el);
-    onCleanup(() => menu.flyouts.delete(el));
   };
 
   // Built lazily, so a closed submenu never mounts its children. A nested sub-submenu tucks
@@ -264,7 +266,6 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
         parentMenuRef={() => flyoutRef ?? null}
         surface={menu.surface}
         promoteAncestors={promoteParentChain}
-        flyouts={menu.flyouts}
       />
     </CustomSubmenuScope.Provider>
   );
@@ -308,6 +309,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
             {...{ [POPOVER_STACK_ATTR]: '' }}
             style={flyoutStyle()}
             onMouseEnter={cancelClose}
+            onClick={props.builtin ? undefined : stopFlyoutClick}
             onKeyDown={onFlyoutKeyDown}
           >
             {renderFlyoutBody()}
@@ -320,6 +322,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
             {...{ [POPOVER_STACK_ATTR]: '' }}
             style={flyoutStyle()}
             onMouseEnter={cancelClose}
+            onClick={props.builtin ? undefined : stopFlyoutClick}
             onKeyDown={onFlyoutKeyDown}
           >
             {renderFlyoutBody()}

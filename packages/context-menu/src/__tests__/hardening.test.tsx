@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createRoot, createSignal, Show } from 'solid-js';
@@ -6,6 +7,7 @@ import { ContextMenu } from '../ContextMenu.js';
 import { ContextMenuSubmenuTrigger } from '../index.js';
 import { submenuCloseDelayMs, type ContextMenuSurface } from '../MenuEntries.js';
 import { POPOVER_PARENT_UNDER_OVERLAP_PX } from '../submenuPosition.js';
+import submenuItemSource from '../SubmenuItem.tsx?raw';
 import type { ContextMenuEntry, ContextMenuSubmenu } from '../types.js';
 
 // Per-element Popover API stub. `topLayer` records top-layer order the way
@@ -45,9 +47,9 @@ class ResizeObserverStub {
 
 let dispose: (() => void) | null = null;
 
-function renderMenu(items: ContextMenuEntry[], surface?: ContextMenuSurface): void {
+function renderMenu(items: ContextMenuEntry[], surface?: ContextMenuSurface, onClose = () => {}): void {
   dispose = render(
-    () => <ContextMenu x={10} y={10} onClose={() => {}} items={items} surface={surface} />,
+    () => <ContextMenu x={10} y={10} onClose={onClose} items={items} surface={surface} />,
     document.body,
   );
 }
@@ -261,6 +263,23 @@ describe('ContextMenu — submenu hover intent', () => {
     expect(flyouts()).toHaveLength(0);
   });
 
+  it('keyboard activation cancels the hover close of an open flyout', async () => {
+    renderMenu(items());
+    hover(wrappers()[0]);
+    await nextFrame();
+    const trigger = wrappers()[0].querySelector('button')!;
+    const leaf = flyouts()[0].querySelector('button')!;
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    deleteRow().dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    trigger.focus();
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    vi.advanceTimersByTime(delay());
+
+    expect(flyouts()).toHaveLength(1);
+    expect(document.activeElement).toBe(leaf);
+  });
+
   it('keeps the submenu open when the pointer crosses a sibling on its way into the flyout', async () => {
     renderMenu(items());
     hover(wrappers()[0]);
@@ -431,6 +450,37 @@ describe('ContextMenu — submenu keyboard path', () => {
     expect(document.activeElement).toBe(trigger());
   });
 
+  it('Escape from a focused built-in flyout dismisses the whole menu', async () => {
+    const onClose = vi.fn();
+    renderMenu(items, undefined, onClose);
+    trigger().click();
+    await nextFrame();
+    const leaf = flyouts()[0].querySelector('button')!;
+    expect(document.activeElement).toBe(leaf);
+
+    leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(leaf);
+  });
+
+  it('a detached flyout retains no hook from the root Escape owner', async () => {
+    renderMenu(items);
+    trigger().click();
+    await nextFrame();
+    const flyout = flyouts()[0];
+    const leaf = flyout.querySelector('button')!;
+    // Escape ownership wraps Solid's delegated keydown handler on an owned node.
+    const keydown = Reflect.get(flyout, '$$keydown');
+    leaf.addEventListener('keydown', (e) => { if (e.key === 'Escape') e.stopPropagation(); });
+    leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+
+    expect(flyout.isConnected).toBe(false);
+    expect(rootMenu()).not.toBeNull();
+    expect(Reflect.get(flyout, '$$keydown')).toBe(keydown);
+  });
+
   it('an open submenu disconnects its ResizeObserver when the menu unmounts', async () => {
     const disconnect = vi.fn();
     vi.stubGlobal('ResizeObserver', class extends ResizeObserverStub {
@@ -495,16 +545,44 @@ describe('ContextMenuSubmenuTrigger', () => {
     expect(flyouts()).toHaveLength(0);
   });
 
-  it('focuses the flyout on Enter activation and returns on Escape', async () => {
-    renderMenu([customRow()]);
+  it('focuses the flyout on Enter activation and dismisses the whole menu on Escape', async () => {
+    const onClose = vi.fn();
+    renderMenu([customRow()], undefined, onClose);
     trigger().focus();
     trigger().click(); // jsdom does not synthesize the detail=0 click from Enter.
     await nextFrame();
     const leaf = flyouts()[0]!.querySelector('button')!;
     expect(document.activeElement).toBe(leaf);
-    leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(flyouts()).toHaveLength(0);
-    expect(document.activeElement).toBe(trigger());
+    leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(leaf);
+  });
+
+  it('runs a keepOpen leaf action without clicking the enclosing custom row', async () => {
+    const onRowClick = vi.fn();
+    const onLeafClick = vi.fn();
+    const onClose = vi.fn();
+    const entry = { ...submenu, children: [{ label: 'CSV', onClick: onLeafClick, keepOpen: true }] };
+    renderMenu([{
+      custom: () => (
+        <div onClick={onRowClick}>
+          <ContextMenuSubmenuTrigger submenu={entry}>Export formats</ContextMenuSubmenuTrigger>
+        </div>
+      ),
+    }], undefined, onClose);
+    hover(rootMenu().querySelector('button')!);
+    await nextFrame();
+    flyouts()[0].querySelector('button')!.click();
+
+    expect(onLeafClick).toHaveBeenCalledOnce();
+    expect(onRowClick).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(flyouts()).toHaveLength(1);
+  });
+
+  it('documents that the custom trigger ignores submenu label and icon', () => {
+    const doc = /\/\*\*([^*]*)\*\/\s*submenu: ContextMenuSubmenu/.exec(submenuItemSource)?.[1];
+    expect(doc).toContain('label and icon are not rendered or searched');
   });
 
   it('shares the active submenu with built-in rows in both directions', async () => {
@@ -523,9 +601,10 @@ describe('ContextMenuSubmenuTrigger', () => {
   });
 
   it('works in a nested custom row and focuses its searchable flyout', async () => {
+    const onClose = vi.fn();
     renderMenu([{
       submenu: true, label: 'Outer', children: [customRow(false, { ...submenu, scrollable: true })],
-    }], 'solid');
+    }], 'solid', onClose);
     hover(wrappers()[0]!);
     await nextFrame();
     trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -533,9 +612,8 @@ describe('ContextMenuSubmenuTrigger', () => {
     expect(flyouts()).toHaveLength(2);
     const search = flyouts()[1]!.querySelector('input')!;
     expect(document.activeElement).toBe(search);
-    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(flyouts()).toHaveLength(1);
-    expect(document.activeElement).toBe(trigger());
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('does not open a disabled trigger', async () => {

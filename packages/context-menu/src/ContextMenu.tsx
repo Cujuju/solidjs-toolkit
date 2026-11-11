@@ -37,15 +37,14 @@ export interface ContextMenuProps {
  */
 export function ContextMenu(props: ContextMenuProps) {
   let menuRef: HTMLDivElement | undefined;
-  const flyouts = new Set<HTMLDivElement>();
   const [pos, setPos] = createSignal({ x: props.x, y: props.y });
   const afterPaint = createAfterPaint();
 
-  // The shared Escape stack lets portalled flyouts handle Escape before their root dismisses.
+  // The shared Escape stack dismisses the whole menu from a portalled flyout.
   createEscapeOwner({
     open: () => true,
     onDismiss: () => props.onClose(),
-    owns: () => [menuRef, ...flyouts],
+    owns: () => [menuRef],
   });
 
   function onMouseDown(e: MouseEvent) {
@@ -130,7 +129,6 @@ export function ContextMenu(props: ContextMenuProps) {
         onClose={props.onClose}
         parentMenuRef={() => menuRef ?? null}
         surface={props.surface ?? 'glass'}
-        flyouts={flyouts}
         anchor={() => [props.x, props.y]}
       />
     </CustomSubmenuScope.Provider>
