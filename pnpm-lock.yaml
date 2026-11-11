@@ -34,8 +34,8 @@ importers:
         version: 1.9.17
     devDependencies:
       '@cujuju/solid-reorder-list':
-        specifier: link:../../../solid-reorder-list
-        version: link:../../../solid-reorder-list
+        specifier: ^0.3.0
+        version: 0.3.0(solid-js@1.9.17)
       '@cujuju/solidjs-anchored-popover':
         specifier: workspace:^
         version: link:../anchored-popover
@@ -854,6 +854,11 @@ packages:
   '@csstools/css-tokenizer@4.0.0':
     resolution: {integrity: sha512-QxULHAm7cNu72w97JUNCBFODFaXpbDg+dP8b/oWFAZ2MTRppA3U00Y2L1HqaS4J6yBqxwa/Y3nMBaxVKbB/NsA==}
     engines: {node: '>=20.19.0'}
+
+  '@cujuju/solid-reorder-list@0.3.0':
+    resolution: {integrity: sha512-O+r5Jhv4/4YIrmOCUdUfwMdXj0CParC4xdCDphX6y2gRaxY3E0ZgNdM1MY/U6SUsB1cGPRkZXzR/0R4MJX3GVQ==}
+    peerDependencies:
+      solid-js: ^1.8.0
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -2421,6 +2426,10 @@ snapshots:
   '@csstools/css-tokenizer@3.0.4': {}
 
   '@csstools/css-tokenizer@4.0.0': {}
+
+  '@cujuju/solid-reorder-list@0.3.0(solid-js@1.9.17)':
+    dependencies:
+      solid-js: 1.9.17
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true

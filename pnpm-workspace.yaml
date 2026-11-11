@@ -8,3 +8,6 @@ packages:
 allowBuilds:
   # Its postinstall checks the platform binary Vite runs.
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - '@cujuju/solid-reorder-list@0.3.0'
