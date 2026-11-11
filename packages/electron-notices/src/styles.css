@@ -64,6 +64,9 @@
     /* A timed card stays solid for this share of its duration, then eases to the end opacity. Hover holds it solid. */
     --notice-life-solid: 0.6;
     --notice-life-end-opacity: 0.7;
+    /* The timer bar along a timed card's bottom edge: thickness, and its share of the text colour. */
+    --notice-timer-height: 2px;
+    --notice-timer-share: 35%;
     --notice-console-line: 22px;
     --notice-console-tag: 7ch;
     --notice-drip-dot: 6px;
@@ -210,7 +213,12 @@ body:has(.cuj-notices:not([data-inline])) {
 
 .cuj-notices-tray-more button { color: var(--notice-accent); }
 
-/* Animation slots: enter, life fade, exit. Fixed positions, so adding the exit never restarts the other two. */
+/* The timer bar's remaining length. Registered so it animates; zero by default, so untimed cards show no bar. */
+@property --_timer-left { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+
+/* Animation slots: enter, life fade, exit, timer. Fixed positions, so adding the exit never restarts the others. */
+/* Background layers: the timer bar, then the tone wash. The bar is the card's own paint, so it snaps to pixels with the border;
+   clipped to the padding box, it sits inside the border and follows its inner curve. */
 .cuj-notices-card {
   position: relative;
   display: flex;
@@ -220,24 +228,29 @@ body:has(.cuj-notices:not([data-inline])) {
   box-sizing: border-box;
   border-radius: var(--notice-radius-card);
   background-color: var(--notice-surface);
-  background-image: linear-gradient(to right,
-    color-mix(in srgb, var(--_tone) var(--notice-card-wash), transparent),
-    transparent var(--notice-card-wash-stop));
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--notice-text) var(--notice-timer-share), transparent), color-mix(in srgb, var(--notice-text) var(--notice-timer-share), transparent)),
+    linear-gradient(to right, color-mix(in srgb, var(--_tone) var(--notice-card-wash), transparent), transparent var(--notice-card-wash-stop));
+  background-size: var(--_timer-left) var(--notice-timer-height), auto;
+  background-position: left bottom, 0 0;
+  background-repeat: no-repeat, repeat;
+  background-origin: padding-box, padding-box;
+  background-clip: padding-box, border-box;
   border: 1px solid var(--notice-border);
   box-shadow: var(--notice-shadow);
   cursor: pointer;
-  animation-name: cuj-notices-card-in, none, none;
-  animation-duration: var(--notice-enter-ms), calc(var(--_life, 0ms) * (1 - var(--notice-life-solid))), var(--notice-exit-ms);
-  animation-delay: 0ms, calc(var(--_life, 0ms) * var(--notice-life-solid) - var(--_spent, 0ms)), 0ms;
-  animation-timing-function: ease-out, linear, ease-in;
-  animation-fill-mode: both, forwards, forwards;
+  animation-name: cuj-notices-card-in, none, none, none;
+  animation-duration: var(--notice-enter-ms), calc(var(--_life, 0ms) * (1 - var(--notice-life-solid))), var(--notice-exit-ms), var(--_life, 0ms);
+  animation-delay: 0ms, calc(var(--_life, 0ms) * var(--notice-life-solid) - var(--_spent, 0ms)), 0ms, calc(-1 * var(--_spent, 0ms));
+  animation-timing-function: ease-out, linear, ease-in, linear;
+  animation-fill-mode: both, forwards, forwards, forwards;
 }
 
-.cuj-notices-card[data-life] { animation-name: cuj-notices-card-in, cuj-notices-card-life, none; }
-.cuj-notices-card[data-leaving] { animation-name: cuj-notices-card-in, none, cuj-notices-card-out; pointer-events: none; }
-.cuj-notices-card[data-life][data-leaving] { animation-name: cuj-notices-card-in, cuj-notices-card-life, cuj-notices-card-out; }
-/* Hover holds every timer (queue.pause), so the life fade pauses and every card shows solid. Important beats the animation. */
-.cuj-notices:hover .cuj-notices-card { animation-play-state: running, paused, running; filter: none !important; }
+.cuj-notices-card[data-life] { animation-name: cuj-notices-card-in, cuj-notices-card-life, none, cuj-notices-card-timer; }
+.cuj-notices-card[data-leaving] { animation-name: cuj-notices-card-in, none, cuj-notices-card-out, none; pointer-events: none; }
+.cuj-notices-card[data-life][data-leaving] { animation-name: cuj-notices-card-in, cuj-notices-card-life, cuj-notices-card-out, cuj-notices-card-timer; }
+/* Hover holds every timer (queue.pause), so the life fade and the bar pause and every card shows solid. Important beats the animation. */
+.cuj-notices:hover .cuj-notices-card { animation-play-state: running, paused, running, paused; filter: none !important; }
 .cuj-notices-card[data-sticky] { border-color: color-mix(in srgb, var(--_tone) var(--notice-sticky-border), var(--notice-border)); }
 
 /* Inline cards slide in from their screen edge; the overlay window is cut to the cards, so there they only fade. Layered: the token contract keeps custom properties there. */
@@ -430,6 +443,10 @@ body:has(.cuj-notices:not([data-inline])) {
 /* filter, not opacity: the enter and exit animate opacity, and hover's important filter override leaves them running. */
 @keyframes cuj-notices-card-life { from { filter: opacity(1); } to { filter: opacity(var(--notice-life-end-opacity)); } }
 @keyframes cuj-notices-card-out { to { opacity: 0; } }
+/* Empties over the card's whole duration; the delay starts it at the time a replay already spent. Layered: the token contract keeps custom property declarations there. */
+@layer cujuju-defaults {
+  @keyframes cuj-notices-card-timer { from { --_timer-left: 100%; } to { --_timer-left: 0%; } }
+}
 @keyframes cuj-notices-fade { from { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
