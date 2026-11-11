@@ -181,16 +181,18 @@ body:has(.cuj-notices:not([data-inline])) {
 .cuj-notices-dismiss:hover { background: var(--notice-hover); color: var(--notice-text); }
 
 /* Tray drip */
+/* Border-box with the gap counted in, so cards are exactly --notice-card-width whatever box model the host page sets. */
 .cuj-notices-tray {
   display: flex;
   flex-direction: column;
   gap: var(--notice-tray-gap);
-  width: var(--notice-card-width);
+  box-sizing: border-box;
+  width: calc(var(--notice-card-width) + 2 * var(--notice-edge-gap));
   padding: var(--notice-edge-gap);
 }
 
 /* Inline only: never wider than the app window. The overlay window is sized from this element, so a viewport width there would size itself. */
-.cuj-notices[data-inline] .cuj-notices-tray { max-width: calc(100vw - 2 * var(--notice-edge-gap)); }
+.cuj-notices[data-inline] .cuj-notices-tray { max-width: 100vw; }
 
 /* Bottom placements: an overflowing stack starts scrolled to its bottom, where the newest card sits. */
 .cuj-notices[data-placement^='bottom'] { display: flex; flex-direction: column-reverse; }

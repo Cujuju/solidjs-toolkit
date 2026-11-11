@@ -9,6 +9,9 @@ const LIFE_MS = 5000;
 const Head = (p: { notice: Notice }) => <span data-testid="head">head {p.notice.title}</span>;
 const Foot = () => <span data-testid="foot">Acct 1234</span>;
 const Body = () => <span data-testid="body">legs</span>;
+/** Host icons swap whole elements when the key changes, as an app's icon components do. */
+const hostIcon = (name: string) => (p: { size?: number }) => <svg data-icon={name} width={p.size} height={p.size} />;
+const ICONS = { pin: hostIcon('pin'), 'pin-off': hostIcon('pin-off') };
 let nextId = 1;
 const notice = (n: Omit<Notice, 'id' | 'at' | 'pinned'>): Notice => ({ id: nextId++, at: 0, pinned: false, ...n });
 const order = (): Notice => notice({
@@ -20,7 +23,7 @@ afterEach(cleanup);
 
 const mount = (onAction = vi.fn()) => {
   const host = createLocalNoticeHost({ view: () => view, onAction });
-  const r = render(() => <NoticeOverlay bridge={host.bridge} inline renderers={{ order: { head: Head, body: Body, foot: Foot } }} />);
+  const r = render(() => <NoticeOverlay bridge={host.bridge} inline icons={ICONS} renderers={{ order: { head: Head, body: Body, foot: Foot } }} />);
   return { host, ...r, card: () => r.container.querySelector('.cuj-notices-card') as HTMLElement | null };
 };
 
@@ -60,7 +63,9 @@ describe('tray card', () => {
     expect(card()?.hasAttribute('data-life')).toBe(true);
     expect(card()?.style.getPropertyValue('--_life')).toBe(`${LIFE_MS}ms`);
     expect(card()?.style.getPropertyValue('--_spent')).toBe('0ms');
-    fireEvent.click(container.querySelector('[aria-label="Pin"]')!);
+    // Click the icon: pinning swaps it, detaching the click target before the card sees the event.
+    fireEvent.click(container.querySelector('[aria-label="Pin"] svg')!);
+    expect(card()?.hasAttribute('data-leaving')).toBe(false);
     expect(card()?.hasAttribute('data-life')).toBe(false);
     expect(container.querySelector('[aria-label="Unpin"]')?.getAttribute('aria-pressed')).toBe('true');
     await host.show(notice({ title: 'sticky', tone: 'info', durationMs: 0 }));

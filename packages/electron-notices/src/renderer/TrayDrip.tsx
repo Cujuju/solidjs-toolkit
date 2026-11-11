@@ -15,6 +15,8 @@ export type NoticeRendererEntry = NoticeContentRenderer | NoticeContentParts;
 const reportedKinds = new Set<string>();
 /** Controls inside a card; a click anywhere else on it opens the notice. */
 const CARD_CONTROLS = '.cuj-notices-tool, .cuj-notices-action';
+/** The dispatch path, not target.closest: a control's own handler can swap its icon, detaching the target before the card sees the click. */
+const fromControl = (e: MouseEvent): boolean => e.composedPath().some((el) => el instanceof Element && el.matches(CARD_CONTROLS));
 
 export interface NoticeListProps {
   items: Notice[];
@@ -86,7 +88,7 @@ export function TrayDrip(props: TrayDripProps) {
                   data-life={props.durationOf(n()) > 0 ? '' : undefined}
                   data-leaving={props.leaving.has(n().id) ? '' : undefined}
                   style={{ ...toneVars(n().tone, props.tones), ...lifeVars(n()) }}
-                  onClick={(e) => { if (!(e.target as Element).closest(CARD_CONTROLS)) props.onOpen(n()); }}
+                  onClick={(e) => { if (!fromControl(e)) props.onOpen(n()); }}
                 >
                   {/* A button for keyboard users; its click bubbles to the card. */}
                   <button type="button" class="cuj-notices-card-head">
