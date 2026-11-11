@@ -274,14 +274,18 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
 
   const renderTrigger = () => (
     <button
-      ref={triggerRef}
+      ref={(el) => {
+        triggerRef = el;
+        // Bound on the button, not delegated: stopping here must precede a native row listener.
+        if (!props.builtin) el.addEventListener('click', onTriggerClick);
+      }}
       type="button"
       class={`cujuju-context-menu-item cujuju-context-menu-item-has-submenu${props.class ? ` ${props.class}` : ''}`}
       disabled={props.disabled}
       aria-haspopup="menu"
       aria-expanded={isOpen()}
       onMouseEnter={props.builtin ? undefined : enter}
-      onClick={onTriggerClick}
+      onClick={props.builtin ? onTriggerClick : undefined}
       onKeyDown={onTriggerKeyDown}
     >
       {props.builtin ? (
