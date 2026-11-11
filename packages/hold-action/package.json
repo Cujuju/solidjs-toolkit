@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-hold-action",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Press-and-hold primitive for SolidJS — useHoldAction hook + HoldIndicator visual. Stages, hover trigger, click suppression.",
   "type": "module",
   "main": "./dist/index.js",

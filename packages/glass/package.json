@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-glass",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Glassmorphism surface system for SolidJS — .glass-panel / .glass-menu classes, a runtime-tunable menu-tint engine, and the MenuTintSection settings panel.",
   "type": "module",
   "main": "./dist/index.js",

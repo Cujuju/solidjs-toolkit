@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-editable-list-flyout",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Composed flyout primitive for SolidJS — anchored popover wrapping editable rows with built-in inline add affordance. Drop-in flyout-select with create/rename/delete.",
   "type": "module",
   "main": "./dist/index.js",
