@@ -111,6 +111,8 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
   }
 
   function onTriggerClick(e: MouseEvent) {
+    // Opening a flyout is not a click on the enclosing custom row.
+    e.stopPropagation();
     // `detail === 0`: Enter/Space synthesised this click. A pointer already opened it on hover.
     if (e.detail === 0) openFromKeyboard();
     else enter();

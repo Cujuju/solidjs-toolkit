@@ -545,6 +545,21 @@ describe('ContextMenuSubmenuTrigger', () => {
     expect(flyouts()).toHaveLength(0);
   });
 
+  it('does not click the enclosing custom row when the trigger is activated', async () => {
+    const onRow = vi.fn();
+    renderMenu([{
+      custom: () => (
+        <div onClick={onRow}>
+          <ContextMenuSubmenuTrigger submenu={submenu} class="export-cell"><span>Export formats</span></ContextMenuSubmenuTrigger>
+        </div>
+      ),
+    }]);
+    trigger().click();
+    await nextFrame();
+    expect(onRow).not.toHaveBeenCalled();
+    expect(flyouts()).toHaveLength(1);
+  });
+
   it('focuses the flyout on Enter activation and dismisses the whole menu on Escape', async () => {
     const onClose = vi.fn();
     renderMenu([customRow()], undefined, onClose);
