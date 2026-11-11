@@ -1,5 +1,5 @@
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
-import { createAfterPaint } from '@cujuju/solidjs-hooks';
+import { createAfterPaint, safeAddEventListener } from '@cujuju/solidjs-hooks';
 import { createEffect, createMemo, createSignal, onCleanup, Show, useContext, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { POPOVER_STACK_ATTR } from './_internal/popoverStack.js';
@@ -277,9 +277,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
       ref={(el) => {
         triggerRef = el;
         // Bound on the button, not delegated: stopping here must precede a native row listener.
-        if (props.builtin) return;
-        el.addEventListener('click', onTriggerClick);
-        onCleanup(() => el.removeEventListener('click', onTriggerClick));
+        if (!props.builtin) safeAddEventListener(el, 'click', onTriggerClick as EventListener);
       }}
       type="button"
       class={`cujuju-context-menu-item cujuju-context-menu-item-has-submenu${props.class ? ` ${props.class}` : ''}`}
