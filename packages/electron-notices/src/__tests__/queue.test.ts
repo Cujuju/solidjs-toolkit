@@ -98,3 +98,35 @@ it('uses remaining time once and restarts a full duration after unpin', () => {
   q.push({ ...notice(), remainingMs: 100 }); vi.advanceTimersByTime(100); expect(ids(q)).toEqual([]);
   vi.useRealTimers();
 });
+describe('exit phase', () => {
+  const EXIT_MS = 200;
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('keeps a dismissed notice for its exit, then removes and closes it once', () => {
+    const closed = vi.fn(), q = createNoticeQueue(() => 0, closed, undefined, () => EXIT_MS), n = notice();
+    q.push(n); q.dismiss(n.id); q.dismiss(n.id);
+    expect(ids(q)).toEqual([n.id]);
+    expect(q.leaving().has(n.id)).toBe(true);
+    expect(closed).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(EXIT_MS);
+    expect(ids(q)).toEqual([]);
+    expect(q.leaving().size).toBe(0);
+    expect(closed.mock.calls).toEqual([[n.id]]);
+  });
+
+  it('does not count leaving notices against maxKept', () => {
+    const closed = vi.fn(), q = createNoticeQueue(() => 0, closed, () => 2, () => EXIT_MS);
+    const [a, b, c] = [notice(), notice(), notice()];
+    q.push(a); q.push(b); q.dismiss(a.id); q.push(c);
+    expect(ids(q)).toEqual([a.id, b.id, c.id]);
+    expect([...q.leaving()]).toEqual([a.id]);
+  });
+
+  it("drops a replay's remaining time when pinned", () => {
+    const q = createNoticeQueue(() => 1000);
+    const n = { ...notice(), remainingMs: 100 };
+    q.push(n); q.pin(n.id, true);
+    expect(q.items()[0]?.remainingMs).toBeUndefined();
+  });
+});

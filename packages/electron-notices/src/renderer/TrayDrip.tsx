@@ -1,15 +1,20 @@
 import { createMemo, For, Show, type Component } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import type { Notice, NoticeTones } from '../types.js';
-import { clockTime } from './_internal/overlayDom.js';
+import type { Notice, NoticeAction, NoticeIconSizes, NoticeTones } from '../types.js';
 import { toneVars } from './_internal/tone.js';
-import { DismissButton, NoticeGlyph, PinMark, ToolButton, type NoticeIcon } from './NoticeGlyph.js';
+import { NoticeGlyph, ToolButton, type NoticeIcon } from './NoticeGlyph.js';
 
 /** Draws a notice's `content` for one `content.kind`; `data` is that content's payload. */
 export type NoticeContentRenderer = Component<{ notice: Notice; data: unknown }>;
+/** Card parts one content kind draws. `head` replaces the glyph, title and body; `body` sits below the head; `foot` leads the footer row. */
+export interface NoticeContentParts { head?: NoticeContentRenderer; body?: NoticeContentRenderer; foot?: NoticeContentRenderer }
+/** A bare renderer draws the body part. */
+export type NoticeRendererEntry = NoticeContentRenderer | NoticeContentParts;
 
 /** Kinds already reported missing, so a bad kind warns once. */
 const reportedKinds = new Set<string>();
+/** Controls inside a card; a click anywhere else on it opens the notice. */
+const CARD_CONTROLS = '.cuj-notices-tool, .cuj-notices-action';
 
 export interface NoticeListProps {
   items: Notice[];
@@ -24,27 +29,42 @@ export interface NoticeListProps {
 export interface TrayDripProps extends NoticeListProps {
   /** Cards on screen at once; older notices fold into the counter. */
   visible: number;
-  renderers?: Record<string, NoticeContentRenderer>;
+  renderers?: Record<string, NoticeRendererEntry>;
+  /** A notice's full on-screen time; zero never expires. Drives the card's own fade. */
+  durationOf: (n: Notice) => number;
+  /** Ids playing their exit animation. */
+  leaving: ReadonlySet<number>;
+  iconPx?: NoticeIconSizes;
   onAction: (n: Notice, actionId: string) => void;
   onPin: (n: Notice, pinned: boolean) => void;
 }
 
-/** Tray drip: rounded cards stacked from the screen edge, newest nearest it. Hover expands a card's text. */
+/** Tray drip: cards stacked from the screen edge, newest nearest it. Each card fades on its own timer. */
 export function TrayDrip(props: TrayDripProps) {
   const shown = () => props.items.slice(-props.visible);
   const hidden = () => props.items.length - shown().length;
   const shownIds = createMemo(() => shown().map((n) => n.id), undefined, { equals: (a, b) => a.length === b.length && a.every((id, k) => id === b[k]) });
   const byId = (id: number) => props.items.find((n) => n.id === id);
-  const renderer = (n: Notice): NoticeContentRenderer | undefined => {
+  const parts = (n: Notice): NoticeContentParts => {
     const kind = n.content?.kind;
-    if (kind === undefined) return undefined;
+    if (kind === undefined) return {};
     const r = props.renderers?.[kind];
     if (!r && !reportedKinds.has(kind)) {
       reportedKinds.add(kind);
       console.warn(`[electron-notices] no renderer for content kind "${kind}"; showing title and body only`);
     }
-    return r;
+    return typeof r === 'function' ? { body: r } : r ?? {};
   };
+  const tools = (n: Notice) => (n.actions ?? []).filter((a) => a.variant !== 'danger');
+  const buttons = (n: Notice) => (n.actions ?? []).filter((a) => a.variant === 'danger');
+  // Timed cards carry their duration and the time a replay already spent, so the fade lines up with the timer.
+  const lifeVars = (n: Notice): Record<string, string> => {
+    const ms = props.durationOf(n);
+    return ms > 0 ? { '--_life': `${ms}ms`, '--_spent': `${ms - (n.remainingMs ?? ms)}ms` } : {};
+  };
+  const part = (r: NoticeContentRenderer | undefined, n: Notice) => (
+    <Show when={r}>{(c) => <Dynamic component={c()} notice={n} data={n.content?.data} />}</Show>
+  );
   return (
     <Show when={props.items.length > 0}>
       <div class="cuj-notices-tray">
@@ -56,38 +76,52 @@ export function TrayDrip(props: TrayDripProps) {
         </Show>
         {/* Keyed by id: pinning replaces the notice object, and a remount would replay the entry animation. */}
         <For each={shownIds()}>
-          {(id, i) => (
+          {(id) => (
             <Show when={byId(id)}>
               {(n) => (
                 <div
                   class="cuj-notices-card"
                   data-notice-id={n().id}
                   data-sticky={props.sticky(n()) ? '' : undefined}
-                  style={{ ...toneVars(n().tone, props.tones), '--_age': String(shownIds().length - 1 - i()) }}
+                  data-life={props.durationOf(n()) > 0 ? '' : undefined}
+                  data-leaving={props.leaving.has(n().id) ? '' : undefined}
+                  style={{ ...toneVars(n().tone, props.tones), ...lifeVars(n()) }}
+                  onClick={(e) => { if (!(e.target as Element).closest(CARD_CONTROLS)) props.onOpen(n()); }}
                 >
-                  <div class="cuj-notices-card-head">
-                    <button type="button" class="cuj-notices-card-main" onClick={() => props.onOpen(n())}>
-                      <NoticeGlyph notice={n()} tones={props.tones} icons={props.icons} />
-                      <span class="cuj-notices-card-text">
-                        <span class="cuj-notices-card-title">{n().title}</span>
-                        <Show when={n().body}><span class="cuj-notices-card-body">{n().body}</span></Show>
-                      </span>
-                      <Show when={n().pinned}><PinMark /></Show>
-                      <span class="cuj-notices-time">{clockTime(n().at)}</span>
-                    </button>
-                    <DismissButton onClick={() => props.onDismiss(n().id)} />
-                  </div>
-                  <Show when={renderer(n())}>
-                    {(r) => <div class="cuj-notices-card-content"><Dynamic component={r()} notice={n()} data={n().content?.data} /></div>}
+                  {/* A button for keyboard users; its click bubbles to the card. */}
+                  <button type="button" class="cuj-notices-card-head">
+                    <Show when={parts(n()).head} fallback={
+                      <>
+                        <NoticeGlyph notice={n()} tones={props.tones} icons={props.icons} size={props.iconPx?.glyph} />
+                        <span class="cuj-notices-card-text">
+                          <span class="cuj-notices-card-title">{n().title}</span>
+                          <Show when={n().body}><span class="cuj-notices-card-body">{n().body}</span></Show>
+                        </span>
+                      </>
+                    }>
+                      {part(parts(n()).head, n())}
+                    </Show>
+                  </button>
+                  <Show when={parts(n()).body}><div class="cuj-notices-card-content">{part(parts(n()).body, n())}</div></Show>
+                  <Show when={parts(n()).foot || tools(n()).length > 0 || n().pinnable}>
+                    <div class="cuj-notices-card-foot">
+                      <div class="cuj-notices-card-meta">{part(parts(n()).foot, n())}</div>
+                      <div class="cuj-notices-card-tools">
+                        <For each={tools(n())}>
+                          {(a) => <ToolButton label={a.label} icon={a.icon} icons={props.icons} size={props.iconPx?.tool} onClick={() => props.onAction(n(), a.id)} />}
+                        </For>
+                        <Show when={n().pinnable}>
+                          <ToolButton
+                            label={n().pinned ? 'Unpin' : 'Pin'} icon={n().pinned ? 'pin-off' : 'pin'} icons={props.icons}
+                            size={props.iconPx?.tool} pressed={n().pinned} onClick={() => props.onPin(n(), !n().pinned)}
+                          />
+                        </Show>
+                      </div>
+                    </div>
                   </Show>
-                  <Show when={(n().actions?.length ?? 0) > 0 || n().pinnable}>
-                    <div class="cuj-notices-card-actions">
-                      <For each={n().actions ?? []}>
-                        {(a) => <ToolButton label={a.label} icon={a.icon} icons={props.icons} onClick={() => props.onAction(n(), a.id)} />}
-                      </For>
-                      <Show when={n().pinnable}>
-                        <ToolButton label={n().pinned ? 'Unpin' : 'Pin'} icon="pin" icons={props.icons} pressed={n().pinned} onClick={() => props.onPin(n(), !n().pinned)} />
-                      </Show>
+                  <Show when={buttons(n()).length > 0}>
+                    <div class="cuj-notices-card-buttons">
+                      <For each={buttons(n())}>{(a) => <ActionButton action={a} onClick={() => props.onAction(n(), a.id)} />}</For>
                     </div>
                   </Show>
                 </div>
@@ -97,5 +131,14 @@ export function TrayDrip(props: TrayDripProps) {
         </For>
       </div>
     </Show>
+  );
+}
+
+/** A labelled action button, painted by its variant. */
+function ActionButton(props: { action: NoticeAction; onClick: () => void }) {
+  return (
+    <button type="button" class="cuj-notices-action" data-variant={props.action.variant} onClick={() => props.onClick()}>
+      {props.action.label}
+    </button>
   );
 }

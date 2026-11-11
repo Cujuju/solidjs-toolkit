@@ -50,7 +50,11 @@ export const BASIC_TONES: NoticeTones = {
   warn: { color: 'var(--notice-warn)', tag: 'WARN', icon: 'warn' },
   error: { color: 'var(--notice-error)', tag: 'ERROR', icon: 'error', durationMs: 0 },
 };
-export interface NoticeAction { id: string; label: string; icon?: string }
+export interface NoticeAction {
+  id: string; label: string; icon?: string;
+  /** `danger`: a labelled button below the footer, painted in --notice-danger (such as Cancel order). */
+  variant?: 'danger';
+}
 /** Custom content data must be structured-clone safe. */
 export interface NoticeContent { kind: string; data: unknown }
 export interface NoticeInput {
@@ -66,7 +70,9 @@ export interface Notice extends NoticeInput {
   /** Library-set on replay; applies to the first timer only. */
   remainingMs?: number;
 }
-export interface NoticeAppearance { vars: Record<string, string>; dripVars?: Record<string, string>; colorScheme?: 'light' | 'dark' }
+/** Pixel sizes of tray icons; host icon components take a number, so these cannot be CSS vars. */
+export interface NoticeIconSizes { glyph?: number; tool?: number }
+export interface NoticeAppearance { vars: Record<string, string>; dripVars?: Record<string, string>; colorScheme?: 'light' | 'dark'; iconPx?: NoticeIconSizes }
 export interface NoticeView { config: NoticeConfig; appearance: NoticeAppearance; tones: NoticeTones }
 const warnedDurations = new Set<string>();
 export function noticeDuration(n: NoticeInput & { pinned?: boolean }, view: NoticeView): number {

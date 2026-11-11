@@ -9,8 +9,6 @@ export type NoticeIcon = Component<{ size?: number }>;
 /** Icons sit at about half the glyph tile. */
 const ICON_PX = 13;
 const TOOL_ICON_PX = 12;
-/** Smaller than a tool icon: it marks state beside the time, it is not a control. */
-const PIN_MARK_PX = 10;
 
 /** Built-in icons, used when the host supplies none for a key. Factories, since a JSX node sits in one place only. */
 const BUILT_IN: Record<string, () => JSX.Element> = {
@@ -19,6 +17,7 @@ const BUILT_IN: Record<string, () => JSX.Element> = {
   warn: () => <><path d="M12 3l10 18H2z" /><path d="M12 10v4M12 17.5h.01" /></>,
   error: () => <><circle cx="12" cy="12" r="9" /><path d="M9 9l6 6M15 9l-6 6" /></>,
   pin: () => <><path d="M12 17v5" /><path d="M5 17h14v-1.8a2 2 0 0 0-1.1-1.8l-1.8-.9a2 2 0 0 1-1.1-1.8V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2z" /></>,
+  'pin-off': () => <><path d="M12 17v5" /><path d="M5 17h14v-1.8a2 2 0 0 0-1.1-1.8l-1.8-.9a2 2 0 0 1-1.1-1.8V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2z" /><path d="M3 3l18 18" /></>,
   dismiss: () => <path d="M6 6l12 12M18 6L6 18" />,
   /** Neutral mark for a notice whose icon key resolves to nothing. */
   dot: () => <circle cx="12" cy="12" r="3" />,
@@ -44,10 +43,11 @@ function KeyedIcon(props: { name: string | undefined; icons?: Record<string, Not
 }
 
 /** The tinted tile at the start of a notice: its icon, else its tone's, else a neutral dot. */
-export function NoticeGlyph(props: { notice: NoticeInput; tones: NoticeTones; icons?: Record<string, NoticeIcon> }) {
+export function NoticeGlyph(props: { notice: NoticeInput; tones: NoticeTones; icons?: Record<string, NoticeIcon>; size?: number }) {
+  const size = () => props.size ?? ICON_PX;
   return (
     <span class="cuj-notices-glyph" style={toneVars(props.notice.tone, props.tones)}>
-      <KeyedIcon name={iconKey(props.notice, props.tones)} icons={props.icons} size={ICON_PX} fallback={<StrokeIcon size={ICON_PX}>{BUILT_IN.dot!()}</StrokeIcon>} />
+      <KeyedIcon name={iconKey(props.notice, props.tones)} icons={props.icons} size={size()} fallback={<StrokeIcon size={size()}>{BUILT_IN.dot!()}</StrokeIcon>} />
     </span>
   );
 }
@@ -61,7 +61,7 @@ export function DismissButton(props: { onClick: () => void }) {
 }
 
 /** A footer button: icon-only when its icon resolves (label becomes the tooltip), else its label as text. */
-export function ToolButton(props: { label: string; icon?: string; icons?: Record<string, NoticeIcon>; pressed?: boolean; onClick: () => void }) {
+export function ToolButton(props: { label: string; icon?: string; icons?: Record<string, NoticeIcon>; pressed?: boolean; size?: number; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -71,12 +71,7 @@ export function ToolButton(props: { label: string; icon?: string; icons?: Record
       aria-pressed={props.pressed}
       onClick={() => props.onClick()}
     >
-      <KeyedIcon name={props.icon} icons={props.icons} size={TOOL_ICON_PX} fallback={<span class="cuj-notices-tool-text">{props.label}</span>} />
+      <KeyedIcon name={props.icon} icons={props.icons} size={props.size ?? TOOL_ICON_PX} fallback={<span class="cuj-notices-tool-text">{props.label}</span>} />
     </button>
   );
-}
-
-/** The small mark beside a pinned card's time. */
-export function PinMark() {
-  return <span class="cuj-notices-pin-mark"><StrokeIcon size={PIN_MARK_PX}>{BUILT_IN.pin!()}</StrokeIcon></span>;
 }

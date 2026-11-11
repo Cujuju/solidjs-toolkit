@@ -8,10 +8,13 @@ import { ConsoleTail } from './ConsoleTail.js';
 import type { NoticeIcon } from './NoticeGlyph.js';
 import { createNoticeQueue } from './queue.js';
 import { TopDrip } from './TopDrip.js';
-import { TrayDrip, type NoticeContentRenderer } from './TrayDrip.js';
+import { TrayDrip, type NoticeRendererEntry } from './TrayDrip.js';
 
 /** Painted surfaces that take clicks; the window's transparent rest passes them through. */
 const INTERACTIVE = '.cuj-notices-card, .cuj-notices-tray-more, .cuj-notices-console, .cuj-notices-drip';
+/** The tray card's exit fade; matches the card-out animation in styles.css. */
+const NOTICE_EXIT_MS = 200;
+const reducedMotion = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 /** Before main's first view arrives; the overlay never paints with it in practice. */
 const INITIAL_VIEW: NoticeView = { config: DEFAULT_NOTICE_CONFIG, appearance: { vars: {} }, tones: BASIC_TONES };
 const INITIAL_PLACEMENT: NoticePlacement = 'bottom-right';
@@ -21,8 +24,8 @@ export interface NoticeOverlayProps {
   bridge: NoticeBridge;
   /** Icon components keyed by icon name (notice, tone, or action icon). */
   icons?: Record<string, NoticeIcon>;
-  /** Content renderers keyed by NoticeContent.kind; tray cards draw them below the title. */
-  renderers?: Record<string, NoticeContentRenderer>;
+  /** Content renderers keyed by NoticeContent.kind: a bare renderer draws below the title; parts can replace the head and lead the footer. */
+  renderers?: Record<string, NoticeRendererEntry>;
   /** Console's header, such as the app's name. */
   label?: string;
   /** Inside an app window: fixed to the viewport at the view's placement, page styles untouched. */
@@ -44,6 +47,8 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
       if (latest()?.id === id) setLatest(null);
     },
     () => view().config.maxKept,
+    // Only a shown tray animates its exit; anything else leaves at once.
+    () => deliversTo(view().config.delivery).overlay && view().config.style === 'tray' && !reducedMotion() ? NOTICE_EXIT_MS : 0,
   );
   onCleanup(() => queue.dispose());
   // Ack only what is on the page: a host may push before mount or inside batch(), and a throwing renderer leaves no element.
@@ -110,7 +115,11 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
       <Show when={deliversTo(config().delivery).overlay}>
         <Switch>
           <Match when={config().style === 'tray'}>
-            <TrayDrip {...list()} visible={config().trayVisible} renderers={props.renderers} onAction={(n, a) => bridge.action(n.id, a)} onPin={pin} />
+            <TrayDrip
+              {...list()} visible={config().trayVisible} renderers={props.renderers} leaving={queue.leaving()}
+              durationOf={(n) => noticeDuration(n, view())} iconPx={view().appearance.iconPx}
+              onAction={(n, a) => bridge.action(n.id, a)} onPin={pin}
+            />
           </Match>
           <Match when={config().style === 'console'}>
             <ConsoleTail {...list()} lines={config().consoleLines} label={props.label ?? 'notifications'} />

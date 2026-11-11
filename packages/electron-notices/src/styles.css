@@ -8,6 +8,7 @@
     --notice-hover: #2d3548;
     --notice-text: #e2e8f0;
     --notice-text-secondary: #94a3b8;
+    --notice-text-muted: #64748b;
     --notice-border: rgba(255, 255, 255, 0.1);
     --notice-border-strong: #475569;
     --notice-accent: #818cf8;
@@ -40,25 +41,42 @@
     /* Gap from the taskbar or screen edge; also room for the card shadow. */
     --notice-edge-gap: 12px;
     --notice-card-width: 320px;
+    --notice-tray-gap: 8px;
     --notice-console-width: 400px;
-    /* One line of 13px text plus the glyph tile's padding. */
-    --notice-row-height: 38px;
     --notice-glyph: 24px;
+    /* Nudges the glyph down onto the title's first line. */
+    --notice-glyph-offset: 0px;
     --notice-dismiss: 22px;
     /* Tint strength of the glyph tile behind its icon. */
     --notice-tone-wash: 16%;
-    /* Each older card dims by this much. */
-    --notice-age-fade: 0.15;
-    /* Opacity floor for the oldest cards, so a long tray stays readable. */
-    --notice-age-min-opacity: 0.4;
+    /* Tone share at a card's start edge, and where across the card the wash has faded out. */
+    --notice-card-wash: 8%;
+    --notice-card-wash-stop: 100%;
+    --notice-title-weight: 600;
+    /* Space between a card's title and body. */
+    --notice-body-gap: 3px;
+    /* Space between the footer rule and its row. */
+    --notice-foot-pad: 5px;
+    --notice-tool-reveal: 150ms;
+    --notice-danger: #ef4444;
+    --notice-danger-subtle: rgba(239, 68, 68, 0.25);
+    --notice-button-height: 28px;
+    /* A timed card stays solid for this share of its duration, then eases to the end opacity. Hover holds it solid. */
+    --notice-life-solid: 0.6;
+    --notice-life-end-opacity: 0.7;
     --notice-console-line: 22px;
     --notice-console-tag: 7ch;
     --notice-drip-dot: 6px;
     /* Decelerates without overshoot, so the morph never pokes past the window. */
     --notice-drip-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     --notice-enter-rise: 6px;
+    --notice-enter-ms: 250ms;
+    /* Keep equal to NOTICE_EXIT_MS (NoticeOverlay), which holds the card on screen while this plays. */
+    --notice-exit-ms: 200ms;
+    /* Inline centre placements: cards slide this far in from the edge; side placements slide their full width. */
+    --notice-enter-center-shift: 30px;
     --notice-tool: 22px;
-    /* Tint of a sticky card's border and a sticky console line. */
+    /* Tone share in a sticky card's border and a sticky console line's outline. */
     --notice-sticky-border: 35%;
     --notice-sticky-wash: 19%;
     /* Inline only: above app content; the host raises it over its own overlays if needed. */
@@ -158,7 +176,6 @@ body:has(.cuj-notices:not([data-inline])) {
   opacity: 0;
 }
 
-.cuj-notices-card:hover .cuj-notices-dismiss,
 .cuj-notices-console-row:hover .cuj-notices-dismiss,
 .cuj-notices-dismiss:focus-visible { opacity: 1; }
 .cuj-notices-dismiss:hover { background: var(--notice-hover); color: var(--notice-text); }
@@ -167,7 +184,7 @@ body:has(.cuj-notices:not([data-inline])) {
 .cuj-notices-tray {
   display: flex;
   flex-direction: column;
-  gap: var(--notice-space-3);
+  gap: var(--notice-tray-gap);
   width: var(--notice-card-width);
   padding: var(--notice-edge-gap);
 }
@@ -191,81 +208,114 @@ body:has(.cuj-notices:not([data-inline])) {
 
 .cuj-notices-tray-more button { color: var(--notice-accent); }
 
+/* Animation slots: enter, life fade, exit. Fixed positions, so adding the exit never restarts the other two. */
 .cuj-notices-card {
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: var(--notice-space-4);
+  padding: var(--notice-space-5) var(--notice-space-7);
+  box-sizing: border-box;
   border-radius: var(--notice-radius-card);
-  background: var(--notice-surface);
+  background-color: var(--notice-surface);
+  background-image: linear-gradient(to right,
+    color-mix(in srgb, var(--_tone) var(--notice-card-wash), transparent),
+    transparent var(--notice-card-wash-stop));
   border: 1px solid var(--notice-border);
   box-shadow: var(--notice-shadow);
-  opacity: max(var(--notice-age-min-opacity), calc(1 - var(--_age, 0) * var(--notice-age-fade)));
-  animation: cuj-notices-in 180ms ease-out both;
+  cursor: pointer;
+  animation-name: cuj-notices-card-in, none, none;
+  animation-duration: var(--notice-enter-ms), calc(var(--_life, 0ms) * (1 - var(--notice-life-solid))), var(--notice-exit-ms);
+  animation-delay: 0ms, calc(var(--_life, 0ms) * var(--notice-life-solid) - var(--_spent, 0ms)), 0ms;
+  animation-timing-function: ease-out, linear, ease-in;
+  animation-fill-mode: both, forwards, forwards;
 }
 
-.cuj-notices-card:hover { opacity: 1; }
-.cuj-notices-card[data-sticky] { border-color: color-mix(in srgb, var(--_tone) var(--notice-sticky-border), transparent); }
+.cuj-notices-card[data-life] { animation-name: cuj-notices-card-in, cuj-notices-card-life, none; }
+.cuj-notices-card[data-leaving] { animation-name: cuj-notices-card-in, none, cuj-notices-card-out; pointer-events: none; }
+.cuj-notices-card[data-life][data-leaving] { animation-name: cuj-notices-card-in, cuj-notices-card-life, cuj-notices-card-out; }
+/* Hover holds every timer (queue.pause), so the life fade pauses and every card shows solid. Important beats the animation. */
+.cuj-notices:hover .cuj-notices-card { animation-play-state: running, paused, running; filter: none !important; }
+.cuj-notices-card[data-sticky] { border-color: color-mix(in srgb, var(--_tone) var(--notice-sticky-border), var(--notice-border)); }
 
-.cuj-notices-card-head { display: flex; align-items: center; }
+/* Inline cards slide in from their screen edge; the overlay window is cut to the cards, so there they only fade. Layered: the token contract keeps custom properties there. */
+@layer cujuju-defaults {
+  .cuj-notices[data-inline][data-placement$='right'] .cuj-notices-card { --_enter-from: translateX(100%); }
+  .cuj-notices[data-inline][data-placement$='left'] .cuj-notices-card { --_enter-from: translateX(-100%); }
+  .cuj-notices[data-inline][data-placement='top-center'] .cuj-notices-card { --_enter-from: translateY(calc(-1 * var(--notice-enter-center-shift))); }
+  .cuj-notices[data-inline][data-placement='bottom-center'] .cuj-notices-card { --_enter-from: translateY(var(--notice-enter-center-shift)); }
+}
 
-.cuj-notices-card-main {
-  flex: 1;
-  min-width: 0;
+.cuj-notices-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--notice-space-5);
-  min-height: var(--notice-row-height);
-  padding: var(--notice-space-3) var(--notice-space-4) var(--notice-space-3) var(--notice-space-3);
-  box-sizing: border-box;
+  min-width: 0;
+  cursor: inherit;
 }
+
+.cuj-notices-card-head > .cuj-notices-glyph { margin-top: var(--notice-glyph-offset); }
 
 .cuj-notices-card-text {
   flex: 1;
   min-width: 0;
   display: flex;
-  gap: var(--notice-space-3);
-  font-size: var(--notice-text-sm);
+  flex-direction: column;
+  gap: var(--notice-body-gap);
   line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
-.cuj-notices-card-title { flex: none; max-width: 100%; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
-.cuj-notices-card-body { min-width: 0; color: var(--notice-text-secondary); overflow: hidden; text-overflow: ellipsis; }
+.cuj-notices-card-title { font-size: var(--notice-text-sm); font-weight: var(--notice-title-weight); }
+.cuj-notices-card-body { font-size: var(--notice-text-xs); color: var(--notice-text-secondary); }
 
-/* Hover shows the whole notice. */
-.cuj-notices-card:hover .cuj-notices-card-text { flex-direction: column; gap: var(--notice-space-1); white-space: normal; }
-.cuj-notices-card:hover .cuj-notices-card-title { flex: initial; }
+.cuj-notices-card-content { min-width: 0; font-size: var(--notice-text-body); }
 
-.cuj-notices-pin-mark { flex: none; display: grid; place-items: center; color: var(--notice-text-secondary); }
-
-/* Host content: below the title, aligned with the text column. */
-.cuj-notices-card-content {
-  padding: 0 var(--notice-space-4) var(--notice-space-3) calc(var(--notice-space-3) + var(--notice-glyph) + var(--notice-space-5));
-  font-size: var(--notice-text-body);
-  min-width: 0;
-}
-
-.cuj-notices-card-actions {
+/* Host meta on the left, tools on the right; tools show on hover, a pressed one stays lit. */
+.cuj-notices-card-foot {
   display: flex;
-  justify-content: flex-end;
-  gap: var(--notice-space-1);
-  padding: var(--notice-space-2) var(--notice-space-3);
+  align-items: center;
+  gap: var(--notice-space-5);
+  margin-top: var(--notice-space-1);
+  padding-top: var(--notice-foot-pad);
   border-top: 1px solid var(--notice-border);
 }
+
+.cuj-notices-card-meta { flex: 1; min-width: 0; }
+.cuj-notices-card-tools { flex: none; display: flex; align-items: center; gap: var(--notice-space-1); }
+.cuj-notices-card-tools .cuj-notices-tool { opacity: 0; pointer-events: none; transition: opacity var(--notice-tool-reveal) ease; }
+.cuj-notices-card:is(:hover, :focus-within) .cuj-notices-card-tools .cuj-notices-tool,
+.cuj-notices-card-tools .cuj-notices-tool[aria-pressed='true'] { opacity: 1; pointer-events: auto; }
 
 .cuj-notices-tool {
   display: grid;
   place-items: center;
   min-width: var(--notice-tool);
   height: var(--notice-tool);
-  border-radius: var(--notice-radius);
-  color: var(--notice-text-secondary);
+  border-radius: var(--notice-radius-small);
+  color: var(--notice-text-muted);
 }
 
-.cuj-notices-tool:hover { background: var(--notice-hover); color: var(--notice-text); }
+.cuj-notices-tool:hover { color: var(--notice-text); }
 .cuj-notices-tool[aria-pressed='true'] { color: var(--notice-accent); }
 .cuj-notices-tool-text { padding: 0 var(--notice-space-3); font-size: var(--notice-text-xs); font-weight: 600; }
+
+.cuj-notices-card-buttons { display: flex; align-items: center; gap: var(--notice-space-4); margin-top: var(--notice-space-2); }
+
+.cuj-notices-action {
+  display: inline-flex;
+  align-items: center;
+  height: var(--notice-button-height);
+  padding: 0 var(--notice-space-6);
+  border-radius: var(--notice-radius-small);
+  font-size: var(--notice-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--notice-border);
+}
+
+.cuj-notices-action[data-variant='danger'] { color: var(--notice-danger); border-color: var(--notice-danger-subtle); }
+.cuj-notices-action[data-variant='danger']:hover { background: var(--notice-danger-subtle); }
 
 /* Console */
 .cuj-notices-console {
@@ -374,6 +424,10 @@ body:has(.cuj-notices:not([data-inline])) {
 .cuj-notices-drip-dot { flex: none; width: var(--notice-drip-dot); height: var(--notice-drip-dot); border-radius: 50%; background: var(--_tone); }
 
 @keyframes cuj-notices-in { from { opacity: 0; transform: translateY(var(--notice-enter-rise)); } }
+@keyframes cuj-notices-card-in { from { opacity: 0; transform: var(--_enter-from, none); } }
+/* filter, not opacity: the enter and exit animate opacity, and hover's important filter override leaves them running. */
+@keyframes cuj-notices-card-life { from { filter: opacity(1); } to { filter: opacity(var(--notice-life-end-opacity)); } }
+@keyframes cuj-notices-card-out { to { opacity: 0; } }
 @keyframes cuj-notices-fade { from { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
