@@ -18,6 +18,7 @@
   },
   "files": [
     "src",
+    "!src/__tests__",
     "dist"
   ],
   "sideEffects": [

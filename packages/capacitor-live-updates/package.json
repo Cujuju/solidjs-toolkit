@@ -19,6 +19,7 @@
   },
   "files": [
     "src",
+    "!src/__tests__",
     "dist",
     "node",
     "!node/__tests__"
