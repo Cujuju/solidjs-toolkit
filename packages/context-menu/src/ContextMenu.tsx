@@ -7,6 +7,7 @@ import { MenuEntries, type ContextMenuSurface } from './MenuEntries.js';
 import { VIEWPORT_MARGIN_PX } from './submenuPosition.js';
 import { createDocumentListener } from './_internal/createDocumentListener.js';
 import { POPOVER_STACK_ATTR_SELECTOR } from './_internal/popoverStack.js';
+import { CustomSubmenuScope } from './_internal/submenuScope.js';
 
 export interface ContextMenuProps {
   /** The entries to render. */
@@ -36,14 +37,15 @@ export interface ContextMenuProps {
  */
 export function ContextMenu(props: ContextMenuProps) {
   let menuRef: HTMLDivElement | undefined;
+  const flyouts = new Set<HTMLDivElement>();
   const [pos, setPos] = createSignal({ x: props.x, y: props.y });
   const afterPaint = createAfterPaint();
 
-  // The shared Escape stack, so a menu opened over another surface closes first, alone.
+  // The shared Escape stack lets portalled flyouts handle Escape before their root dismisses.
   createEscapeOwner({
     open: () => true,
     onDismiss: () => props.onClose(),
-    owns: () => [menuRef],
+    owns: () => [menuRef, ...flyouts],
   });
 
   function onMouseDown(e: MouseEvent) {
@@ -119,7 +121,7 @@ export function ContextMenu(props: ContextMenuProps) {
 
   // Header band (optional) + the entries. Shared by both surfaces.
   const renderBody = () => (
-    <>
+    <CustomSubmenuScope.Provider value={undefined}>
       <Show when={props.header}>
         <div class="cujuju-context-menu-header">{props.header!()}</div>
       </Show>
@@ -128,9 +130,10 @@ export function ContextMenu(props: ContextMenuProps) {
         onClose={props.onClose}
         parentMenuRef={() => menuRef ?? null}
         surface={props.surface ?? 'glass'}
+        flyouts={flyouts}
         anchor={() => [props.x, props.y]}
       />
-    </>
+    </CustomSubmenuScope.Provider>
   );
 
   // Portal to <body> so the menu escapes the consumer's ancestor cascade (an ancestor `color`

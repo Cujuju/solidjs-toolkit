@@ -3,9 +3,10 @@ import { render } from 'solid-js/web';
 import { createRoot, createSignal, Show } from 'solid-js';
 import { createEscapeOwner } from '@cujuju/solidjs-hooks';
 import { ContextMenu } from '../ContextMenu.js';
+import { ContextMenuSubmenuTrigger } from '../index.js';
 import { submenuCloseDelayMs, type ContextMenuSurface } from '../MenuEntries.js';
 import { POPOVER_PARENT_UNDER_OVERLAP_PX } from '../submenuPosition.js';
-import type { ContextMenuEntry } from '../types.js';
+import type { ContextMenuEntry, ContextMenuSubmenu } from '../types.js';
 
 // Per-element Popover API stub. `topLayer` records top-layer order the way
 // the browser does: LIFO of showPopover() calls, last entry paints on top.
@@ -453,5 +454,104 @@ describe('ContextMenu — slider name', () => {
     const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
     const labelId = input.getAttribute('aria-labelledby')!;
     expect(document.getElementById(labelId)?.textContent).toBe('Opacity');
+  });
+});
+
+describe('ContextMenuSubmenuTrigger', () => {
+  const onLeaf = vi.fn();
+  const submenu: ContextMenuSubmenu = {
+    submenu: true, label: 'Export', children: [{ label: 'CSV', onClick: onLeaf }],
+  };
+  const customRow = (disabled = false, entry = submenu): ContextMenuEntry => ({
+    custom: () => (
+      <div class="custom-cells">
+        <button type="button" class="cujuju-context-menu-item">Copy</button>
+        <ContextMenuSubmenuTrigger submenu={entry} disabled={disabled} class="export-cell">
+          <span>Export formats</span>
+        </ContextMenuSubmenuTrigger>
+      </div>
+    ),
+  });
+  const trigger = () => document.querySelector<HTMLButtonElement>('button.export-cell')!;
+
+  it('opens on hover from a cell and closes the menu when a flyout leaf is clicked', async () => {
+    const onClose = vi.fn();
+    const [open, setOpen] = createSignal(true);
+    dispose = render(() => (
+      <Show when={open()}>
+        <ContextMenu x={10} y={10} items={[customRow()]} onClose={() => { onClose(); setOpen(false); }} />
+      </Show>
+    ), document.body);
+    expect(trigger().parentElement?.className).toBe('custom-cells');
+    expect(trigger().classList.contains('cujuju-context-menu-item')).toBe(true);
+    hover(trigger());
+    await nextFrame();
+    const leaf = flyouts()[0]!.querySelector('button')!;
+    expect(leaf.textContent).toBe('CSV');
+    leaf.click();
+    expect(onLeaf).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(rootMenu()).toBeNull();
+    expect(flyouts()).toHaveLength(0);
+  });
+
+  it('focuses the flyout on Enter activation and returns on Escape', async () => {
+    renderMenu([customRow()]);
+    trigger().focus();
+    trigger().click(); // jsdom does not synthesize the detail=0 click from Enter.
+    await nextFrame();
+    const leaf = flyouts()[0]!.querySelector('button')!;
+    expect(document.activeElement).toBe(leaf);
+    leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(flyouts()).toHaveLength(0);
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('shares the active submenu with built-in rows in both directions', async () => {
+    renderMenu([customRow(), {
+      submenu: true, label: 'Built-in', children: [{ label: 'Built-in leaf', onClick: () => {} }],
+    }]);
+    hover(wrappers()[0]!);
+    await nextFrame();
+    expect(flyouts().map((el) => el.textContent)).toEqual(['Built-in leaf']);
+    hover(trigger());
+    await nextFrame();
+    expect(flyouts().map((el) => el.textContent)).toEqual(['CSV']);
+    hover(wrappers()[0]!);
+    await nextFrame();
+    expect(flyouts().map((el) => el.textContent)).toEqual(['Built-in leaf']);
+  });
+
+  it('works in a nested custom row and focuses its searchable flyout', async () => {
+    renderMenu([{
+      submenu: true, label: 'Outer', children: [customRow(false, { ...submenu, scrollable: true })],
+    }], 'solid');
+    hover(wrappers()[0]!);
+    await nextFrame();
+    trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await nextFrame();
+    expect(flyouts()).toHaveLength(2);
+    const search = flyouts()[1]!.querySelector('input')!;
+    expect(document.activeElement).toBe(search);
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(flyouts()).toHaveLength(1);
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('does not open a disabled trigger', async () => {
+    renderMenu([customRow(true)]);
+    expect(trigger().disabled).toBe(true);
+    hover(trigger());
+    trigger().click();
+    trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await nextFrame();
+    expect(flyouts()).toHaveLength(0);
+  });
+
+  it('throws outside a custom entry', () => {
+    expect(() => render(
+      () => <ContextMenuSubmenuTrigger submenu={submenu}>Export</ContextMenuSubmenuTrigger>,
+      document.body,
+    )).toThrow('ContextMenuSubmenuTrigger must be rendered inside a custom entry of a ContextMenu.');
   });
 });

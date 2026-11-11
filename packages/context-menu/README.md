@@ -130,6 +130,31 @@ A fully host-rendered row (e.g. a swatch grid or key/value block),
 wrapped in `.cujuju-context-menu-custom` with no default padding or
 hover — the custom content owns its layout and interactions.
 
+### `ContextMenuSubmenuTrigger` — a submenu in a custom row
+
+Use this component inside a `custom` entry at any menu level. It renders
+a menu item button with your `children`, plus any `class` you supply.
+Pass a `ContextMenuSubmenu` as `submenu` and set `disabled` when needed.
+It shares hover, keyboard, and flyout behavior with built-in submenu rows;
+opening either kind closes any other flyout at the same level.
+
+```tsx
+import { ContextMenuSubmenuTrigger, type ContextMenuEntry } from '@cujuju/solidjs-context-menu';
+
+const exportRow: ContextMenuEntry = {
+  custom: () => (
+    <div style={{ display: 'flex' }}>
+      <button type="button" class="cujuju-context-menu-item" onClick={copy}>Copy</button>
+      <ContextMenuSubmenuTrigger
+        submenu={{ submenu: true, label: 'Export', children: [{ label: 'CSV', onClick: exportCsv }] }}
+      >
+        Export ›
+      </ContextMenuSubmenuTrigger>
+    </div>
+  ),
+};
+```
+
 ## Anatomy
 
 `ContextMenu` renders a `GlassMenu` surface (the root) holding the
@@ -168,6 +193,7 @@ Each Portal'd submenu also carries `data-popover-stack` — see
   `position: fixed`. Each Portal'd submenu carries the
   `data-popover-stack` attribute.
 - **Dismiss.** The menu closes on outside `mousedown` and on `Escape`.
+  From inside a flyout, `Escape` closes that flyout and returns focus to its trigger.
   A click inside any element matching `[data-popover-stack]` counts as
   inside — so submenu clicks never dismiss the menu. If your app has
   its own popover machinery (e.g. an anchored-popover dismiss-skip

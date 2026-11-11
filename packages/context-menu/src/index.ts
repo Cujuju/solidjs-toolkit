@@ -4,6 +4,7 @@
 import './context-menu.css';
 
 export { ContextMenu, type ContextMenuProps } from './ContextMenu.js';
+export { ContextMenuSubmenuTrigger } from './SubmenuItem.js';
 export type { ContextMenuSurface } from './MenuEntries.js';
 export type {
   ContextMenuItem,

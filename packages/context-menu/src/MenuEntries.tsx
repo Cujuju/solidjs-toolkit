@@ -1,4 +1,5 @@
 import { createEffect, createMemo, createSignal, For, on, Show } from 'solid-js';
+import { CustomSubmenuScope, type SubmenuMenuOptions, type SubmenuScope } from './_internal/submenuScope.js';
 import { SliderRow } from './SliderRow.js';
 import { SubmenuItem } from './SubmenuItem.js';
 import {
@@ -11,53 +12,38 @@ import {
   isSubmenu,
 } from './types.js';
 export { submenuCloseDelayMs } from './submenuTiming.js';
-
-/** Surface shared by a menu and its submenus: `'glass'` (default) is the `GlassMenu` shell,
- *  `'solid'` a plain opaque card. Threaded through every level. */
-export type ContextMenuSurface = 'glass' | 'solid';
+export type { ContextMenuSurface } from './_internal/submenuScope.js';
 
 /**
  * Renders a list of {@link ContextMenuEntry} into menu rows. Used both
  * for the top-level menu body and — recursively — for each submenu's
  * body.
  */
-export function MenuEntries(props: {
+export function MenuEntries(props: SubmenuMenuOptions & {
   items: ContextMenuEntry[];
-  onClose: () => void;
-  parentMenuRef: () => HTMLElement | null;
-  /** Surface treatment inherited from the owning menu (default `'glass'`). */
-  surface?: ContextMenuSurface;
-  /** Re-promotes every menu above `parentMenuRef`, nearest first (absent at the root). */
-  promoteAncestors?: () => void;
   /** Open submenus close when this changes — the menu moved, so their flyouts would detach. */
   anchor?: () => unknown;
 }) {
-  const [activeSubmenu, setActiveSubmenu] = createSignal(-1);
-  createEffect(on(() => props.anchor?.(), () => setActiveSubmenu(-1), { defer: true }));
+  const [activeSubmenu, setActiveSubmenu] = createSignal<symbol>();
+  const scope: SubmenuScope = { menu: props, activeSubmenu, setActiveSubmenu };
+  createEffect(on(() => props.anchor?.(), () => setActiveSubmenu(undefined), { defer: true }));
 
   return (
     <For each={props.items}>
-      {(item, index) => {
+      {(item) => {
         if (isDivider(item)) return <hr class="cujuju-context-menu-divider" />;
         if (isSlider(item)) return <Show when={!item.when || item.when()}><SliderRow item={item} /></Show>;
         if (isCustom(item)) {
           // Host-supplied JSX row — no default padding/hover; the custom
           // content owns its layout + interactions.
-          return <div class="cujuju-context-menu-custom">{item.custom()}</div>;
+          return (
+            <CustomSubmenuScope.Provider value={scope}>
+              <div class="cujuju-context-menu-custom">{item.custom()}</div>
+            </CustomSubmenuScope.Provider>
+          );
         }
         if (isSubmenu(item)) {
-          return (
-            <SubmenuItem
-              item={item}
-              onClose={props.onClose}
-              index={index()}
-              activeSubmenu={activeSubmenu}
-              setActiveSubmenu={setActiveSubmenu}
-              parentMenuRef={props.parentMenuRef}
-              surface={props.surface ?? 'glass'}
-              promoteAncestors={props.promoteAncestors}
-            />
-          );
+          return <SubmenuItem submenu={item} scope={scope} builtin />;
         }
         if (isButtonRow(item)) {
           return (

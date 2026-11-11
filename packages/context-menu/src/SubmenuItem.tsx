@@ -1,9 +1,10 @@
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import { createAfterPaint } from '@cujuju/solidjs-hooks';
-import { createEffect, createSignal, onCleanup, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, onCleanup, Show, useContext, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { POPOVER_STACK_ATTR } from './_internal/popoverStack.js';
-import { MenuEntries, type ContextMenuSurface } from './MenuEntries.js';
+import { CustomSubmenuScope, type SubmenuScope } from './_internal/submenuScope.js';
+import { MenuEntries } from './MenuEntries.js';
 import { computeSubmenuStyle } from './submenuPosition.js';
 import { submenuCloseDelayMs } from './submenuTiming.js';
 import { isDivider, type ContextMenuSubmenu } from './types.js';
@@ -21,17 +22,31 @@ function labelText(label: unknown): string {
   return label instanceof Node ? label.textContent ?? '' : '';
 }
 
-export function SubmenuItem(props: {
-  item: ContextMenuSubmenu;
-  onClose: () => void;
-  index: number;
-  activeSubmenu: () => number;
-  setActiveSubmenu: (i: number) => void;
-  parentMenuRef: () => HTMLElement | null;
-  surface: ContextMenuSurface;
-  /** Re-promotes every menu above `parentMenuRef`, nearest first (absent at the root). */
-  promoteAncestors?: () => void;
+interface SubmenuTriggerProps {
+  /** The flyout's entries and options; same type as a built-in submenu entry (label used for search). */
+  submenu: ContextMenuSubmenu;
+  /** Trigger content; rendered inside the library's trigger button. */
+  children: JSX.Element;
+  /** Extra classes on the trigger button (it already carries the library's item classes). */
+  class?: string;
+  disabled?: boolean;
+}
+
+export function ContextMenuSubmenuTrigger(props: SubmenuTriggerProps): JSX.Element {
+  const scope = useContext(CustomSubmenuScope);
+  if (!scope) {
+    throw new Error('ContextMenuSubmenuTrigger must be rendered inside a custom entry of a ContextMenu.');
+  }
+  return <SubmenuItem {...props} scope={scope} />;
+}
+
+export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
+  children?: JSX.Element;
+  scope: SubmenuScope;
+  builtin?: boolean;
 }) {
+  const { menu, activeSubmenu, setActiveSubmenu } = props.scope;
+  const key = Symbol();
   const [filter, setFilter] = createSignal('');
   const [flyoutStyle, setFlyoutStyle] = createSignal<Record<string, string>>({});
   let wrapperRef: HTMLDivElement | undefined;
@@ -44,17 +59,19 @@ export function SubmenuItem(props: {
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
   let hoverScope: HTMLElement | null = null;
 
-  const isOpen = () => props.activeSubmenu() === props.index;
+  const isOpen = createMemo(() => activeSubmenu() === key);
+  const triggerAnchor = () => wrapperRef ?? triggerRef;
   const afterPaint = createAfterPaint();
   const afterResize = createAfterPaint();
 
   function positionFlyout() {
-    if (!flyoutRef || !wrapperRef) return;
-    const triggerRect = wrapperRef.getBoundingClientRect();
+    const anchor = triggerAnchor();
+    if (!flyoutRef || !anchor) return;
+    const triggerRect = anchor.getBoundingClientRect();
     const flyoutRect = flyoutRef.getBoundingClientRect();
     // Anchor on the OUTER parent menu rect; fall back to the wrapper
     // rect when the parent ref is not wired yet (late ref population).
-    const parentRect = props.parentMenuRef()?.getBoundingClientRect() ?? triggerRect;
+    const parentRect = menu.parentMenuRef()?.getBoundingClientRect() ?? triggerRect;
     setFlyoutStyle(
       computeSubmenuStyle({
         triggerRect,
@@ -62,16 +79,32 @@ export function SubmenuItem(props: {
         flyoutRect,
         viewportW: window.innerWidth,
         viewportH: window.innerHeight,
-        scrollable: props.item.scrollable ?? false,
+        scrollable: props.submenu.scrollable ?? false,
       }),
     );
   }
 
   function enter() {
-    props.setActiveSubmenu(props.index);
+    if (!props.disabled) setActiveSubmenu(key);
+  }
+
+  function close() {
+    setActiveSubmenu((active) => active === key ? undefined : active);
+  }
+  onCleanup(close);
+  createEffect(() => { if (props.disabled) close(); });
+
+  function focusFlyout() {
+    if (props.submenu.scrollable) searchRef?.focus();
+    else flyoutRef?.querySelector<HTMLElement>(FLYOUT_FOCUS_SELECTOR)?.focus();
   }
 
   function openFromKeyboard() {
+    if (props.disabled) return;
+    if (isOpen() && flyoutRef?.matches(':popover-open')) {
+      focusFlyout();
+      return;
+    }
     focusOnOpen = true;
     enter();
   }
@@ -88,12 +121,13 @@ export function SubmenuItem(props: {
     openFromKeyboard();
   }
 
-  // ArrowLeft closes this level and returns focus; stopped so an enclosing flyout keeps its own.
+  // Close only this level and return focus. Left in the search field still moves its caret.
   function onFlyoutKeyDown(e: KeyboardEvent) {
-    if (e.key !== 'ArrowLeft' || e.target instanceof HTMLInputElement) return;
+    if (e.defaultPrevented) return;
+    if (e.key !== 'Escape' && (e.key !== 'ArrowLeft' || e.target instanceof HTMLInputElement)) return;
     e.preventDefault();
     e.stopPropagation();
-    props.setActiveSubmenu(-1);
+    close();
     triggerRef?.focus();
   }
 
@@ -105,7 +139,7 @@ export function SubmenuItem(props: {
   // A hover anywhere in the parent menu outside this trigger starts the close
   // grace; re-entering the trigger or the flyout cancels it.
   function onParentMouseOver(e: MouseEvent) {
-    if (wrapperRef?.contains(e.target as Node)) {
+    if (triggerAnchor()?.contains(e.target as Node)) {
       cancelClose();
       return;
     }
@@ -115,13 +149,13 @@ export function SubmenuItem(props: {
     if (pathPx <= 0) return;
     closeTimer = setTimeout(() => {
       closeTimer = undefined;
-      if (isOpen()) props.setActiveSubmenu(-1);
+      close();
     }, submenuCloseDelayMs(pathPx));
   }
 
   // The flyout is placed once from the trigger rect; a scrolled parent would leave it detached.
   function onParentScroll() {
-    props.setActiveSubmenu(-1);
+    close();
   }
 
   function detachHoverScope() {
@@ -137,12 +171,12 @@ export function SubmenuItem(props: {
   // Top-layer order is document-wide LIFO, so lifting only the parent would put it
   // above the grandparent too; lift the whole chain, nearest first.
   function promoteParentChain() {
-    const parent = props.parentMenuRef();
+    const parent = menu.parentMenuRef();
     if (parent && parent.matches(':popover-open')) {
       parent.hidePopover();
       parent.showPopover();
     }
-    props.promoteAncestors?.();
+    menu.promoteAncestors?.();
   }
 
   // Positions the flyout, observes resizes, and drives top-layer membership.
@@ -170,16 +204,16 @@ export function SubmenuItem(props: {
           resizeObserver = new ResizeObserver(() => afterResize(positionFlyout));
           resizeObserver.observe(flyoutRef);
           detachHoverScope();
-          hoverScope = props.parentMenuRef();
+          hoverScope = menu.parentMenuRef();
           hoverScope?.addEventListener('mouseover', onParentMouseOver);
           // Capture: scroll doesn't bubble, and GlassMenu scrolls a body child, not the root.
           hoverScope?.addEventListener('scroll', onParentScroll, true);
         }
-        if (props.item.scrollable) searchRef?.focus();
-        else if (focusOnOpen) flyoutRef?.querySelector<HTMLElement>(FLYOUT_FOCUS_SELECTOR)?.focus();
+        if (props.submenu.scrollable || focusOnOpen) focusFlyout();
         focusOnOpen = false;
       });
     } else {
+      focusOnOpen = false;
       resizeObserver?.disconnect();
       detachHoverScope();
       if (flyoutRef && flyoutRef.matches(':popover-open')) {
@@ -191,8 +225,8 @@ export function SubmenuItem(props: {
 
   const filteredChildren = () => {
     const q = filter().toLowerCase();
-    if (!q) return props.item.children;
-    return props.item.children.filter((child) => {
+    if (!q) return props.submenu.children;
+    return props.submenu.children.filter((child) => {
       if (isDivider(child)) return false;
       if ('label' in child) return labelText(child.label).toLowerCase().includes(q);
       return true;
@@ -204,13 +238,15 @@ export function SubmenuItem(props: {
   const setFlyout = (el: HTMLDivElement) => {
     flyoutRef = el;
     el.setAttribute('popover', 'manual');
+    menu.flyouts.add(el);
+    onCleanup(() => menu.flyouts.delete(el));
   };
 
   // Built lazily, so a closed submenu never mounts its children. A nested sub-submenu tucks
   // under THIS submenu and inherits our surface.
   const renderFlyoutBody = () => (
-    <>
-      <Show when={props.item.scrollable}>
+    <CustomSubmenuScope.Provider value={undefined}>
+      <Show when={props.submenu.scrollable}>
         <div class="cujuju-context-menu-flyout-search">
           <input
             ref={searchRef}
@@ -224,71 +260,80 @@ export function SubmenuItem(props: {
       </Show>
       <MenuEntries
         items={filteredChildren()}
-        onClose={props.onClose}
+        onClose={menu.onClose}
         parentMenuRef={() => flyoutRef ?? null}
-        surface={props.surface}
+        surface={menu.surface}
         promoteAncestors={promoteParentChain}
+        flyouts={menu.flyouts}
       />
-    </>
+    </CustomSubmenuScope.Provider>
   );
 
-  return (
-    <div
-      ref={wrapperRef}
-      class="cujuju-context-menu-submenu-wrapper"
-      onMouseEnter={enter}
+  const renderTrigger = () => (
+    <button
+      ref={triggerRef}
+      type="button"
+      class={`cujuju-context-menu-item cujuju-context-menu-item-has-submenu${props.class ? ` ${props.class}` : ''}`}
+      disabled={props.disabled}
+      aria-haspopup="menu"
+      aria-expanded={isOpen()}
+      onMouseEnter={props.builtin ? undefined : enter}
+      onClick={onTriggerClick}
+      onKeyDown={onTriggerKeyDown}
     >
-      <button
-        ref={triggerRef}
-        type="button"
-        class="cujuju-context-menu-item cujuju-context-menu-item-has-submenu"
-        aria-haspopup="menu"
-        aria-expanded={isOpen()}
-        onClick={onTriggerClick}
-        onKeyDown={onTriggerKeyDown}
-      >
-        <Show when={props.item.icon}>
-          {(icon) => <span class="cujuju-context-menu-icon">{icon()}</span>}
-        </Show>
-        <span class="cujuju-context-menu-label">{props.item.label}</span>
-        {/* Arrow glyph differs by surface: solid mirrors the host's ▶
-            right-pointing context-menu arrow; glass keeps the lighter › . */}
-        <span class="cujuju-context-menu-chevron" aria-hidden="true">
-          {props.surface === 'solid' ? '▶' : '›'}
-        </span>
-      </button>
-      <Show when={isOpen()}>
-        {/* Portal out of the parent's DOM tree: sidesteps the `backdrop-filter`
-            containing-block trap (a glass ancestor re-anchors fixed descendants).
-            `data-popover-stack` keeps the menu's dismiss from firing inside it. */}
-        <Portal>
-          {props.surface === 'solid' ? (
-            <div
-              ref={setFlyout}
-              class="cujuju-context-menu cujuju-context-menu-flyout cujuju-context-menu--solid"
-              {...{ [POPOVER_STACK_ATTR]: '' }}
-              style={flyoutStyle()}
-              onMouseEnter={cancelClose}
-              onKeyDown={onFlyoutKeyDown}
-            >
-              {renderFlyoutBody()}
-            </div>
-          ) : (
-            <GlassMenu
-              overflow="visible"
-              ref={setFlyout}
-              class="cujuju-context-menu cujuju-context-menu-flyout"
-              {...{ [POPOVER_STACK_ATTR]: '' }}
-              style={flyoutStyle()}
-              onMouseEnter={cancelClose}
-              onKeyDown={onFlyoutKeyDown}
-            >
-              {renderFlyoutBody()}
-            </GlassMenu>
-          )}
-        </Portal>
-      </Show>
-    </div>
+      {props.builtin ? (
+        <>
+          <Show when={props.submenu.icon}>
+            {(icon) => <span class="cujuju-context-menu-icon">{icon()}</span>}
+          </Show>
+          <span class="cujuju-context-menu-label">{props.submenu.label}</span>
+          <span class="cujuju-context-menu-chevron" aria-hidden="true">
+            {menu.surface === 'solid' ? '▶' : '›'}
+          </span>
+        </>
+      ) : props.children}
+    </button>
   );
+
+  const renderFlyout = () => (
+    <Show when={isOpen()}>
+      {/* Portal out of the parent's DOM tree: sidesteps the `backdrop-filter`
+          containing-block trap (a glass ancestor re-anchors fixed descendants).
+          `data-popover-stack` keeps the menu's dismiss from firing inside it. */}
+      <Portal>
+        {menu.surface === 'solid' ? (
+          <div
+            ref={setFlyout}
+            class="cujuju-context-menu cujuju-context-menu-flyout cujuju-context-menu--solid"
+            {...{ [POPOVER_STACK_ATTR]: '' }}
+            style={flyoutStyle()}
+            onMouseEnter={cancelClose}
+            onKeyDown={onFlyoutKeyDown}
+          >
+            {renderFlyoutBody()}
+          </div>
+        ) : (
+          <GlassMenu
+            overflow="visible"
+            ref={setFlyout}
+            class="cujuju-context-menu cujuju-context-menu-flyout"
+            {...{ [POPOVER_STACK_ATTR]: '' }}
+            style={flyoutStyle()}
+            onMouseEnter={cancelClose}
+            onKeyDown={onFlyoutKeyDown}
+          >
+            {renderFlyoutBody()}
+          </GlassMenu>
+        )}
+      </Portal>
+    </Show>
+  );
+
+  return props.builtin ? (
+    <div ref={wrapperRef} class="cujuju-context-menu-submenu-wrapper" onMouseEnter={enter}>
+      {renderTrigger()}
+      {renderFlyout()}
+    </div>
+  ) : <>{renderTrigger()}{renderFlyout()}</>;
 }
 
