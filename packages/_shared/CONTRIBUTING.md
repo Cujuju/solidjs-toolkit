@@ -118,7 +118,7 @@ Primitive lives at `cujuju-solidjs-hold-action/_internal/measure.ts`. Duplicate 
 
 **Why:** `.d.ts` files keep the specifiers as written. NodeNext consumers cannot resolve extensionless ones (TS2834), and with `skipLibCheck` every export silently becomes `any` (#29, #30).
 
-**Enforced by** `_shared/checkNodeNext.mjs`, which each package's `build` runs after `vite build`: it type-checks every typed export subpath of `dist` as a NodeNext consumer with `skipLibCheck` off.
+**Enforced by** `_shared/checkNodeNext.mjs`, which each package's `build` runs after `vite build`: it type-checks every typed export subpath of `dist` as a NodeNext consumer with `skipLibCheck` off, and fails on any value export typed `any`. Workspace dependencies resolve to their `src`, so build order does not matter.
 
 ---
 
