@@ -560,6 +560,21 @@ describe('ContextMenuSubmenuTrigger', () => {
     expect(flyouts()).toHaveLength(1);
   });
 
+  it('a removed trigger cannot close a live sibling flyout', async () => {
+    const builtin: ContextMenuEntry = { submenu: true, label: 'Live', children: [{ label: 'Leaf', onClick: () => {} }] };
+    const [items, setItems] = createSignal<ContextMenuEntry[]>([customRow(), builtin]);
+    dispose = render(() => <ContextMenu x={10} y={10} items={items()} onClose={() => {}} />, document.body);
+    const stale = trigger();
+    setItems([builtin]);
+    const live = document.querySelector<HTMLButtonElement>('.cujuju-context-menu-item-has-submenu')!;
+    live.click();
+    await nextFrame();
+    expect(flyouts()).toHaveLength(1);
+    stale.click();
+    await nextFrame();
+    expect(flyouts()).toHaveLength(1);
+  });
+
   it('does not reach a native click listener on the enclosing row', async () => {
     const onRow = vi.fn();
     renderMenu([{

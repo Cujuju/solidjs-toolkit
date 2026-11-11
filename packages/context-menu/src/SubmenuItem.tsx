@@ -277,7 +277,9 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
       ref={(el) => {
         triggerRef = el;
         // Bound on the button, not delegated: stopping here must precede a native row listener.
-        if (!props.builtin) el.addEventListener('click', onTriggerClick);
+        if (props.builtin) return;
+        el.addEventListener('click', onTriggerClick);
+        onCleanup(() => el.removeEventListener('click', onTriggerClick));
       }}
       type="button"
       class={`cujuju-context-menu-item cujuju-context-menu-item-has-submenu${props.class ? ` ${props.class}` : ''}`}
