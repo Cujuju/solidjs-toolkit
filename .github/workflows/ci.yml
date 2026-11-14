@@ -1,0 +1,29 @@
+# Builds, type-checks and tests the packages on every push to main and every pull request. `check` is a required status check.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Each package's `types` export points at dist/, so build before type-checking.
+      - run: pnpm build
+      - run: pnpm typecheck
+      # Packages only, one at a time: parallel vitest runs share a transform cache. The playground's suite is excluded, as in `build`.
+      - run: pnpm --filter './packages/*' --workspace-concurrency=1 test
