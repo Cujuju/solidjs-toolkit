@@ -117,19 +117,19 @@ describe('parseIndex', () => {
 describe('fetchUpdate', () => {
   it('reuses an older seed, downloading less than half the target', async () => {
     const f = await fixture();
-    const root = await f.run();
+    const { path: root } = await f.run();
     expect(digest(await readFile(root))).toBe(digest(await readFile(f.source)));
     expect(f.fetched()).toBeLessThan(f.pack.length / 2);
     expect(f.progress.at(-1)).toBe(100);
   });
   it('reconstructs without a seed using the same ranges', async () => {
     const f = await fixture();
-    expect(digest(await readFile(await f.run([])))).toBe(digest(await readFile(f.source)));
+    expect(digest(await readFile((await f.run([])).path))).toBe(digest(await readFile(f.source)));
     expect(f.fetched()).toBe(f.pack.length);
   });
   it('needs no network pack bytes when all chunks are seeded', async () => {
     const f = await fixture();
-    expect(digest(await readFile(await f.run([f.source])))).toBe(digest(await readFile(f.source)));
+    expect(digest(await readFile((await f.run([f.source])).path))).toBe(digest(await readFile(f.source)));
     expect(f.fetched()).toBe(0);
     expect(f.progress).toEqual([100]);
   });
@@ -158,7 +158,7 @@ describe('fetchUpdate', () => {
     const indexData = await readFile(join(dir, indexName('darwin', 'arm64')));
     const pack = await readFile(join(dir, index.pack));
     const output = join(dir, 'output'); await mkdir(output);
-    const root = await fetchUpdate({
+    const { path: root } = await fetchUpdate({
       fetch: async (url) => new Response(url === 'index' ? indexData : pack),
       listing: { arch: 'arm64', name: indexName('darwin', 'arm64'), sha512: digest(indexData), size: indexData.length, signature: '' },
       indexUrl: 'index', assets: new Map([[index.pack, 'pack']]), seeds: [], dir: output, onProgress() {},
@@ -168,7 +168,7 @@ describe('fetchUpdate', () => {
   });
   it.skipIf(process.platform === 'win32')('rebuilds a bundle with nested directories, permissions and symlinks', async () => {
     const f = await fixture(true);
-    const root = await f.run();
+    const { path: root } = await f.run();
     for (const path of ['Contents/Info.plist', 'Contents/same', 'Contents/MacOS/App', 'Contents/Resources/app.asar', 'Contents/Resources/app.asar.unpacked/native.node']) {
       expect(digest(await readFile(join(root, path)))).toBe(digest(await readFile(join(f.source, path))));
       expect((await lstat(join(root, path))).mode).toBe((await lstat(join(f.source, path))).mode);

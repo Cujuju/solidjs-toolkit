@@ -130,10 +130,10 @@ export function createUpdater(o: UpdaterOptions) {
     try {
       await rm(o.dir, { recursive: true, force: true });
       await mkdir(o.dir, { recursive: true });
-      const root = await fetchUpdate({ fetch: o.fetch, listing: update.file, indexUrl: update.url,
+      const rebuilt = await fetchUpdate({ fetch: o.fetch, listing: update.file, indexUrl: update.url,
         assets: update.release.assets, seeds: seedsFor(target, exe, o.env ?? process.env), dir: o.dir,
         onProgress: (percent) => set({ state: 'downloading', version, nightly, percent }) });
-      staged = await stage(target, root, version, exe);
+      staged = await stage(target, rebuilt, version, exe);
       set({ state: 'ready', version, nightly });
     } catch (err) {
       set({ state: 'error', message: describe(err) });
