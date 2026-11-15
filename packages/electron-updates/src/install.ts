@@ -26,6 +26,8 @@ const ELEVATION_REQUIRED = 'EACCES';
 const EXECUTABLE_MODE = 0o755;
 /** Bound verification memory independently of installer or bundle size. */
 const VERIFICATION_BUFFER_BYTES = 1024 * 1024;
+/** Include special permission bits: bundle entries must retain their signed POSIX permissions without added setuid/setgid bits. */
+const POSIX_PERMISSION_BITS = 0o7777;
 
 /** Where the running app is installed, and how it is replaced. */
 export type InstallTarget =
@@ -112,6 +114,8 @@ function verifyStaged(update: StagedUpdate): void {
     if (!entry) return changed(path);
     const stat = lstatSync(file);
     checked++;
+    const signedBundleMode = update.target.kind === 'swap' && update.target.platform === 'darwin' && entry.type !== 'symlink' ? entry.mode : null;
+    if (signedBundleMode !== null && (stat.mode & POSIX_PERMISSION_BITS) !== signedBundleMode) changed(path);
     if (entry.type === 'dir') {
       if (!stat.isDirectory()) changed(path);
       for (const name of readdirSync(file)) visit(join(file, name), `${path}/${name}`);
@@ -123,6 +127,7 @@ function verifyStaged(update: StagedUpdate): void {
       try {
         const opened = fstatSync(fd);
         if (!opened.isFile() || opened.size !== entry.size) changed(path);
+        if (signedBundleMode !== null && (opened.mode & POSIX_PERMISSION_BITS) !== signedBundleMode) changed(path);
         const hash = createHash('sha512');
         let size = 0;
         while (size < entry.size) {

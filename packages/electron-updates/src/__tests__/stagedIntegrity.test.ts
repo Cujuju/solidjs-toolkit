@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -98,6 +98,19 @@ describe('staged integrity at apply', () => {
     apply(update, true, process.pid, failed);
     expect(launches.calls).toEqual([]);
     expect(failed).toHaveBeenCalledOnce();
+  });
+
+  it.skipIf(process.platform === 'win32').each(['file', 'directory'])('refuses altered %s permissions in a macOS bundle', async (kind) => {
+    const update = await staged(mac);
+    const file = kind === 'file' ? path.join(update.path, 'Contents', 'Resources', 'app.asar') : update.path;
+    const mode = statSync(file).mode;
+    chmodSync(file, mode ^ 0o100);
+    const failed = vi.fn();
+    try {
+      apply(update, false, process.pid, failed);
+      expect(launches.calls).toEqual([]);
+      expect(failed).toHaveBeenCalledOnce();
+    } finally { chmodSync(file, mode); }
   });
 
   it.skipIf(process.platform === 'win32')('refuses altered symlinks and accepts unchanged ones', async () => {
