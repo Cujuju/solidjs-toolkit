@@ -53,6 +53,7 @@ const updater = createUpdater({
   fetch: net.fetch,
   autoDownload: false,                     // boolean or () => boolean, read when found
   installOnQuit: false,                    // boolean or () => boolean, read at quit; explicit arming wins
+  relaunchArgs: [],                        // optional app flags; NSIS customInstall must forward these to the launched app
 });
 updater.on('status', send);                // UpdateStatus
 updater.on('found', notify);               // scheduled checks only, once per version
