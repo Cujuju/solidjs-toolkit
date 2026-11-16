@@ -30,10 +30,11 @@ const VERIFICATION_BUFFER_BYTES = 1024 * 1024;
 const POSIX_PERMISSION_BITS = 0o7777;
 
 /** Where the running app is installed, and how it is replaced. */
-export type InstallTarget =
+export type InstallTarget = (
   /** `elevate`: electron-builder's elevate.exe, which starts the installer behind a UAC prompt. */
   | { kind: 'installer'; elevate: string }
-  | { kind: 'swap'; platform: 'darwin' | 'linux'; path: string };
+  | { kind: 'swap'; platform: 'darwin' | 'linux'; path: string }
+) & { relaunchArgs?: readonly string[] };
 
 export interface InstallHost {
   platform: UpdatePlatform;
@@ -42,6 +43,7 @@ export interface InstallHost {
   /** process.env; Linux reads APPIMAGE, the AppImage file the app runs from. */
   env: Record<string, string | undefined>;
   appName: string;
+  relaunchArgs?: readonly string[];
 }
 
 /** The .app bundle `exe` is in; null when it isn't in one. */
@@ -61,18 +63,19 @@ const writable = (dir: string): boolean => {
 
 /** How this install updates, or why it can't (a string to show the user). */
 export function installTarget(h: InstallHost): InstallTarget | string {
-  if (h.platform === 'win32') return { kind: 'installer', elevate: join(dirname(h.exe), ELEVATE_EXE) };
+  const args = h.relaunchArgs?.length ? { relaunchArgs: [...h.relaunchArgs] } : {};
+  if (h.platform === 'win32') return { kind: 'installer', elevate: join(dirname(h.exe), ELEVATE_EXE), ...args };
   if (h.platform === 'darwin') {
     const bundle = appBundleOf(h.exe);
     if (!bundle) return `${h.appName} isn't running from an app bundle.`;
     if (bundle.includes(TRANSLOCATED)) return `Move ${h.appName} to the Applications folder and open it from there: macOS runs it from a read-only copy until then.`;
     if (!writable(dirname(bundle))) return `${h.appName} can't write to ${dirname(bundle)}; move it to a folder you can change.`;
-    return { kind: 'swap', platform: 'darwin', path: bundle };
+    return { kind: 'swap', platform: 'darwin', path: bundle, ...args };
   }
   const image = h.env.APPIMAGE;
   if (!image) return `Updates need the AppImage build of ${h.appName}.`;
   if (!writable(dirname(image))) return `${h.appName} can't write to ${dirname(image)}; move the AppImage to a folder you can change.`;
-  return { kind: 'swap', platform: 'linux', path: image };
+  return { kind: 'swap', platform: 'linux', path: image, ...args };
 }
 
 /** A verified update, ready to apply at quit. */
@@ -161,8 +164,11 @@ export function swapScript(pid: number, target: string, staged: string, relaunch
   ].join('\n');
 }
 
-const relaunchCommand = (platform: 'darwin' | 'linux', path: string): string =>
-  platform === 'darwin' ? `open ${quoted(path)}` : `nohup ${quoted(path)} >/dev/null 2>&1 &`;
+const relaunchCommand = (platform: 'darwin' | 'linux', path: string, args: readonly string[]): string => {
+  const flags = args.map(quoted).join(' ');
+  return platform === 'darwin' ? `open ${quoted(path)}${flags ? ` --args ${flags}` : ''}`
+    : `nohup ${quoted(path)}${flags ? ` ${flags}` : ''} >/dev/null 2>&1 &`;
+};
 
 /** Starts `file` detached so it outlives this process. A failed start throws or emits 'error'; both reach `failed`. */
 function launch(update: StagedUpdate, file: string, args: string[], failed: (err: NodeJS.ErrnoException) => void): void {
@@ -183,10 +189,10 @@ function launch(update: StagedUpdate, file: string, args: string[], failed: (err
 export function apply(update: StagedUpdate, relaunch: boolean, pid: number, failed: (err: Error) => void): void {
   const { target } = update;
   if (target.kind === 'installer') {
-    const args = relaunch ? [...NSIS_SILENT, NSIS_RELAUNCH] : NSIS_SILENT;
+    const args = relaunch ? [...NSIS_SILENT, NSIS_RELAUNCH, ...(target.relaunchArgs ?? [])] : NSIS_SILENT;
     return launch(update, update.path, args, (err) =>
       err.code === ELEVATION_REQUIRED ? launch(update, target.elevate, [update.path, ...args], failed) : failed(err));
   }
-  const relaunchWith = relaunch ? relaunchCommand(target.platform, target.path) : null;
+  const relaunchWith = relaunch ? relaunchCommand(target.platform, target.path, target.relaunchArgs ?? []) : null;
   launch(update, '/bin/sh', ['-c', swapScript(pid, target.path, update.path, relaunchWith)], failed);
 }

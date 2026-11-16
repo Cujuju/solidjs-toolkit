@@ -137,6 +137,22 @@ describe('apply', () => {
     expect(failed).not.toHaveBeenCalled();
   });
 
+  it('forwards explicit relaunch flags to the Windows installer only when restarting', () => {
+    const flag = '--user-data-dir=C:\\User profile';
+    update.target = { ...update.target, relaunchArgs: [flag] };
+    apply(update, true, 1, vi.fn());
+    apply(update, false, 1, vi.fn());
+    expect(spawns.calls.map((call) => call.args)).toEqual([
+      ['--updated', '/S', '--force-run', flag], ['--updated', '/S'],
+    ]);
+  });
+
+  it('shell-quotes profile relaunch flags for a macOS bundle', () => {
+    const target: StagedUpdate = { ...update, target: { kind: 'swap', platform: 'darwin', path: '/Applications/App.app', relaunchArgs: ["--user-data-dir=/tmp/Owner's profile"] } };
+    apply(target, true, 1, vi.fn());
+    expect(spawns.calls).toMatchObject([{ file: '/bin/sh', args: ['-c', expect.stringContaining("open '/Applications/App.app' --args '--user-data-dir=/tmp/Owner'\\''s profile'")] }]);
+  });
+
   it('retries a per-machine installer Windows refuses unelevated through elevate.exe', async () => {
     spawns.outcomes.push({ emits: 'EACCES' });
     const failed = vi.fn();
