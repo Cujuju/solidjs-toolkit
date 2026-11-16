@@ -28,6 +28,14 @@ Each index asset's listing carries an Ed25519 signature. It covers the app's sig
 version, platform, arch, file name, SHA-512 and size. The app checks the signature before showing the
 update, and checks the downloaded file's hash before staging it.
 
+Before each installer or bundle-swap launch, including Windows elevation retries, the updater rechecks
+staged contents against the authenticated index retained in memory. Changed or missing files, unexpected
+bundle entries, and altered symlinks prevent installation and emit an error. Verification reads raw disk
+bytes, including `app.asar`, synchronously because Electron cannot await work in its `quit` event.
+
+This narrows the time-of-check/time-of-use window; it cannot eliminate it. A process that can write the
+staged files can still replace them after verification and before the installer or swap helper uses them.
+
 ## App (main process)
 
 ```ts
@@ -45,6 +53,7 @@ const updater = createUpdater({
   fetch: net.fetch,
   autoDownload: false,                     // boolean or () => boolean, read when found
   installOnQuit: false,                    // boolean or () => boolean, read at quit; explicit arming wins
+  relaunchArgs: [],                        // optional app flags; NSIS customInstall must forward these to the launched app
 });
 updater.on('status', send);                // UpdateStatus
 updater.on('found', notify);               // scheduled checks only, once per version

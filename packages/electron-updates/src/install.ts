@@ -3,10 +3,13 @@
  * Windows runs the NSIS installer silently; macOS and Linux swap the new app over the old one.
  */
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { accessSync, constants } from 'node:fs';
 import { access, chmod, readFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
+import { closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, readlinkSync } from './diskFs.js';
 import type { UpdatePlatform } from './manifest.js';
+import type { RebuiltUpdate } from './sync.js';
 
 /** NSIS customInstall must use CopyFiles /SILENT "$EXEPATH" "$INSTDIR\update-seed.bin". */
 export const WINDOWS_SEED_NAME = 'update-seed.bin';
@@ -21,12 +24,17 @@ const ELEVATE_EXE = join('resources', 'elevate.exe');
 const ELEVATION_REQUIRED = 'EACCES';
 /** Owner rwx, others rx: an AppImage must be executable. */
 const EXECUTABLE_MODE = 0o755;
+/** Bound verification memory independently of installer or bundle size. */
+const VERIFICATION_BUFFER_BYTES = 1024 * 1024;
+/** Include special permission bits: bundle entries must retain their signed POSIX permissions without added setuid/setgid bits. */
+const POSIX_PERMISSION_BITS = 0o7777;
 
 /** Where the running app is installed, and how it is replaced. */
-export type InstallTarget =
+export type InstallTarget = (
   /** `elevate`: electron-builder's elevate.exe, which starts the installer behind a UAC prompt. */
   | { kind: 'installer'; elevate: string }
-  | { kind: 'swap'; platform: 'darwin' | 'linux'; path: string };
+  | { kind: 'swap'; platform: 'darwin' | 'linux'; path: string }
+) & { relaunchArgs?: readonly string[] };
 
 export interface InstallHost {
   platform: UpdatePlatform;
@@ -35,6 +43,7 @@ export interface InstallHost {
   /** process.env; Linux reads APPIMAGE, the AppImage file the app runs from. */
   env: Record<string, string | undefined>;
   appName: string;
+  relaunchArgs?: readonly string[];
 }
 
 /** The .app bundle `exe` is in; null when it isn't in one. */
@@ -54,26 +63,25 @@ const writable = (dir: string): boolean => {
 
 /** How this install updates, or why it can't (a string to show the user). */
 export function installTarget(h: InstallHost): InstallTarget | string {
-  if (h.platform === 'win32') return { kind: 'installer', elevate: join(dirname(h.exe), ELEVATE_EXE) };
+  const args = h.relaunchArgs?.length ? { relaunchArgs: [...h.relaunchArgs] } : {};
+  if (h.platform === 'win32') return { kind: 'installer', elevate: join(dirname(h.exe), ELEVATE_EXE), ...args };
   if (h.platform === 'darwin') {
     const bundle = appBundleOf(h.exe);
     if (!bundle) return `${h.appName} isn't running from an app bundle.`;
     if (bundle.includes(TRANSLOCATED)) return `Move ${h.appName} to the Applications folder and open it from there: macOS runs it from a read-only copy until then.`;
     if (!writable(dirname(bundle))) return `${h.appName} can't write to ${dirname(bundle)}; move it to a folder you can change.`;
-    return { kind: 'swap', platform: 'darwin', path: bundle };
+    return { kind: 'swap', platform: 'darwin', path: bundle, ...args };
   }
   const image = h.env.APPIMAGE;
   if (!image) return `Updates need the AppImage build of ${h.appName}.`;
   if (!writable(dirname(image))) return `${h.appName} can't write to ${dirname(image)}; move the AppImage to a folder you can change.`;
-  return { kind: 'swap', platform: 'linux', path: image };
+  return { kind: 'swap', platform: 'linux', path: image, ...args };
 }
 
 /** A verified update, ready to apply at quit. */
-export interface StagedUpdate {
+export interface StagedUpdate extends RebuiltUpdate {
   version: string;
   target: InstallTarget;
-  /** The installer (Windows), or the new app to move into place. */
-  path: string;
 }
 
 export function seedsFor(target: InstallTarget, exe: string, env: Record<string, string | undefined>): string[] {
@@ -82,18 +90,61 @@ export function seedsFor(target: InstallTarget, exe: string, env: Record<string,
 }
 
 /** Checks a rebuilt bundle or prepares an executable update file. */
-export async function stage(target: InstallTarget, file: string, version: string, exe: string): Promise<StagedUpdate> {
-  if (target.kind === 'installer') return { version, target, path: file };
+export async function stage(target: InstallTarget, rebuilt: RebuiltUpdate, version: string, exe: string): Promise<StagedUpdate> {
+  const file = rebuilt.path;
+  const update = { ...rebuilt, version, target };
+  if (target.kind === 'installer') return update;
   if (target.platform === 'linux') {
     await chmod(file, EXECUTABLE_MODE);
-    return { version, target, path: file };
+    return update;
   }
   if (basename(file) !== basename(target.path)) throw new Error("the download isn't this app's bundle");
   const bundle = file;
   await access(join(bundle, 'Contents', 'MacOS', basename(exe)));
   const plist = await readFile(join(bundle, 'Contents', 'Info.plist'), 'utf8').catch(() => '');
   if (!plist.includes(`<string>${version}</string>`)) throw new Error(`the download isn't version ${version} of this app`);
-  return { version, target, path: bundle };
+  return update;
+}
+
+/** Synchronous because Electron cannot await work in its quit event. Uses raw disk bytes, including app.asar. */
+function verifyStaged(update: StagedUpdate): void {
+  const expected = new Map(update.entries.map((entry) => [entry.path, entry]));
+  const buffer = Buffer.alloc(VERIFICATION_BUFFER_BYTES);
+  let checked = 0;
+  const changed = (path: string): never => { throw new Error(`staged update no longer matches the signed index: ${path}`); };
+  function visit(file: string, path: string): void {
+    const entry = expected.get(path);
+    if (!entry) return changed(path);
+    const stat = lstatSync(file);
+    checked++;
+    const signedBundleMode = update.target.kind === 'swap' && update.target.platform === 'darwin' && entry.type !== 'symlink' ? entry.mode : null;
+    if (signedBundleMode !== null && (stat.mode & POSIX_PERMISSION_BITS) !== signedBundleMode) changed(path);
+    if (entry.type === 'dir') {
+      if (!stat.isDirectory()) changed(path);
+      for (const name of readdirSync(file)) visit(join(file, name), `${path}/${name}`);
+    } else if (entry.type === 'symlink') {
+      if (!stat.isSymbolicLink() || readlinkSync(file) !== entry.target) changed(path);
+    } else {
+      if (!stat.isFile() || stat.size !== entry.size) changed(path);
+      const fd = openSync(file, 'r');
+      try {
+        const opened = fstatSync(fd);
+        if (!opened.isFile() || opened.size !== entry.size) changed(path);
+        if (signedBundleMode !== null && (opened.mode & POSIX_PERMISSION_BITS) !== signedBundleMode) changed(path);
+        const hash = createHash('sha512');
+        let size = 0;
+        while (size < entry.size) {
+          const count = readSync(fd, buffer, 0, Math.min(buffer.length, entry.size - size), null);
+          if (!count) changed(path);
+          hash.update(buffer.subarray(0, count));
+          size += count;
+        }
+        if (readSync(fd, buffer, 0, 1, null) || hash.digest('base64') !== entry.sha512) changed(path);
+      } finally { closeSync(fd); }
+    }
+  }
+  visit(update.path, basename(update.path));
+  if (checked !== expected.size) changed(basename(update.path));
 }
 
 const quoted = (s: string): string => `'${s.replaceAll("'", "'\\''")}'`;
@@ -113,12 +164,16 @@ export function swapScript(pid: number, target: string, staged: string, relaunch
   ].join('\n');
 }
 
-const relaunchCommand = (platform: 'darwin' | 'linux', path: string): string =>
-  platform === 'darwin' ? `open ${quoted(path)}` : `nohup ${quoted(path)} >/dev/null 2>&1 &`;
+const relaunchCommand = (platform: 'darwin' | 'linux', path: string, args: readonly string[]): string => {
+  const flags = args.map(quoted).join(' ');
+  return platform === 'darwin' ? `open ${quoted(path)}${flags ? ` --args ${flags}` : ''}`
+    : `nohup ${quoted(path)}${flags ? ` ${flags}` : ''} >/dev/null 2>&1 &`;
+};
 
 /** Starts `file` detached so it outlives this process. A failed start throws or emits 'error'; both reach `failed`. */
-function launch(file: string, args: string[], failed: (err: NodeJS.ErrnoException) => void): void {
+function launch(update: StagedUpdate, file: string, args: string[], failed: (err: NodeJS.ErrnoException) => void): void {
   try {
+    verifyStaged(update);
     const child = spawn(file, args, { detached: true, stdio: 'ignore' });
     child.on('error', failed);
     child.unref();
@@ -134,10 +189,10 @@ function launch(file: string, args: string[], failed: (err: NodeJS.ErrnoExceptio
 export function apply(update: StagedUpdate, relaunch: boolean, pid: number, failed: (err: Error) => void): void {
   const { target } = update;
   if (target.kind === 'installer') {
-    const args = relaunch ? [...NSIS_SILENT, NSIS_RELAUNCH] : NSIS_SILENT;
-    return launch(update.path, args, (err) =>
-      err.code === ELEVATION_REQUIRED ? launch(target.elevate, [update.path, ...args], failed) : failed(err));
+    const args = relaunch ? [...NSIS_SILENT, NSIS_RELAUNCH, ...(target.relaunchArgs ?? [])] : NSIS_SILENT;
+    return launch(update, update.path, args, (err) =>
+      err.code === ELEVATION_REQUIRED ? launch(update, target.elevate, [update.path, ...args], failed) : failed(err));
   }
-  const relaunchWith = relaunch ? relaunchCommand(target.platform, target.path) : null;
-  launch('/bin/sh', ['-c', swapScript(pid, target.path, update.path, relaunchWith)], failed);
+  const relaunchWith = relaunch ? relaunchCommand(target.platform, target.path, target.relaunchArgs ?? []) : null;
+  launch(update, '/bin/sh', ['-c', swapScript(pid, target.path, update.path, relaunchWith)], failed);
 }

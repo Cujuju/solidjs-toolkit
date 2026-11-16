@@ -5,7 +5,10 @@ import { chunkFile } from './chunker.js';
 import { chmod, lstat, mkdir, open, readdir, rm, symlink } from './diskFs.js';
 import type { Fetch } from './feed.js';
 import type { UpdateFile } from './manifest.js';
-import { parseIndex, type IndexChunk, type UpdateIndex } from './updateIndex.js';
+import { parseIndex, type IndexChunk, type IndexEntry, type UpdateIndex } from './updateIndex.js';
+
+/** Contents authenticated by the signed index, retained in memory until installation. */
+export interface RebuiltUpdate { path: string; entries: readonly IndexEntry[] }
 
 /** A small gap costs less than another redirect round trip. */
 const RANGE_GAP = 256 * 1024;
@@ -140,7 +143,7 @@ async function assemble(index: UpdateIndex, staged: string, locations: Map<strin
   return resolve(staged, index.entries[0]!.path.split('/')[0]!);
 }
 
-export async function fetchUpdate(o: FetchOptions): Promise<string> {
+export async function fetchUpdate(o: FetchOptions): Promise<RebuiltUpdate> {
   const staged = join(o.dir, 'staged');
   const partial = join(o.dir, 'fetched.partial');
   try {
@@ -153,7 +156,7 @@ export async function fetchUpdate(o: FetchOptions): Promise<string> {
     const index = parseIndex(data);
     const locations = await scanSeeds(o.seeds, index);
     await fetchMissing(o, index, locations, partial);
-    return await assemble(index, staged, locations);
+    return { path: await assemble(index, staged, locations), entries: index.entries };
   } catch (err) {
     await rm(staged, { recursive: true, force: true });
     throw err;

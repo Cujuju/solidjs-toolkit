@@ -54,6 +54,8 @@ export interface UpdaterOptions {
   autoDownload?: boolean | (() => boolean);
   /** Read at quit; applies a staged update without relaunching. Default false; explicit arming wins. */
   installOnQuit?: boolean | (() => boolean);
+  /** Relaunch flags. NSIS installers must forward them through their customInstall hook. */
+  relaunchArgs?: readonly string[];
   /** Overrides for tests; default to the running process. */
   platform?: string;
   arch?: string;
@@ -69,7 +71,7 @@ export function createUpdater(o: UpdaterOptions) {
   const platform = o.platform ?? process.platform;
   const exe = o.exe ?? process.execPath;
   const target: InstallTarget | string = isUpdatePlatform(platform)
-    ? installTarget({ platform, exe, env: o.env ?? process.env, appName: o.appName })
+    ? installTarget({ platform, exe, env: o.env ?? process.env, appName: o.appName, relaunchArgs: o.relaunchArgs })
     : `Updates are not supported on ${platform}.`;
   const unavailable = !o.app.isPackaged
     ? 'Updates are checked in installed builds only.'
@@ -94,17 +96,26 @@ export function createUpdater(o: UpdaterOptions) {
   /** A nightly found or staged while the user has since chosen stable. */
   const offChannel = (): boolean => o.channel() === 'stable' && (found?.release.prerelease ?? false);
 
+  async function recheck(scheduled = false): Promise<void> {
+    found = null;
+    staged = null;
+    armed = null;
+    set({ state: 'idle' });
+    await check(scheduled);
+  }
+
   async function check(scheduled = false): Promise<void> {
     if (unavailable || status.state === 'checking' || status.state === 'downloading') return;
     if (status.state === 'ready' && !offChannel()) return;
     staged = null;
     armed = null;
+    const channel = o.channel();
     set({ state: 'checking' });
     try {
       found = await findUpdate({
         fetch: o.fetch,
         repo: o.repo,
-        channel: o.channel(),
+        channel,
         platform: platform as UpdatePlatform,
         arch: o.arch ?? process.arch,
         current: o.app.getVersion(),
@@ -112,9 +123,11 @@ export function createUpdater(o: UpdaterOptions) {
         context: o.signatureContext,
       });
     } catch (err) {
+      if (o.channel() !== channel) return recheck(scheduled);
       found = null;
       return set({ state: 'error', message: describe(err) });
     }
+    if (o.channel() !== channel) return recheck(scheduled);
     if (!found) return set({ state: 'up-to-date', checkedAt: new Date().toISOString() });
     const { version } = found.release;
     set({ state: 'available', version, nightly: found.release.prerelease });
@@ -125,24 +138,28 @@ export function createUpdater(o: UpdaterOptions) {
   async function download(): Promise<void> {
     const update = found;
     if (status.state !== 'available' || !update || typeof target === 'string') return;
+    if (offChannel()) return recheck();
+    const channel = o.channel();
     const { version, prerelease: nightly } = update.release;
     set({ state: 'downloading', version, nightly, percent: 0 });
     try {
       await rm(o.dir, { recursive: true, force: true });
       await mkdir(o.dir, { recursive: true });
-      const root = await fetchUpdate({ fetch: o.fetch, listing: update.file, indexUrl: update.url,
+      const rebuilt = await fetchUpdate({ fetch: o.fetch, listing: update.file, indexUrl: update.url,
         assets: update.release.assets, seeds: seedsFor(target, exe, o.env ?? process.env), dir: o.dir,
         onProgress: (percent) => set({ state: 'downloading', version, nightly, percent }) });
-      staged = await stage(target, root, version, exe);
+      staged = await stage(target, rebuilt, version, exe);
+      if (o.channel() !== channel) return recheck();
       set({ state: 'ready', version, nightly });
     } catch (err) {
+      if (o.channel() !== channel) return recheck();
       set({ state: 'error', message: describe(err) });
     }
   }
 
   o.app.on('quit', () => {
     const run = armed ?? ((typeof o.installOnQuit === 'function' ? o.installOnQuit() : o.installOnQuit) ? { relaunch: false } : null);
-    if (staged && run) apply(staged, run.relaunch, process.pid, (err) => set({ state: 'error', message: `The update couldn't start: ${describe(err)}` }));
+    if (staged && run && !offChannel()) apply(staged, run.relaunch, process.pid, (err) => set({ state: 'error', message: `The update couldn't start: ${describe(err)}` }));
   });
 
   return {
@@ -158,7 +175,7 @@ export function createUpdater(o: UpdaterOptions) {
     },
     /** Quits now and applies the staged update, starting the app again after. */
     quitAndInstall(): void {
-      if (!staged) return;
+      if (!staged || offChannel()) return;
       armed = { relaunch: true };
       o.app.quit();
     },

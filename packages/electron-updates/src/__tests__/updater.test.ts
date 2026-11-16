@@ -104,6 +104,49 @@ describe('createUpdater', () => {
     expect(updater.status()).toEqual({ state: 'available', version: '0.2.0', nightly: false });
   });
 
+  it.each(['checking', 'downloading'])('switching channel while %s refreshes the current channel before publishing readiness', async (phase) => {
+    const remote = fakeGitHub(REPO, releases);
+    let resume!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { resume = resolve; });
+    const waiting = new Promise<void>((resolve) => { entered = resolve; });
+    let pause = true;
+    const fetch: typeof remote.fetch = async (url, init) => {
+      if (pause && url.endsWith(phase === 'checking' ? 'update-win32.json' : '.index')) {
+        pause = false;
+        entered();
+        await gate;
+      }
+      return remote.fetch(url, init);
+    };
+    const f = setup({ fetch });
+    f.setChannel('nightly');
+    if (phase === 'downloading') await f.updater.check();
+    const pending = phase === 'checking' ? f.updater.check() : f.updater.download();
+    await waiting;
+    f.setChannel('stable');
+    const changedAt = f.seen.length;
+    await f.updater.check();
+    resume();
+    await pending;
+    expect(f.updater.status()).toEqual({ state: 'available', version: '0.2.0', nightly: false });
+    expect(f.seen.slice(changedAt).some((s) => (s.state === 'available' || s.state === 'ready') && s.nightly)).toBe(false);
+    f.quit();
+    expect(applied).toEqual([]);
+  });
+
+  it('does not install a staged nightly after selecting stable even before rechecking', async () => {
+    const f = setup({ installOnQuit: true });
+    f.setChannel('nightly');
+    await f.updater.check();
+    await f.updater.download();
+    f.setChannel('stable');
+    f.quit();
+    f.updater.quitAndInstall();
+    expect(applied).toEqual([]);
+    expect(f.app.quit).not.toHaveBeenCalled();
+  });
+
   it('reads function options when found and at quit, with explicit arming taking precedence', async () => {
     let enabled = false;
     const { updater, quit } = setup({ autoDownload: () => enabled, installOnQuit: () => enabled });

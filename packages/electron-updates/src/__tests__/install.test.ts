@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apply, appBundleOf, installTarget, seedsFor, stage, swapScript, WINDOWS_SEED_NAME, type StagedUpdate } from '../install.js';
+import { buildIndex } from '../node/pack.js';
+import type { RebuiltUpdate } from '../sync.js';
 
 /** Per spawn, in order: started, failed with an errno code (emitted next tick, as Node does), or thrown. */
 type Outcome = 'started' | { emits: string } | { throws: string };
@@ -23,6 +25,11 @@ vi.mock('node:child_process', async () => {
 });
 
 const host = { exe: '/x', env: {}, appName: 'App' };
+
+async function rebuilt(file: string): Promise<RebuiltUpdate> {
+  const index = await buildIndex(file, 'win32', 'x64', path.dirname(file));
+  return { path: file, entries: index.entries };
+}
 
 describe('installTarget', () => {
   it('Windows runs the installer', () => {
@@ -52,7 +59,7 @@ describe('stage', () => {
   it.skipIf(process.platform === 'win32')('marks a Linux AppImage executable', async () => {
     const file = path.join(mkdtempSync(path.join(os.tmpdir(), 'eu-')), 'new.AppImage');
     writeFileSync(file, 'x');
-    await stage({ kind: 'swap', platform: 'linux', path: '/opt/App.AppImage' }, file, '1.0.0', '/x');
+    await stage({ kind: 'swap', platform: 'linux', path: '/opt/App.AppImage' }, await rebuilt(file), '1.0.0', '/x');
     expect(statSync(file).mode & 0o111).toBe(0o111);
   });
 });
@@ -71,14 +78,14 @@ describe('stage on macOS', () => {
 
   it('checks the rebuilt bundle name, executable and version', async () => {
     const root = await rebuiltBundle('1.2.3');
-    const staged = await stage(target, root, '1.2.3', '/Applications/App.app/Contents/MacOS/App');
+    const staged = await stage(target, await rebuilt(root), '1.2.3', '/Applications/App.app/Contents/MacOS/App');
     expect(staged.path).toBe(root);
     expect(existsSync(path.join(staged.path, 'Contents', 'MacOS', 'App'))).toBe(true);
   });
 
   it('rejects a bundle of another version', async () => {
     const root = await rebuiltBundle('1.2.2');
-    await expect(stage(target, root, '1.2.3', '/Applications/App.app/Contents/MacOS/App')).rejects.toThrow(/isn't version 1\.2\.3/);
+    await expect(stage(target, await rebuilt(root), '1.2.3', '/Applications/App.app/Contents/MacOS/App')).rejects.toThrow(/isn't version 1\.2\.3/);
   });
 });
 
@@ -111,12 +118,15 @@ describe('seedsFor', () => {
 
 describe('apply', () => {
   const elevate = 'C:/App/resources/elevate.exe';
-  const update: StagedUpdate = { version: '1.0.0', target: { kind: 'installer', elevate }, path: 'C:/up/App.bin' };
+  let update: StagedUpdate;
   /** After every pending spawn error, including one from the elevate.exe retry. */
   const settled = () => new Promise((resolve) => setImmediate(resolve));
-  beforeEach(() => {
+  beforeEach(async () => {
     spawns.calls.length = 0;
     spawns.outcomes.length = 0;
+    const file = path.join(mkdtempSync(path.join(os.tmpdir(), 'eu-apply-')), 'App.bin');
+    writeFileSync(file, 'installer bytes');
+    update = { ...await rebuilt(file), version: '1.0.0', target: { kind: 'installer', elevate } };
   });
 
   it('runs a per-user installer directly', async () => {
@@ -125,6 +135,22 @@ describe('apply', () => {
     await settled();
     expect(spawns.calls).toEqual([{ file: update.path, args: ['--updated', '/S', '--force-run'] }]);
     expect(failed).not.toHaveBeenCalled();
+  });
+
+  it('forwards explicit relaunch flags to the Windows installer only when restarting', () => {
+    const flag = '--user-data-dir=C:\\User profile';
+    update.target = { ...update.target, relaunchArgs: [flag] };
+    apply(update, true, 1, vi.fn());
+    apply(update, false, 1, vi.fn());
+    expect(spawns.calls.map((call) => call.args)).toEqual([
+      ['--updated', '/S', '--force-run', flag], ['--updated', '/S'],
+    ]);
+  });
+
+  it('shell-quotes profile relaunch flags for a macOS bundle', () => {
+    const target: StagedUpdate = { ...update, target: { kind: 'swap', platform: 'darwin', path: '/Applications/App.app', relaunchArgs: ["--user-data-dir=/tmp/Owner's profile"] } };
+    apply(target, true, 1, vi.fn());
+    expect(spawns.calls).toMatchObject([{ file: '/bin/sh', args: ['-c', expect.stringContaining("open '/Applications/App.app' --args '--user-data-dir=/tmp/Owner'\\''s profile'")] }]);
   });
 
   it('retries a per-machine installer Windows refuses unelevated through elevate.exe', async () => {

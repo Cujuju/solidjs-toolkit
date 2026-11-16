@@ -5,3 +5,4 @@ import { createRequire } from 'node:module';
 const diskFs: typeof fs = process.versions.electron ? createRequire(import.meta.url)('original-fs') : fs;
 
 export const { chmod, lstat, mkdir, open, readdir, rm, symlink } = diskFs.promises;
+export const { closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, readlinkSync } = diskFs;
