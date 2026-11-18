@@ -16,6 +16,14 @@ export interface PopoutViewport {
   height: number;
 }
 
+/** Where the panel may sit, in viewport coords: the layout viewport minus host-reserved edges. */
+export interface PopoutBounds {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export type PopoutPlacement = 'top' | 'bottom';
 
 export interface PopoutPosition {
@@ -39,13 +47,13 @@ export const POPOUT_DEFAULT_PREFERENCE: PopoutPlacement = 'bottom';
 export function resolvePopoutPosition(
   anchor: PopoutRect,
   panel: { width: number; height: number },
-  viewport: PopoutViewport,
+  bounds: PopoutBounds,
   gap: number = POPOUT_DEFAULT_GAP_PX,
   prefer: PopoutPlacement = POPOUT_DEFAULT_PREFERENCE,
 ): PopoutPosition {
-  const spaceAbove = anchor.top - gap - POPOUT_VIEWPORT_MARGIN_PX;
+  const spaceAbove = anchor.top - gap - POPOUT_VIEWPORT_MARGIN_PX - bounds.top;
   const spaceBelow =
-    viewport.height - (anchor.top + anchor.height) - gap - POPOUT_VIEWPORT_MARGIN_PX;
+    bounds.bottom - (anchor.top + anchor.height) - gap - POPOUT_VIEWPORT_MARGIN_PX;
 
   const spaceOn = (side: PopoutPlacement): number => (side === 'top' ? spaceAbove : spaceBelow);
   const other: PopoutPlacement = prefer === 'top' ? 'bottom' : 'top';
@@ -62,19 +70,15 @@ export function resolvePopoutPosition(
 
   // Clamp vertically so a panel taller than the space it was given still has its top edge
   // on-screen (see above — losing the bottom is survivable, losing the top is not).
-  const maxTop = Math.max(
-    POPOUT_VIEWPORT_MARGIN_PX,
-    viewport.height - panel.height - POPOUT_VIEWPORT_MARGIN_PX,
-  );
-  const top = Math.min(Math.max(rawTop, POPOUT_VIEWPORT_MARGIN_PX), maxTop);
+  const minTop = bounds.top + POPOUT_VIEWPORT_MARGIN_PX;
+  const maxTop = Math.max(minTop, bounds.bottom - panel.height - POPOUT_VIEWPORT_MARGIN_PX);
+  const top = Math.min(Math.max(rawTop, minTop), maxTop);
 
   // Left-align to the anchor, then clamp: the panel is wider than its anchor, so a pill near
   // the right edge would push it off-screen.
-  const maxLeft = Math.max(
-    POPOUT_VIEWPORT_MARGIN_PX,
-    viewport.width - panel.width - POPOUT_VIEWPORT_MARGIN_PX,
-  );
-  const left = Math.min(Math.max(anchor.left, POPOUT_VIEWPORT_MARGIN_PX), maxLeft);
+  const minLeft = bounds.left + POPOUT_VIEWPORT_MARGIN_PX;
+  const maxLeft = Math.max(minLeft, bounds.right - panel.width - POPOUT_VIEWPORT_MARGIN_PX);
+  const left = Math.min(Math.max(anchor.left, minLeft), maxLeft);
 
   return { top, left, placement };
 }

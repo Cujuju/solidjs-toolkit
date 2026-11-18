@@ -5,6 +5,7 @@ import {
   createEscapeOwner,
   createOutsideScrollDismiss,
   createResizeObserver,
+  floatingBounds,
 } from '@cujuju/solidjs-hooks';
 import {
   children,
@@ -134,13 +135,16 @@ export function ChipFlyout(props: ChipFlyoutProps): JSX.Element {
 
     const anchorLeft =
       (props.placement ?? 'bottom-start') === 'bottom-end' ? trigger.right - panel.width : trigger.left;
-    const maxLeft = window.innerWidth - panel.width - VIEWPORT_MARGIN_PX;
-    const left = Math.max(VIEWPORT_MARGIN_PX, Math.min(anchorLeft, maxLeft));
+    const b = floatingBounds();
+    const minLeft = b.left + VIEWPORT_MARGIN_PX;
+    const minTop = b.top + VIEWPORT_MARGIN_PX;
+    const maxLeft = b.right - panel.width - VIEWPORT_MARGIN_PX;
+    const left = Math.max(minLeft, Math.min(anchorLeft, maxLeft));
 
-    let top = trigger.bottom + PANEL_OFFSET_PX;
-    if (top + panel.height > window.innerHeight - VIEWPORT_MARGIN_PX) {
+    let top = Math.max(minTop, trigger.bottom + PANEL_OFFSET_PX);
+    if (top + panel.height > b.bottom - VIEWPORT_MARGIN_PX) {
       const flipped = trigger.top - panel.height - PANEL_OFFSET_PX;
-      top = flipped >= VIEWPORT_MARGIN_PX ? flipped : VIEWPORT_MARGIN_PX;
+      top = Math.max(minTop, flipped);
     }
 
     if (top !== current.top || left !== current.left) setPos({ top, left });

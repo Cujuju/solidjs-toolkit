@@ -36,3 +36,5 @@ export { createAfterPaint } from './createAfterPaint.js';
 export { createOutsideScrollDismiss } from './createOutsideScrollDismiss.js';
 // The CONTRIBUTING §1 listener primitive, public so sibling packages stop hand-rolling SSR guards.
 export { safeAddEventListener, getGlobalTarget } from './_internal/safeEvent.js';
+// One clamp rect for every floating layer: the window minus host-reserved edges (title bars).
+export { floatingBounds, FLOATING_INSET_VARS, type FloatingBounds } from './_internal/floatingBounds.js';

@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js';
+import { floatingBounds, type FloatingBounds } from '@cujuju/solidjs-hooks';
 
 /** `document.compatMode` with no doctype; CSSOM View then measures the viewport on `body`. */
 const QUIRKS_COMPAT_MODE = 'BackCompat';
@@ -86,9 +87,8 @@ export interface RectPlacementInput {
   /** Measured panel width / height in px. */
   w: number;
   h: number;
-  /** Viewport width / height in px. */
-  vw: number;
-  vh: number;
+  /** Where the panel may sit: `floatingBounds()`, the viewport minus host-reserved edges. */
+  bounds: Pick<FloatingBounds, 'top' | 'right' | 'bottom' | 'left'>;
   placement: KvTooltipPlacement;
   anchorGapPx: number;
   edgePadPx: number;
@@ -100,14 +100,18 @@ export interface RectPlacementInput {
  * clamp. Pure.
  */
 export function placeAgainstRect(input: RectPlacementInput): { x: number; y: number } {
-  const { rect, w, h, vw, vh, placement, anchorGapPx, edgePadPx } = input;
+  const { rect, w, h, bounds, placement, anchorGapPx, edgePadPx } = input;
+  const minY = bounds.top + edgePadPx;
+  const maxY = bounds.bottom - edgePadPx;
+  const minX = bounds.left + edgePadPx;
+  const maxX = bounds.right - edgePadPx;
 
   // ── Vertical: side of the rect, with a real flip ──────────────────────────
   const wantAbove = placement === 'above-start' || placement === 'above-end';
   const aboveY = rect.top - h - anchorGapPx;
   const belowY = rect.bottom + anchorGapPx;
-  const aboveFits = aboveY >= edgePadPx;
-  const belowFits = belowY + h <= vh - edgePadPx;
+  const aboveFits = aboveY >= minY;
+  const belowFits = belowY + h <= maxY;
 
   let y: number | undefined = wantAbove
     ? aboveFits
@@ -122,8 +126,8 @@ export function placeAgainstRect(input: RectPlacementInput): { x: number; y: num
         : undefined;
   if (y === undefined) {
     // Neither side fits: keep the side with more room, stay flush.
-    const roomAbove = rect.top - anchorGapPx - edgePadPx;
-    const roomBelow = vh - edgePadPx - rect.bottom - anchorGapPx;
+    const roomAbove = rect.top - anchorGapPx - minY;
+    const roomBelow = maxY - rect.bottom - anchorGapPx;
     y = roomAbove > roomBelow ? aboveY : belowY;
   }
 
@@ -131,8 +135,8 @@ export function placeAgainstRect(input: RectPlacementInput): { x: number; y: num
   const wantEnd = placement === 'above-end' || placement === 'below-end';
   const startX = rect.left;
   const endX = rect.right - w;
-  const startFits = startX >= edgePadPx && startX + w <= vw - edgePadPx;
-  const endFits = endX >= edgePadPx && endX + w <= vw - edgePadPx;
+  const startFits = startX >= minX && startX + w <= maxX;
+  const endFits = endX >= minX && endX + w <= maxX;
 
   let x: number | undefined = wantEnd
     ? endFits
@@ -149,7 +153,7 @@ export function placeAgainstRect(input: RectPlacementInput): { x: number; y: num
     // Panel wider than the room either alignment leaves: plain viewport clamp.
     // Overlapping the anchor horizontally is harmless — the panel is already
     // above or below it, never beside it.
-    x = Math.max(edgePadPx, Math.min(startX, vw - edgePadPx - w));
+    x = Math.max(minX, Math.min(startX, maxX - w));
   }
 
   return { x, y };
@@ -193,6 +197,8 @@ export function createClampedPosition(
     const w = opts.getW();
     const h = opts.getH();
     const { vw, vh } = vpSize();
+    // The scrollbar-excluding viewport minus host-reserved edges (a title bar).
+    const bounds = floatingBounds({ width: vw, height: vh });
     // Subscribe only — see `scrollTick`. Read before the anchored early-return
     // so the subscription exists in both modes.
     void scrollTick();
@@ -204,8 +210,7 @@ export function createClampedPosition(
         rect,
         w,
         h,
-        vw,
-        vh,
+        bounds,
         placement: requested === 'cursor' ? DEFAULT_ANCHORED_PLACEMENT : requested,
         anchorGapPx: opts.getAnchorGapPx?.() ?? DEFAULT_ANCHOR_GAP_PX,
         edgePadPx: opts.edgePadPx,
@@ -218,9 +223,11 @@ export function createClampedPosition(
 
     // Horizontal: default right of cursor, flip left with hysteresis
     let x = mx + mouseOffsetX;
-    const wouldOverflowRight = x + w > vw - edgePadPx;
+    const maxX = bounds.right - edgePadPx;
+    const maxY = bounds.bottom - edgePadPx;
+    const wouldOverflowRight = x + w > maxX;
     if (flippedLeft) {
-      if (!wouldOverflowRight && mx + mouseOffsetX + w < vw - edgePadPx - hysteresisPx) {
+      if (!wouldOverflowRight && mx + mouseOffsetX + w < maxX - hysteresisPx) {
         flippedLeft = false;
         x = mx + mouseOffsetX;
       } else {
@@ -230,13 +237,13 @@ export function createClampedPosition(
       flippedLeft = true;
       x = mx - w - mouseOffsetX;
     }
-    if (x < edgePadPx) x = edgePadPx;
+    x = Math.max(x, bounds.left + edgePadPx);
 
     // Vertical: default below cursor, flip above with hysteresis
     let y = my + mouseOffsetY;
-    const wouldOverflowBottom = y + h > vh - edgePadPx;
+    const wouldOverflowBottom = y + h > maxY;
     if (flippedUp) {
-      if (!wouldOverflowBottom && my + mouseOffsetY + h < vh - edgePadPx - hysteresisPx) {
+      if (!wouldOverflowBottom && my + mouseOffsetY + h < maxY - hysteresisPx) {
         flippedUp = false;
         y = my + mouseOffsetY;
       } else {
@@ -246,7 +253,7 @@ export function createClampedPosition(
       flippedUp = true;
       y = my - h - (mouseOffsetY / 2);
     }
-    if (y < edgePadPx) y = edgePadPx;
+    y = Math.max(y, bounds.top + edgePadPx);
 
     return { x, y };
   };

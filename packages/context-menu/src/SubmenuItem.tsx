@@ -1,5 +1,5 @@
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
-import { createAfterPaint, safeAddEventListener } from '@cujuju/solidjs-hooks';
+import { createAfterPaint, floatingBounds, safeAddEventListener } from '@cujuju/solidjs-hooks';
 import { createEffect, createMemo, createSignal, onCleanup, Show, useContext, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { POPOVER_STACK_ATTR } from './_internal/popoverStack.js';
@@ -77,8 +77,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
         triggerRect,
         parentRect,
         flyoutRect,
-        viewportW: window.innerWidth,
-        viewportH: window.innerHeight,
+        bounds: floatingBounds(),
         scrollable: props.submenu.scrollable ?? false,
       }),
     );

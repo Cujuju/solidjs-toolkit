@@ -297,6 +297,17 @@ returns `document` or `window`, or `null` during SSR.
 safeAddEventListener(getGlobalTarget('window'), 'resize', onResize);
 ```
 
+### `floatingBounds()` / `FLOATING_INSET_VARS`
+
+The viewport rect a floating layer (menu, submenu, popover, tooltip) may occupy: the window
+minus the edges a host reserves through `--cujuju-floating-inset-{top,right,bottom,left}` (px)
+on `:root`. Every package that clamps a floating layer reads this instead of `window.inner*`,
+so one host declaration keeps all of them out of a custom title bar.
+
+```css
+:root { --cujuju-floating-inset-top: 48px; }
+```
+
 ## Convention: accessor style
 
 Element-tracking hooks (`createResizeObserver`, `createIntersectionObserver`, and the `contains()` helper for `createClickOutside`) take an **element accessor** (`() => HTMLElement | undefined`), not a returned ref. The accessor is re-read on every callback, so refs that mount later (e.g., portaled panels) are picked up automatically.

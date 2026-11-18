@@ -6,7 +6,9 @@ import {
 } from '../_internal/popout.js';
 
 /** A 1000x800 viewport, and a 120x28 panel — a picker's real proportions. */
-const VIEWPORT = { width: 1000, height: 800 };
+/** A full window of `width` × `height` with nothing reserved. */
+const vp = (width: number, height: number) => ({ top: 0, left: 0, right: width, bottom: height });
+const VIEWPORT = vp(1000, 800);
 const PANEL = { width: 120, height: 28 };
 const anchorAt = (top: number, left: number) => ({ top, left, width: 40, height: 20 });
 
@@ -40,8 +42,8 @@ describe('resolvePopoutPosition', () => {
     // The panel is WIDER than its anchor — it carries the +/- the anchor was hiding —
     // so an anchor flush right would push it off the viewport if left-aligned naively.
     const p = resolvePopoutPosition(anchorAt(400, 980), PANEL, VIEWPORT);
-    expect(p.left).toBe(VIEWPORT.width - PANEL.width - POPOUT_VIEWPORT_MARGIN_PX);
-    expect(p.left + PANEL.width).toBeLessThanOrEqual(VIEWPORT.width);
+    expect(p.left).toBe(VIEWPORT.right - PANEL.width - POPOUT_VIEWPORT_MARGIN_PX);
+    expect(p.left + PANEL.width).toBeLessThanOrEqual(VIEWPORT.right);
   });
 
   it('clamps a left-edge anchor to the margin, never off-screen', () => {
@@ -54,22 +56,30 @@ describe('resolvePopoutPosition', () => {
     // Losing the bottom of the panel is survivable — the value and the first button are
     // still reachable. Losing the top means the control is simply gone.
     const tall = { width: 120, height: 700 };
-    const p = resolvePopoutPosition(anchorAt(400, 100), tall, { width: 1000, height: 500 });
+    const p = resolvePopoutPosition(anchorAt(400, 100), tall, vp(1000, 500));
     expect(p.top).toBeGreaterThanOrEqual(POPOUT_VIEWPORT_MARGIN_PX);
   });
 
   it('picks the side with MORE room when neither side fits', () => {
     const tall = { width: 120, height: 400 };
     // Anchor low: more room above than below.
-    expect(resolvePopoutPosition(anchorAt(300, 100), tall, { width: 1000, height: 380 }).placement)
+    expect(resolvePopoutPosition(anchorAt(300, 100), tall, vp(1000, 380)).placement)
       .toBe('top');
     // Anchor high: more room below than above.
-    expect(resolvePopoutPosition(anchorAt(40, 100), tall, { width: 1000, height: 380 }).placement)
+    expect(resolvePopoutPosition(anchorAt(40, 100), tall, vp(1000, 380)).placement)
       .toBe('bottom');
   });
 
   it('honours a custom gap', () => {
     const p = resolvePopoutPosition(anchorAt(400, 100), PANEL, VIEWPORT, 12);
     expect(p.top).toBe(400 - PANEL.height - 12);
+  });
+
+  it('prefers below over a host-reserved top edge, and never starts inside it', () => {
+    const titleBar = 48;
+    const bounds = { ...VIEWPORT, top: titleBar };
+    expect(resolvePopoutPosition(anchorAt(titleBar + 10, 100), PANEL, bounds).placement).toBe('bottom');
+    const tall = { width: 120, height: 900 };
+    expect(resolvePopoutPosition(anchorAt(titleBar + 10, 100), tall, bounds).top).toBeGreaterThanOrEqual(titleBar);
   });
 });

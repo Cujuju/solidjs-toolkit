@@ -1,14 +1,16 @@
+import type { FloatingBounds } from '@cujuju/solidjs-hooks';
+
 /**
  * Submenu-flyout positioning math — a pure function, no DOM access, so
  * it is independently unit-testable. The component layer reads the
- * rects + viewport and feeds them in.
+ * rects + floating bounds and feeds them in.
  */
 
-/** Viewport edge margin kept clear by every clamp (px). */
+/** Edge margin kept clear inside the floating bounds by every clamp (px). */
 export const VIEWPORT_MARGIN_PX = 4;
 
 /** A scrollable submenu caps its height at this fraction of the
- *  viewport so a long list scrolls instead of running off-screen. */
+ *  floating bounds so a long list scrolls instead of running off-screen. */
 export const SCROLLABLE_SUBMENU_MAX_VH = 0.6;
 
 /** Pixels a submenu's leading edge tucks UNDER its parent's edge. Anchored on the parent's
@@ -23,8 +25,8 @@ export interface SubmenuStyleInput {
   parentRect: { left: number; right: number };
   /** The submenu flyout's own measured size. */
   flyoutRect: { width: number; height: number };
-  viewportW: number;
-  viewportH: number;
+  /** Where floating layers may sit: `floatingBounds()`, the window minus host-reserved edges. */
+  bounds: FloatingBounds;
   /** Scrollable submenus cap their height — see {@link SCROLLABLE_SUBMENU_MAX_VH}. */
   scrollable: boolean;
 }
@@ -36,12 +38,11 @@ export interface SubmenuStyleInput {
 export function computeSubmenuStyle(
   input: SubmenuStyleInput,
 ): Record<string, string> {
-  const { triggerRect, parentRect, flyoutRect, viewportW, viewportH, scrollable } =
-    input;
+  const { triggerRect, parentRect, flyoutRect, bounds, scrollable } = input;
   const margin = VIEWPORT_MARGIN_PX;
 
-  const fitsRight = parentRect.right + flyoutRect.width <= viewportW - margin;
-  const fitsLeft = parentRect.left - flyoutRect.width >= margin;
+  const fitsRight = parentRect.right + flyoutRect.width <= bounds.right - margin;
+  const fitsLeft = parentRect.left - flyoutRect.width >= bounds.left + margin;
   let left: number;
   if (fitsRight) {
     left = parentRect.right - POPOVER_PARENT_UNDER_OVERLAP_PX;
@@ -50,24 +51,24 @@ export function computeSubmenuStyle(
   } else {
     // Neither side fits — pick whichever has more free space; the
     // clamp below pulls the flyout fully into view.
-    const rightRoom = viewportW - parentRect.right;
-    const leftRoom = parentRect.left;
+    const rightRoom = bounds.right - parentRect.right;
+    const leftRoom = parentRect.left - bounds.left;
     left =
       rightRoom >= leftRoom
         ? parentRect.right - POPOVER_PARENT_UNDER_OVERLAP_PX
         : parentRect.left - flyoutRect.width + POPOVER_PARENT_UNDER_OVERLAP_PX;
   }
   // Horizontal clamp — safety net for a flyout wider than either side.
-  left = Math.max(margin, Math.min(left, viewportW - flyoutRect.width - margin));
+  left = Math.max(bounds.left + margin, Math.min(left, bounds.right - flyoutRect.width - margin));
 
+  // The lower bound wins: a flyout taller than the bounds starts at the top edge and scrolls.
   const top = Math.max(
-    margin,
-    Math.min(triggerRect.top - margin, viewportH - flyoutRect.height - margin),
+    bounds.top + margin,
+    Math.min(triggerRect.top - margin, bounds.bottom - flyoutRect.height - margin),
   );
 
-  const maxH = scrollable
-    ? Math.min(viewportH * SCROLLABLE_SUBMENU_MAX_VH, viewportH - margin * 2)
-    : viewportH - margin * 2;
+  const fullH = Math.max(0, bounds.height - margin * 2);
+  const maxH = scrollable ? Math.min(bounds.height * SCROLLABLE_SUBMENU_MAX_VH, fullH) : fullH;
 
   return {
     position: 'fixed',
@@ -77,7 +78,7 @@ export function computeSubmenuStyle(
     bottom: 'auto',
     margin: '0',
     width: 'max-content',
-    'max-width': `calc(100vw - ${margin * 2}px)`,
+    'max-width': `${Math.max(0, bounds.width - margin * 2)}px`,
     // `max-height` caps the flyout root; GlassMenu's body or the solid
     // card itself owns the `overflow-y: auto`, so no overflow rule belongs here.
     'max-height': `${maxH}px`,
