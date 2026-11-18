@@ -37,7 +37,8 @@ export interface ContextMenuProps {
  */
 export function ContextMenu(props: ContextMenuProps) {
   let menuRef: HTMLDivElement | undefined;
-  const [pos, setPos] = createSignal({ x: props.x, y: props.y });
+  // Floored before the first clamp, so no frame shows the menu inside a reserved top edge.
+  const [pos, setPos] = createSignal({ x: props.x, y: Math.max(props.y, floatingBounds().top + VIEWPORT_MARGIN_PX) });
   const afterPaint = createAfterPaint();
 
   // The shared Escape stack dismisses the whole menu from a portalled flyout.

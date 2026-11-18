@@ -248,8 +248,10 @@ describe('ContextMenu — host-reserved edges', () => {
       () => <ContextMenu x={10} y={5} onClose={() => {}} items={[{ label: 'Item', onClick: () => {} }]} />,
       document.body,
     );
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     const menu = document.querySelector<HTMLElement>('[popover]')!;
+    // Before the post-paint clamp, and after it.
+    expect(parseFloat(menu.style.top)).toBeGreaterThanOrEqual(TITLE_BAR_PX);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     expect(parseFloat(menu.style.top)).toBeGreaterThanOrEqual(TITLE_BAR_PX);
     expect(menu.style.maxHeight).toContain('--cujuju-floating-inset-top');
   });
