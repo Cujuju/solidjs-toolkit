@@ -16,6 +16,12 @@
   inset: auto;
 }
 
+/* GlassMenu's `display: flex` beats the closed popover's `display: none`; until shown and
+   positioned, a flyout must not paint or take clicks (e.g. over a title bar at y=0). */
+.cujuju-context-menu[popover]:not(:popover-open) {
+  visibility: hidden;
+}
+
 .cujuju-context-menu-item {
   display: flex;
   align-items: center;

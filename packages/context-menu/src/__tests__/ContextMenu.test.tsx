@@ -237,3 +237,22 @@ describe('ContextMenu — surface swap', () => {
     expect(shown.has(root)).toBe(true);
   });
 });
+
+describe('ContextMenu — host-reserved edges', () => {
+  const TITLE_BAR_PX = 48;
+  afterEach(() => document.documentElement.style.removeProperty('--cujuju-floating-inset-top'));
+
+  it('never opens inside a reserved top edge, however high the open point', async () => {
+    document.documentElement.style.setProperty('--cujuju-floating-inset-top', `${TITLE_BAR_PX}px`);
+    dispose = render(
+      () => <ContextMenu x={10} y={5} onClose={() => {}} items={[{ label: 'Item', onClick: () => {} }]} />,
+      document.body,
+    );
+    const menu = document.querySelector<HTMLElement>('[popover]')!;
+    // Before the post-paint clamp, and after it.
+    expect(parseFloat(menu.style.top)).toBeGreaterThanOrEqual(TITLE_BAR_PX);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(parseFloat(menu.style.top)).toBeGreaterThanOrEqual(TITLE_BAR_PX);
+    expect(menu.style.maxHeight).toContain('--cujuju-floating-inset-top');
+  });
+});

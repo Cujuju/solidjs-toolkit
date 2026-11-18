@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { FloatingBounds } from '@cujuju/solidjs-hooks';
 import {
   computeSubmenuStyle,
   VIEWPORT_MARGIN_PX,
@@ -9,6 +10,10 @@ import {
 
 const VW = 1000;
 const VH = 800;
+const FULL: FloatingBounds = { top: 0, left: 0, right: VW, bottom: VH, width: VW, height: VH };
+/** A host title bar reserving the top 48px. */
+const TITLE_BAR_PX = 48;
+const BELOW_TITLE_BAR: FloatingBounds = { ...FULL, top: TITLE_BAR_PX, height: VH - TITLE_BAR_PX };
 
 /** A parent menu sitting at x:100..300, with a 200×400 submenu. */
 function base(overrides: Partial<SubmenuStyleInput> = {}): SubmenuStyleInput {
@@ -16,8 +21,7 @@ function base(overrides: Partial<SubmenuStyleInput> = {}): SubmenuStyleInput {
     triggerRect: { top: 120 },
     parentRect: { left: 100, right: 300 },
     flyoutRect: { width: 200, height: 400 },
-    viewportW: VW,
-    viewportH: VH,
+    bounds: FULL,
     scrollable: false,
     ...overrides,
   };
@@ -77,6 +81,21 @@ describe('computeSubmenuStyle', () => {
   it('clamps top to the viewport margin', () => {
     const s = computeSubmenuStyle(base({ triggerRect: { top: -50 } }));
     expect(px(s.top)).toBe(VIEWPORT_MARGIN_PX);
+  });
+
+  it('never starts inside a host-reserved top edge, even when taller than the bounds', () => {
+    const s = computeSubmenuStyle(base({
+      bounds: BELOW_TITLE_BAR, triggerRect: { top: 300 }, flyoutRect: { width: 200, height: VH * 2 },
+    }));
+    expect(px(s.top)).toBe(TITLE_BAR_PX + VIEWPORT_MARGIN_PX);
+    expect(s['max-height']).toBe(`${VH - TITLE_BAR_PX - VIEWPORT_MARGIN_PX * 2}px`);
+  });
+
+  it('keeps side flips and clamps inside horizontal insets', () => {
+    const s = computeSubmenuStyle(base({
+      bounds: { ...FULL, left: 50, width: VW - 50 }, parentRect: { left: 60, right: VW - 10 },
+    }));
+    expect(px(s.left)).toBeGreaterThanOrEqual(50 + VIEWPORT_MARGIN_PX);
   });
 
   it('caps a scrollable submenu height at the viewport fraction', () => {

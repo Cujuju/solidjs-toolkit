@@ -1,6 +1,6 @@
 import { createSignal, createMemo, createEffect, on, onMount, Show, type JSX } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { createAfterPaint, createEscapeOwner } from '@cujuju/solidjs-hooks';
+import { createAfterPaint, createEscapeOwner, floatingBounds, FLOATING_INSET_VARS as INSET } from '@cujuju/solidjs-hooks';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
 import type { ContextMenuEntry } from './types.js';
 import { MenuEntries, type ContextMenuSurface } from './MenuEntries.js';
@@ -37,7 +37,8 @@ export interface ContextMenuProps {
  */
 export function ContextMenu(props: ContextMenuProps) {
   let menuRef: HTMLDivElement | undefined;
-  const [pos, setPos] = createSignal({ x: props.x, y: props.y });
+  // Floored before the first clamp, so no frame shows the menu inside a reserved top edge.
+  const [pos, setPos] = createSignal({ x: props.x, y: Math.max(props.y, floatingBounds().top + VIEWPORT_MARGIN_PX) });
   const afterPaint = createAfterPaint();
 
   // The shared Escape stack dismisses the whole menu from a portalled flyout.
@@ -67,16 +68,17 @@ export function ContextMenu(props: ContextMenuProps) {
     if (!menuRef) return;
     const w = menuRef.offsetWidth;
     const h = menuRef.offsetHeight;
-    // Clamp so the menu never starts past the viewport; with the `max-width` cap this also
-    // covers content wider than a narrow window.
+    const b = floatingBounds();
+    // Clamp inside the floating bounds; the lower bound wins, so with the size caps a menu
+    // larger than the bounds still never enters a host-reserved edge.
     setPos({
       x: Math.max(
-        VIEWPORT_MARGIN_PX,
-        Math.min(props.x, window.innerWidth - w - VIEWPORT_MARGIN_PX),
+        b.left + VIEWPORT_MARGIN_PX,
+        Math.min(props.x, b.right - w - VIEWPORT_MARGIN_PX),
       ),
       y: Math.max(
-        VIEWPORT_MARGIN_PX,
-        Math.min(props.y, window.innerHeight - h - VIEWPORT_MARGIN_PX),
+        b.top + VIEWPORT_MARGIN_PX,
+        Math.min(props.y, b.bottom - h - VIEWPORT_MARGIN_PX),
       ),
     });
   }
@@ -112,9 +114,9 @@ export function ContextMenu(props: ContextMenuProps) {
     left: `${pos().x}px`,
     top: `${pos().y}px`,
     // Cap width so very narrow viewports wrap/truncate inside rather than clip.
-    'max-width': `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
+    'max-width': `calc(100vw - var(${INSET.left}, 0px) - var(${INSET.right}, 0px) - ${VIEWPORT_MARGIN_PX * 2}px)`,
     // Cap height too, so a tall menu scrolls (GlassMenu body / solid card) instead of running off-screen.
-    'max-height': `calc(100vh - ${VIEWPORT_MARGIN_PX * 2}px)`,
+    'max-height': `calc(100vh - var(${INSET.top}, 0px) - var(${INSET.bottom}, 0px) - ${VIEWPORT_MARGIN_PX * 2}px)`,
     ...(props.minWidth ? { 'min-width': `${props.minWidth}px` } : {}),
   }));
 

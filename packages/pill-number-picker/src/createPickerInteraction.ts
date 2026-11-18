@@ -1,5 +1,5 @@
 import { createSignal, createEffect, onCleanup } from 'solid-js';
-import { createEscapeOwner } from '@cujuju/solidjs-hooks';
+import { createEscapeOwner, floatingBounds } from '@cujuju/solidjs-hooks';
 import { resolvePopoutPosition, POPOUT_DEFAULT_GAP_PX, type PopoutPosition } from './_internal/popout.js';
 import { createAutoRepeat } from './_internal/autoRepeat.js';
 import type { PillNumberPickerProps } from './types.js';
@@ -22,7 +22,7 @@ export function createPickerInteraction(props: PillNumberPickerProps, s: ReturnT
       resolvePopoutPosition(
         { top: a.top, left: a.left, width: a.width, height: a.height },
         { width: p.width, height: p.height },
-        { width: window.innerWidth, height: window.innerHeight },
+        floatingBounds(),
         props.popoutGap ?? POPOUT_DEFAULT_GAP_PX,
       ),
     );

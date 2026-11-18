@@ -1,4 +1,5 @@
 import type { Setter } from 'solid-js';
+import { floatingBounds } from '@cujuju/solidjs-hooks';
 import { isAnchorOutsideViewport, POPOUT_DEFAULT_GAP_PX, POPOUT_DEFAULT_PREFERENCE, resolvePopoutPosition, type PopoutPosition } from './_internal/popout.js';
 import { NO_ACTIVE_INDEX, type createPillDateModel } from './createPillDateModel.js';
 import type { PillDateEntry, PillDatePickerProps } from './types.js';
@@ -35,7 +36,8 @@ export function createDatePickerActions<T extends PillDateEntry>(
       resolvePopoutPosition(
         { top: a.top, left: a.left, width: a.width, height: a.height },
         { width: p.width, height: p.height },
-        viewport,
+        // Host-reserved edges (a title bar) come off the layout viewport.
+        floatingBounds(viewport),
         props.popoutGap ?? POPOUT_DEFAULT_GAP_PX,
         props.preferPlacement ?? POPOUT_DEFAULT_PREFERENCE,
       ),

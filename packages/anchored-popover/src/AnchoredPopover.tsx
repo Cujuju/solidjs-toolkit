@@ -4,6 +4,7 @@ import {
   createAfterPaint,
   createEscapeOwner,
   createResizeObserver,
+  floatingBounds,
   getGlobalTarget,
   safeAddEventListener,
 } from '@cujuju/solidjs-hooks';
@@ -58,8 +59,7 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
     // align the perpendicular axis via -start/-end. Vertical placements
     // (below/above) do the inverse.
     const isHorizontal = side === 'right' || side === 'left';
-    const vpW = window.innerWidth;
-    const vpH = window.innerHeight;
+    const b = floatingBounds();
 
     // For horizontal placements, the side rect (x source) may differ
     // from the perpendicular rect (y source) — see `horizontalAnchor`
@@ -88,17 +88,12 @@ export default function AnchoredPopover(props: AnchoredPopoverProps): JSX.Elemen
     // placements — pairing it with a side placement would defeat the
     // side anchoring (popover detaches from the trigger).
     if (props.centered && !isHorizontal) {
-      left = Math.max(margin, Math.round((vpW - panel.width) / 2));
+      left = Math.max(b.left + margin, Math.round(b.left + (b.width - panel.width) / 2));
     }
 
-    if (left + panel.width > vpW - margin) {
-      left = Math.max(margin, vpW - panel.width - margin);
-    }
-    if (left < margin) left = margin;
-    if (top + panel.height > vpH - margin) {
-      top = Math.max(margin, vpH - panel.height - margin);
-    }
-    if (top < margin) top = margin;
+    // Clamp inside the floating bounds; the near edge wins, so nothing enters a host-reserved edge.
+    left = Math.max(b.left + margin, Math.min(left, b.right - panel.width - margin));
+    top = Math.max(b.top + margin, Math.min(top, b.bottom - panel.height - margin));
 
     setPos({ top, left });
     return true;

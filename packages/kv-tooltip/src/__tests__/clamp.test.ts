@@ -33,8 +33,7 @@ function place(
     rect,
     w: overrides.w ?? PANEL_W,
     h: overrides.h ?? PANEL_H,
-    vw: overrides.vw ?? VW,
-    vh: overrides.vh ?? VH,
+    bounds: { top: 0, left: 0, right: overrides.vw ?? VW, bottom: overrides.vh ?? VH },
     placement,
     anchorGapPx: GAP,
     edgePadPx: EDGE_PAD,
@@ -227,8 +226,7 @@ describe('placeAgainstRect — anchorGapPx', () => {
       rect,
       w: PANEL_W,
       h: PANEL_H,
-      vw: VW,
-      vh: VH,
+      bounds: { top: 0, left: 0, right: VW, bottom: VH },
       placement: 'below-start',
       anchorGapPx: gap,
       edgePadPx: EDGE_PAD,
@@ -239,8 +237,7 @@ describe('placeAgainstRect — anchorGapPx', () => {
       rect,
       w: PANEL_W,
       h: PANEL_H,
-      vw: VW,
-      vh: VH,
+      bounds: { top: 0, left: 0, right: VW, bottom: VH },
       placement: 'above-start',
       anchorGapPx: gap,
       edgePadPx: EDGE_PAD,
@@ -359,5 +356,27 @@ describe('createClampedPosition — viewport measurement', () => {
       delete (root as { clientHeight?: number }).clientHeight;
       window.dispatchEvent(new Event('resize'));
     }
+  });
+});
+
+describe('placeAgainstRect — host-reserved top edge (a title bar)', () => {
+  const TITLE_BAR_PX = 48;
+  it('flips an above placement below rather than enter the reserved edge', () => {
+    const rect = rectAt(400, TITLE_BAR_PX + 10);
+    const pos = placeAgainstRect({
+      rect, w: PANEL_W, h: PANEL_H, bounds: { top: TITLE_BAR_PX, left: 0, right: VW, bottom: VH },
+      placement: 'above-start', anchorGapPx: GAP, edgePadPx: EDGE_PAD,
+    });
+    expect(pos.y).toBe(rect.bottom + GAP);
+  });
+});
+
+describe('placeAgainstRect — anchor inside a host-reserved top edge', () => {
+  it('places the panel below the reserved edge', () => {
+    const pos = placeAgainstRect({
+      rect: rectAt(400, 4, 120, 20), w: PANEL_W, h: PANEL_H, bounds: { top: 48, left: 0, right: VW, bottom: VH },
+      placement: 'below-start', anchorGapPx: GAP, edgePadPx: EDGE_PAD,
+    });
+    expect(pos.y).toBeGreaterThanOrEqual(48);
   });
 });
