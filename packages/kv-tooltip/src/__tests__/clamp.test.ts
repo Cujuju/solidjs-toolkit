@@ -370,3 +370,13 @@ describe('placeAgainstRect — host-reserved top edge (a title bar)', () => {
     expect(pos.y).toBe(rect.bottom + GAP);
   });
 });
+
+describe('placeAgainstRect — anchor inside a host-reserved top edge', () => {
+  it('places the panel below the reserved edge', () => {
+    const pos = placeAgainstRect({
+      rect: rectAt(400, 4, 120, 20), w: PANEL_W, h: PANEL_H, bounds: { top: 48, left: 0, right: VW, bottom: VH },
+      placement: 'below-start', anchorGapPx: GAP, edgePadPx: EDGE_PAD,
+    });
+    expect(pos.y).toBeGreaterThanOrEqual(48);
+  });
+});

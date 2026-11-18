@@ -156,7 +156,8 @@ export function placeAgainstRect(input: RectPlacementInput): { x: number; y: num
     x = Math.max(minX, Math.min(startX, maxX - w));
   }
 
-  return { x, y };
+  // An anchor inside a reserved edge (a title bar) puts the panel past it, not beside the anchor.
+  return { x, y: Math.max(y, minY) };
 }
 
 export interface ClampedPositionOptions {
