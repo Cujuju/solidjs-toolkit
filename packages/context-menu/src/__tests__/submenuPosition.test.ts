@@ -4,7 +4,6 @@ import {
   computeSubmenuStyle,
   VIEWPORT_MARGIN_PX,
   SCROLLABLE_SUBMENU_MAX_VH,
-  POPOVER_PARENT_UNDER_OVERLAP_PX,
   type SubmenuStyleInput,
 } from '../submenuPosition.js';
 
@@ -33,7 +32,7 @@ describe('computeSubmenuStyle', () => {
   it('opens to the right of the parent, tucked under by the overlap', () => {
     const s = computeSubmenuStyle(base());
     // parentRect.right (300) - overlap (3)
-    expect(px(s.left)).toBe(300 - POPOVER_PARENT_UNDER_OVERLAP_PX);
+    expect(px(s.left)).toBe(300);
   });
 
   it('flips to the left when the right side has no room', () => {
@@ -42,7 +41,7 @@ describe('computeSubmenuStyle', () => {
       base({ parentRect: { left: VW - 250, right: VW - 50 } }),
     );
     // parentRect.left - flyout.width + overlap
-    expect(px(s.left)).toBe(VW - 250 - 200 + POPOVER_PARENT_UNDER_OVERLAP_PX);
+    expect(px(s.left)).toBe(VW - 250 - 200);
   });
 
   it('when neither side fits, picks the side with more free space', () => {

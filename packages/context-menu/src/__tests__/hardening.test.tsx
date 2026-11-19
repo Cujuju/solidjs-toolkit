@@ -6,7 +6,6 @@ import { createEscapeOwner } from '@cujuju/solidjs-hooks';
 import { ContextMenu } from '../ContextMenu.js';
 import { ContextMenuSubmenuTrigger } from '../index.js';
 import { submenuCloseDelayMs, type ContextMenuSurface } from '../MenuEntries.js';
-import { POPOVER_PARENT_UNDER_OVERLAP_PX } from '../submenuPosition.js';
 import submenuItemSource from '../SubmenuItem.tsx?raw';
 import type { ContextMenuEntry, ContextMenuSubmenu } from '../types.js';
 
@@ -365,9 +364,7 @@ describe('ContextMenu — submenu top layer', () => {
     hover(wrappers()[0]);
     await nextFrame();
 
-    expect(flyouts()[0].style.left).toBe(
-      `${PARENT.left - FLYOUT_W + POPOVER_PARENT_UNDER_OVERLAP_PX}px`,
-    );
+    expect(flyouts()[0].style.left).toBe(`${PARENT.left - FLYOUT_W}px`);
   });
 
   it('a submenu closed before its frame fires does not promote its detached flyout', async () => {

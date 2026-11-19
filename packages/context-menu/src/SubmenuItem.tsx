@@ -245,8 +245,8 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     el.setAttribute('popover', 'manual');
   };
 
-  // Built lazily, so a closed submenu never mounts its children. A nested sub-submenu tucks
-  // under THIS submenu and inherits our surface.
+  // Built lazily, so a closed submenu never mounts its children. A nested sub-submenu sits
+  // flush beside THIS submenu and inherits our surface.
   const renderFlyoutBody = () => (
     <CustomSubmenuScope.Provider value={undefined}>
       <Show when={props.submenu.scrollable}>
