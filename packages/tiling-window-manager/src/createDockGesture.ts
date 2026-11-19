@@ -1,4 +1,4 @@
-import { batch, createSignal, onCleanup } from 'solid-js';
+import { batch, createMemo, createSignal, onCleanup } from 'solid-js';
 import type { LayoutRect } from './layout.js';
 import { tileHitAt, type TileHit } from './plan.js';
 import type { DropZone } from './tileTree.js';
@@ -16,10 +16,8 @@ export const TAB_TARGET_ATTR = 'data-twm-tab-target';
 export const DEFAULT_TAB_TARGET = `[${TAB_TARGET_ATTR}]`;
 
 export interface DockPreview extends TileHit {
-  /** Where the moved tile and the target land if released here. */
-  placement: { rect: LayoutRect; targetRect?: LayoutRect };
-  /** Dropping here joins the target as a tab, without asking. */
-  tab?: boolean;
+  /** The direct tab target under the pointer, when present. */
+  tabRect?: LayoutRect;
 }
 
 /** A centre drop waiting for Swap or Tab. */
@@ -53,8 +51,7 @@ export function createDockGesture(deps: {
   targets: () => ReadonlyMap<string, LayoutRect>;
   /** A target the moved tile can never drop on: its own single-tile slot. */
   exclude: (movedId: string) => string | undefined;
-  /** The rendered result of a move, or null when it changes nothing. */
-  plan: (movedId: string, targetId: string, zone: DropZone) => DockPreview['placement'] | null;
+  canDrop: (movedId: string, targetId: string, zone: DropZone) => boolean;
   onDrop: (movedId: string, targetId: string, zone: DropZone) => void;
   /** Set when tab groups are on: a tab-target drop joins the target as a tab. */
   onTab?: (movedId: string, targetId: string) => void;
@@ -69,6 +66,12 @@ export function createDockGesture(deps: {
 }) {
   const [preview, setPreview] = createSignal<DockPreview | null>(null);
   const [dragging, setDragging] = createSignal<string | null>(null);
+  const targetId = createMemo(() => preview()?.targetId);
+  const available = createMemo<ReadonlySet<DropZone>>(() => {
+    const source = dragging();
+    const target = targetId();
+    return new Set(source && target ? MOVE_ZONES.filter((zone) => deps.canDrop(source, target, zone)) : []);
+  });
   let teardown: (() => void) | undefined;
   const cancel = () => teardown?.();
   onCleanup(cancel);
@@ -80,12 +83,7 @@ export function createDockGesture(deps: {
     const hit = tileHitAt(deps.targets(), event.clientX - area.left, event.clientY - area.top, MOVE_ZONES, deps.exclude(movedId));
     if (!hit) return null;
     const bar = deps.onTab ? tabTargetRect(container, hit.targetId, event, deps.tabTarget?.() ?? DEFAULT_TAB_TARGET) : null;
-    // No centre plan means the target is the tile's own slot, whose strip reorders it instead.
-    if (bar) return deps.plan(movedId, hit.targetId, 'center') ? { ...hit, zone: 'center', tab: true, placement: { rect: bar } } : null;
-    const placement = deps.plan(movedId, hit.targetId, hit.zone);
-    if (!placement) return null;
-    // A centre drop that asks first previews the whole target, not a guessed swap.
-    return { ...hit, placement: hit.zone === 'center' && deps.onCenterDrop ? { rect: hit.rect } : placement };
+    return bar ? { ...hit, zone: 'center', tabRect: bar } : hit;
   }
 
   function track(movedId: string, startX: number, startY: number, alreadyDragging: boolean) {
@@ -106,14 +104,15 @@ export function createDockGesture(deps: {
     // One batch: a centre drop's menu opens in the same update that ends the drag, so no state in between shows.
     const release = (next: PointerEvent) => batch(() => {
       const leftWindow = dragging() !== null && !insideViewport(next);
-      const target = dragging() ? hitTest(movedId, next) : null;
+      const hit = dragging() ? hitTest(movedId, next) : null;
+      const target = hit && deps.canDrop(movedId, hit.targetId, hit.zone) ? hit : null;
       finish();
       if (leftWindow && deps.onDropOutside) {
         deps.onDropOutside(movedId, next);
         return;
       }
       if (!target) return;
-      if (target.tab) deps.onTab?.(movedId, target.targetId);
+      if (target.tabRect) deps.onTab?.(movedId, target.targetId);
       else if (target.zone === 'center' && deps.onCenterDrop) deps.onCenterDrop({ movedId, targetId: target.targetId, x: next.clientX, y: next.clientY });
       else deps.onDrop(movedId, target.targetId, target.zone);
     });
@@ -156,5 +155,5 @@ export function createDockGesture(deps: {
     setPreview(hitTest(movedId, event));
   }
 
-  return { preview, dragging, start, begin, cancel };
+  return { preview, available, dragging, start, begin, cancel };
 }
