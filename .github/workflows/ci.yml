@@ -48,6 +48,9 @@ jobs:
       - name: Download Electron
         run: |
           npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/electron" electron@45.0.0
-          app="$(node -p "require('$RUNNER_TEMP/electron/node_modules/electron')" | sed 's#/Contents/MacOS/Electron$##')"
+          # Electron 45 downloads its binary on first require and may print progress there; only the last line is the path.
+          node -e "require('$RUNNER_TEMP/electron/node_modules/electron')" > /dev/null
+          app="$(node -p "require('$RUNNER_TEMP/electron/node_modules/electron')" | tail -n 1 | sed 's#/Contents/MacOS/Electron$##')"
+          test -d "$app"
           echo "ELECTRON_UPDATES_ELECTRON_APP=$app" >> "$GITHUB_ENV"
       - run: pnpm --filter @cujuju/electron-updates exec vitest run src/__tests__/macSwap.test.ts
