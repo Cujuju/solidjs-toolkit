@@ -23,6 +23,8 @@ The host owns meaning; the package owns presentation and lifecycle.
 
 ## Overlay window
 
+Use `supportsNoticeOverlay({ platform, sessionType, ozonePlatform })` to decide whether to offer overlay delivery. Pass the same values to `createNoticeOverlay`. On Linux, use `process.env.XDG_SESSION_TYPE` and Electron's `ozone-platform` switch. X11 shapes the window around painted rectangles, allowing clicks through the gaps. Wayland and unknown Linux sessions should use system delivery.
+
 ```ts
 // Main process, after app readiness
 import { BrowserWindow, screen, ipcMain } from 'electron';

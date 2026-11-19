@@ -1,16 +1,16 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { createNoticeOverlay } from '../overlay.js';
+import { createNoticeOverlay, supportsNoticeOverlay } from '../overlay.js';
 import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, NOTICE_CHANNELS, type NoticeView } from '../types.js';
-function setup(platform = 'win32') {
+function setup(platform = 'win32', sessionType?: string) {
   const events: Record<string, () => void> = {};
-  const w = { setBounds: vi.fn(), showInactive: vi.fn(), hide: vi.fn(), isVisible: () => false, isDestroyed: () => false,
+  const w = { setShape: vi.fn(), setBounds: vi.fn(), showInactive: vi.fn(), hide: vi.fn(), isVisible: () => false, isDestroyed: () => false,
     destroy: vi.fn(() => events.closed()), setAlwaysOnTop: vi.fn(), setVisibleOnAllWorkspaces: vi.fn(), setIgnoreMouseEvents: vi.fn(),
     on: (name: string, cb: () => void) => { events[name] = cb; },
     webContents: { send: vi.fn(), on: (name: string, cb: () => void) => { events[name] = cb; }, setWindowOpenHandler: vi.fn() } };
   const view: NoticeView = { config: { ...DEFAULT_NOTICE_CONFIG }, appearance: { vars: {} }, tones: BASIC_TONES };
   const createWindow = vi.fn(() => w), onOpen = vi.fn(), onAction = vi.fn();
   const area = { x: 0, y: 0, width: 1000, height: 800 };
-  const overlay = createNoticeOverlay({ createWindow, primaryDisplay: () => ({ bounds: area, workArea: area }), view: () => view, platform, onOpen, onAction });
+  const overlay = createNoticeOverlay({ createWindow, primaryDisplay: () => ({ bounds: area, workArea: area }), view: () => view, platform, sessionType, onOpen, onAction });
   return { overlay, w, view, events, createWindow, onOpen, onAction };
 }
 it('creates lazily, sends view before queued notices and resets on close', async () => {
@@ -38,6 +38,42 @@ it.each(['darwin', 'linux'])('applies platform policy for %s and creates the res
   overlay.pointer(true); expect(w.setIgnoreMouseEvents).toHaveBeenCalledTimes(platform === 'linux' ? 0 : 2);
   expect(w.webContents.setWindowOpenHandler.mock.calls[0][0]()).toEqual({ action: 'deny' });
   overlay.ready(); overlay.refresh(); expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.view, view, 'top-center', 800);
+});
+
+it.each([
+  [{ platform: 'darwin' }, true],
+  [{ platform: 'win32' }, true],
+  [{ platform: 'linux' }, false],
+  [{ platform: 'linux', sessionType: 'x11' }, true],
+  [{ platform: 'linux', sessionType: 'x11', ozonePlatform: 'x11' }, true],
+  [{ platform: 'linux', sessionType: 'x11', ozonePlatform: 'wayland' }, false],
+  [{ platform: 'linux', sessionType: 'wayland', ozonePlatform: 'x11' }, false],
+])('reports overlay support for %j', (environment, supported) => {
+  expect(supportsNoticeOverlay(environment)).toBe(supported);
+});
+
+it('shows only shaped X11 card areas, and hides when none remain', () => {
+  const { overlay, view, w } = setup('linux', 'x11');
+  overlay.warm();
+  overlay.ready();
+  expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.view, view, 'bottom-right', 800, true);
+  overlay.resize(200, 100);
+  expect(w.showInactive).not.toHaveBeenCalled();
+  overlay.resize(200, 100, [
+    { x: 10.2, y: -4, width: 169.9, height: 34 },
+    { x: 10, y: 55, width: 190, height: 100 },
+    { x: 10, y: 110, width: 100, height: 25 },
+    { x: NaN, y: 0, width: 200, height: 100 },
+  ]);
+  expect(w.setShape).toHaveBeenCalledWith([
+    { x: 10, y: 0, width: 171, height: 30 },
+    { x: 10, y: 55, width: 190, height: 45 },
+  ]);
+  expect(w.showInactive).toHaveBeenCalledOnce();
+  overlay.resize(200, 100, []);
+  expect(w.hide).toHaveBeenCalledTimes(2);
+  expect(w.setShape).toHaveBeenCalledOnce();
+  expect(w.setIgnoreMouseEvents).not.toHaveBeenCalled();
 });
 
 afterEach(() => vi.useRealTimers());

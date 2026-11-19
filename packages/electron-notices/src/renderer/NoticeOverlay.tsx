@@ -38,6 +38,7 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
   const [view, setView] = createSignal<NoticeView>(INITIAL_VIEW);
   const [placement, setPlacement] = createSignal<NoticePlacement>(INITIAL_PLACEMENT);
   const [maxHeight, setMaxHeight] = createSignal<number | undefined>();
+  const [shaped, setShaped] = createSignal(false);
   const [latest, setLatest] = createSignal<Notice | null>(null);
   const queue = createNoticeQueue(
     (n) => noticeDuration(n, view()),
@@ -58,10 +59,11 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
     if (!root) return;
     for (const id of unacked) if (hasNoticeElement(root, id)) { unacked.delete(id); bridge.ack(id); }
   };
-  onCleanup(bridge.onView((v, p, h) => {
+  onCleanup(bridge.onView((v, p, h, shape) => {
     setView(v);
     setPlacement(p);
     setMaxHeight(h);
+    setShaped(shape === true);
   }));
   onCleanup(bridge.onNotice((n) => {
     queue.push(n);
@@ -90,8 +92,11 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
     ackRendered();
     if (props.inline || !root) return;
     const el = root;
-    onCleanup(watchSize(el, (width, height) => bridge.resize(width, height)));
-    onCleanup(watchPointer(INTERACTIVE, (over) => bridge.pointer(over)));
+    createEffect(() => {
+      const needsShape = shaped();
+      onCleanup(watchSize(el, (width, height, rects) => bridge.resize(width, height, rects), needsShape ? INTERACTIVE : undefined));
+      if (!needsShape) onCleanup(watchPointer(INTERACTIVE, (over) => bridge.pointer(over)));
+    });
   });
 
   const list = () => ({
