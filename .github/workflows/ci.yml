@@ -27,3 +27,27 @@ jobs:
       - run: pnpm typecheck
       # Packages only, one at a time: parallel vitest runs share a transform cache. The playground's suite is excluded, as in `build`.
       - run: pnpm --filter './packages/*' --workspace-concurrency=1 test
+
+  macos-updates:
+    # electron-updates on a Mac: runs the real bundle swap and a packaged stage → quit → swap → relaunch smoke.
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The smoke's fixture app loads the built package.
+      - run: pnpm --filter @cujuju/electron-updates build
+      # Outside the workspace, so the lockfile stays Electron-free; the package downloads its binary on first require.
+      - name: Download Electron
+        run: |
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/electron" electron@45.0.0
+          app="$(node -p "require('$RUNNER_TEMP/electron/node_modules/electron')" | sed 's#/Contents/MacOS/Electron$##')"
+          echo "ELECTRON_UPDATES_ELECTRON_APP=$app" >> "$GITHUB_ENV"
+      - run: pnpm --filter @cujuju/electron-updates exec vitest run src/__tests__/macSwap.test.ts
