@@ -5,8 +5,8 @@ import { Portal } from 'solid-js/web';
 import { POPOVER_STACK_ATTR } from './_internal/popoverStack.js';
 import { CustomSubmenuScope, type SubmenuScope } from './_internal/submenuScope.js';
 import { MenuEntries } from './MenuEntries.js';
+import { createSubmenuHover } from './submenuHover.js';
 import { computeSubmenuStyle } from './submenuPosition.js';
-import { submenuCloseDelayMs } from './submenuTiming.js';
 import { isDivider, type ContextMenuSubmenu } from './types.js';
 
 /** First control a keyboard-opened submenu focuses: an enabled row button or slider. */
@@ -45,7 +45,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
   scope: SubmenuScope;
   builtin?: boolean;
 }) {
-  const { menu, activeSubmenu, setActiveSubmenu } = props.scope;
+  const { menu, activeSubmenu, setActiveSubmenu, aimLock } = props.scope;
   const key = Symbol();
   const [filter, setFilter] = createSignal('');
   const [flyoutStyle, setFlyoutStyle] = createSignal<Record<string, string>>({});
@@ -56,8 +56,6 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
   /** Set by a keyboard open; the opening frame then moves focus into the flyout. */
   let focusOnOpen = false;
   let resizeObserver: ResizeObserver | undefined;
-  let closeTimer: ReturnType<typeof setTimeout> | undefined;
-  let hoverScope: HTMLElement | null = null;
 
   const isOpen = createMemo(() => activeSubmenu() === key);
   const triggerAnchor = () => wrapperRef ?? triggerRef;
@@ -83,13 +81,33 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     );
   }
 
-  function enter() {
+  /** Click or keyboard: a deliberate open, never deferred. */
+  function open() {
     if (!props.disabled) setActiveSubmenu(key);
   }
 
   function close() {
     setActiveSubmenu((active) => active === key ? undefined : active);
   }
+
+  const hover = createSubmenuHover({
+    key,
+    lock: aimLock,
+    isOpen,
+    trigger: triggerAnchor,
+    flyout: () => flyoutRef,
+    close,
+  });
+
+  /** Pointer hover: deferred while a sibling submenu holds the aim. */
+  function hoverOpen() {
+    if (props.disabled) return;
+    hover.endAim();
+    aimLock.request(key);
+  }
+
+  // Unmounting drops the aim without handing off: no listener or timer outlives the row.
+  onCleanup(() => hover.detach());
   onCleanup(close);
   createEffect(() => { if (props.disabled) close(); });
 
@@ -100,13 +118,13 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
 
   function openFromKeyboard() {
     if (props.disabled) return;
-    cancelClose();
+    hover.endAim();
     if (isOpen() && flyoutRef?.matches(':popover-open')) {
       focusFlyout();
       return;
     }
     focusOnOpen = true;
-    enter();
+    open();
   }
 
   function onTriggerClick(e: MouseEvent) {
@@ -114,7 +132,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     if (!props.builtin) e.stopPropagation();
     // `detail === 0`: Enter/Space synthesised this click. A pointer already opened it on hover.
     if (e.detail === 0) openFromKeyboard();
-    else enter();
+    else open();
   }
 
   function onTriggerKeyDown(e: KeyboardEvent) {
@@ -136,40 +154,6 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     e.stopPropagation();
   }
 
-  function cancelClose() {
-    clearTimeout(closeTimer);
-    closeTimer = undefined;
-  }
-
-  // A hover anywhere in the parent menu outside this trigger starts the close
-  // grace; re-entering the trigger or the flyout cancels it.
-  function onParentMouseOver(e: MouseEvent) {
-    if (triggerAnchor()?.contains(e.target as Node)) {
-      cancelClose();
-      return;
-    }
-    if (closeTimer !== undefined) return;
-    const pathPx = hoverScope?.offsetWidth ?? 0;
-    // Unmeasurable parent (no layout yet): no path, so no grace to derive — leave the submenu open.
-    if (pathPx <= 0) return;
-    closeTimer = setTimeout(() => {
-      closeTimer = undefined;
-      close();
-    }, submenuCloseDelayMs(pathPx));
-  }
-
-  // The flyout is placed once from the trigger rect; a scrolled parent would leave it detached.
-  function onParentScroll() {
-    close();
-  }
-
-  function detachHoverScope() {
-    hoverScope?.removeEventListener('mouseover', onParentMouseOver);
-    hoverScope?.removeEventListener('scroll', onParentScroll, true);
-    hoverScope = null;
-    cancelClose();
-  }
-  onCleanup(detachHoverScope);
   // Effect transitions disconnect only on close; an open submenu unmounting must too.
   onCleanup(() => resizeObserver?.disconnect());
 
@@ -208,11 +192,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
           // cleanup so a stale tick can't reposition a disposed flyout.
           resizeObserver = new ResizeObserver(() => afterResize(positionFlyout));
           resizeObserver.observe(flyoutRef);
-          detachHoverScope();
-          hoverScope = menu.parentMenuRef();
-          hoverScope?.addEventListener('mouseover', onParentMouseOver);
-          // Capture: scroll doesn't bubble, and GlassMenu scrolls a body child, not the root.
-          hoverScope?.addEventListener('scroll', onParentScroll, true);
+          hover.attach(menu.parentMenuRef());
         }
         if (props.submenu.scrollable || focusOnOpen) focusFlyout();
         focusOnOpen = false;
@@ -220,7 +200,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     } else {
       focusOnOpen = false;
       resizeObserver?.disconnect();
-      detachHoverScope();
+      hover.detach();
       if (flyoutRef && flyoutRef.matches(':popover-open')) {
         flyoutRef.hidePopover();
       }
@@ -283,7 +263,8 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
       disabled={props.disabled}
       aria-haspopup="menu"
       aria-expanded={isOpen()}
-      onMouseEnter={props.builtin ? undefined : enter}
+      onMouseEnter={props.builtin ? undefined : hoverOpen}
+      onPointerLeave={props.builtin ? undefined : hover.onTriggerPointerLeave}
       onClick={props.builtin ? onTriggerClick : undefined}
       onKeyDown={onTriggerKeyDown}
     >
@@ -313,7 +294,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
             class="cujuju-context-menu cujuju-context-menu-flyout cujuju-context-menu--solid"
             {...{ [POPOVER_STACK_ATTR]: '' }}
             style={flyoutStyle()}
-            onMouseEnter={cancelClose}
+            onMouseEnter={hover.endAim}
             onClick={props.builtin ? undefined : stopFlyoutClick}
             onKeyDown={onFlyoutKeyDown}
           >
@@ -326,7 +307,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
             class="cujuju-context-menu cujuju-context-menu-flyout"
             {...{ [POPOVER_STACK_ATTR]: '' }}
             style={flyoutStyle()}
-            onMouseEnter={cancelClose}
+            onMouseEnter={hover.endAim}
             onClick={props.builtin ? undefined : stopFlyoutClick}
             onKeyDown={onFlyoutKeyDown}
           >
@@ -338,7 +319,12 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
   );
 
   return props.builtin ? (
-    <div ref={wrapperRef} class="cujuju-context-menu-submenu-wrapper" onMouseEnter={enter}>
+    <div
+      ref={wrapperRef}
+      class="cujuju-context-menu-submenu-wrapper"
+      onMouseEnter={hoverOpen}
+      onPointerLeave={hover.onTriggerPointerLeave}
+    >
       {renderTrigger()}
       {renderFlyout()}
     </div>

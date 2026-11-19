@@ -5,7 +5,8 @@ import { createRoot, createSignal, Show } from 'solid-js';
 import { createEscapeOwner } from '@cujuju/solidjs-hooks';
 import { ContextMenu } from '../ContextMenu.js';
 import { ContextMenuSubmenuTrigger } from '../index.js';
-import { submenuCloseDelayMs, type ContextMenuSurface } from '../MenuEntries.js';
+import { aimRegion } from '../_internal/submenuAim.js';
+import type { ContextMenuSurface } from '../MenuEntries.js';
 import submenuItemSource from '../SubmenuItem.tsx?raw';
 import type { ContextMenuEntry, ContextMenuSubmenu } from '../types.js';
 
@@ -197,116 +198,172 @@ describe('ContextMenu — checked state a11y', () => {
   });
 });
 
-describe('ContextMenu — submenu hover intent', () => {
+describe('ContextMenu — submenu hover aim', () => {
   const items = (): ContextMenuEntry[] => [
     { submenu: true, label: 'Export', children: [{ label: 'CSV', onClick: () => {} }] },
     { label: 'Delete', onClick: () => {} },
+    { submenu: true, label: 'Share', children: [{ label: 'Link', onClick: () => {} }] },
   ];
   const deleteRow = () =>
     Array.from(rootMenu().querySelectorAll('.cujuju-context-menu-item')).find(
       (el) => el.textContent === 'Delete',
     ) as HTMLElement;
-  // jsdom has no layout; the grace is derived from the parent menu's measured width.
-  const DEFAULT_MENU_W = 160;
-  let menuWidth = DEFAULT_MENU_W;
-  const delay = () => submenuCloseDelayMs(menuWidth);
+  // jsdom has no layout: the flyout sits to the right of the parent, which ends at x = 200.
+  const FLYOUT = { left: 200, right: 400, top: 0, bottom: 300 };
+  // The pointer leaves the Export row through its bottom edge, short of the flyout.
+  const EXIT = { x: 150, y: 28 };
+  const graceMs = () => aimRegion(EXIT.x, EXIT.y, FLYOUT)!.graceMs;
+  const flyoutLabel = () => flyouts()[0]?.textContent;
+
+  function pointer(type: string, target: EventTarget, x: number, y: number, init: MouseEventInit = {}) {
+    // jsdom has no PointerEvent; the handlers read only MouseEvent fields plus pointerType.
+    target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, ...init }));
+  }
+  const leaveExport = (relatedTarget: EventTarget = deleteRow()) =>
+    pointer('pointerleave', wrappers()[0]!, EXIT.x, EXIT.y, { bubbles: false, relatedTarget });
+
+  async function openExport() {
+    renderMenu(items());
+    hover(wrappers()[0]!);
+    await nextFrame();
+    expect(flyoutLabel()).toBe('CSV');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  }
 
   beforeEach(() => {
-    menuWidth = DEFAULT_MENU_W;
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
-      return this.classList.contains('cujuju-context-menu') ? menuWidth : 0;
+      const zero = { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
+      if (!this.classList.contains('cujuju-context-menu-flyout')) return zero as DOMRect;
+      return { ...zero, ...FLYOUT, width: FLYOUT.right - FLYOUT.left, height: FLYOUT.bottom } as DOMRect;
     });
   });
 
-  it('scales the grace to the parent menu\'s measured width', async () => {
-    menuWidth = 300;
-    renderMenu(items());
-    hover(wrappers()[0]);
-    await nextFrame();
+  it('closes at once when the pointer moves straight down to the next row', async () => {
+    await openExport();
+    leaveExport();
+    pointer('pointermove', deleteRow(), EXIT.x, EXIT.y + 12);
 
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    deleteRow().dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-    vi.advanceTimersByTime(delay() - 1);
+    expect(flyouts()).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('stays open while the pointer crosses a sibling row on a diagonal into the flyout', async () => {
+    await openExport();
+    leaveExport();
+    pointer('pointerover', deleteRow(), 170, 40);
+    pointer('pointermove', deleteRow(), 170, 40);
+    expect(flyoutLabel()).toBe('CSV');
+
+    hover(flyouts()[0]!);
+    vi.advanceTimersByTime(graceMs());
+
+    expect(flyoutLabel()).toBe('CSV');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('closes when the pointer stops inside the aim region past the grace', async () => {
+    await openExport();
+    leaveExport();
+    pointer('pointermove', deleteRow(), 170, 40);
+
+    vi.advanceTimersByTime(graceMs() - 1);
     expect(flyouts()).toHaveLength(1);
     vi.advanceTimersByTime(1);
 
     expect(flyouts()).toHaveLength(0);
   });
 
-  it('does not arm the grace when the parent has no measurable width', async () => {
-    // A 0 measurement (unlaid-out parent) must not mean a 0 ms grace.
-    menuWidth = 0;
-    renderMenu(items());
-    hover(wrappers()[0]);
-    await nextFrame();
+  it('defers a sibling submenu crossed mid-aim, then opens it once the pointer settles there', async () => {
+    await openExport();
+    leaveExport(wrappers()[1]!);
+    hover(wrappers()[1]!);
+    expect(flyoutLabel()).toBe('CSV');
 
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    deleteRow().dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-    vi.advanceTimersByTime(submenuCloseDelayMs(DEFAULT_MENU_W));
+    pointer('pointermove', wrappers()[1]!, EXIT.x, EXIT.y + 40);
 
     expect(flyouts()).toHaveLength(1);
+    expect(flyoutLabel()).toBe('Link');
   });
 
-  it('closes an open submenu once the pointer moves elsewhere in the parent menu', async () => {
-    renderMenu(items());
-    hover(wrappers()[0]);
-    await nextFrame();
-    expect(flyouts()).toHaveLength(1);
-
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    deleteRow().dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-    vi.advanceTimersByTime(delay());
+  it('drops a deferred sibling the pointer has already left', async () => {
+    await openExport();
+    leaveExport(wrappers()[1]!);
+    hover(wrappers()[1]!);
+    pointer('pointerleave', wrappers()[1]!, 170, 40, { bubbles: false });
+    vi.advanceTimersByTime(graceMs());
 
     expect(flyouts()).toHaveLength(0);
   });
 
-  it('keyboard activation cancels the hover close of an open flyout', async () => {
-    renderMenu(items());
-    hover(wrappers()[0]);
-    await nextFrame();
-    const trigger = wrappers()[0].querySelector('button')!;
-    const leaf = flyouts()[0].querySelector('button')!;
+  it('closes when the pointer leaves the menu away from the flyout', async () => {
+    await openExport();
+    leaveExport(document.body);
+    pointer('pointermove', document.body, EXIT.x, 500);
 
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    deleteRow().dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(flyouts()).toHaveLength(0);
+  });
+
+  it('stays open when the pointer leaves the menu inside the aim region', async () => {
+    // A flyout taller than the parent: the straight path to its lower rows runs outside the parent.
+    await openExport();
+    leaveExport(document.body);
+    pointer('pointermove', document.body, 195, 200);
+
+    expect(flyoutLabel()).toBe('CSV');
+  });
+
+  it('keeps the submenu open when the pointer returns to its trigger', async () => {
+    await openExport();
+    leaveExport();
+    hover(wrappers()[0]!);
+    vi.advanceTimersByTime(graceMs());
+
+    expect(flyoutLabel()).toBe('CSV');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('closes at once on a hover elsewhere in the parent with no aim in progress', async () => {
+    // The pointer came back out of the flyout onto another row.
+    await openExport();
+    pointer('pointerover', deleteRow(), 100, 40);
+
+    expect(flyouts()).toHaveLength(0);
+  });
+
+  it('starts no aim for a touch pointer', async () => {
+    await openExport();
+    const touchLeave = new MouseEvent('pointerleave', { clientX: EXIT.x, clientY: EXIT.y });
+    Object.defineProperty(touchLeave, 'pointerType', { value: 'touch' });
+    wrappers()[0]!.dispatchEvent(touchLeave);
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(flyoutLabel()).toBe('CSV');
+  });
+
+  it('removes its pointermove listener and timer when the menu unmounts mid-aim', async () => {
+    const remove = vi.spyOn(document, 'removeEventListener');
+    await openExport();
+    leaveExport();
+    dispose?.();
+    dispose = null;
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(remove.mock.calls.some(([type]) => type === 'pointermove')).toBe(true);
+  });
+
+  it('keyboard activation ends the aim and keeps the flyout open', async () => {
+    await openExport();
+    const trigger = wrappers()[0]!.querySelector('button')!;
+    const leaf = flyouts()[0]!.querySelector('button')!;
+    leaveExport();
     trigger.focus();
     trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    vi.advanceTimersByTime(delay());
+    vi.advanceTimersByTime(graceMs());
 
-    expect(flyouts()).toHaveLength(1);
+    expect(flyoutLabel()).toBe('CSV');
     expect(document.activeElement).toBe(leaf);
-  });
-
-  it('keeps the submenu open when the pointer crosses a sibling on its way into the flyout', async () => {
-    renderMenu(items());
-    hover(wrappers()[0]);
-    await nextFrame();
-
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    deleteRow().dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-    vi.advanceTimersByTime(delay() - 1);
-    hover(flyouts()[0]);
-    vi.advanceTimersByTime(delay());
-
-    expect(flyouts()).toHaveLength(1);
-  });
-
-  it('keeps the submenu open when the pointer returns to its trigger within the grace', async () => {
-    renderMenu(items());
-    hover(wrappers()[0]);
-    await nextFrame();
-
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    deleteRow().dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-    vi.advanceTimersByTime(delay() - 1);
-    (wrappers()[0].firstElementChild as HTMLElement).dispatchEvent(
-      new MouseEvent('mouseover', { bubbles: true }),
-    );
-    vi.advanceTimersByTime(delay());
-
-    expect(flyouts()).toHaveLength(1);
   });
 
   it('closes an open submenu when its parent menu scrolls (the flyout would detach)', async () => {
