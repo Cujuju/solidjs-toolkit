@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show, untrack, type JSX } from 'solid-js';
 import { createDockGesture, DEFAULT_TAB_TARGET, type CenterDrop, type DragPhase } from './createDockGesture.js';
 import { DockMenu } from './DockMenu.js';
+import { DockZoneGuides } from './DockZoneGuides.js';
 import { computeTileLayout, minimumSize, slotRects, type LayoutRect, type LayoutSlot, type TileLayoutOptions, type TileSize } from './layout.js';
 import { PlacementLayer, type Placing } from './PlacementLayer.js';
 import { planMove, type PlacementMode } from './plan.js';
@@ -140,7 +141,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
     container: () => container,
     targets,
     exclude: (movedId) => (findSlot(props.layout, movedId)?.slot.kind === 'tile' ? movedId : undefined),
-    plan: planFor,
+    canDrop: (movedId, targetId, zone) => planFor(movedId, targetId, zone) !== null,
     onDrop: (movedId, targetId, zone) => { const plan = planFor(movedId, targetId, zone); if (plan) change(plan.next); },
     tabTarget: () => (typeof props.tabs === 'object' && props.tabs.target) || DEFAULT_TAB_TARGET,
     // Getters: the gesture reads whether each hook is set at press time. Without tabs the tab hooks
@@ -245,8 +246,11 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
       <Show when={dockGesture.preview()}>
         {(preview) => (
           <>
-            <Show when={preview().placement.targetRect}>{(target) => <div class="twm-preview-target" style={box(target())} />}</Show>
-            <div class="twm-preview" data-zone={preview().zone} style={box(preview().placement.rect)} />
+            <DockZoneGuides style={box(preview().rect)} active={preview().tabRect ? undefined : preview().zone}
+              available={dockGesture.available()} tabs={!!props.tabs} />
+            <Show when={dockGesture.available().has('center') && preview().tabRect}>
+              {(bar) => <div aria-hidden="true" class="twm-preview" data-zone="tab" style={box(bar())} />}
+            </Show>
           </>
         )}
       </Show>

@@ -66,7 +66,7 @@
   outline: none;
 }
 
-/* Where a moved or new tile lands (solid), and what remains of its target (dashed). */
+/* Placement preview and the direct title-bar tab target. */
 .twm-preview,
 .twm-preview-target {
   position: absolute;
@@ -85,6 +85,93 @@
 }
 .twm-preview-target {
   border: 1px dashed var(--twm-border-strong, rgba(255, 255, 255, 0.35));
+}
+
+.twm-dock-guides {
+  position: absolute;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+  border-radius: var(--twm-radius, 8px);
+}
+.twm-dock-map {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--twm-border-strong, rgba(190, 203, 233, 0.6));
+  stroke-width: 1;
+  background: color-mix(in srgb, var(--twm-surface, #1f2435) 42%, transparent);
+}
+.twm-dock-highlight {
+  fill: var(--twm-accent-soft, rgba(139, 92, 246, 0.24));
+  stroke: var(--twm-accent, #a78bfa);
+  stroke-width: 2;
+}
+.twm-dock-highlight[data-blocked] {
+  fill: var(--twm-danger-soft, rgba(239, 68, 68, 0.14));
+  stroke: var(--twm-danger, #ef4444);
+  stroke-dasharray: 4 3;
+}
+.twm-dock-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 5px;
+  transform: translate(-50%, -50%);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--twm-surface, #1f2435);
+  color: var(--twm-text, #f0f3ff);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.twm-dock-label[data-active]:not([data-blocked]) {
+  border-color: var(--twm-accent, #a78bfa);
+  box-shadow: inset 0 0 0 1px var(--twm-accent-soft, rgba(139, 92, 246, 0.24));
+}
+.twm-dock-label[data-blocked] {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.twm-dock-icon {
+  box-sizing: border-box;
+  width: 15px;
+  height: 12px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+.twm-dock-label[data-zone='left'] .twm-dock-icon {
+  background: linear-gradient(to right, currentColor 50%, transparent 50%);
+}
+.twm-dock-label[data-zone='right'] .twm-dock-icon {
+  background: linear-gradient(to left, currentColor 50%, transparent 50%);
+}
+.twm-dock-label[data-zone='top'] .twm-dock-icon {
+  background: linear-gradient(to bottom, currentColor 50%, transparent 50%);
+}
+.twm-dock-label[data-zone='bottom'] .twm-dock-icon {
+  background: linear-gradient(to top, currentColor 50%, transparent 50%);
+}
+.twm-dock-label[data-zone='center'] .twm-dock-icon {
+  border-top: 4px double currentColor;
+}
+@container (max-width: 240px) or (max-height: 100px) {
+  .twm-dock-text { display: none; }
+}
+@container (max-width: 92px) or (max-height: 80px) {
+  .twm-dock-label { padding: 0; border: 0; }
+}
+@container (max-width: 60px) or (max-height: 48px) {
+  .twm-dock-icon {
+    width: min(15px, 24cqw);
+    height: min(12px, 24cqh);
+  }
+  .twm-dock-label[data-zone='center'] .twm-dock-icon { border-top-width: 3px; }
 }
 
 .twm-placement {
