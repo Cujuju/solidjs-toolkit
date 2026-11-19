@@ -1,3 +1,5 @@
+import type { Rect } from './placement.js';
+
 export const NOTICE_DELIVERIES = ['overlay', 'system', 'both'] as const;
 export type NoticeDelivery = (typeof NOTICE_DELIVERIES)[number];
 export const NOTICE_STYLES = ['tray', 'drip', 'console'] as const;
@@ -96,10 +98,10 @@ export const NOTICE_CHANNELS = {
 export interface NoticeBridge {
   ready(): void;
   onNotice(cb: (n: Notice) => void): () => void;
-  /** maxHeight: overlay window only, the display's work-area height the stack must fit; inline hosts omit it. */
-  onView(cb: (v: NoticeView, placement: NoticePlacement, maxHeight?: number) => void): () => void;
+  /** Window hosts send the maximum height and whether X11 needs painted rectangles. */
+  onView(cb: (v: NoticeView, placement: NoticePlacement, maxHeight?: number, shaped?: boolean) => void): () => void;
   onWithdraw(cb: (ref: NoticeRef) => void): () => void;
-  resize(width: number, height: number): void; pointer(over: boolean): void;
+  resize(width: number, height: number, rects?: Rect[]): void; pointer(over: boolean): void;
   ack(id: number): void; open(id: number): void; action(id: number, actionId: string): void;
   pin(id: number, pinned: boolean): void; closed(id: number): void;
 }

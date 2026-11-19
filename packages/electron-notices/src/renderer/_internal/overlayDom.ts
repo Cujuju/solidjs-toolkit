@@ -1,14 +1,21 @@
-/** DOM access for the overlay page (CONTRIBUTING §1): size reporting and pointer tracking. Call from onMount only. */
+import type { Rect } from '../../placement.js';
 
-/** Calls `report` with the element's size whenever it may have changed; returns a stop function. */
-export function watchSize(el: HTMLElement, report: (width: number, height: number) => void): () => void {
-  let last = { width: -1, height: -1 };
+/** Reports size and optionally the visible card rectangles in window coordinates. */
+export function watchSize(el: HTMLElement, report: (width: number, height: number, rects?: Rect[]) => void, selector?: string): () => void {
+  let last = '';
   const measure = () => {
-    const r = el.getBoundingClientRect();
-    const size = { width: Math.ceil(r.width), height: Math.ceil(r.height) };
-    if (size.width === last.width && size.height === last.height) return;
-    last = size;
-    report(size.width, size.height);
+    const { width, height } = el.getBoundingClientRect();
+    const surfaces = selector ? Array.from(el.querySelectorAll(selector)) : [];
+    const rects = selector ? surfaces.map((surface) => {
+      const { x, y, width: w, height: h } = surface.getBoundingClientRect();
+      return { x, y, width: w, height: h };
+    }) : undefined;
+    const size = [Math.ceil(width), Math.ceil(height)] as const;
+    const next = JSON.stringify([size, rects]);
+    if (next !== last) {
+      last = next;
+      report(...size, rects);
+    }
   };
   // A hidden window never paints, so ResizeObserver stays silent; DOM changes still report, so the next notice shows it.
   const mutations = new MutationObserver(measure);
@@ -16,10 +23,12 @@ export function watchSize(el: HTMLElement, report: (width: number, height: numbe
   // Size changes from CSS alone (hover), while visible.
   const resizes = new ResizeObserver(measure);
   resizes.observe(el);
+  if (selector) el.addEventListener('scroll', measure, { passive: true });
   measure();
   return () => {
     mutations.disconnect();
     resizes.disconnect();
+    if (selector) el.removeEventListener('scroll', measure);
   };
 }
 
