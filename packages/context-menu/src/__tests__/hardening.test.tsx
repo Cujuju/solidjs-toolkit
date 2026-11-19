@@ -240,6 +240,50 @@ describe('ContextMenu — submenu hover aim', () => {
     });
   });
 
+  it('judges a single move that lands off course at once, from the last point inside the trigger', async () => {
+    // Chromium reports pointerleave at the landing point, so the aim must start from inside.
+    await openExport();
+    pointer('pointermove', wrappers()[0]!, EXIT.x, EXIT.y - 8);
+    leaveExport();
+
+    expect(flyouts()).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps a single diagonal move that lands on course aiming', async () => {
+    await openExport();
+    pointer('pointermove', wrappers()[0]!, EXIT.x, EXIT.y - 8);
+    pointer('pointerleave', wrappers()[0]!, 175, 36, { bubbles: false, relatedTarget: deleteRow() });
+
+    expect(flyoutLabel()).toBe('CSV');
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('drops a deferred sibling that becomes disabled before the hand-off', async () => {
+    const [shareDisabled, setShareDisabled] = createSignal(false);
+    const share: ContextMenuSubmenu = { submenu: true, label: 'Share', children: [{ label: 'Link', onClick: () => {} }] };
+    dispose = render(() => (
+      <ContextMenu x={10} y={10} onClose={() => {}} items={[
+        items()[0]!,
+        { custom: () => (
+          <ContextMenuSubmenuTrigger submenu={share} disabled={shareDisabled()} class="share-cell">
+            Share
+          </ContextMenuSubmenuTrigger>
+        ) },
+      ]} />
+    ), document.body);
+    hover(wrappers()[0]!);
+    await nextFrame();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const shareCell = document.querySelector('button.share-cell')!;
+    leaveExport(shareCell);
+    hover(shareCell);
+    setShareDisabled(true);
+    vi.advanceTimersByTime(graceMs());
+
+    expect(flyouts()).toHaveLength(0);
+  });
+
   it('closes at once when the pointer moves straight down to the next row', async () => {
     await openExport();
     leaveExport();

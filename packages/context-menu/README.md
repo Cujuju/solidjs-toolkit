@@ -189,7 +189,7 @@ Each Portal'd submenu also carries `data-popover-stack` — see
   normal stacking context — including other top-layer popovers. When a
   submenu opens, its ancestor menus are re-promoted (nearest first) so
   every parent paints above its child, and the submenu sits flush beside the parent with
-  zero gap.
+  zero gap (when neither side has room, the viewport clamp may overlap it).
 - **Submenus are Portal'd to `<body>`** to escape any `backdrop-filter`
   / `transform` ancestor that would otherwise re-anchor their
   `position: fixed`. Each Portal'd submenu carries the

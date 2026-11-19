@@ -106,10 +106,17 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     aimLock.request(key);
   }
 
-  // Unmounting drops the aim without handing off: no listener or timer outlives the row.
-  onCleanup(() => hover.detach());
+  // Unmounting drops the aim without handing off, and any deferred open of this row.
+  onCleanup(() => {
+    hover.detach();
+    aimLock.withdraw(key);
+  });
   onCleanup(close);
-  createEffect(() => { if (props.disabled) close(); });
+  createEffect(() => {
+    if (!props.disabled) return;
+    aimLock.withdraw(key);
+    close();
+  });
 
   function focusFlyout() {
     if (props.submenu.scrollable) searchRef?.focus();
@@ -264,6 +271,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
       aria-haspopup="menu"
       aria-expanded={isOpen()}
       onMouseEnter={props.builtin ? undefined : hoverOpen}
+      onPointerMove={props.builtin ? undefined : hover.onTriggerPointerMove}
       onPointerLeave={props.builtin ? undefined : hover.onTriggerPointerLeave}
       onClick={props.builtin ? onTriggerClick : undefined}
       onKeyDown={onTriggerKeyDown}
@@ -323,6 +331,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
       ref={wrapperRef}
       class="cujuju-context-menu-submenu-wrapper"
       onMouseEnter={hoverOpen}
+      onPointerMove={hover.onTriggerPointerMove}
       onPointerLeave={hover.onTriggerPointerLeave}
     >
       {renderTrigger()}

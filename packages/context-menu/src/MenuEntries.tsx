@@ -12,7 +12,6 @@ import {
   isSlider,
   isSubmenu,
 } from './types.js';
-export { submenuCloseDelayMs } from './submenuTiming.js';
 export type { ContextMenuSurface } from './_internal/submenuScope.js';
 
 /**
