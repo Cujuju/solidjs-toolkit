@@ -247,7 +247,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
         {(preview) => (
           <>
             <DockZoneGuides style={box(preview().rect)} active={preview().tabRect ? undefined : preview().zone}
-              available={dockGesture.available()} tabs={!!props.tabs} />
+              available={dockGesture.available()} centerLabel={props.tabs ? 'Swap / Tab' : 'Swap'} />
             <Show when={dockGesture.available().has('center') && preview().tabRect}>
               {(bar) => <div aria-hidden="true" class="twm-preview" data-zone="tab" style={box(bar())} />}
             </Show>
