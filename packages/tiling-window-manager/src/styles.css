@@ -167,7 +167,11 @@
   .twm-dock-label { padding: 0; border: 0; }
 }
 @container (max-width: 60px) or (max-height: 48px) {
-  .twm-dock-label { display: none; }
+  .twm-dock-icon {
+    width: min(15px, 24cqw);
+    height: min(12px, 24cqh);
+  }
+  .twm-dock-label[data-zone='center'] .twm-dock-icon { border-top-width: 3px; }
 }
 
 .twm-placement {

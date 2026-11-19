@@ -1,4 +1,4 @@
-import { batch, createMemo, createSignal, onCleanup } from 'solid-js';
+import { batch, createEffect, createMemo, createSignal, onCleanup } from 'solid-js';
 import type { LayoutRect } from './layout.js';
 import { tileHitAt, type TileHit } from './plan.js';
 import type { DropZone } from './tileTree.js';
@@ -26,12 +26,14 @@ export interface CenterDrop { movedId: string; targetId: string; x: number; y: n
 /** A drag began, left or re-entered the window, or ended (released or cancelled). */
 export type DragPhase = 'start' | 'outside' | 'inside' | 'end';
 
+type PointerPosition = Pick<MouseEvent, 'clientX' | 'clientY'>;
+
 /** A held-button drag keeps reporting beyond the window, with client coordinates outside the viewport. */
-function insideViewport(event: MouseEvent): boolean {
+function insideViewport(event: PointerPosition): boolean {
   return event.clientX >= 0 && event.clientY >= 0 && event.clientX < window.innerWidth && event.clientY < window.innerHeight;
 }
 
-function tabTargetRect(container: HTMLElement, tileId: string, event: MouseEvent, selector: string): LayoutRect | null {
+function tabTargetRect(container: HTMLElement, tileId: string, event: PointerPosition, selector: string): LayoutRect | null {
   if (typeof document.elementsFromPoint !== 'function') return null;
   const area = container.getBoundingClientRect();
   for (const element of document.elementsFromPoint(event.clientX, event.clientY)) {
@@ -66,6 +68,12 @@ export function createDockGesture(deps: {
 }) {
   const [preview, setPreview] = createSignal<DockPreview | null>(null);
   const [dragging, setDragging] = createSignal<string | null>(null);
+  const [pointer, setPointer] = createSignal<PointerPosition | null>(null);
+  createEffect(() => {
+    const source = dragging();
+    const point = pointer();
+    setPreview(source && point ? hitTest(source, point) : null);
+  });
   const targetId = createMemo(() => preview()?.targetId);
   const available = createMemo<ReadonlySet<DropZone>>(() => {
     const source = dragging();
@@ -76,7 +84,7 @@ export function createDockGesture(deps: {
   const cancel = () => teardown?.();
   onCleanup(cancel);
 
-  function hitTest(movedId: string, event: MouseEvent): DockPreview | null {
+  function hitTest(movedId: string, event: PointerPosition): DockPreview | null {
     const container = deps.container();
     const area = container?.getBoundingClientRect();
     if (!container || !area) return null;
@@ -99,7 +107,7 @@ export function createDockGesture(deps: {
         outside = !outside;
         deps.onDragPhase?.(outside ? 'outside' : 'inside');
       }
-      setPreview(hitTest(movedId, next));
+      setPointer({ clientX: next.clientX, clientY: next.clientY });
     };
     // One batch: a centre drop's menu opens in the same update that ends the drag, so no state in between shows.
     const release = (next: PointerEvent) => batch(() => {
@@ -129,6 +137,7 @@ export function createDockGesture(deps: {
       window.removeEventListener('keydown', keydown, true);
       window.removeEventListener('blur', finish);
       setPreview(null);
+      setPointer(null);
       if (dragging()) deps.onDragPhase?.('end');
       setDragging(null);
       teardown = undefined;
@@ -152,7 +161,7 @@ export function createDockGesture(deps: {
   /** Continues a drag that began elsewhere (a tab pulled off its strip) from `event`. */
   function begin(movedId: string, event: MouseEvent) {
     track(movedId, event.clientX, event.clientY, true);
-    setPreview(hitTest(movedId, event));
+    setPointer({ clientX: event.clientX, clientY: event.clientY });
   }
 
   return { preview, available, dragging, start, begin, cancel };

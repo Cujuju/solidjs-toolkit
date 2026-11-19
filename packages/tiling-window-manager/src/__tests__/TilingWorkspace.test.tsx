@@ -34,7 +34,7 @@ function setup(initial: TileNode | undefined, placing?: { id: string; label: str
       )}
     </TilingWorkspace>
   ));
-  return { ...view, layout, onLayoutChange, onPlace };
+  return { ...view, layout, setLayout, onLayoutChange, onPlace };
 }
 
 const tileBox = (container: HTMLElement, id: string) => (container.querySelector(`[data-tile-id="${id}"]`) as HTMLElement).style;
@@ -143,6 +143,19 @@ describe('TilingWorkspace', () => {
     fireEvent.pointerUp(window, { clientX: 300, clientY: 290 });
     expect(onLayoutChange).not.toHaveBeenCalled();
     expect(container.querySelector('.twm-dock-guides')).toBeNull();
+  });
+
+  it('updates the guide and active zone when a tile resizes under a stationary pointer', () => {
+    const { container, getByTestId, setLayout } = setup(pair);
+    fireEvent.pointerDown(getByTestId('grip-a'), { button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(window, { clientX: 230, clientY: 150 });
+    const guides = container.querySelector<HTMLElement>('.twm-dock-guides')!;
+    const active = () => guides.querySelector('[data-active]')?.getAttribute('data-zone');
+    expect(guides.style.width).toBe('200px');
+    expect(active()).toBe('left');
+    setLayout({ ...pair, sizes: [1, 3] });
+    expect(guides.style.width).toBe('300px');
+    expect(active()).toBe('center');
   });
 
   it('grows to the minimum height of its tiles when allowed', () => {
