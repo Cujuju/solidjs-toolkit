@@ -19,14 +19,14 @@ const zones = {
   right: { points: [ne, innerNE, innerSE, se], x: FAR_LABEL, y: MIDDLE, label: 'Right' },
   top: { points: [nw, ne, innerNE, innerNW], x: MIDDLE, y: NEAR_LABEL, label: 'Above' },
   bottom: { points: [sw, innerSW, innerSE, se], x: MIDDLE, y: FAR_LABEL, label: 'Below' },
-  center: { points: [innerNW, innerNE, innerSE, innerSW], x: MIDDLE, y: MIDDLE, label: 'Swap' },
+  center: { points: [innerNW, innerNE, innerSE, innerSW], x: MIDDLE, y: MIDDLE },
 };
 
 export function DockZoneGuides(props: {
   style: JSX.CSSProperties;
   active: DropZone | undefined;
   available: ReadonlySet<DropZone>;
-  tabs: boolean;
+  centerLabel: string;
 }) {
   return (
     <div class="twm-dock-guides" style={props.style} aria-hidden="true">
@@ -43,7 +43,7 @@ export function DockZoneGuides(props: {
         <span class="twm-dock-label" data-zone={zone} data-active={props.active === zone || undefined}
           data-blocked={!props.available.has(zone) || undefined} style={{ left: `${zones[zone].x}%`, top: `${zones[zone].y}%` }}>
           <span class="twm-dock-icon" />
-          <span class="twm-dock-text">{zone === 'center' && props.tabs ? 'Swap / Tab' : zones[zone].label}</span>
+          <span class="twm-dock-text">{zone === 'center' ? props.centerLabel : zones[zone].label}</span>
         </span>
       )}</For>
     </div>
