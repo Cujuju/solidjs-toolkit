@@ -14,7 +14,7 @@ export interface SubmenuHover {
   attach(parent: HTMLElement | null): void;
   /** Stop watching and drop any aim, without handing off. */
   detach(): void;
-  onTriggerPointerMove(e: PointerEvent): void;
+  onTriggerPointerSample(e: PointerEvent): void;
   onTriggerPointerLeave(e: PointerEvent): void;
   /** The pointer reached the trigger or flyout, or the keyboard took over: keep the flyout open. */
   endAim(): void;
@@ -37,6 +37,7 @@ export function createSubmenuHover(opts: SubmenuHoverOptions): SubmenuHover {
   // exit point, so the aim starts here and the landing point is judged against it.
   let insideX = 0;
   let insideY = 0;
+  let insidePointerId: number | undefined;
   let hasInside = false;
 
   function finishAim(handOff: boolean) {
@@ -55,28 +56,30 @@ export function createSubmenuHover(opts: SubmenuHoverOptions): SubmenuHover {
     finishAim(!arrived);
   }
 
-  function onTriggerPointerMove(e: PointerEvent) {
-    // Solid delegation carries moves from the Portal'd flyout up to the trigger; keep trigger points only.
-    if (!within(opts.trigger(), e.target)) return;
+  // Bound natively on the trigger in the capture phase (pointerenter + pointermove), so a child
+  // that stops propagation cannot hide a sample.
+  function onTriggerPointerSample(e: PointerEvent) {
+    // Touch has no hover path to protect.
+    if (e.pointerType === 'touch') return;
     insideX = e.clientX;
     insideY = e.clientY;
+    insidePointerId = e.pointerId;
     hasInside = true;
   }
 
   function onTriggerPointerLeave(e: PointerEvent) {
-    const fromInside = hasInside;
-    hasInside = false;
-    // Touch has no hover path to protect.
     if (e.pointerType === 'touch') return;
+    const fromInside = hasInside && insidePointerId === e.pointerId;
+    hasInside = false;
     if (!opts.isOpen()) {
       opts.lock.withdraw(opts.key);
       return;
     }
     const flyout = opts.flyout();
     if (within(flyout, e.relatedTarget)) return;
-    // A flyout not yet shown has no rect, so the pointer cannot be heading for it.
-    const next = flyout?.matches(':popover-open')
-      ? aimRegion(fromInside ? insideX : e.clientX, fromInside ? insideY : e.clientY, flyout.getBoundingClientRect())
+    // No inside sample, or a flyout not yet shown: no direction to judge, so no aim.
+    const next = fromInside && flyout?.matches(':popover-open')
+      ? aimRegion(insideX, insideY, flyout.getBoundingClientRect())
       : null;
     // A single move can land already off course: judge the landing point now, not on the next move.
     if (!next || !isInAimRegion(next, e.clientX, e.clientY)) {
@@ -117,7 +120,7 @@ export function createSubmenuHover(opts: SubmenuHoverOptions): SubmenuHover {
       parentEl?.addEventListener('scroll', onParentScroll, true);
     },
     detach,
-    onTriggerPointerMove,
+    onTriggerPointerSample,
     onTriggerPointerLeave,
     endAim: () => finishAim(false),
   };

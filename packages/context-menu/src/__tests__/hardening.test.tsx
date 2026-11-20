@@ -219,8 +219,11 @@ describe('ContextMenu — submenu hover aim', () => {
     // jsdom has no PointerEvent; the handlers read only MouseEvent fields plus pointerType.
     target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, ...init }));
   }
-  const leaveExport = (relatedTarget: EventTarget = deleteRow()) =>
+  // The trigger samples the pointer inside itself; the leave carries the landing point.
+  function leaveExport(relatedTarget: EventTarget = deleteRow(), from = EXIT) {
+    pointer('pointermove', wrappers()[0]!, from.x, from.y);
     pointer('pointerleave', wrappers()[0]!, EXIT.x, EXIT.y, { bubbles: false, relatedTarget });
+  }
 
   async function openExport() {
     renderMenu(items());
@@ -243,8 +246,7 @@ describe('ContextMenu — submenu hover aim', () => {
   it('judges a single move that lands off course at once, from the last point inside the trigger', async () => {
     // Chromium reports pointerleave at the landing point, so the aim must start from inside.
     await openExport();
-    pointer('pointermove', wrappers()[0]!, EXIT.x, EXIT.y - 8);
-    leaveExport();
+    leaveExport(deleteRow(), { x: EXIT.x, y: EXIT.y - 8 });
 
     expect(flyouts()).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
@@ -256,6 +258,50 @@ describe('ContextMenu — submenu hover aim', () => {
     pointer('pointerleave', wrappers()[0]!, 175, 36, { bubbles: false, relatedTarget: deleteRow() });
 
     expect(flyoutLabel()).toBe('CSV');
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('starts no aim without a pointer sample inside the trigger', async () => {
+    await openExport();
+    pointer('pointerleave', wrappers()[0]!, EXIT.x, EXIT.y, { bubbles: false, relatedTarget: deleteRow() });
+
+    expect(flyouts()).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps the mouse sample when a touch leaves the trigger', async () => {
+    await openExport();
+    pointer('pointermove', wrappers()[0]!, EXIT.x, EXIT.y - 8);
+    const touchLeave = new MouseEvent('pointerleave', { clientX: EXIT.x, clientY: EXIT.y + 40 });
+    Object.defineProperty(touchLeave, 'pointerType', { value: 'touch' });
+    wrappers()[0]!.dispatchEvent(touchLeave);
+    pointer('pointerleave', wrappers()[0]!, 175, 36, { bubbles: false, relatedTarget: deleteRow() });
+
+    expect(flyoutLabel()).toBe('CSV');
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('samples a custom trigger even when its child stops pointermove', async () => {
+    const share: ContextMenuSubmenu = { submenu: true, label: 'Share', children: [{ label: 'Link', onClick: () => {} }] };
+    dispose = render(() => (
+      <ContextMenu x={10} y={10} onClose={() => {}} items={[
+        { custom: () => (
+          <ContextMenuSubmenuTrigger submenu={share} class="share-cell">
+            <span class="share-label" ref={(el) => el.addEventListener('pointermove', (e) => e.stopPropagation())}>Share</span>
+          </ContextMenuSubmenuTrigger>
+        ) },
+        { label: 'Delete', onClick: () => {} },
+      ]} />
+    ), document.body);
+    const cell = document.querySelector<HTMLElement>('button.share-cell')!;
+    hover(cell);
+    await nextFrame();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    pointer('pointermove', cell.querySelector('.share-label')!, EXIT.x, EXIT.y - 8);
+    // An on-course landing aims only if the sample got through; without one the flyout would close.
+    pointer('pointerleave', cell, 175, 36, { bubbles: false, relatedTarget: deleteRow() });
+
+    expect(flyoutLabel()).toBe('Link');
     expect(vi.getTimerCount()).toBe(1);
   });
 

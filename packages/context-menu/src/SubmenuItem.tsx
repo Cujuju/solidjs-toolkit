@@ -99,6 +99,13 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
     close,
   });
 
+  /** Native capture listeners: delegated or bubbling ones miss moves a trigger child stops. */
+  function samplePointer(el: HTMLElement) {
+    const sample = hover.onTriggerPointerSample as EventListener;
+    safeAddEventListener(el, 'pointerenter', sample, { capture: true, passive: true });
+    safeAddEventListener(el, 'pointermove', sample, { capture: true, passive: true });
+  }
+
   /** Pointer hover: deferred while a sibling submenu holds the aim. */
   function hoverOpen() {
     if (props.disabled) return;
@@ -263,7 +270,10 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
       ref={(el) => {
         triggerRef = el;
         // Bound on the button, not delegated: stopping here must precede a native row listener.
-        if (!props.builtin) safeAddEventListener(el, 'click', onTriggerClick as EventListener);
+        if (!props.builtin) {
+          safeAddEventListener(el, 'click', onTriggerClick as EventListener);
+          samplePointer(el);
+        }
       }}
       type="button"
       class={`cujuju-context-menu-item cujuju-context-menu-item-has-submenu${props.class ? ` ${props.class}` : ''}`}
@@ -271,7 +281,6 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
       aria-haspopup="menu"
       aria-expanded={isOpen()}
       onMouseEnter={props.builtin ? undefined : hoverOpen}
-      onPointerMove={props.builtin ? undefined : hover.onTriggerPointerMove}
       onPointerLeave={props.builtin ? undefined : hover.onTriggerPointerLeave}
       onClick={props.builtin ? onTriggerClick : undefined}
       onKeyDown={onTriggerKeyDown}
@@ -328,10 +337,12 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
 
   return props.builtin ? (
     <div
-      ref={wrapperRef}
+      ref={(el) => {
+        wrapperRef = el;
+        samplePointer(el);
+      }}
       class="cujuju-context-menu-submenu-wrapper"
       onMouseEnter={hoverOpen}
-      onPointerMove={hover.onTriggerPointerMove}
       onPointerLeave={hover.onTriggerPointerLeave}
     >
       {renderTrigger()}
