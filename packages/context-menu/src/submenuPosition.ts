@@ -13,14 +13,11 @@ export const VIEWPORT_MARGIN_PX = 4;
  *  floating bounds so a long list scrolls instead of running off-screen. */
 export const SCROLLABLE_SUBMENU_MAX_VH = 0.6;
 
-/** Pixels a submenu's leading edge tucks UNDER its parent's edge. Anchored on the parent's
- *  OUTER rect, not the trigger row; 1px changes are perceptible, so re-tune visually. */
-export const POPOVER_PARENT_UNDER_OVERLAP_PX = 3;
-
 export interface SubmenuStyleInput {
   /** The submenu trigger row's bounding rect. */
   triggerRect: { top: number };
-  /** The parent menu's OUTER rect (the trigger row would add padding and border); pass the
+  /** The parent menu's OUTER rect; the flyout sits flush against it, zero gap and zero
+   *  overlap (the trigger row would add padding and border). Pass the
    *  trigger rect until the parent ref wires. */
   parentRect: { left: number; right: number };
   /** The submenu flyout's own measured size. */
@@ -32,7 +29,7 @@ export interface SubmenuStyleInput {
 }
 
 /**
- * Inline style for a Portal'd submenu flyout: prefers the parent's right, flips left or picks
+ * Inline style for a Portal'd submenu flyout, flush beside its parent: prefers the right, flips left or picks
  * the roomier side, then clamps. Top aligns to the trigger, shifting up on overflow.
  */
 export function computeSubmenuStyle(
@@ -45,9 +42,9 @@ export function computeSubmenuStyle(
   const fitsLeft = parentRect.left - flyoutRect.width >= bounds.left + margin;
   let left: number;
   if (fitsRight) {
-    left = parentRect.right - POPOVER_PARENT_UNDER_OVERLAP_PX;
+    left = parentRect.right;
   } else if (fitsLeft) {
-    left = parentRect.left - flyoutRect.width + POPOVER_PARENT_UNDER_OVERLAP_PX;
+    left = parentRect.left - flyoutRect.width;
   } else {
     // Neither side fits — pick whichever has more free space; the
     // clamp below pulls the flyout fully into view.
@@ -55,8 +52,8 @@ export function computeSubmenuStyle(
     const leftRoom = parentRect.left - bounds.left;
     left =
       rightRoom >= leftRoom
-        ? parentRect.right - POPOVER_PARENT_UNDER_OVERLAP_PX
-        : parentRect.left - flyoutRect.width + POPOVER_PARENT_UNDER_OVERLAP_PX;
+        ? parentRect.right
+        : parentRect.left - flyoutRect.width;
   }
   // Horizontal clamp — safety net for a flyout wider than either side.
   left = Math.max(bounds.left + margin, Math.min(left, bounds.right - flyoutRect.width - margin));

@@ -111,10 +111,11 @@ A row that opens a nested submenu on hover: `label`, `icon?`,
 `children: ContextMenuEntry[]`, `scrollable?`. A `scrollable` submenu
 caps its height and shows a search field that filters its children by
 label (a JSX or number label matches on its rendered text). Submenus nest
-arbitrarily deep. An open submenu closes a hover-intent grace period
-(scaled to the parent menu's measured width) after the pointer first
-moves elsewhere in its parent menu, unless it re-enters the trigger or
-the flyout first. It also closes when the parent menu scrolls or on any
+arbitrarily deep. An open submenu stays open while the pointer heads from its trigger
+toward the flyout, even across sibling rows (a sibling submenu crossed on
+the way opens only once the pointer settles on it). Any other move closes
+it at once, as does a stop on the way longer than an unhurried pointer
+needs to reach the flyout. It also closes when the parent menu scrolls or on any
 `x`/`y` update. A window resize or a reflow that shifts the trigger
 (e.g. a `when` toggle above it) still leaves an open flyout at its old
 position; observing the trigger rect is future work.
@@ -187,8 +188,8 @@ Each Portal'd submenu also carries `data-popover-stack` — see
   elements promoted with `showPopover()`, so they paint above every
   normal stacking context — including other top-layer popovers. When a
   submenu opens, its ancestor menus are re-promoted (nearest first) so
-  every parent paints above its child, and the submenu's leading edge tucks a few pixels under the
-  parent.
+  every parent paints above its child, and the submenu sits flush beside the parent with
+  zero gap (when neither side has room, the viewport clamp may overlap it).
 - **Submenus are Portal'd to `<body>`** to escape any `backdrop-filter`
   / `transform` ancestor that would otherwise re-anchor their
   `position: fixed`. Each Portal'd submenu carries the

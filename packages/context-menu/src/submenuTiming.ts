@@ -2,9 +2,8 @@
 const UNHURRIED_POINTER_PX_PER_S = 200;
 const MS_PER_S = 1000;
 
-/** Close grace after a hover elsewhere in the parent: diagonal path (the parent's measured width) ÷ pointer speed.
- *  Residual: slower pointers still lose it mid-path. */
-export function submenuCloseDelayMs(parentWidthPx: number): number {
-  return (parentWidthPx / UNHURRIED_POINTER_PX_PER_S) * MS_PER_S;
+/** Time an unhurried pointer takes to travel `pathPx`: the aim grace from trigger exit to flyout.
+ *  Residual: slower pointers that pause mid-path lose it. */
+export function submenuCloseDelayMs(pathPx: number): number {
+  return (pathPx / UNHURRIED_POINTER_PX_PER_S) * MS_PER_S;
 }
-

@@ -1,4 +1,5 @@
 import { createEffect, createMemo, createSignal, For, on, Show } from 'solid-js';
+import { createAimLock } from './_internal/submenuAim.js';
 import { CustomSubmenuScope, type SubmenuMenuOptions, type SubmenuScope } from './_internal/submenuScope.js';
 import { SliderRow } from './SliderRow.js';
 import { SubmenuItem } from './SubmenuItem.js';
@@ -11,7 +12,6 @@ import {
   isSlider,
   isSubmenu,
 } from './types.js';
-export { submenuCloseDelayMs } from './submenuTiming.js';
 export type { ContextMenuSurface } from './_internal/submenuScope.js';
 
 /**
@@ -25,7 +25,12 @@ export function MenuEntries(props: SubmenuMenuOptions & {
   anchor?: () => unknown;
 }) {
   const [activeSubmenu, setActiveSubmenu] = createSignal<symbol>();
-  const scope: SubmenuScope = { menu: props, activeSubmenu, setActiveSubmenu };
+  const scope: SubmenuScope = {
+    menu: props,
+    activeSubmenu,
+    setActiveSubmenu,
+    aimLock: createAimLock(setActiveSubmenu),
+  };
   createEffect(on(() => props.anchor?.(), () => setActiveSubmenu(undefined), { defer: true }));
 
   return (
