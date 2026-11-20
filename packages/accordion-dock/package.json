@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-accordion-dock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Accordion + dock for SolidJS \u2014 vertical disclosure or a horizontal VS-style column dock with a rail, splitters, auto-hide flyouts, pin-to-dock, chained leaves and tear-off windows.",
   "type": "module",
   "main": "./dist/index.js",

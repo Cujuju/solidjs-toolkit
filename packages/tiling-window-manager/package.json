@@ -1,6 +1,6 @@
 {
   "name": "@cujuju/solidjs-tiling-window-manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tiling window manager for SolidJS: split panes with resizable dividers, drag-to-dock, and add-then-place tiles that never resize their neighbours.",
   "type": "module",
   "main": "./dist/index.js",
