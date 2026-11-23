@@ -244,10 +244,14 @@ export function createFlyoutState(props: FlyoutProps) {
     ),
   );
 
+  const selectedOption = () => {
+    const idx = selectedIndex();
+    return idx >= 0 ? props.options[idx] : undefined;
+  };
   const label = (): string => selectedLabel();
   const showPlaceholder = (): boolean => label() === '';
 
-  return { open, anchor, focusedIndex, setFocusedIndex, panelId, onTriggerClick, onTriggerKeyDown, onPanelKeyDown, selectOption, focusOptionAt, closePanel, label, showPlaceholder, setAnchor,
+  return { open, anchor, focusedIndex, setFocusedIndex, panelId, onTriggerClick, onTriggerKeyDown, onPanelKeyDown, selectOption, focusOptionAt, closePanel, selectedOption, label, showPlaceholder, setAnchor,
     get listEl() { return listEl; },
     set listEl(el: HTMLUListElement | undefined) { listEl = el; },
     get triggerEl() { return triggerEl; },

@@ -4,7 +4,7 @@
  */
 import AnchoredPopover from '@cujuju/solidjs-anchored-popover';
 import { GlassMenu } from '@cujuju/solidjs-glass-menu';
-import { For, type JSX } from 'solid-js';
+import { For, Show, type JSX } from 'solid-js';
 import { ChevronDownIcon } from './ChevronDownIcon.js';
 import { createFlyoutState } from './createFlyoutState.js';
 import type { FlyoutProps } from './types.js';
@@ -41,6 +41,13 @@ export function Flyout(props: FlyoutProps): JSX.Element {
         aria-disabled={props.disabled}
         aria-label={props.ariaLabel}
       >
+        <Show when={!state.showPlaceholder() && state.selectedOption()?.icon}>
+          {(renderIcon) => (
+            <span class="cujuju-select-flyout-icon" aria-hidden="true">
+              {renderIcon()()}
+            </span>
+          )}
+        </Show>
         <span
           class={cx(
             'cujuju-select-flyout-label',
@@ -107,6 +114,13 @@ export function Flyout(props: FlyoutProps): JSX.Element {
                   >
                     {/* Selection is a CSS rail off `-option-selected`, not a marker element: no
                                             column reserved on every row. */}
+                    <Show when={opt.icon}>
+                      {(renderIcon) => (
+                        <span class="cujuju-select-flyout-icon" aria-hidden="true">
+                          {renderIcon()()}
+                        </span>
+                      )}
+                    </Show>
                     <span>{opt.label}</span>
                   </button>
                 </li>

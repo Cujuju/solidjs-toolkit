@@ -1,3 +1,4 @@
+import type { JSX } from 'solid-js';
 import type { GlassMenuSurface } from '@cujuju/solidjs-glass-menu';
 
 export interface FlyoutOption {
@@ -6,6 +7,8 @@ export interface FlyoutOption {
   disabled?: boolean;
   /** Native tooltip on the option row. */
   title?: string;
+  /** Optional leading icon rendered in the option row and trigger when selected. */
+  icon?: () => JSX.Element;
 }
 
 export interface FlyoutProps {

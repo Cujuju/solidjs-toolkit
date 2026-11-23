@@ -419,4 +419,20 @@ describe('Flyout — hover and ARIA wiring', () => {
     const target = document.getElementById(getTrigger().getAttribute('aria-controls')!);
     expect(target?.getAttribute('role')).toBe('listbox');
   });
+
+  it('renders optional option icons in both the trigger and listbox rows', async () => {
+    const { getTrigger, getOptions } = renderSelect({
+      initialValue: 'apple',
+      options: [
+        { value: 'apple', label: 'Apple', icon: () => <svg data-icon="apple" /> },
+        { value: 'banana', label: 'Banana', icon: () => <svg data-icon="banana" /> },
+      ],
+    });
+    expect(getTrigger().querySelector('[data-icon="apple"]')).not.toBeNull();
+    getTrigger().click();
+    await nextFrame();
+    const rows = getOptions();
+    expect(rows[0]!.querySelector('[data-icon="apple"]')).not.toBeNull();
+    expect(rows[1]!.querySelector('[data-icon="banana"]')).not.toBeNull();
+  });
 });
