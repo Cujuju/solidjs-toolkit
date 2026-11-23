@@ -16,11 +16,6 @@
     );
     --cujuju-select-flyout-trigger-pad-left: 10px;
   }
-
-  .cujuju-select-flyout-option {
-    /* Selection rail width; 3px matches the tri-state chip's rail. */
-    --cujuju-select-flyout-rail-width: 3px;
-  }
 }
 
 .cujuju-select-flyout-trigger {
@@ -142,20 +137,15 @@
 
 .cujuju-select-flyout-option-selected {
   color: var(--color-primary, #6366f1);
+  background: var(--color-primary-alpha-10, rgba(99, 102, 241, 0.14));
 }
 
 .cujuju-select-flyout-option-selected.cujuju-select-flyout-option:hover,
 .cujuju-select-flyout-option-selected.cujuju-select-flyout-option-focused {
-  background: var(--color-primary-alpha-10, rgba(99, 102, 241, 0.14));
+  background: color-mix(in srgb, var(--color-primary, #6366f1) 20%, transparent);
 }
 
 .cujuju-select-flyout-option:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* Selection RAIL: inset box-shadow on inline-start, so no layout and no reserved marker
-   column. `currentColor` follows host rethemes. */
-.cujuju-select-flyout-option-selected {
-  box-shadow: inset var(--cujuju-select-flyout-rail-width) 0 0 currentColor;
 }
