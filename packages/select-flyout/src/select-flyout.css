@@ -77,6 +77,13 @@
   justify-content: center;
 }
 
+.cujuju-select-flyout-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .cujuju-select-flyout-label {
   flex: 1;
   overflow: hidden;
