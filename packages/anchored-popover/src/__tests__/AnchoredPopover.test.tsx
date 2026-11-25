@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import AnchoredPopover from '../AnchoredPopover.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 // jsdom lacks the Popover API; per-test stubs count showPopover/hidePopover calls and
 // control `:popover-open`.
@@ -820,7 +821,7 @@ describe('AnchoredPopover', () => {
       expect(parentHide).toHaveBeenCalledTimes(1);
       expect(parentShow).toHaveBeenCalledTimes(1);
       const hideOrder = parentHide.mock.invocationCallOrder[0];
-      const showOrder = parentShow.mock.invocationCallOrder[0];
+      const showOrder = valueAt(parentShow.mock.invocationCallOrder, 0);
       expect(hideOrder).toBeLessThan(showOrder);
     });
 

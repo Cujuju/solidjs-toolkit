@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot, createSignal } from 'solid-js';
 import { createResize, DEFAULT_MIN_SIZE_PX, type ResizeApi, type ResizeHost } from '../resize.js';
+import { defined, valueAt } from '../../../_shared/testing.js';
 
 /** The splitter engine, driven through pointer events. See DESIGN_NOTES.md § src/__tests__/resize.test.ts:5. */
 
@@ -43,7 +44,7 @@ function harness(spec: HarnessSpec): Harness {
   const els = new Map<string, HTMLElement>();
   for (const id of ids) {
     const el = document.createElement('div');
-    const extent = spec.boxes[id];
+    const extent = defined(spec.boxes[id], `box ${id}`);
     const scale = spec.scale ?? 1;
     el.getBoundingClientRect = () => {
       const size = (applied[id] ?? extent) * scale;
@@ -152,7 +153,7 @@ describe('createResize — the conservation property', () => {
     for (const x of [10, 90, -120, 400, -400, 0]) {
       move(x);
       const s = h.sizes();
-      expect(s.a + s.b).toBe(600);
+      expect(defined(s.a) + defined(s.b)).toBe(600);
     }
     up();
     h.dispose();
@@ -362,8 +363,8 @@ describe('a gesture is one decision', () => {
     down(h.api, 'a', 0);
     move(50);
     up();
-    expect(h.commits[0].a).toBe(350);
-    expect(h.commits[0].b).toBe(250);
+    expect(valueAt(h.commits, 0).a).toBe(350);
+    expect(valueAt(h.commits, 0).b).toBe(250);
     h.dispose();
   });
 
@@ -376,7 +377,7 @@ describe('a gesture is one decision', () => {
     expect(h.commits).toHaveLength(1);
     // The collapsed panel's explicit size is dropped, so reopening it uses the
     // mode's automatic size rather than the sliver it was squashed to.
-    expect(h.commits[0].a).toBeUndefined();
+    expect(valueAt(h.commits, 0).a).toBeUndefined();
     h.dispose();
   });
 
@@ -400,9 +401,10 @@ describe('the keyboard moves the same boundary as the pointer', () => {
     const h = harness({ boxes: { a: 300, b: 300 } });
     h.api.nudge('a', 1, false);
     expect(h.commits).toHaveLength(1);
-    expect(h.commits[0].a).toBeGreaterThan(300);
+    const commit = valueAt(h.commits, 0);
+    expect(commit.a).toBeGreaterThan(300);
     // Conservation, exactly as for a drag.
-    expect(h.commits[0].a + h.commits[0].b).toBe(600);
+    expect(defined(commit.a) + defined(commit.b)).toBe(600);
     h.dispose();
   });
 
@@ -411,7 +413,7 @@ describe('the keyboard moves the same boundary as the pointer', () => {
     fine.api.nudge('a', 1, false);
     const coarse = harness({ boxes: { a: 300, b: 300 } });
     coarse.api.nudge('a', 1, true);
-    expect(coarse.commits[0].a - 300).toBeGreaterThan(fine.commits[0].a - 300);
+    expect(defined(valueAt(coarse.commits, 0).a) - 300).toBeGreaterThan(defined(valueAt(fine.commits, 0).a) - 300);
     fine.dispose();
     coarse.dispose();
   });
@@ -422,8 +424,8 @@ describe('the keyboard moves the same boundary as the pointer', () => {
     // minimum.
     const h = harness({ boxes: { a: 300, b: 300 }, minSizes: { b: 250 } });
     h.api.nudge('a', 100, true); // asks for far more than b can give
-    expect(h.commits[0].b).toBe(250);
-    expect(h.commits[0].a).toBe(350);
+    expect(valueAt(h.commits, 0).b).toBe(250);
+    expect(valueAt(h.commits, 0).a).toBe(350);
     h.dispose();
   });
 
@@ -434,8 +436,8 @@ describe('the keyboard moves the same boundary as the pointer', () => {
     normal.api.nudge('a', 1, false);
     const mirrored = harness({ boxes: { a: 300, b: 300 }, direction: -1 });
     mirrored.api.nudge('a', 1, false);
-    expect(normal.commits[0].a).toBeGreaterThan(300);
-    expect(mirrored.commits[0].a).toBeLessThan(300);
+    expect(valueAt(normal.commits, 0).a).toBeGreaterThan(300);
+    expect(valueAt(mirrored.commits, 0).a).toBeLessThan(300);
     normal.dispose();
     mirrored.dispose();
   });

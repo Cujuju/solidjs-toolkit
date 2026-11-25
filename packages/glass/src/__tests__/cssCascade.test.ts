@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * Cascade contracts jsdom cannot compute (it applies no stylesheet), read from
@@ -17,7 +18,7 @@ function selectors(): string[] {
   const css = Object.values(CSS_SOURCES)
     .map((s) => s.replace(/\/\*[\s\S]*?\*\//g, ''))
     .join('\n');
-  return Array.from(css.matchAll(/([^{};]+)\{[^{}]*\}/g), (m) => m[1])
+  return Array.from(css.matchAll(/([^{};]+)\{[^{}]*\}/g), (m) => valueAt(m, 1))
     .flatMap((group) => group.split(','))
     .map((s) => s.trim());
 }

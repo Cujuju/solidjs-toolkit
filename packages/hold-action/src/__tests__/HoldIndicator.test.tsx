@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import { HoldIndicator } from '../HoldIndicator.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * jsdom has no layout: offsetWidth/offsetHeight are stubbed from the inline
@@ -32,18 +33,19 @@ type Point = { x: number; y: number };
 function applyTransform(transform: string, p: Point): Point {
   const ops = [...transform.matchAll(/(\w+)\(([^)]*)\)/g)].map((m) => ({
     name: m[1],
-    args: m[2].trim().split(/[\s,]+/).map(Number),
+    args: valueAt(m, 2).trim().split(/[\s,]+/).map(Number),
   }));
   let { x, y } = p;
   for (const op of ops.reverse()) {
     if (op.name === 'translate') {
-      x += op.args[0];
+      x += valueAt(op.args, 0);
       y += op.args[1] ?? 0;
     } else if (op.name === 'scale') {
-      x *= op.args[0];
-      y *= op.args[1] ?? op.args[0];
+      x *= valueAt(op.args, 0);
+      y *= op.args[1] ?? valueAt(op.args, 0);
     } else if (op.name === 'rotate') {
-      const [deg, cx = 0, cy = 0] = op.args;
+      const deg = valueAt(op.args, 0);
+      const [, cx = 0, cy = 0] = op.args;
       const a = (deg * Math.PI) / 180;
       const dx = x - cx;
       const dy = y - cy;

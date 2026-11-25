@@ -106,9 +106,9 @@ function applyTruncation(
   options: CrumbPathOptions | undefined,
 ): void {
   const after = path.slice(index + 1);
-  if (after.length === 0) return;
-
   const crumb = path[index];
+  if (crumb === undefined || after.length === 0) return;
+
   // Consumer first: a controlled leaf's `open` flips before the group's own edits, so both
   // land in one synchronous pass rather than two paints.
   options?.onTruncate?.(
@@ -157,8 +157,8 @@ export function buildCrumbPath(
     });
   });
 
-  const last = path.length - 1;
-  if (last >= 0) path[last].isCurrent = true;
+  const current = path.at(-1);
+  if (current) current.isCurrent = true;
   return path;
 }
 

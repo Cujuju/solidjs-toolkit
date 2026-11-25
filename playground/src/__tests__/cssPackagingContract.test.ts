@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
 import { injectCssImport } from '../../../packages/_shared/injectCssImport';
+import { defined } from '../../../packages/_shared/testing';
 
 /**
  * Repo-wide CSS packaging contract: `solid` needs src/index.ts in `sideEffects`, `import` needs
@@ -30,7 +31,7 @@ const ENTRIES = import.meta.glob<string>('../../../packages/*/src/index.ts', {
 });
 const STYLESHEET_PATHS = Object.keys(import.meta.glob('../../../packages/*/src/**/*.css'));
 
-const packageDir = (path: string) => path.split('/package.json')[0];
+const packageDir = (path: string) => path.replace(/\/package\.json$/, '');
 const packageName = (path: string) => packageDir(path).split('/').pop();
 
 const packages = Object.entries(MANIFESTS).map(([path, manifest]) => {
@@ -127,7 +128,7 @@ function entryBundle(code: string) {
 }
 
 const mappingsOf = (bundle: Record<string, BundleFile>) =>
-  JSON.parse(String(bundle['index.js.map'].source)).mappings;
+  JSON.parse(String(defined(bundle['index.js.map'], 'index.js.map').source)).mappings;
 
 describe('injectCssImport', () => {
   it('runs after vite:css-post has emitted the sheet, and only on builds', () => {
@@ -142,7 +143,7 @@ describe('injectCssImport', () => {
       '/src/index.ts': { importedIds: ['/src/own.css', '/src/Own.tsx'] },
       'solid-js/web': { isExternal: true },
     });
-    expect(bundle['index.js'].code).toBe(`${CSS_IMPORT}\n${SOLID_IMPORT}\nexport {};\n`);
+    expect(defined(bundle['index.js'], 'index.js').code).toBe(`${CSS_IMPORT}\n${SOLID_IMPORT}\nexport {};\n`);
     expect(mappingsOf(bundle)).toBe(`;${MAPPINGS}`);
   });
 
@@ -155,7 +156,7 @@ describe('injectCssImport', () => {
       '@cujuju/solidjs-glass': { isExternal: true },
       'solid-js/web': { isExternal: true },
     });
-    expect(bundle['index.js'].code).toBe(
+    expect(defined(bundle['index.js'], 'index.js').code).toBe(
       `${GLASS_IMPORT}\n${CSS_IMPORT}\n${SOLID_IMPORT}\nexport {};\n`,
     );
     expect(mappingsOf(bundle)).toBe(MAPPINGS.replace(';', ';;'));
@@ -165,7 +166,7 @@ describe('injectCssImport', () => {
     const bundle = entryBundle(`${SOLID_IMPORT}\nexport {};\n`);
     bundle['helpers.js'] = { type: 'chunk', isEntry: true, name: 'helpers', fileName: 'helpers.js', code: 'export {};\n' };
     runInjection(bundle, { '/src/index.ts': { importedIds: ['/src/own.css'] }, 'solid-js/web': { isExternal: true } });
-    expect(bundle['index.js'].code).toBe(`${CSS_IMPORT}\n${SOLID_IMPORT}\nexport {};\n`);
+    expect(defined(bundle['index.js'], 'index.js').code).toBe(`${CSS_IMPORT}\n${SOLID_IMPORT}\nexport {};\n`);
     expect(bundle['helpers.js'].code).toBe('export {};\n');
   });
 

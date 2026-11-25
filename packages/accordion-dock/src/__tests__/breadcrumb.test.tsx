@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { Breadcrumb } from '../Breadcrumb.js';
 import { createStubGroup } from './stubGroup.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * The `…` button's keyboard contract: activating it unmounts the focused element, so
@@ -73,7 +74,7 @@ describe('expanding the elided middle', () => {
       (el) => el.getAttribute('tabindex') === '0',
     );
     expect(stops).toHaveLength(1);
-    expect(stops[0].getAttribute('title')).toBe('p1');
+    expect(valueAt(stops, 0).getAttribute('title')).toBe('p1');
 
     m.dispose();
   });

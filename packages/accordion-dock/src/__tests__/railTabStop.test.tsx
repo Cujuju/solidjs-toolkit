@@ -5,6 +5,7 @@ import { AccordionGroup } from '../AccordionGroup.js';
 import { AccordionPanel } from '../AccordionPanel.js';
 import type { AccordionGroupApi } from '../context.js';
 import { RAIL_ITEM_ATTR } from '../railOverflow.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * The rail `tablist` has ONE Tab stop; the arrow keys (`keys.ts`) move between tabs.
@@ -52,7 +53,7 @@ describe('the rail tablist has one tab stop', () => {
 
   it('follows focus, so Tab returns to the tab the user left', () => {
     const m = mount();
-    m.buttons()[2].focus();
+    valueAt(m.buttons(), 2).focus();
     expect(m.stops()).toEqual(['c']);
     m.dispose();
   });

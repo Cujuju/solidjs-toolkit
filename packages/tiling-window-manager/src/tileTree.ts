@@ -3,6 +3,8 @@
  * Every edit returns a new canonical tree (no same-direction nesting, valid shares) and never mutates.
  */
 
+import { valueAt } from './valueAt.js';
+
 export type SplitDir = 'row' | 'column';
 export type DockSide = 'left' | 'right' | 'top' | 'bottom';
 /** `center` targets the slot itself: a moved tile swaps with it or joins it as a tab. */
@@ -59,7 +61,7 @@ export function tileIds(root: TileNode | undefined): string[] {
 }
 
 /** The id that addresses a slot: the tile's, or the active tab's. */
-export const slotKey = (slot: TileSlot): string => (slot.kind === 'tile' ? slot.id : slot.children[slot.active].id);
+export const slotKey = (slot: TileSlot): string => (slot.kind === 'tile' ? slot.id : valueAt(slot.children, slot.active).id);
 /** Every tile in a slot. */
 export const slotIds = (slot: TileSlot): string[] => (slot.kind === 'tile' ? [slot.id] : slot.children.map((child) => child.id));
 
@@ -115,14 +117,14 @@ export function canonicalize(root: TileNode): TileNode {
       const total = ratios.reduce((sum, share) => sum + share, 0);
       child.children.forEach((grandchild, j) => {
         children.push(grandchild);
-        sizes.push(root.sizes[i] * (ratios[j] / total));
+        sizes.push(valueAt(root.sizes, i) * (valueAt(ratios, j) / total));
       });
     } else {
       children.push(child);
-      sizes.push(root.sizes[i]);
+      sizes.push(valueAt(root.sizes, i));
     }
   });
-  if (children.length === 1) return children[0];
+  if (children.length === 1 && children[0]) return children[0];
   const max = Math.max(...sizes);
   const unsafe = !Number.isFinite(sizes.reduce((sum, share) => sum + share, 0)) || sizes.some((share) => share / max < MIN_SHARE_RATIO);
   const nextSizes = unsafe ? repairShares(sizes) : sizes;

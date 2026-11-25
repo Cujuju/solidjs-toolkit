@@ -39,7 +39,7 @@ interface Page {
 
 /** Ordered by how much there is to look at, not alphabetically — the two pickers carry the
  *  interesting behaviour and are usually why someone opens this. */
-const PAGES: Page[] = [
+const PAGES: [Page, ...Page[]] = [
   // Deliberately first: it is the thing currently being designed. Promoted from a
   // playground mock to packages/accordion-dock on 2026-07-26.
   { id: 'accordion-dock', blurb: 'pinnable dock', component: AccordionDockPage },

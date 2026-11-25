@@ -1,4 +1,5 @@
 import { findSlot, MIN_SHARE_RATIO, replaceNode, slotKey, type CollapseEdge, type SplitDir, type TileNode, type TileSlot, type TileSplit } from './tileTree.js';
+import { valueAt } from './valueAt.js';
 
 /**
  * Collapse folds a slot to a strip on its split's axis. `split.sizes[i]` is always slot i's own share;
@@ -37,7 +38,9 @@ export function shareHolders(split: TileSplit): Map<number, number> {
   const collapsed = collapsedIndices(split);
   const holders = new Map<number, number>();
   for (const i of collapsed) {
-    const edge = (split.children[i] as TileSlot).collapsed!.edge;
+    const child = valueAt(split.children, i);
+    if (child.kind === 'split' || !child.collapsed) continue;
+    const { edge } = child.collapsed;
     const holder = collapseRecipient(split, i, edge, collapsed) ?? collapseRecipient(split, i, OPPOSITE[edge], collapsed);
     if (holder !== undefined) holders.set(i, holder);
   }
@@ -52,14 +55,14 @@ export function heldBy(split: TileSplit, holder: number, holders = shareHolders(
 /** On-screen shares: an open slot adds the shares it holds; a collapsed slot keeps its come-back share. */
 export function viewShares(split: TileSplit, holders = shareHolders(split)): number[] {
   const view = [...split.sizes];
-  holders.forEach((holder, i) => { view[holder] += split.sizes[i]; });
+  holders.forEach((holder, i) => { view[holder] = valueAt(view, holder) + valueAt(split.sizes, i); });
   return view;
 }
 
 /** Inverse of `viewShares` for the same collapse state; a holder never drops below the share floor. */
 export function ownShares(split: TileSplit, view: readonly number[], holders = shareHolders(split)): number[] {
   const own = [...view];
-  holders.forEach((holder, i) => { own[holder] -= view[i]; });
+  holders.forEach((holder, i) => { own[holder] = valueAt(own, holder) - valueAt(view, i); });
   const floor = Math.max(...view) * MIN_SHARE_RATIO;
   return own.map((share) => Math.max(floor, share));
 }
@@ -76,11 +79,11 @@ export function tradeShares(split: TileSplit, gainer: number, loser: number, amo
   const sizes = [...split.sizes];
   let owed = amount;
   for (const i of [loser, ...heldBy(split, loser)]) {
-    const given = Math.min(owed, Math.max(0, sizes[i] - floors[i]));
-    sizes[i] -= given;
+    const given = Math.min(owed, Math.max(0, valueAt(sizes, i) - valueAt(floors, i)));
+    sizes[i] = valueAt(sizes, i) - given;
     owed -= given;
   }
-  sizes[gainer] += amount - owed;
+  sizes[gainer] = valueAt(sizes, gainer) + amount - owed;
   return sizes;
 }
 
@@ -104,7 +107,7 @@ export function expandedSlot<T extends TileSlot>(slot: T): T {
 
 /** Reopening only clears the flag: every share is the slot's own, so nothing else moves. */
 function reopen(split: TileSplit, index: number): TileSplit {
-  const slot = split.children[index];
+  const slot = valueAt(split.children, index);
   if (slot.kind === 'split' || !slot.collapsed) return split;
   return { ...split, children: split.children.map((child, i) => (i === index ? expandedSlot(slot) : child)) };
 }

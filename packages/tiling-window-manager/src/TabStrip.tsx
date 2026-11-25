@@ -79,8 +79,9 @@ export function TabStrip(props: TabStripProps) {
 
   const select = (index: number) => {
     const g = group();
-    if (!g) return;
-    const id = g.ids[index];
+    const id = g?.ids[index];
+    // A stale index (the group changed since the press) selects nothing.
+    if (!g || id === undefined) return;
     g.select(index);
     // Selecting hides this strip's tile: hand focus to the strip in the tile now shown.
     const shown = [...(strip?.closest('.twm')?.querySelectorAll<HTMLElement>('.twm-tile') ?? [])]

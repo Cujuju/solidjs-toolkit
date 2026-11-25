@@ -5,6 +5,7 @@ import { AccordionGroup } from '../AccordionGroup.js';
 import { AccordionPanel } from '../AccordionPanel.js';
 import { AccordionLeaf } from '../AccordionLeaf.js';
 import { Breadcrumb } from '../Breadcrumb.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * The CSS and the components must agree about NAMES: a stylesheet selecting something no
@@ -118,7 +119,7 @@ describe('CSS and components agree about names', () => {
 const CSS_COMPOUND_PAIRS: readonly (readonly [string, string])[] = (() => {
   const pairs = new Set<string>();
   for (const match of css.matchAll(/\.(acc-[a-z0-9-]+)((?:\[[^\]]+\])+)/g)) {
-    for (const attr of match[2].matchAll(/\[(data-[a-z0-9-]+)/g)) {
+    for (const attr of valueAt(match, 2).matchAll(/\[(data-[a-z0-9-]+)/g)) {
       pairs.add(`${match[1]}|${attr[1]}`);
     }
   }
@@ -179,7 +180,7 @@ describe('every stylesheet is actually loaded', () => {
    * browser because nothing imported them. `index.ts` is the only entry point.
    */
   it('index.ts imports every .css file in the directory', () => {
-    const entry = Object.values(INDEX_SOURCE)[0];
+    const entry = valueAt(Object.values(INDEX_SOURCE), 0);
     expect(entry, 'index.ts was not readable').toBeTypeOf('string');
 
     const present = Object.keys(CSS_SOURCES).map((path) => path.split('/').pop() ?? path);
@@ -216,9 +217,9 @@ describe('the rail is a real tablist', () => {
     // relationship unstated in the direction that matters for navigation.
     const dom = renderFixture();
     try {
-      const tab = dom.querySelectorAll('[role="tab"]')[0];
+      const tab = valueAt(dom.querySelectorAll('[role="tab"]'), 0);
       const id = tab.getAttribute('aria-controls')!;
-      const panel = dom.querySelectorAll(`#${CSS.escape(id)}`)[0];
+      const panel = valueAt(dom.querySelectorAll(`#${CSS.escape(id)}`), 0);
       expect(panel.getAttribute('role')).toBe('tabpanel');
     } finally {
       dom.cleanup();
@@ -277,9 +278,9 @@ describe('cascade layers', () => {
       const source = stripComments(raw, 'css');
       for (const region of layeredRegions(source)) {
         for (const rule of region.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-          const selector = rule[1].trim();
+          const selector = valueAt(rule, 1).trim();
           if (!selector.includes('.acc-')) continue;
-          const declaresRealProperty = rule[2]
+          const declaresRealProperty = valueAt(rule, 2)
             .split(';')
             .map((d) => d.trim())
             .filter((d) => d.length > 0)

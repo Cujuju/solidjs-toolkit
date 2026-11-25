@@ -15,6 +15,7 @@ import {
   segTooltipDefaults,
   type SegTooltipHostProps,
 } from '../tooltipHost.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 
@@ -49,10 +50,10 @@ describe('uncontrolled mode (SegGroup has no `value`)', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].getAttribute('aria-pressed')).toBe('true');
-    expect(buttons(c)[1].getAttribute('aria-pressed')).toBe('false');
+    expect(valueAt(buttons(c), 0).getAttribute('aria-pressed')).toBe('true');
+    expect(valueAt(buttons(c), 1).getAttribute('aria-pressed')).toBe('false');
 
-    click(buttons(c)[1]);
+    click(valueAt(buttons(c), 1));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
@@ -67,7 +68,7 @@ describe('uncontrolled mode (SegGroup has no `value`)', () => {
       </SegGroup>
     ));
 
-    click(buttons(c)[0]);
+    click(valueAt(buttons(c), 0));
     expect(onChange).not.toHaveBeenCalled(); // not controlled -> group's onChange never runs
     expect(onClick).toHaveBeenCalledTimes(1); // falls back to the button's own handler
   });
@@ -83,12 +84,12 @@ describe('controlled mode (SegGroup has a `value`)', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].getAttribute('aria-pressed')).toBe('true');
+    expect(valueAt(buttons(c), 0).getAttribute('aria-pressed')).toBe('true');
 
-    click(buttons(c)[1]);
+    click(valueAt(buttons(c), 1));
     expect(value()).toBe('sell');
-    expect(buttons(c)[0].getAttribute('aria-pressed')).toBe('false');
-    expect(buttons(c)[1].getAttribute('aria-pressed')).toBe('true');
+    expect(valueAt(buttons(c), 0).getAttribute('aria-pressed')).toBe('false');
+    expect(valueAt(buttons(c), 1).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('the group’s value WINS over a button’s own `active` prop', () => {
@@ -101,8 +102,8 @@ describe('controlled mode (SegGroup has a `value`)', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].getAttribute('aria-pressed')).toBe('false');
-    expect(buttons(c)[1].getAttribute('aria-pressed')).toBe('true');
+    expect(valueAt(buttons(c), 0).getAttribute('aria-pressed')).toBe('false');
+    expect(valueAt(buttons(c), 1).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('re-clicking the ALREADY-ACTIVE option still emits onChange', () => {
@@ -114,8 +115,8 @@ describe('controlled mode (SegGroup has a `value`)', () => {
       </SegGroup>
     ));
 
-    click(buttons(c)[0]);
-    click(buttons(c)[0]);
+    click(valueAt(buttons(c), 0));
+    click(valueAt(buttons(c), 0));
     expect(onChange).toHaveBeenCalledTimes(2);
     expect(onChange).toHaveBeenLastCalledWith('buy');
   });
@@ -129,7 +130,7 @@ describe('controlled mode (SegGroup has a `value`)', () => {
       </SegGroup>
     ));
 
-    click(buttons(c)[1]);
+    click(valueAt(buttons(c), 1));
     expect(onChange).toHaveBeenCalledWith(2);
   });
 });
@@ -143,9 +144,9 @@ describe('disabled', () => {
       </SegGroup>
     ));
 
-    click(buttons(c)[0]);
+    click(valueAt(buttons(c), 0));
     expect(onChange).not.toHaveBeenCalled();
-    expect(buttons(c)[0].disabled).toBe(true);
+    expect(valueAt(buttons(c), 0).disabled).toBe(true);
   });
 
   it('does not emit in uncontrolled mode', () => {
@@ -156,7 +157,7 @@ describe('disabled', () => {
       </SegGroup>
     ));
 
-    click(buttons(c)[0]);
+    click(valueAt(buttons(c), 0));
     expect(onClick).not.toHaveBeenCalled();
   });
 });
@@ -171,9 +172,9 @@ describe('a11y roles', () => {
 
     expect(group(c).getAttribute('role')).toBe('group');
     expect(group(c).getAttribute('aria-label')).toBe('Group');
-    expect(buttons(c)[0].getAttribute('role')).toBeNull();
-    expect(buttons(c)[0].getAttribute('aria-pressed')).toBe('true');
-    expect(buttons(c)[0].getAttribute('aria-checked')).toBeNull();
+    expect(valueAt(buttons(c), 0).getAttribute('role')).toBeNull();
+    expect(valueAt(buttons(c), 0).getAttribute('aria-pressed')).toBe('true');
+    expect(valueAt(buttons(c), 0).getAttribute('aria-checked')).toBeNull();
   });
 
   it('radiogroup mode uses role=radio + aria-checked, and a ROVING tabindex', () => {
@@ -190,7 +191,7 @@ describe('a11y roles', () => {
     expect(buttons(c).map((b) => b.getAttribute('role'))).toEqual(['radio', 'radio', 'radio']);
     expect(buttons(c).map((b) => b.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false']);
     expect(buttons(c).map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
-    expect(buttons(c)[0].getAttribute('aria-pressed')).toBeNull();
+    expect(valueAt(buttons(c), 0).getAttribute('aria-pressed')).toBeNull();
   });
 
   it('an uncontrolled radiogroup still renders radios, driven by `active` / `onClick`', () => {
@@ -201,7 +202,8 @@ describe('a11y roles', () => {
         <SegButton label="B" active={sel() === 'b'} onClick={() => setSel('b')} />
       </SegGroup>
     ));
-    const [a, b] = buttons(c);
+    const a = valueAt(buttons(c), 0);
+    const b = valueAt(buttons(c), 1);
     expect(a.getAttribute('role')).toBe('radio');
     expect(a.getAttribute('aria-checked')).toBe('true');
     expect(b.getAttribute('aria-checked')).toBe('false');
@@ -225,7 +227,7 @@ describe('radiogroup keyboard (roving focus)', () => {
       </SegGroup>
     ));
 
-    key(buttons(c)[0], 'ArrowRight');
+    key(valueAt(buttons(c), 0), 'ArrowRight');
     expect(value()).toBe('b');
     expect(document.activeElement).toBe(buttons(c)[1]);
   });
@@ -240,7 +242,7 @@ describe('radiogroup keyboard (roving focus)', () => {
       </SegGroup>
     ));
 
-    key(buttons(c)[2], 'ArrowLeft');
+    key(valueAt(buttons(c), 2), 'ArrowLeft');
     expect(value()).toBe('b');
   });
 
@@ -254,10 +256,10 @@ describe('radiogroup keyboard (roving focus)', () => {
       </SegGroup>
     ));
 
-    key(buttons(c)[0], 'ArrowLeft'); // off the front -> last
+    key(valueAt(buttons(c), 0), 'ArrowLeft'); // off the front -> last
     expect(value()).toBe('c');
 
-    key(buttons(c)[2], 'ArrowRight'); // off the end -> first
+    key(valueAt(buttons(c), 2), 'ArrowRight'); // off the end -> first
     expect(value()).toBe('a');
   });
 
@@ -273,11 +275,11 @@ describe('radiogroup keyboard (roving focus)', () => {
       </SegGroup>
     ));
 
-    key(buttons(c)[0], 'ArrowRight');
+    key(valueAt(buttons(c), 0), 'ArrowRight');
     expect(value()).toBe('c');
     expect(document.activeElement).toBe(buttons(c)[2]);
 
-    key(buttons(c)[2], 'ArrowLeft');
+    key(valueAt(buttons(c), 2), 'ArrowLeft');
     expect(value()).toBe('a');
     expect(document.activeElement).toBe(buttons(c)[0]);
   });
@@ -303,10 +305,10 @@ describe('radiogroup keyboard (roving focus)', () => {
       </div>
     ));
 
-    key(buttons(c)[1], 'ArrowRight');
+    key(valueAt(buttons(c), 1), 'ArrowRight');
     expect(value()).toBe('a');
 
-    key(buttons(c)[0], 'ArrowLeft');
+    key(valueAt(buttons(c), 0), 'ArrowLeft');
     expect(value()).toBe('b');
   });
 
@@ -322,7 +324,7 @@ describe('radiogroup keyboard (roving focus)', () => {
       </SegGroup>
     ));
 
-    key(buttons(c)[0], 'ArrowRight');
+    key(valueAt(buttons(c), 0), 'ArrowRight');
     expect(value()).toBe('b');
     expect(document.activeElement).toBe(buttons(c)[2]);
   });
@@ -342,9 +344,9 @@ describe('radiogroup keyboard (roving focus)', () => {
 
     const portaled = buttons(document.body);
     expect(portaled.length).toBe(2);
-    expect(portaled[0].closest('.csb-group')).toBeNull();
+    expect(valueAt(portaled, 0).closest('.csb-group')).toBeNull();
 
-    key(portaled[0], 'ArrowRight');
+    key(valueAt(portaled, 0), 'ArrowRight');
     expect(value()).toBe('b');
     expect(document.activeElement).toBe(portaled[1]);
   });
@@ -358,7 +360,7 @@ describe('radiogroup keyboard (roving focus)', () => {
       </SegGroup>
     ));
 
-    key(buttons(c)[0], 'ArrowRight');
+    key(valueAt(buttons(c), 0), 'ArrowRight');
     expect(onChange).not.toHaveBeenCalled();
   });
 });
@@ -373,9 +375,9 @@ describe('sizing', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].className).toContain('csb-btn-xs');
-    expect(buttons(c)[1].className).toContain('csb-btn-sm');
-    expect(buttons(c)[2].className).toContain('csb-btn-md'); // md is the default
+    expect(valueAt(buttons(c), 0).className).toContain('csb-btn-xs');
+    expect(valueAt(buttons(c), 1).className).toContain('csb-btn-sm');
+    expect(valueAt(buttons(c), 2).className).toContain('csb-btn-md'); // md is the default
   });
 
   it('raw overrides land as inline styles on top of the preset', () => {
@@ -385,7 +387,7 @@ describe('sizing', () => {
       </SegGroup>
     ));
 
-    const b = buttons(c)[0];
+    const b = valueAt(buttons(c), 0);
     expect(b.style.height).toBe('30px');
     expect(b.style.paddingInlineStart).toBe('9px');
     expect(b.style.paddingInlineEnd).toBe('9px');
@@ -402,9 +404,9 @@ describe('sizing', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].dataset.reserveBold).toBe('true');
-    expect(buttons(c)[0].dataset.label).toBe('A'); // the CSS reserves width off this attribute
-    expect(buttons(c)[1].dataset.reserveBold).toBeUndefined();
+    expect(valueAt(buttons(c), 0).dataset.reserveBold).toBe('true');
+    expect(valueAt(buttons(c), 0).dataset.label).toBe('A'); // the CSS reserves width off this attribute
+    expect(valueAt(buttons(c), 1).dataset.reserveBold).toBeUndefined();
   });
 
   it('renders children in place of the label, keeping data-label for the width reservation', () => {
@@ -416,8 +418,8 @@ describe('sizing', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].querySelector('[data-custom]')).not.toBeNull();
-    expect(buttons(c)[0].dataset.label).toBe('Buy');
+    expect(valueAt(buttons(c), 0).querySelector('[data-custom]')).not.toBeNull();
+    expect(valueAt(buttons(c), 0).dataset.label).toBe('Buy');
   });
 });
 
@@ -458,7 +460,7 @@ describe('tooltip host', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].getAttribute('title')).toBe('Explain A');
+    expect(valueAt(buttons(c), 0).getAttribute('title')).toBe('Explain A');
     expect(c.querySelector('[data-fake-host]')).toBeNull();
   });
 
@@ -470,7 +472,7 @@ describe('tooltip host', () => {
       </SegGroup>
     ));
 
-    expect(buttons(c)[0].getAttribute('title')).toBeNull();
+    expect(valueAt(buttons(c), 0).getAttribute('title')).toBeNull();
     expect(c.querySelector('[data-fake-host]')).toBeNull();
     expect(seen).toBeNull();
   });
@@ -484,9 +486,9 @@ describe('tooltip host', () => {
     ));
 
     // The double-popup this indirection exists to prevent.
-    expect(buttons(c)[0].getAttribute('title')).toBeNull();
+    expect(valueAt(buttons(c), 0).getAttribute('title')).toBeNull();
     expect(c.querySelector('[data-fake-host]')).not.toBeNull();
-    expect(buttons(c)[0].closest('[data-fake-host]')).not.toBeNull();
+    expect(valueAt(buttons(c), 0).closest('[data-fake-host]')).not.toBeNull();
     expect(seen?.description).toBe('Explain A');
     // Required by SegGroup's layout — a host that boxes the button breaks the
     // joined-control look.
@@ -502,12 +504,12 @@ describe('tooltip host', () => {
         <SegButton label="A" title="Explain A" />
       </SegGroup>
     ));
-    expect(buttons(c)[0].getAttribute('title')).toBe('Explain A');
+    expect(valueAt(buttons(c), 0).getAttribute('title')).toBe('Explain A');
 
     setSegTooltipHost(FakeHost);
 
     expect(c.querySelector('[data-fake-host]')).not.toBeNull();
-    expect(buttons(c)[0].getAttribute('title')).toBeNull();
+    expect(valueAt(buttons(c), 0).getAttribute('title')).toBeNull();
   });
 
   it('passes the shared defaults, and lets a per-button prop override the delay', () => {
@@ -548,7 +550,7 @@ describe('tooltip host', () => {
     ));
 
     expect(buttons(c).length).toBe(3);
-    key(buttons(c)[0], 'ArrowRight');
+    key(valueAt(buttons(c), 0), 'ArrowRight');
     expect(value()).toBe('b');
     expect(document.activeElement).toBe(buttons(c)[1]);
   });
@@ -569,7 +571,7 @@ describe('controlled mode follows `value` after mount', () => {
     setTf('day');
     expect(buttons(c).map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
 
-    click(buttons(c)[1]);
+    click(valueAt(buttons(c), 1));
     expect(tf()).toBe('week');
     expect(buttons(c).map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
   });
@@ -585,7 +587,7 @@ describe('controlled mode follows `value` after mount', () => {
     ));
 
     setV(undefined);
-    click(buttons(c)[0]);
+    click(valueAt(buttons(c), 0));
     expect(onChange).not.toHaveBeenCalled();
     expect(onClick).toHaveBeenCalledTimes(1);
   });
@@ -635,7 +637,7 @@ describe('radiogroup has exactly one tab stop while any option is enabled', () =
     // Arrows on a disabled option do nothing: Solid's delegated handler skips disabled nodes
     // (web.js:491), and the `idx < 0` guard backs that up if the event ever arrives.
     const before = document.activeElement;
-    key(buttons(c)[0], 'ArrowRight');
+    key(valueAt(buttons(c), 0), 'ArrowRight');
     expect(onChange).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(before);
   });

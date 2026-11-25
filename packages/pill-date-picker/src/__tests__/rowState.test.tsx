@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillDatePicker, type PillDateItemState, type PillDateRowContext } from '../PillDatePicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 
@@ -83,15 +84,15 @@ describe('itemState — what the row IS', () => {
     ]);
     // aria-disabled, NOT removal: the row is unavailable, not absent, and a
     // ladder missing its unavailable dates misrepresents the calendar.
-    expect(rows()[4].getAttribute('aria-disabled')).toBe('true');
-    expect(rows()[2].getAttribute('aria-disabled')).toBeNull();
+    expect(valueAt(rows(), 4).getAttribute('aria-disabled')).toBe('true');
+    expect(valueAt(rows(), 2).getAttribute('aria-disabled')).toBeNull();
   });
 
   it('keeps an ADJUSTED row fully pickable — it is a caveat, not a refusal', () => {
     const picked = vi.fn();
     const c = mount(() => <Harness itemState={STATE_OF} onChange={picked} />);
     click(pill(c));
-    click(rows()[2]); // Jul 2, adjusted
+    click(valueAt(rows(), 2)); // Jul 2, adjusted
     expect(picked).toHaveBeenCalledWith('2026-07-02');
   });
 
@@ -99,7 +100,7 @@ describe('itemState — what the row IS', () => {
     const picked = vi.fn();
     const c = mount(() => <Harness itemState={STATE_OF} onChange={picked} />);
     click(pill(c));
-    click(rows()[4]); // Sep 18, disabled
+    click(valueAt(rows(), 4)); // Sep 18, disabled
     expect(picked).not.toHaveBeenCalled();
     // The panel must not close either — closing would look like the pick worked.
     expect(rows()).toHaveLength(5);
@@ -151,9 +152,9 @@ describe('the keyboard never rests where Enter refuses to act', () => {
   it('a pointer over a disabled row does not move the cursor onto it', () => {
     const c = mount(() => <Harness itemState={STATE_OF} initial="2026-06-19" />);
     click(pill(c));
-    pointerEnter(rows()[1]); // available → takes the cursor
+    pointerEnter(valueAt(rows(), 1)); // available → takes the cursor
     expect(activeRow()!.textContent).toContain('Jun 26');
-    pointerEnter(rows()[4]); // disabled → cursor must not follow
+    pointerEnter(valueAt(rows(), 4)); // disabled → cursor must not follow
     expect(activeRow()!.textContent).toContain('Jun 26');
   });
 
@@ -240,7 +241,7 @@ describe('duplicate keys are a caller bug, said out loud', () => {
     ));
     click(pill(c));
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0][0])).toContain('duplicate key');
+    expect(String(valueAt(warn.mock.calls, 0)[0])).toContain('duplicate key');
     warn.mockRestore();
   });
 
@@ -269,7 +270,7 @@ describe('renderRow — the escape hatch', () => {
     expect(mine).toHaveLength(5);
     // label + dteLabel come from the package (formatDate / DTE math), so a
     // custom row does not re-implement them.
-    expect(mine[3].textContent).toBe('Jul 17 · 34d · note · true');
+    expect(valueAt(mine, 3).textContent).toBe('Jul 17 · 34d · note · true');
     // The built-in cells are gone — this is a replacement, not an addition.
     expect(document.body.querySelector('.cpdp-row-date')).toBeNull();
   });
@@ -279,10 +280,10 @@ describe('renderRow — the escape hatch', () => {
     const c = mount(() => <Harness renderRow={custom} itemState={STATE_OF} onChange={picked} />);
     click(pill(c));
     expect(rows()).toHaveLength(5);
-    expect(rows()[0].getAttribute('role')).toBe('option');
-    expect(rows()[2].dataset.state).toBe('adjusted');
-    expect(rows()[4].getAttribute('aria-disabled')).toBe('true');
-    click(rows()[1]);
+    expect(valueAt(rows(), 0).getAttribute('role')).toBe('option');
+    expect(valueAt(rows(), 2).dataset.state).toBe('adjusted');
+    expect(valueAt(rows(), 4).getAttribute('aria-disabled')).toBe('true');
+    click(valueAt(rows(), 1));
     expect(picked).toHaveBeenCalledWith('2026-06-26');
   });
 
@@ -296,9 +297,9 @@ describe('renderRow — the escape hatch', () => {
     const c = mount(() => <Harness renderRow={withButton} itemState={STATE_OF} onChange={picked} />);
     click(pill(c));
     const inner = [...document.body.querySelectorAll('.inner')] as HTMLElement[];
-    click(inner[4]); // disabled row's own button
+    click(valueAt(inner, 4)); // disabled row's own button
     expect(picked).not.toHaveBeenCalled();
-    click(inner[1]); // available row's button still commits
+    click(valueAt(inner, 1)); // available row's button still commits
     expect(picked).toHaveBeenCalledWith('2026-06-26');
   });
 

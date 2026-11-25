@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
 import { exportedComponents } from '../../../packages/_shared/contracts/exportedComponents';
+import { defined } from '../../../packages/_shared/testing';
 
 /**
  * Coverage contract: every workspace package has a playground page listed in App.tsx, and every
@@ -10,11 +11,11 @@ import { exportedComponents } from '../../../packages/_shared/contracts/exported
 const MANIFESTS = import.meta.glob('../../../packages/*/package.json');
 const ENTRIES = import.meta.glob<string>('../../../packages/*/src/index.ts', { query: '?raw', import: 'default', eager: true });
 const PAGES = import.meta.glob<string>('../pages/*Page.tsx', { query: '?raw', import: 'default', eager: true });
-const APP = Object.values(import.meta.glob<string>('../App.tsx', { query: '?raw', import: 'default', eager: true }))[0];
+const APP = defined(Object.values(import.meta.glob<string>('../App.tsx', { query: '?raw', import: 'default', eager: true }))[0], 'App.tsx');
 
 const packageNames = Object.keys(MANIFESTS).map((path) => path.split('/').at(-2)!);
 const pageIds = Array.from(APP.matchAll(/\{\s*id:\s*'([\w-]+)'/g), (m) => m[1]);
-const pascal = (id: string) => id.split('-').map((part) => part[0].toUpperCase() + part.slice(1)).join('');
+const pascal = (id: string) => id.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
 const pageSource = (name: string) => PAGES[`../pages/${pascal(name)}Page.tsx`];
 
 describe('the export scanner itself', () => {
@@ -27,7 +28,7 @@ describe('the export scanner itself', () => {
 describe('playground page coverage', () => {
   it('discovers the workspace packages and their components', () => {
     expect(packageNames.length).toBeGreaterThan(0);
-    expect(exportedComponents(ENTRIES['../../../packages/accordion-dock/src/index.ts'])).toContain('AccordionGroup');
+    expect(exportedComponents(defined(ENTRIES['../../../packages/accordion-dock/src/index.ts'], 'accordion-dock entry'))).toContain('AccordionGroup');
   });
 
   it.each(packageNames)('%s has a page listed in App.tsx', (name) => {

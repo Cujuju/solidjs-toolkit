@@ -3,6 +3,7 @@ import { render, fireEvent, cleanup } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
 import { ChipFlyout, VIEWPORT_MARGIN_PX, type ChipOption } from '../ChipFlyout.js';
 import { EMPTY_TRI_STATE, type TriStateValue } from '@cujuju/solidjs-tri-state-chip';
+import { valueAt } from '../../../_shared/testing.js';
 
 // Dispose each render, then hard-clear the body: ChipFlyout Portals its panel to
 // `document.body`, and a leftover contaminates the global lookups below.
@@ -84,7 +85,7 @@ describe('ChipFlyout — multi mode', () => {
       <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={[]} onChange={onChange} />
     ));
     fireEvent.click(trigger(container));
-    fireEvent.click(chips()[0]);
+    fireEvent.click(valueAt(chips(), 0));
     expect(onChange).toHaveBeenCalledWith(['a']);
   });
 
@@ -94,7 +95,7 @@ describe('ChipFlyout — multi mode', () => {
       <ChipFlyout mode="multi" label="Tags" options={OPTIONS} value={['a']} onChange={onChange} />
     ));
     fireEvent.click(trigger(container));
-    fireEvent.click(chips()[0]);
+    fireEvent.click(valueAt(chips(), 0));
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
@@ -119,7 +120,7 @@ describe('ChipFlyout — tri-state mode', () => {
       />
     ));
     fireEvent.click(trigger(container));
-    fireEvent.click(chips()[0]);
+    fireEvent.click(valueAt(chips(), 0));
     expect(onChange).toHaveBeenCalledWith({ included: ['a'], excluded: [] });
   });
 

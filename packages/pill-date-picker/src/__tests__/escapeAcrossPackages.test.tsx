@@ -10,9 +10,10 @@ import { ESCAPE_OWNERS_KEY } from '@cujuju/solidjs-hooks';
 import { KvTooltip } from '@cujuju/solidjs-kv-tooltip';
 import AnchoredPopover from '../../../anchored-popover/src/AnchoredPopover.js';
 import { PillDatePicker } from '../PillDatePicker.js';
+import { defined, valueAt } from '../../../_shared/testing.js';
 
 const escapeStack = (): unknown[] =>
-  (globalThis as unknown as Record<symbol, { stack: unknown[] }>)[ESCAPE_OWNERS_KEY].stack;
+  defined((globalThis as unknown as Record<symbol, { stack: unknown[] }>)[ESCAPE_OWNERS_KEY], 'escape-owner registry').stack;
 
 // jsdom lacks the Popover API; the stub drives `:popover-open` off an attribute so the popover
 // and the picker's panel can be asserted independently.
@@ -144,7 +145,7 @@ describe('a date picker and an AnchoredPopover stacked together', () => {
 
     click(pill());
     const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
-    ladders()[0].dispatchEvent(e);
+    valueAt(ladders(), 0).dispatchEvent(e);
     expect(ladders()).toHaveLength(0);
     expect(e.defaultPrevented).toBe(true);
     expect(outer, 'the enclosing handler also acted on a consumed Escape').not.toHaveBeenCalled();
@@ -177,7 +178,7 @@ describe('a date picker with a tooltip shown after its ladder opened', () => {
     expect(escapeStack(), 'the tooltip did not join the shared stack').toHaveLength(2);
 
     arrowDown(); // -> row 1
-    expect(rows()[1].dataset.active, 'a shown tooltip killed the ladder\'s keys').toBe('true');
+    expect(valueAt(rows(), 1).dataset.active, 'a shown tooltip killed the ladder\'s keys').toBe('true');
 
     // Escape still hides the tooltip alone.
     expect(escape().defaultPrevented).toBe(true);

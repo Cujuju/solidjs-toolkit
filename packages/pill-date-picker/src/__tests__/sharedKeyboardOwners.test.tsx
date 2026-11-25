@@ -8,9 +8,10 @@ import { render } from 'solid-js/web';
 import { ESCAPE_OWNERS_KEY } from '@cujuju/solidjs-hooks';
 import { PillDatePicker } from '../PillDatePicker.js';
 import { PillNumberPicker } from '../../../pill-number-picker/src/PillNumberPicker.js';
+import { defined } from '../../../_shared/testing.js';
 
 const escapeStack = (): unknown[] =>
-  (globalThis as unknown as Record<symbol, { stack: unknown[] }>)[ESCAPE_OWNERS_KEY].stack;
+  defined((globalThis as unknown as Record<symbol, { stack: unknown[] }>)[ESCAPE_OWNERS_KEY], 'escape-owner registry').stack;
 
 let dispose: (() => void) | null = null;
 function mount(ui: () => any): void {

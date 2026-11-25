@@ -249,10 +249,6 @@ export function createEscapeOwner(options: CreateEscapeOwnerOptions): CreateEsca
 
 /** No opaque entry sits above `entry`. An entry without the field (older copy) is opaque. */
 function isTopOwner(entry: EscapeOwnerEntry): boolean {
-  for (let i = registry.stack.length - 1; i >= 0; i -= 1) {
-    const above = registry.stack[i];
-    if (above === entry) return true;
-    if (!above.transparent) return false;
-  }
-  return false;
+  const at = registry.stack.lastIndexOf(entry);
+  return at >= 0 && registry.stack.slice(at + 1).every((above) => above.transparent);
 }

@@ -1,5 +1,6 @@
 import { collapsedIndices, ownShares, peekEdgeOf, shareHolders, viewShares } from './tileCollapse.js';
 import { slotIds, slotKey, type CollapseEdge, type TileNode, type TileSlot, type TileSplit } from './tileTree.js';
+import { valueAt } from './valueAt.js';
 
 export { equalisedShares, resizedShares, RESIZE_KEY_STEPS, RESIZE_STEP_RATIO, type ResizeSnap } from './resize.js';
 
@@ -75,13 +76,13 @@ function distribute(shares: readonly number[], minima: readonly number[], space:
   const pending = new Set(shares.map((_, i) => i));
   let remaining = space;
   while (pending.size) {
-    const total = [...pending].reduce((sum, i) => sum + shares[i], 0);
-    const clamped = [...pending].filter((i) => remaining * shares[i] / total < minima[i]);
+    const total = [...pending].reduce((sum, i) => sum + valueAt(shares, i), 0);
+    const clamped = [...pending].filter((i) => remaining * valueAt(shares, i) / total < valueAt(minima, i));
     if (!clamped.length) {
-      for (const i of pending) px[i] = remaining * shares[i] / total;
+      for (const i of pending) px[i] = remaining * valueAt(shares, i) / total;
       break;
     }
-    for (const i of clamped) { px[i] = minima[i]; remaining -= minima[i]; pending.delete(i); }
+    for (const i of clamped) { const min = valueAt(minima, i); px[i] = min; remaining -= min; pending.delete(i); }
   }
   return { px, clamped: remaining !== space };
 }
@@ -135,20 +136,20 @@ export function computeTileLayout(root: TileNode | undefined, size: TileSize, op
     const available = Math.max(0, rect[axis] - gapPx * (split.children.length - 1));
     const bar = Math.min(thickness(split.dir, options), collapsed.size ? available / collapsed.size : available);
     const strips = split.sizes.map(() => 0);
-    holders.forEach((holder) => { strips[holder] += bar; });
+    holders.forEach((holder) => { strips[holder] = valueAt(strips, holder) + bar; });
     // Own pixels ignore collapse flags, so a toggle moves only the toggled slot and its holder.
     const openMins = split.children.map((child) => minimumSize(child, options, true)[axis]);
     if (openMins.reduce((sum, min) => sum + min, 0) <= available) {
       const own = distribute(split.sizes, openMins, available);
       const allocated = own.px.map((px, i) => (collapsed.has(i) ? bar : px));
-      holders.forEach((holder, i) => { allocated[holder] += own.px[i] - bar; });
+      holders.forEach((holder, i) => { allocated[holder] = valueAt(allocated, holder) + valueAt(own.px, i) - bar; });
       return { holders, shown, gapPx, fundedPx: strips, allocated, own, openMins };
     }
     // Too small for every slot open at its minimum: fit the shown shares instead.
     const open = shown.map((share) => share ?? 0);
     const openTotal = open.reduce((sum, share) => sum + share, 0);
     const sharePerPx = available > 0 ? openTotal / available : 0;
-    const debited = open.map((share, i) => Math.max(0, share - strips[i] * sharePerPx));
+    const debited = open.map((share, i) => Math.max(0, share - valueAt(strips, i) * sharePerPx));
     // Strips filling the whole split leave nothing to debit; plain shares avoid a 0/0 split.
     const funds = debited.some((share) => share > 0);
     const fundedPx = funds ? strips : strips.map(() => 0);
@@ -170,12 +171,12 @@ export function computeTileLayout(root: TileNode | undefined, size: TileSize, op
     const axis = horizontal ? 'width' : 'height';
     const start = horizontal ? 'x' : 'y';
     // Open shares divide their own pixels plus the strips they fund.
-    const shareSpace = allocated.reduce((sum, px, i) => sum + (shown[i] === null ? 0 : px + fundedPx[i]), 0);
+    const shareSpace = allocated.reduce((sum, px, i) => sum + (shown[i] === null ? 0 : px + valueAt(fundedPx, i)), 0);
     const total = shown.reduce<number>((sum, share) => sum + (share ?? 0), 0);
     splitSpaces.set(node, { shareSpacePx: shareSpace, totalShare: total });
     // Stored shares persist until a drag resyncs them: a clamped share from its pixels, an unclamped one as stored.
     const basis = own ? (own.clamped ? own.px.map((px) => px * total / shareSpace) : split.sizes)
-      : shown.map((share, i) => (share === null ? split.sizes[i] : (allocated[i] + fundedPx[i]) * total / shareSpace));
+      : shown.map((share, i) => (share === null ? valueAt(split.sizes, i) : (valueAt(allocated, i) + valueAt(fundedPx, i)) * total / shareSpace));
     const valid = shareSpace > 0 && basis.every((share) => Number.isFinite(share) && share > 0);
     const sizes = !valid ? [...split.sizes] : own ? [...basis] : ownShares(split, basis, holders);
     let offset = 0;
@@ -186,14 +187,15 @@ export function computeTileLayout(root: TileNode | undefined, size: TileSize, op
     });
     let a = -1;
     split.children.forEach((child, i) => {
-      visit(child, childRects[i], [...path, i], shown[i] === null, shown[i] === null ? peekEdgeOf(split, i, holders) : null);
+      const childRect = valueAt(childRects, i);
+      visit(child, childRect, [...path, i], shown[i] === null, shown[i] === null ? peekEdgeOf(split, i, holders) : null);
       if (shown[i] !== null) a = i;
       const b = shown.findIndex((value, index) => index > i && value !== null);
       if (a === -1 || b === -1) return;
       handles.push({
         key: `${path.join('.')}:${i}`, gap: i, path, split: node, sizes, a, b, childRects, extentPx: rect[axis],
         shareSpacePx: shareSpace, minimums: openMins, fundedPx,
-        rect: { ...childRects[i], [start]: childRects[i][start] + allocated[i], [axis]: gapPx },
+        rect: { ...childRect, [start]: childRect[start] + valueAt(allocated, i), [axis]: gapPx },
       });
     });
   }

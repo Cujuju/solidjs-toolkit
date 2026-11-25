@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, it, expect } from 'vitest';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * jsdom resolves neither `transform` nor `box-shadow` from a sheet, so these direction
@@ -19,8 +20,8 @@ interface Rule {
 function rules(): Rule[] {
   const css = CHIP_CSS.replace(/\/\*[\s\S]*?\*\//g, '');
   return Array.from(css.matchAll(/([^{};]+)\{([^{}]*)\}/g), (m) => ({
-    selector: m[1].trim().replace(/\s+/g, ' '),
-    body: m[2].replace(/\s+/g, ' '),
+    selector: valueAt(m, 1).trim().replace(/\s+/g, ' '),
+    body: valueAt(m, 2).replace(/\s+/g, ' '),
   }));
 }
 
@@ -44,7 +45,7 @@ describe('styles.css direction contracts', () => {
         r.selector.endsWith('.ctc-chip-label'),
     );
     expect(rtl).toHaveLength(1);
-    expect(rtl[0].body).toMatch(/translateX\(calc\(var\(--ctc-glyph-col\) \/ 2\)\)/);
+    expect(valueAt(rtl, 0).body).toMatch(/translateX\(calc\(var\(--ctc-glyph-col\) \/ 2\)\)/);
   });
 
   for (const state of ['included', 'excluded'] as const) {
@@ -57,9 +58,9 @@ describe('styles.css direction contracts', () => {
       const ltr = rail.filter((r) => !r.selector.includes(':dir(rtl)'));
       const rtl = rail.filter((r) => r.selector.includes(':dir(rtl)'));
       expect(ltr).toHaveLength(1);
-      expect(ltr[0].body).toMatch(/box-shadow: inset var\(--ctc-rail-width\) 0 0/);
+      expect(valueAt(ltr, 0).body).toMatch(/box-shadow: inset var\(--ctc-rail-width\) 0 0/);
       expect(rtl).toHaveLength(1);
-      expect(rtl[0].body).toMatch(/box-shadow: inset calc\(-1 \* var\(--ctc-rail-width\)\) 0 0/);
+      expect(valueAt(rtl, 0).body).toMatch(/box-shadow: inset calc\(-1 \* var\(--ctc-rail-width\)\) 0 0/);
     });
   }
 });

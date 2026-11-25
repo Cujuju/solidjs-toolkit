@@ -17,6 +17,7 @@ import {
   isEscapeDismissing,
   ESCAPE_OWNERS_KEY,
 } from '../createEscapeOwner.js';
+import { defined } from '../../../_shared/testing.js';
 
 interface Registry {
   stack: unknown[];
@@ -24,7 +25,7 @@ interface Registry {
   dismissing: number;
 }
 const registry = (): Registry =>
-  (globalThis as unknown as Record<symbol, Registry>)[ESCAPE_OWNERS_KEY];
+  defined((globalThis as unknown as Record<symbol, Registry>)[ESCAPE_OWNERS_KEY], 'escape-owner registry');
 
 const escape = (): KeyboardEvent => {
   const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });

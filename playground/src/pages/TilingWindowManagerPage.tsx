@@ -9,7 +9,7 @@ import { Card, Code, createEventLog, EventLog } from '../ui';
 const WORKSPACE_PX = 520;
 /** A collapsed tile shows its header only; this matches the header's height. */
 const STRIP_PX = 30;
-const COLORS = ['#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
+const COLORS: [string, ...string[]] = ['#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
 
 const INITIAL: TileNode = {
   kind: 'split', dir: 'column', sizes: [1, 1],
@@ -58,7 +58,7 @@ const { handles } = computeTileLayout(tree, { width, height }, { gapPx: 8, minSi
 <ResizeReadout handle={handles[0]} shares={handles[0].sizes} side="a"
   alignedWith="Sibling" color={(id) => colorOf(id)} />`;
 
-const color = (id: string) => COLORS[(Number(id.split('-')[1]) || 0) % COLORS.length];
+const color = (id: string): string => COLORS[(Number(id.split('-')[1]) || 0) % COLORS.length] ?? COLORS[0];
 
 /** Folds toward whichever side the tile's split allows, or reopens it. */
 function toggleFold(tile: TileContext) {
@@ -147,7 +147,9 @@ export function TilingWindowManagerPage(): JSX.Element {
         <div style={{ width: '100%' }}>
           <label>tile-1 share <input type="range" min={0.2} max={4} step={0.1} value={share()} onInput={(e) => setShare(e.currentTarget.valueAsNumber)} /></label>
           <div style={{ position: 'relative', width: `${READOUT_BOX.width}px`, height: `${READOUT_BOX.height * 2}px` }}>
-            <ResizeReadout handle={readoutHandle()} shares={readoutHandle().sizes} side="b" alignedWith="Sibling" color={color} />
+            <Show when={readoutHandle()}>
+              {(handle) => <ResizeReadout handle={handle()} shares={handle().sizes} side="b" alignedWith="Sibling" color={color} />}
+            </Show>
           </div>
         </div>
       </Card>

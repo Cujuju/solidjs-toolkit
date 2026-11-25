@@ -15,6 +15,7 @@ import {
   DTE_URGENT_MAX_DAYS,
   DTE_NEAR_MAX_DAYS,
 } from '../_internal/dte.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 describe('parseIsoDate', () => {
   it('reads Y/M/D off a bare ISO date', () => {
@@ -114,7 +115,10 @@ describe('formatting', () => {
 });
 
 describe('resolveDteColor', () => {
-  const [expiring, urgent, near, far] = DEFAULT_DTE_RAMP;
+  const expiring = valueAt(DEFAULT_DTE_RAMP, 0);
+  const urgent = valueAt(DEFAULT_DTE_RAMP, 1);
+  const near = valueAt(DEFAULT_DTE_RAMP, 2);
+  const far = valueAt(DEFAULT_DTE_RAMP, 3);
 
   it('picks the band the DTE falls in, on the default ramp', () => {
     expect(resolveDteColor(0)).toBe(expiring.color);

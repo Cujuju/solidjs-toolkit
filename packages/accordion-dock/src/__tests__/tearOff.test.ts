@@ -5,6 +5,7 @@ import {
   TEAR_OFF_MIN_WINDOW_PX,
   type TearOffController,
 } from '../tearOff.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * Tear-off, smoke-tested against a stubbed `window.open`. Proves the WIRING only; jsdom has no
@@ -121,7 +122,7 @@ describe('createTearOff — opening', () => {
   it('prepares the popup document — title, base, body frame', () => {
     const { api, dispose } = mountController();
     api.tearOff('files');
-    const doc = opened[0].document;
+    const doc = valueAt(opened, 0).document;
 
     // The OS window chrome is a torn-off panel's only label.
     expect(doc.title).toBe('Panel files');
@@ -133,7 +134,7 @@ describe('createTearOff — opening', () => {
     // Regression: `syncStyles` removed any attribute the opener lacked — including `style`, wiping the frame set in `prepareDocument`. See DESIGN_NOTES.md § src/__tests__/tearOff.test.ts:150.
     const { api, dispose } = mountController();
     api.tearOff('files');
-    const style = opened[0].document.body.style;
+    const style = valueAt(opened, 0).document.body.style;
 
     expect(style.margin).toBe('0px');
     expect(style.height).toBe('100vh');
@@ -151,7 +152,7 @@ describe('createTearOff — opening', () => {
     try {
       const { api, dispose } = mountController();
       api.tearOff('files');
-      const body = opened[0].document.body;
+      const body = valueAt(opened, 0).document.body;
 
       expect(body.getAttribute('data-theme')).toBe('dark');
       expect(body.classList.contains('probe-theme')).toBe(true);
@@ -168,7 +169,7 @@ describe('createTearOff — opening', () => {
     try {
       const { api, dispose } = mountController();
       api.tearOff('files');
-      const doc = opened[0].document;
+      const doc = valueAt(opened, 0).document;
       expect(doc.documentElement.style.getPropertyValue('--probe-tint')).toBe('red');
       // A detached test document has no window; the resync skips a window that went away.
       Object.defineProperty(doc, 'defaultView', { value: opened[0], configurable: true });
@@ -196,7 +197,7 @@ describe('createTearOff — opening', () => {
     expect(api.mountFor('files')).toBeUndefined();
 
     api.tearOff('files');
-    expect(api.mountFor('files')).toBe(opened[0].document.body);
+    expect(api.mountFor('files')).toBe(valueAt(opened, 0).document.body);
 
     api.dock('files');
     expect(api.mountFor('files')).toBeUndefined();
@@ -220,7 +221,7 @@ describe('createTearOff — opening', () => {
     // union, and reading `.reason` off the success arm should not typecheck.
     expect(result).toEqual({ ok: false, reason: 'already-torn-off' });
     expect(opened).toHaveLength(1);
-    expect(opened[0].focus).toHaveBeenCalledTimes(1);
+    expect(valueAt(opened, 0).focus).toHaveBeenCalledTimes(1);
     dispose();
   });
 
@@ -230,7 +231,7 @@ describe('createTearOff — opening', () => {
     api.tearOff('b');
     expect(api.tornOff()).toEqual(['a', 'b']);
     expect(opened).toHaveLength(2);
-    expect(opened[0].document).not.toBe(opened[1].document);
+    expect(valueAt(opened, 0).document).not.toBe(valueAt(opened, 1).document);
     dispose();
   });
 });
@@ -270,9 +271,9 @@ describe('createTearOff — coming home', () => {
     expect(api.isTornOff('files')).toBe(false);
     // Deferred to a microtask so the Portal's nodes move home while the popup
     // document is still healthy.
-    expect(opened[0].closed).toBe(false);
+    expect(valueAt(opened, 0).closed).toBe(false);
     await Promise.resolve();
-    expect(opened[0].closed).toBe(true);
+    expect(valueAt(opened, 0).closed).toBe(true);
     dispose();
   });
 
@@ -288,7 +289,7 @@ describe('createTearOff — coming home', () => {
     // the reloaded document is blank and can never get its nodes back.
     const { api, dispose } = mountController();
     api.tearOff('files');
-    opened[0].emit('pagehide');
+    valueAt(opened, 0).emit('pagehide');
     expect(api.isTornOff('files')).toBe(false);
     dispose();
   });
@@ -300,7 +301,7 @@ describe('createTearOff — coming home', () => {
     api.tearOff('a');
     api.dock('a');
     api.tearOff('b');
-    opened[1].emit('pagehide');
+    valueAt(opened, 1).emit('pagehide');
 
     expect(onDock.mock.calls.map((c) => c[0])).toEqual(['a', 'b']);
     dispose();
@@ -312,8 +313,8 @@ describe('createTearOff — coming home', () => {
     const onDock = vi.fn();
     const { api, dispose } = mountController({ onDock });
     api.tearOff('files');
-    opened[0].emit('pagehide');
-    opened[0].emit('pagehide');
+    valueAt(opened, 0).emit('pagehide');
+    valueAt(opened, 0).emit('pagehide');
     expect(onDock).toHaveBeenCalledTimes(1);
     dispose();
   });
@@ -349,10 +350,10 @@ describe('createTearOff — geometry', () => {
     api.tearOff('files');
     // Moved and resized, then docked inside the 400ms poll interval, so only `finish`'s
         // final sample catches it. Without it the panel reopened at its previous position.
-    opened[0].outerWidth = 700;
-    opened[0].outerHeight = 500;
-    opened[0].screenX = 321;
-    opened[0].screenY = 234;
+    valueAt(opened, 0).outerWidth = 700;
+    valueAt(opened, 0).outerHeight = 500;
+    valueAt(opened, 0).screenX = 321;
+    valueAt(opened, 0).screenY = 234;
     api.dock('files');
     dispose();
 
@@ -371,8 +372,8 @@ describe('createTearOff — geometry', () => {
     const { api, dispose } = mountController();
     api.tearOff('files');
     const before = localStorage.getItem(`${STORAGE_KEY}:files`);
-    opened[0].outerWidth = BELOW_MIN_PX;
-    opened[0].outerHeight = BELOW_MIN_PX;
+    valueAt(opened, 0).outerWidth = BELOW_MIN_PX;
+    valueAt(opened, 0).outerHeight = BELOW_MIN_PX;
     api.dock('files');
 
     const after = localStorage.getItem(`${STORAGE_KEY}:files`);

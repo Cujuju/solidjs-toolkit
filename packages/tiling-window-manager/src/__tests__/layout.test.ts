@@ -3,6 +3,7 @@ import { computeTileLayout, equalisedShares, resizedShares, type LayoutRect } fr
 import { planInsertion, planMove, planReflow, tileHitAt, TOO_SMALL } from '../plan.js';
 import { insertTile } from '../tileEdits.js';
 import type { TileNode, TileSplit } from '../tileTree.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 const t = (id: string): TileNode => ({ kind: 'tile', id });
 const row = (sizes: number[], ...children: TileNode[]): TileSplit => ({ kind: 'split', dir: 'row', sizes, children });
@@ -27,17 +28,17 @@ describe('layout', () => {
     const layout = computeTileLayout(row([1, 9], t('a'), t('b')), { width: 410, height: 100 }, options({ a: 150 }));
     expect(layout.tiles.get('a')!.width).toBe(150);
     // 150px and 250px of a 400px space, in a 10-share split.
-    expect(layout.handles[0].sizes).toEqual([3.75, 6.25]);
+    expect(valueAt(layout.handles, 0).sizes).toEqual([3.75, 6.25]);
   });
 
   it('resizes between the two sides only, stopping at a minimum', () => {
     const root = row([1, 1, 1], t('a'), t('b'), t('c'));
     const layout = computeTileLayout(root, { width: 320, height: 100 }, options({ b: 50 }));
-    const first = layout.handles[0];
+    const first = valueAt(layout.handles, 0);
     const grown = resizedShares(first, 1000);
     expect(grown[2]).toBe(1);
-    expect(grown[0] + grown[1]).toBeCloseTo(2);
-    expect(grown[1] * 100).toBeCloseTo(50);
+    expect(valueAt(grown, 0) + valueAt(grown, 1)).toBeCloseTo(2);
+    expect(valueAt(grown, 1) * 100).toBeCloseTo(50);
     expect(equalisedShares(first)).toEqual([1, 1, 1]);
   });
 

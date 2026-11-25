@@ -6,6 +6,6 @@ export function bundleLabelRev(label: string): number | null {
 
 /** The native app's rev and fingerprint, from its updater `version` ("3.0.0-r612-1a2b3c4d5e6f"). */
 export function parseNativeVersion(version: string): { rev: number; fingerprint: string } | null {
-  const m = /-r(\d+)-([0-9a-f]{12})$/.exec(version);
-  return m ? { rev: Number(m[1]), fingerprint: m[2] } : null;
+  const [, rev, fingerprint] = /-r(\d+)-([0-9a-f]{12})$/.exec(version) ?? [];
+  return rev && fingerprint ? { rev: Number(rev), fingerprint } : null;
 }

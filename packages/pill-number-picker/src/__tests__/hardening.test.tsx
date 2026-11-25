@@ -7,6 +7,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillNumberPicker } from '../PillNumberPicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 
@@ -109,7 +110,7 @@ describe('auto-repeat', () => {
     // plus one more — overshooting the value the user was watching when they released.
     vi.useFakeTimers();
     const { host, changes } = plain({ initial: 5 });
-    const inc = buttonsIn(host)[0];
+    const inc = valueAt(buttonsIn(host), 0);
     pointerDown(inc);
     vi.advanceTimersByTime(400 + 60 * 2); // delay + two intervals => 3 ticks
     pointerUp(inc);
@@ -120,7 +121,7 @@ describe('auto-repeat', () => {
   it('a quick tap still steps exactly once — the click is the only step', () => {
     vi.useFakeTimers();
     const { host, changes } = plain({ initial: 5 });
-    const inc = buttonsIn(host)[0];
+    const inc = valueAt(buttonsIn(host), 0);
     pointerDown(inc);
     vi.advanceTimersByTime(50); // released well before the repeat threshold
     pointerUp(inc);
@@ -142,7 +143,7 @@ describe('auto-repeat', () => {
         max={100}
       />
     ));
-    pointerDown(buttonsIn(host)[0]);
+    pointerDown(valueAt(buttonsIn(host), 0));
     vi.advanceTimersByTime(400); // first tick: publishes 6, consumer disables
     expect(changes).toEqual([6]);
     vi.advanceTimersByTime(5000); // no pointerup will ever arrive
@@ -157,7 +158,7 @@ describe('auto-repeat', () => {
     const host = mount(() => (
       <PillNumberPicker value={v()} onChange={(n) => { changes.push(n); setV(n); }} min={1} max={5} />
     ));
-    pointerDown(buttonsIn(host)[0]);
+    pointerDown(valueAt(buttonsIn(host), 0));
     vi.advanceTimersByTime(400 + 60 * 3); // tick 1 reaches max, tick 2 is refused
     expect(changes).toEqual([5]);
     expect(vi.getTimerCount(), 'a refused hold left a timer armed').toBe(0);
@@ -239,8 +240,8 @@ describe("finish-mode display — every read goes through current()", () => {
       <PillNumberPicker collapsible commit="finish" showRange value={5} onChange={() => {}} min={1} max={100} />
     ));
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]);
-    click(buttonsIn(panel())[0]); // draft 7
+    click(valueAt(buttonsIn(panel()), 0));
+    click(valueAt(buttonsIn(panel()), 0)); // draft 7
     expect((host.querySelector('.cpnp-range') as HTMLElement).textContent).toBe('7 / 100');
   });
 
@@ -259,7 +260,7 @@ describe("finish-mode display — every read goes through current()", () => {
     ));
     expect(host.querySelector('.cpnp-suffix')).toBeNull(); // 'Off', no unit
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // draft 1 — no longer 'Off'
+    click(valueAt(buttonsIn(panel()), 0)); // draft 1 — no longer 'Off'
     expect((host.querySelector('.cpnp-suffix') as HTMLElement | null)?.textContent).toBe('kg');
   });
 });
@@ -279,7 +280,7 @@ describe('auto-repeat — an abandoned hold leaves no latch behind', () => {
     it(`a hold ended by ${name} does not swallow the next keyboard click`, () => {
       vi.useFakeTimers();
       const { host, changes } = plain({ initial: 5 });
-      const inc = buttonsIn(host)[0];
+      const inc = valueAt(buttonsIn(host), 0);
       pointerDown(inc);
       vi.advanceTimersByTime(400); // one repeat tick => 6
       abandon(inc);
@@ -294,7 +295,7 @@ describe('requireFocus — focus anywhere inside the widget counts', () => {
     const { host, changes } = plain({ initial: 5, requireFocus: true });
     click(valueCell(host));
     (host.querySelector('.cpnp-input') as HTMLInputElement).focus();
-    buttonsIn(host)[1].focus();
+    valueAt(buttonsIn(host), 1).focus();
     wheel(valueCell(host), 100);
     expect(changes, 'focus never left the widget, yet the wheel was blocked').toEqual([4]);
   });
@@ -303,7 +304,7 @@ describe('requireFocus — focus anywhere inside the widget counts', () => {
     const { host, changes } = plain({ initial: 5, requireFocus: true });
     click(valueCell(host));
     (host.querySelector('.cpnp-input') as HTMLInputElement).focus();
-    const inc = buttonsIn(host)[0];
+    const inc = valueAt(buttonsIn(host), 0);
     inc.focus();
     wheel(valueCell(host), 100);
     expect(changes).toEqual([4]);
@@ -402,7 +403,7 @@ describe('closing the pop-out — focus is returned only when the picker closed 
     document.body.appendChild(outside);
     click(anchorValue(host));
     await flush();
-    buttonsIn(panel())[0].focus();
+    valueAt(buttonsIn(panel()), 0).focus();
     key(document, 'Escape'); // the panel stays up until the consumer's microtask
     outside.focus();
     outside.blur(); // e.g. a click on non-focusable page area
@@ -444,7 +445,7 @@ describe('movement — every stepping input goes through one path', () => {
     const expected = [1, -1, -2];
     expect(run((h) => key(valueCell(h), 'ArrowDown'))).toEqual(expected);
     expect(run((h) => wheel(valueCell(h), 100))).toEqual(expected);
-    expect(run((h) => click(buttonsIn(h)[1]))).toEqual(expected);
+    expect(run((h) => click(valueAt(buttonsIn(h), 1)))).toEqual(expected);
     expect(run((h) => key(valueCell(h), 'PageDown'))).toEqual([-2]);
   });
 });
@@ -455,7 +456,7 @@ describe('auto-repeat — the release click is recognised at the click', () => {
   it('touch order (pointerup → pointerleave → click) still swallows the release click', () => {
     vi.useFakeTimers();
     const { host, changes } = plain({ initial: 5 });
-    const inc = buttonsIn(host)[0];
+    const inc = valueAt(buttonsIn(host), 0);
     pointerDown(inc);
     vi.advanceTimersByTime(400); // one repeat tick => 6
     pointerUp(inc);
@@ -477,7 +478,7 @@ describe('auto-repeat — the release click is recognised at the click', () => {
         max={100}
       />
     ));
-    const inc = buttonsIn(host)[0];
+    const inc = valueAt(buttonsIn(host), 0);
     pointerDown(inc);
     vi.advanceTimersByTime(400); // publishes 6, consumer disables; no click will follow
     setDisabled(false);
@@ -496,7 +497,7 @@ describe('requireFocus — read from the DOM at wheel time', () => {
     const outside = document.createElement('button');
     document.body.appendChild(outside);
     click(anchorValue(host));
-    buttonsIn(panel())[0].focus();
+    valueAt(buttonsIn(panel()), 0).focus();
     pointerDown(outside); // unmounts the panel; no focusout reaches a listener
     expect(panel()).toBeNull();
     wheel(anchorValue(host), 100);

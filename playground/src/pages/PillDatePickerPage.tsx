@@ -87,8 +87,8 @@ function gridStep(dte: number | null): number {
 }
 
 function daysFromToday(isoDate: string): number {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  const then = Date.UTC(y, m - 1, d);
+  // A date-only ISO string parses as UTC midnight.
+  const then = Date.parse(isoDate);
   const now = new Date();
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.round((then - today) / 86_400_000);

@@ -1,13 +1,14 @@
 import { expect, it, vi } from 'vitest';
 import { createNoticeBridge, handleNoticeIpc } from '../ipc.js';
 import { NOTICE_CHANNELS } from '../types.js';
+import { valueAt } from '../../../_shared/testing.js';
 it('bridges all channels and unsubscribes', async () => {
   const ipc = { on: vi.fn(), removeListener: vi.fn(), invoke: vi.fn().mockRejectedValue(new Error('closed')) };
   const b = createNoticeBridge(ipc), cb = vi.fn();
-  const off = b.onNotice(cb); ipc.on.mock.calls[0][1](null, { id: 1 }); expect(cb).toHaveBeenLastCalledWith({ id: 1 });
-  off(); expect(ipc.removeListener).toHaveBeenCalledWith(NOTICE_CHANNELS.notice, ipc.on.mock.calls[0][1]);
-  b.onView(cb); ipc.on.mock.calls[1][1](null, {}, 'top-center', 900); expect(cb).toHaveBeenLastCalledWith({}, 'top-center', 900);
-  b.onWithdraw(cb); ipc.on.mock.calls[2][1](null, { key: 'a' }); expect(cb).toHaveBeenLastCalledWith({ key: 'a' });
+  const off = b.onNotice(cb); valueAt(ipc.on.mock.calls, 0)[1](null, { id: 1 }); expect(cb).toHaveBeenLastCalledWith({ id: 1 });
+  off(); expect(ipc.removeListener).toHaveBeenCalledWith(NOTICE_CHANNELS.notice, valueAt(ipc.on.mock.calls, 0)[1]);
+  b.onView(cb); valueAt(ipc.on.mock.calls, 1)[1](null, {}, 'top-center', 900); expect(cb).toHaveBeenLastCalledWith({}, 'top-center', 900);
+  b.onWithdraw(cb); valueAt(ipc.on.mock.calls, 2)[1](null, { key: 'a' }); expect(cb).toHaveBeenLastCalledWith({ key: 'a' });
   b.ready(); b.resize(10, 20); b.pointer(true); b.ack(1); b.open(1); b.action(1, 'a'); b.pin(1, true); b.closed(1);
   expect(ipc.invoke.mock.calls).toEqual([
     ['notices:ready'], ['notices:resize', 10, 20], ['notices:pointer', true], ['notices:ack', 1], ['notices:open', 1],

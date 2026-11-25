@@ -28,13 +28,16 @@ export interface SubmenuStyleInput {
   scrollable: boolean;
 }
 
+/** The inline style properties `computeSubmenuStyle` always sets. */
+export type SubmenuStyle = { position: 'fixed' } & Record<'top' | 'left' | 'right' | 'bottom' | 'margin' | 'width' | 'max-width' | 'max-height', string>;
+
 /**
  * Inline style for a Portal'd submenu flyout, flush beside its parent: prefers the right, flips left or picks
  * the roomier side, then clamps. Top aligns to the trigger, shifting up on overflow.
  */
 export function computeSubmenuStyle(
   input: SubmenuStyleInput,
-): Record<string, string> {
+): SubmenuStyle {
   const { triggerRect, parentRect, flyoutRect, bounds, scrollable } = input;
   const margin = VIEWPORT_MARGIN_PX;
 

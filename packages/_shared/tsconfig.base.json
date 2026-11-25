@@ -6,6 +6,7 @@
     "moduleResolution": "bundler",
     "customConditions": ["cujuju-source"],
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,

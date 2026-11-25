@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'solid-js/web';
 import { computeTileLayout, DockZoneGuides, ResizeReadout, TabStrip, TilingWorkspace, type TileNode } from '../index.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 const LAYOUT: TileNode = {
   kind: 'split', dir: 'row', sizes: [1, 1],
@@ -20,7 +21,7 @@ describe('server render', () => {
   });
 
   it('renders a resize readout', () => {
-    const handle = computeTileLayout(LAYOUT, BOX, { gapPx: GAP_PX, minSizes: new Map() }).handles[0];
+    const handle = valueAt(computeTileLayout(LAYOUT, BOX, { gapPx: GAP_PX, minSizes: new Map() }).handles, 0);
     expect(typeof renderToString(() => <ResizeReadout handle={handle} shares={[1, 1]} side="b" />)).toBe('string');
   });
   it('renders shared dock guides with the caller’s center action', () => {

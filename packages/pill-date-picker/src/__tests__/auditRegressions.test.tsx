@@ -8,6 +8,7 @@ import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillDatePicker } from '../PillDatePicker.js';
 import { POPOUT_VIEWPORT_MARGIN_PX } from '../_internal/popout.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 function mount(ui: () => any): HTMLDivElement {
@@ -94,8 +95,8 @@ describe('F060 — the open ladder serves only keystrokes that belong to it', ()
         <input type="text" />
       </>
     ));
-    pills()[0].focus();
-    click(pills()[0]);
+    valueAt(pills(), 0).focus();
+    click(valueAt(pills(), 0));
     expect(panel()).not.toBeNull();
     c.querySelector('input')!.focus();
     expect(panel()).toBeNull();
@@ -104,7 +105,7 @@ describe('F060 — the open ladder serves only keystrokes that belong to it', ()
   it('still serves keys aimed at the pill itself', () => {
     const picked = vi.fn();
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={picked} now={NOW} />);
-    const pill = pills()[0];
+    const pill = valueAt(pills(), 0);
     pill.focus();
     click(pill);
     keyOn(pill, 'ArrowDown');
@@ -125,7 +126,7 @@ describe('F006 — placement props are not open-effect dependencies', () => {
     mount(() => (
       <PillDatePicker items={LADDER} value={SELECTED} onChange={() => {}} now={NOW} preferPlacement={prefer()} />
     ));
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     keyOn(document, 'Home');
     expect(activeRow()!.textContent).toContain('Jun 19');
     expect(panel()!.dataset.placement).toBe('bottom');
@@ -162,7 +163,7 @@ describe('F063 — an Escape the picker consumed goes no further', () => {
       () => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />,
       wrapper,
     );
-    const pill = pills()[0];
+    const pill = valueAt(pills(), 0);
     pill.focus();
     click(pill);
     const e = keyOn(pill, 'Escape');
@@ -193,18 +194,18 @@ describe('F063 — an Escape the picker consumed goes no further', () => {
     ));
     const input = c.querySelector('input')!;
     input.focus();
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     setTopOpen(true);
     expect(panels()).toHaveLength(2);
     const e = keyOn(input, 'Escape');
     expect(e.defaultPrevented).toBe(true);
     expect(topOpenChanges).toEqual([false]);
-    expect(pills()[1].getAttribute('aria-expanded')).toBe('false');
+    expect(valueAt(pills(), 1).getAttribute('aria-expanded')).toBe('false');
     // Escape dismisses ONE layer: the picker underneath survives the refocus the dismissed one
     // hands back to its pill, and is then the top of the stack for the next Escape.
     expect(panels()).toHaveLength(1);
-    expect(pills()[0].getAttribute('aria-expanded')).toBe('true');
-    expect(keyOn(pills()[1], 'Escape').defaultPrevented).toBe(true);
+    expect(valueAt(pills(), 0).getAttribute('aria-expanded')).toBe('true');
+    expect(keyOn(valueAt(pills(), 1), 'Escape').defaultPrevented).toBe(true);
     expect(panels()).toHaveLength(0);
   });
 });
@@ -226,7 +227,7 @@ describe('F008 / F046 — disabled + controlled open releases everything the pan
     setDis(true);
     expect(panel()).toBeNull();
     expect(keyOn(document, 'ArrowDown').defaultPrevented).toBe(false);
-    const combo = pills()[0];
+    const combo = valueAt(pills(), 0);
     expect(combo.getAttribute('aria-expanded')).toBe('false');
     expect(combo.getAttribute('aria-controls')).toBeNull();
     setDis(false);
@@ -253,7 +254,7 @@ describe('F029 — the panel is re-placed when its own size changes', () => {
       panel: { width: 140, height: 44 },
     });
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     expect(panel()!.dataset.placement).toBe('bottom');
     layout.panel.height = 260;
     resized?.();
@@ -269,7 +270,7 @@ describe('F033 — a ladder whose pill has scrolled out of view is put away', ()
       panel: { width: 140, height: 200 },
     });
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     expect(panel()).not.toBeNull();
     layout.anchor.top = -500;
     window.dispatchEvent(new Event('scroll'));
@@ -286,7 +287,7 @@ describe('F030 — placement uses the layout viewport, not window.inner*', () =>
       panel: { width: 140, height: 100 },
     });
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     const expectedLeft = layout.viewport.clientWidth! - layout.panel.width - POPOUT_VIEWPORT_MARGIN_PX;
     expect(panel()!.style.left).toBe(`${expectedLeft}px`);
   });
@@ -297,7 +298,7 @@ describe('F010 — Enter/Space with no active row are still owned by the open li
     mount(() => (
       <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} itemState={() => 'disabled'} />
     ));
-    const pill = pills()[0];
+    const pill = valueAt(pills(), 0);
     pill.focus();
     click(pill);
     keyOn(pill, 'ArrowDown');
@@ -310,18 +311,18 @@ describe('F010 — Enter/Space with no active row are still owned by the open li
 describe('F043 — aria-activedescendant only ever names a rendered row', () => {
   it('names nothing when the selection is not in the ladder', () => {
     mount(() => <PillDatePicker items={[]} value={SELECTED} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
-    expect(pills()[0].getAttribute('aria-activedescendant')).toBeNull();
+    click(valueAt(pills(), 0));
+    expect(valueAt(pills(), 0).getAttribute('aria-activedescendant')).toBeNull();
   });
 
   it('drops the pointer when the active row leaves a re-supplied ladder', () => {
     const [items, setItems] = createSignal<string[]>(LADDER);
     mount(() => <PillDatePicker items={items()} value={null} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     keyOn(document, 'ArrowDown');
-    expect(pills()[0].getAttribute('aria-activedescendant')).toBeTruthy();
+    expect(valueAt(pills(), 0).getAttribute('aria-activedescendant')).toBeTruthy();
     setItems(LADDER.slice(1));
-    expect(pills()[0].getAttribute('aria-activedescendant')).toBeNull();
+    expect(valueAt(pills(), 0).getAttribute('aria-activedescendant')).toBeNull();
   });
 });
 
@@ -365,7 +366,7 @@ describe('F033 — an off-screen anchor hides the panel; only leaving the viewpo
     mount(() => (
       <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} onOpenChange={(o) => seen.push(o)} />
     ));
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     expect(seen).toEqual([true]);
     expect(panel()!.style.visibility).toBe('hidden');
   });
@@ -377,7 +378,7 @@ describe('F033 — an off-screen anchor hides the panel; only leaving the viewpo
       panel: { width: 140, height: 200 },
     });
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     expect(panel()).not.toBeNull();
   });
 
@@ -402,7 +403,7 @@ describe('F033 — an off-screen anchor hides the panel; only leaving the viewpo
     mount(() => (
       <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} onOpenChange={(o) => seen.push(o)} />
     ));
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     layout.anchor.top = OUT_OF_VIEW_TOP;
     // A placement nobody asked a dismissal of: it hides the panel and leaves the edge for `onReflow`.
     resized?.();
@@ -453,7 +454,7 @@ describe('F045 / F031 — a non-finite caller dteOf reaches consumers as null', 
         }}
       />
     ));
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     expect(tipDtes.length).toBeGreaterThan(0);
     expect(rowDtes).toHaveLength(LADDER.length);
     expect([...tipDtes, ...rowDtes].every((d) => d === null)).toBe(true);
