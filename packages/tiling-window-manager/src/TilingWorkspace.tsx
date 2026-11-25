@@ -155,6 +155,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
   });
 
   const [resizing, setResizing] = createSignal(false);
+  const [readoutActive, setReadoutActive] = createSignal(false);
   /** Tiles whose tab strip has its More menu open. */
   const [tabMenus, setTabMenus] = createSignal<ReadonlySet<string>>(new Set());
   const overlayOpen = createMemo(() =>
@@ -213,6 +214,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
       }}
       data-grow={props.growHeight || undefined}
       data-dragging={dockGesture.dragging() !== null || undefined}
+      data-readout-active={readoutActive() || undefined}
     >
       <For each={identities()}>
         {(id) => {
@@ -221,6 +223,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
           const group = createMemo(() => tabGroup(id));
           const visible = () => { const g = group(); return !g || g.ids[g.active] === id; };
           const placed = createMemo(() => layout().slots.find((entry) => slotIds(entry.slot).includes(id)));
+          const [raised, setRaised] = createSignal(false);
           const context: TileContext = {
             id,
             rect,
@@ -230,9 +233,10 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
             visible,
             tabs: group,
             collapse: collapseControls(id, placed),
+            setRaised,
           };
           return (
-            <div class="twm-tile" data-tile-id={id} data-dragging={context.dragging() || undefined} hidden={!visible()}
+            <div class="twm-tile" data-tile-id={id} data-dragging={context.dragging() || undefined} data-raised={raised() || undefined} hidden={!visible()}
               role={group() ? 'tabpanel' : undefined} data-collapsed={context.collapse.edge() ?? undefined} style={{ ...box(rect()), display: visible() ? undefined : 'none' }}>
               {props.children(context)}
             </div>
@@ -242,6 +246,7 @@ export function TilingWorkspace(props: TilingWorkspaceProps) {
       <ResizeLayer root={props.layout} layout={layout()} size={layoutSize()} draft={draft()} setDraft={endDraft} onChange={change}
         pushHeightPx={pushes() && props.layout ? layoutSize().height : undefined} pushFloorPx={props.minHeightPx}
         optionsFor={(root) => optionsFor(tileIds(root))} readout={!!props.readout} onPointerDrag={setResizing}
+        onReadoutChange={setReadoutActive}
         color={typeof props.readout === 'object' ? props.readout.color : undefined} alignWith={props.alignWith} />
       <Show when={dockGesture.preview()}>
         {(preview) => (

@@ -89,8 +89,8 @@
   }
 }
 
-html:has(.cuj-notices:not([data-inline])),
-body:has(.cuj-notices:not([data-inline])) {
+html[data-cuj-notices-overlay],
+html[data-cuj-notices-overlay] body {
   margin: 0;
   background: transparent;
   overflow: hidden;

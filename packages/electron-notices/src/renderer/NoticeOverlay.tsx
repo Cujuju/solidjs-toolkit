@@ -3,7 +3,7 @@ import {
   BASIC_TONES, DEFAULT_NOTICE_CONFIG, deliversTo, isSticky, noticeDuration,
   type Notice, type NoticeBridge, type NoticePlacement, type NoticeView,
 } from '../types.js';
-import { hasNoticeElement, watchPointer, watchSize } from './_internal/overlayDom.js';
+import { hasNoticeElement, markOverlayRoot, watchPointer, watchSize } from './_internal/overlayDom.js';
 import { ConsoleTail } from './ConsoleTail.js';
 import type { NoticeIcon } from './NoticeGlyph.js';
 import { createNoticeQueue } from './queue.js';
@@ -90,12 +90,16 @@ export function NoticeOverlay(props: NoticeOverlayProps) {
 
   onMount(() => {
     ackRendered();
-    if (props.inline || !root) return;
+    if (!root) return;
     const el = root;
     createEffect(() => {
-      const needsShape = shaped();
-      onCleanup(watchSize(el, (width, height, rects) => bridge.resize(width, height, rects), needsShape ? INTERACTIVE : undefined));
-      if (!needsShape) onCleanup(watchPointer(INTERACTIVE, (over) => bridge.pointer(over)));
+      if (props.inline) return;
+      onCleanup(markOverlayRoot(el));
+      createEffect(() => {
+        const needsShape = shaped();
+        onCleanup(watchSize(el, (width, height, rects) => bridge.resize(width, height, rects), needsShape ? INTERACTIVE : undefined));
+        if (!needsShape) onCleanup(watchPointer(INTERACTIVE, (over) => bridge.pointer(over)));
+      });
     });
   });
 

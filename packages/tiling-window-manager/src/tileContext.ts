@@ -46,4 +46,6 @@ export interface TileContext {
   /** The tile's tab group, or null when it has its own slot. */
   tabs: () => TabGroup | null;
   collapse: CollapseControls;
+  /** Marks this tile's wrapper raised (`data-raised`) while it paints over neighbours (e.g. a collapsed peek). */
+  setRaised: (active: boolean) => void;
 }
