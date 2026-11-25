@@ -22,6 +22,7 @@ import { AccordionDockPage } from './pages/AccordionDockPage';
 import { VirtualLogPage } from './pages/VirtualLogPage';
 import { CapacitorLiveUpdatesPage } from './pages/CapacitorLiveUpdatesPage';
 import { ElectronUpdatesPage } from './pages/ElectronUpdatesPage';
+import { ElectronNoticesPage } from './pages/ElectronNoticesPage';
 
 /**
  * Playground — the live harness. Aimed at what a unit test cannot show: how a control behaves
@@ -62,6 +63,7 @@ const PAGES: [Page, ...Page[]] = [
   { id: 'glass', blurb: 'surfaces + tint engine', component: GlassPage },
   { id: 'hooks', blurb: 'primitive drawer', component: HooksPage },
   { id: 'virtual-log', blurb: 'bottom-anchored log', component: VirtualLogPage },
+  { id: 'electron-notices', blurb: 'notice tray, drip, console', component: ElectronNoticesPage },
   { id: 'capacitor-live-updates', blurb: 'OTA bundles (docs only)', component: CapacitorLiveUpdatesPage },
   { id: 'electron-updates', blurb: 'signed app updates (docs only)', component: ElectronUpdatesPage },
 ];

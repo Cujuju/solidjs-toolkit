@@ -13,6 +13,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@cujuju/electron-notices": "workspace:*",
     "@cujuju/solidjs-accordion-dock": "workspace:*",
     "@cujuju/solidjs-anchored-popover": "workspace:*",
     "@cujuju/solidjs-chip-flyout": "workspace:*",

@@ -1,5 +1,5 @@
 import { createSignal, type JSX } from 'solid-js';
-import { ContextMenu, type ContextMenuEntry, type ContextMenuSurface } from '@cujuju/solidjs-context-menu';
+import { ContextMenu, ContextMenuSubmenuTrigger, type ContextMenuEntry, type ContextMenuSurface } from '@cujuju/solidjs-context-menu';
 import {
   Card,
   ClipBox,
@@ -83,6 +83,26 @@ export function ContextMenuPage(): JSX.Element {
       ],
     },
     { custom: () => <div class="readout" style={{ padding: '4px 10px' }}>custom JSX row</div> },
+    {
+      // A submenu opened from inside a custom row, beside the row's own button.
+      custom: () => (
+        <div style={{ display: 'flex' }}>
+          <button type="button" class="cujuju-context-menu-item" onClick={() => log.log('custom-row', 'copy')}>Copy</button>
+          <ContextMenuSubmenuTrigger
+            submenu={{
+              submenu: true,
+              label: 'Export',
+              children: [
+                { label: 'CSV', onClick: () => log.log('custom-submenu', 'csv') },
+                { label: 'JSON', onClick: () => log.log('custom-submenu', 'json') },
+              ],
+            }}
+          >
+            Export ›
+          </ContextMenuSubmenuTrigger>
+        </div>
+      ),
+    },
     { divider: true },
     { label: 'Close panel', danger: true, onClick: () => log.log('item', 'close (danger)') },
   ];

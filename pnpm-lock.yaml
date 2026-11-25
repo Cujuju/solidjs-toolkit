@@ -550,6 +550,9 @@ importers:
 
   playground:
     dependencies:
+      '@cujuju/electron-notices':
+        specifier: workspace:*
+        version: link:../packages/electron-notices
       '@cujuju/solidjs-accordion-dock':
         specifier: workspace:*
         version: link:../packages/accordion-dock
