@@ -13,6 +13,12 @@
       "solid": "./src/index.ts",
       "import": "./dist/index.js"
     },
+    "./model": {
+      "cujuju-source": "./src/model.ts",
+      "types": "./dist/model.d.ts",
+      "solid": "./src/model.ts",
+      "import": "./dist/model.js"
+    },
     "./styles.css": "./src/styles.css",
     "./style.css": "./dist/style.css"
   },
