@@ -1,12 +1,14 @@
 import { createMemo, createSignal, Show, type JSX } from 'solid-js';
 import {
-  computeTileLayout, removeTile, ResizeReadout, TabStrip, TilingWorkspace,
-  type PlacementMode, type Placing, type TileContext, type TileNode,
+  computeTileLayout, DockZoneGuides, dropZoneAt, MOVE_ZONES, removeTile, ResizeReadout, TabStrip, TilingWorkspace,
+  type DropZone, type PlacementMode, type Placing, type TileContext, type TileNode,
 } from '@cujuju/solidjs-tiling-window-manager';
 import { Card, Code, createEventLog, EventLog } from '../ui';
 
 /** Tall enough to split twice in each direction at the default 120px tile minimum. */
 const WORKSPACE_PX = 520;
+/** The standalone dock-guide box: about one tile's size. */
+const GUIDES_BOX = { width: 320, height: 200 };
 /** A collapsed tile shows its header only; this matches the header's height. */
 const STRIP_PX = 30;
 const COLORS: [string, ...string[]] = ['#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
@@ -78,6 +80,9 @@ export function TilingWindowManagerPage(): JSX.Element {
   const [share, setShare] = createSignal(1);
   const events = createEventLog();
   let next = 5;
+  const [guideZone, setGuideZone] = createSignal<DropZone>();
+  const [blockAbove, setBlockAbove] = createSignal(false);
+  const guideZones = () => new Set<DropZone>(MOVE_ZONES.filter((zone) => !(blockAbove() && zone === 'top')));
   const readoutHandle = createMemo(() => {
     const split = { ...READOUT_SPLIT, sizes: [share(), 1, 1] } as TileNode;
     return computeTileLayout(split, READOUT_BOX, { gapPx: GAP_RANGE_PX.initial, minSizes: new Map() }).handles[0];
@@ -154,6 +159,21 @@ export function TilingWindowManagerPage(): JSX.Element {
         </div>
       </Card>
       <Code cap="ResizeReadout">{READOUT_USAGE}</Code>
+
+      <h2>DockZoneGuides</h2>
+      <Card cap="The zone map a dock drag paints over its target, on its own. Hover the box to light a zone; block Above to see an unavailable zone." wide>
+        <div style={{ width: '100%' }}>
+          <label><input type="checkbox" checked={blockAbove()} onChange={(e) => setBlockAbove(e.currentTarget.checked)} /> block Above</label>
+          <div style={{ position: 'relative', width: `${GUIDES_BOX.width}px`, height: `${GUIDES_BOX.height}px` }}
+            onPointerMove={(e) => {
+              const box = e.currentTarget.getBoundingClientRect();
+              setGuideZone(dropZoneAt(MOVE_ZONES, (e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height) ?? undefined);
+            }}
+            onPointerLeave={() => setGuideZone(undefined)}>
+            <DockZoneGuides style={{ left: '0', top: '0', width: '100%', height: '100%' }} active={guideZone()} available={guideZones()} centerLabel="Swap / Tab" />
+          </div>
+        </div>
+      </Card>
     </>
   );
 }

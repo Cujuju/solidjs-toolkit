@@ -25,8 +25,8 @@ jobs:
       # Each package's `types` export points at dist/, so build before type-checking.
       - run: pnpm build
       - run: pnpm typecheck
-      # Packages only, one at a time: parallel vitest runs share a transform cache. The playground's suite is excluded, as in `build`.
-      - run: pnpm --filter './packages/*' --workspace-concurrency=1 test
+      # One at a time: parallel vitest runs share a transform cache. Includes the playground's contract suite (page coverage, CSS packaging).
+      - run: pnpm -r --workspace-concurrency=1 test
 
   macos-updates:
     # electron-updates on a Mac: runs the real bundle swap and a packaged stage → quit → swap → relaunch smoke.
