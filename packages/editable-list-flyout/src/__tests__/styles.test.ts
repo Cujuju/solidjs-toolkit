@@ -5,13 +5,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { defined, valueAt } from '../../../_shared/testing.js';
 
 const CSS_SOURCES = import.meta.glob('../styles.css', {
   query: '?raw',
   import: 'default',
   eager: true,
 }) as Record<string, string>;
-const css = CSS_SOURCES['../styles.css'];
+const css = defined(CSS_SOURCES['../styles.css'], 'styles.css');
 
 // WCAG 2.x: 1.4.3 text contrast, 1.4.11 non-text (icon glyph) contrast.
 const MIN_TEXT_CONTRAST = 4.5;
@@ -29,18 +30,19 @@ function blockFor(selector: string): string {
 function tokenIn(block: string, name: string): string {
   const match = block.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`));
   expect(match, `${name} not declared as a #rrggbb literal`).not.toBeNull();
-  return match![1];
+  return defined(match?.[1], name);
 }
 
 function luminance(hex: string): number {
   const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const linear = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * valueAt(linear, 0) + 0.7152 * valueAt(linear, 1) + 0.0722 * valueAt(linear, 2);
 }
 
 function contrast(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
 describe('flyout palette on the dark popover', () => {

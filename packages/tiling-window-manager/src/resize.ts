@@ -1,6 +1,7 @@
 import type { LayoutHandle } from './layout.js';
 import { collapsedIndices, heldBy, shareHolders, tradeShares, viewShares } from './tileCollapse.js';
 import { EVEN_SPLIT_PARTS, MIN_SHARE_RATIO } from './tileTree.js';
+import { valueAt } from './valueAt.js';
 
 /** Saved shares land on 0.5% of the split, so equal percents give equal layouts. */
 export const RESIZE_STEP_RATIO = 0.005;
@@ -36,18 +37,20 @@ export function resizedShares(handle: LayoutHandle, deltaPx: number, snap: Resiz
   const total = view.reduce((sum, share, i) => sum + (collapsed.has(i) ? 0 : share), 0);
   if (total <= 0) return handle.sizes;
   const pxPerShare = space / total;
-  const ratioFloor = Math.max(...split.sizes, view[a] + view[b]) * MIN_SHARE_RATIO;
+  const viewA = valueAt(view, a);
+  const viewB = valueAt(view, b);
+  const ratioFloor = Math.max(...split.sizes, viewA + viewB) * MIN_SHARE_RATIO;
   // Every own share keeps its slot's minimum, so a reopen never has to squeeze a neighbour.
-  const floors = split.sizes.map((_, i) => Math.max(ratioFloor, minimums[i] / pxPerShare));
-  const viewFloor = (i: number) => Math.max((minimums[i] + fundedPx[i]) / pxPerShare,
-    heldBy(split, i, holders).reduce((sum, held) => sum + floors[held], floors[i]));
+  const floors = split.sizes.map((_, i) => Math.max(ratioFloor, valueAt(minimums, i) / pxPerShare));
+  const viewFloor = (i: number) => Math.max((valueAt(minimums, i) + valueAt(fundedPx, i)) / pxPerShare,
+    heldBy(split, i, holders).reduce((sum, held) => sum + valueAt(floors, held), valueAt(floors, i)));
   // Untouched shares bound the largest share saved-ratio validation allows.
   const untouched = split.sizes.filter((_, i) => i !== a && i !== b);
   const maximum = untouched.length ? Math.min(...untouched) / MIN_SHARE_RATIO : Infinity;
-  const low = Math.max(viewFloor(a) - view[a], split.sizes[b] - maximum);
-  const high = Math.min(view[b] - viewFloor(b), maximum - split.sizes[a]);
+  const low = Math.max(viewFloor(a) - viewA, valueAt(split.sizes, b) - maximum);
+  const high = Math.min(viewB - viewFloor(b), maximum - valueAt(split.sizes, a));
   if (low > high) return handle.sizes;
-  const current = view[a];
+  const current = viewA;
   const free = Math.max(low, Math.min(high, deltaPx / pxPerShare));
   const snapped = snappedShare(current, current + free, RESIZE_STEP_RATIO * total, current + low, current + high, snap);
   const delta = snapped === undefined ? free : snapped - current;
@@ -58,6 +61,6 @@ export function resizedShares(handle: LayoutHandle, deltaPx: number, snap: Resiz
 /** Shares that give both sides of a divider the same length. */
 export function equalisedShares(handle: LayoutHandle): number[] {
   const axis = handle.split.dir === 'row' ? 'width' : 'height';
-  const delta = (handle.childRects[handle.b][axis] - handle.childRects[handle.a][axis]) / EVEN_SPLIT_PARTS;
+  const delta = (valueAt(handle.childRects, handle.b)[axis] - valueAt(handle.childRects, handle.a)[axis]) / EVEN_SPLIT_PARTS;
   return resizedShares(handle, delta);
 }

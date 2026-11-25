@@ -3,6 +3,7 @@ import { render } from 'solid-js/web';
 import { AccordionGroup } from '../AccordionGroup.js';
 import { AccordionPanel } from '../AccordionPanel.js';
 import type { AccordionGroupApi } from '../context.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * Rail drag-reorder measures only the buttons the rail actually renders. A panel with no
@@ -64,7 +65,7 @@ function mount(ids: readonly string[], onOrderChange: (order: readonly string[])
     dragFirst: (delta: number): void => {
       buttons().forEach((b, i) => stubRect(b, RAIL_TOP_PX + i * BUTTON_PITCH_PX));
       const y = RAIL_TOP_PX + BUTTON_HEIGHT_PX / 2;
-      buttons()[0].dispatchEvent(
+      valueAt(buttons(), 0).dispatchEvent(
         new PointerEvent('pointerdown', { clientY: y, bubbles: true, button: 0 }),
       );
       const move = (at: number): void => {

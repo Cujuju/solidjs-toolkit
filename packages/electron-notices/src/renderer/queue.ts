@@ -65,7 +65,8 @@ export function createNoticeQueue(
       const old = n.key === undefined ? undefined : live().find((x) => x.key === n.key);
       if (old) dismiss(old.id);
       const xs = live();
-      if (xs.length >= maxKept()) dismiss((xs.find((x) => !x.pinned) ?? xs[0]).id);
+      const evicted = xs.length >= maxKept() ? (xs.find((x) => !x.pinned) ?? xs[0]) : undefined;
+      if (evicted) dismiss(evicted.id);
       setItems((kept) => [...kept, n]);
       const ms = n.remainingMs ?? durationOf(n);
       if (!n.pinned && ms !== 0) run(n.id, ms);

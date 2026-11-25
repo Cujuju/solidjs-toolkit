@@ -141,6 +141,7 @@ export function SegButton<T = string>(props: SegButtonProps<T>): JSX.Element {
         const delta = forward ? 1 : -1;
         const nextIdx = (idx + delta + siblings.length) % siblings.length;
         const next = siblings[nextIdx];
+        if (!next) return;
         next.focus();
         next.click();
       }}

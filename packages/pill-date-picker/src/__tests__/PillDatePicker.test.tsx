@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillDatePicker } from '../PillDatePicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 
@@ -120,9 +121,9 @@ describe('expanded', () => {
     click(pill(c));
     expect(panel()).not.toBeNull();
     expect(rows().length).toBe(LADDER.length);
-    expect(rowText(rows()[0])).toEqual({ date: 'Jun 19', dte: '6d' });
-    expect(rowText(rows()[3])).toEqual({ date: 'Jul 17', dte: '34d' });
-    expect(rowText(rows()[4])).toEqual({ date: 'Sep 18', dte: '97d' });
+    expect(rowText(valueAt(rows(), 0))).toEqual({ date: 'Jun 19', dte: '6d' });
+    expect(rowText(valueAt(rows(), 3))).toEqual({ date: 'Jul 17', dte: '34d' });
+    expect(rowText(valueAt(rows(), 4))).toEqual({ date: 'Sep 18', dte: '97d' });
   });
 
   it('PORTALS the panel out of the root — the reason the control works at all', () => {
@@ -144,8 +145,8 @@ describe('expanded', () => {
     click(pill(c));
     const selected = rows().filter((r) => r.dataset.selected === 'true');
     expect(selected.length).toBe(1);
-    expect(rowText(selected[0]).date).toBe('Jul 2');
-    expect(selected[0].getAttribute('aria-selected')).toBe('true');
+    expect(rowText(valueAt(selected, 0)).date).toBe('Jul 2');
+    expect(valueAt(selected, 0).getAttribute('aria-selected')).toBe('true');
   });
 
   it('a second click on the pill closes it', () => {
@@ -179,7 +180,7 @@ describe('select', () => {
   it('selecting a row updates the pill and CLOSES the pop-out', () => {
     const c = mount(() => <Harness />);
     click(pill(c));
-    click(rows()[3]);
+    click(valueAt(rows(), 3));
     expect(panel()).toBeNull();
     expect(pill(c).textContent).toBe('Jul 17');
   });
@@ -202,14 +203,14 @@ describe('select', () => {
       />
     ));
     click(pill(c));
-    click(rows()[1]);
+    click(valueAt(rows(), 1));
 
     expect(seen.length).toBe(1);
     // Identity, not just shape — a copy would pass a deep-equal check and still have lost a
     // caller's non-enumerable or class-instance payload.
     expect(seen[0]).toBe(items[1]);
-    expect(seen[0].oi).toBe(98_100);
-    expect(seen[0].monthly).toBe(true);
+    expect(valueAt(seen, 0).oi).toBe(98_100);
+    expect(valueAt(seen, 0).monthly).toBe(true);
   });
 
   it('renders the object form exactly like the string form', () => {
@@ -242,7 +243,7 @@ describe('keyboard', () => {
     click(pill(c));
     key(document, 'ArrowDown'); // -> row 0
     key(document, 'ArrowDown'); // -> row 1
-    expect(rows()[1].dataset.active).toBe('true');
+    expect(valueAt(rows(), 1).dataset.active).toBe('true');
     key(document, 'Enter');
     expect(panel()).toBeNull();
     expect(pill(c).textContent).toBe('Jun 26');
@@ -251,7 +252,7 @@ describe('keyboard', () => {
   it('opens with the CURRENT selection under the cursor, so Enter is not a surprise', () => {
     const c = mount(() => <Harness initial="2026-07-17" />);
     click(pill(c));
-    expect(rows()[3].dataset.active).toBe('true');
+    expect(valueAt(rows(), 3).dataset.active).toBe('true');
     key(document, 'Enter');
     expect(pill(c).textContent).toBe('Jul 17'); // unchanged — Enter re-picked what was there
   });
@@ -260,18 +261,18 @@ describe('keyboard', () => {
     const c = mount(() => <Harness />);
     click(pill(c));
     key(document, 'ArrowUp'); // from nothing-active, Up seeds the LAST row
-    expect(rows()[LADDER.length - 1].dataset.active).toBe('true');
+    expect(valueAt(rows(), LADDER.length - 1).dataset.active).toBe('true');
     key(document, 'ArrowDown'); // wraps to the first
-    expect(rows()[0].dataset.active).toBe('true');
+    expect(valueAt(rows(), 0).dataset.active).toBe('true');
   });
 
   it('Home and End jump to the ends', () => {
     const c = mount(() => <Harness />);
     click(pill(c));
     key(document, 'End');
-    expect(rows()[LADDER.length - 1].dataset.active).toBe('true');
+    expect(valueAt(rows(), LADDER.length - 1).dataset.active).toBe('true');
     key(document, 'Home');
-    expect(rows()[0].dataset.active).toBe('true');
+    expect(valueAt(rows(), 0).dataset.active).toBe('true');
   });
 });
 
@@ -289,7 +290,7 @@ describe('dismiss', () => {
     // Otherwise the panel would close the instant you reached for a row.
     const c = mount(() => <Harness />);
     click(pill(c));
-    pointerDown(rows()[0]);
+    pointerDown(valueAt(rows(), 0));
     expect(panel()).not.toBeNull();
   });
 
@@ -401,7 +402,7 @@ describe('keyOf — when a date is NOT unique in the ladder', () => {
       />
     ));
     click(pill(c));
-    click(rows()[1]);
+    click(valueAt(rows(), 1));
     expect(got).toEqual([SPX_LADDER[1]]);
     expect(got[0]).toBe(SPX_LADDER[1]); // by reference, not a copy
   });
@@ -423,8 +424,8 @@ describe('DTE colour', () => {
     click(pill(c));
     // Distinct bands: 6d (urgent, <= 7) vs 34d (far, > 30). Whatever the tokens resolve to,
     // the two must not be the same colour or the ramp is doing nothing.
-    const urgent = rows()[0].querySelector('.cpdp-row-dte') as HTMLElement;
-    const far = rows()[3].querySelector('.cpdp-row-dte') as HTMLElement;
+    const urgent = valueAt(rows(), 0).querySelector('.cpdp-row-dte') as HTMLElement;
+    const far = valueAt(rows(), 3).querySelector('.cpdp-row-dte') as HTMLElement;
     expect(urgent.style.color).not.toBe('');
     expect(urgent.style.color).not.toBe(far.style.color);
   });
@@ -444,7 +445,7 @@ describe('DTE colour', () => {
     ));
     click(pill(c));
     const dteOf = (i: number) =>
-      (rows()[i].querySelector('.cpdp-row-dte') as HTMLElement).style.color;
+      (valueAt(rows(), i).querySelector('.cpdp-row-dte') as HTMLElement).style.color;
     expect(dteOf(0)).toBe('rgb(255, 0, 0)'); // 6d
     expect(dteOf(3)).toBe('rgb(0, 0, 255)'); // 34d
   });

@@ -1,5 +1,6 @@
 import { minimumSize, type TileLayout, type TileLayoutOptions } from './layout.js';
 import type { TileNode, TilePath, TileSplit } from './tileTree.js';
+import { valueAt } from './valueAt.js';
 
 /** One arrow press moves a pushing divider this far. */
 export const PUSH_KEY_STEP_PX = 10;
@@ -29,7 +30,7 @@ function bottomSlack(node: TileNode, height: number, heights: Heights, options: 
   if (node.kind !== 'split') return height - minimumSize(node, options).height;
   if (node.dir === 'row') return Math.min(...node.children.map((child) => bottomSlack(child, height, heights, options)));
   const last = node.children.length - 1;
-  return bottomSlack(node.children[last], heights.get(node)![last], heights, options);
+  return bottomSlack(valueAt(node.children, last), valueAt(heights.get(node)!, last), heights, options);
 }
 
 /** Pixel heights of each column split's children, for the layout's splits and every split an edit creates. */
@@ -44,7 +45,7 @@ function growBottom(node: TileNode, height: number, delta: number, heights: Heig
   return withHeights({
     ...node,
     sizes: px.map((h, i) => (i === last ? h + delta : h)),
-    children: node.children.map((child, i) => (i === last ? growBottom(child, px[i], delta, heights) : child)),
+    children: node.children.map((child, i) => (i === last ? growBottom(child, valueAt(px, i), delta, heights) : child)),
   }, heights);
 }
 
@@ -77,13 +78,13 @@ export function pushedLayout(
   const measure = (node: TileNode, height: number, depth: number, onBottom: boolean) => {
     if (node.kind !== 'split') return;
     if (depth === target.path.length) {
-      slack = Math.min(slack, bottomSlack(node.children[target.gap], heights.get(node)![target.gap], heights, options));
+      slack = Math.min(slack, bottomSlack(valueAt(node.children, target.gap), valueAt(heights.get(node)!, target.gap), heights, options));
       return;
     }
     const index = target.path[depth];
     const last = node.children.length - 1;
     node.children.forEach((child, i) => {
-      const childHeight = node.dir === 'row' ? height : heights.get(node)![i];
+      const childHeight = node.dir === 'row' ? height : valueAt(heights.get(node)!, i);
       if (i === index) return measure(child, childHeight, depth + 1, onBottom && (node.dir === 'row' || i === last));
       if (node.dir !== 'row') return;
       const neighbour = bottomSlack(child, childHeight, heights, options);
@@ -106,7 +107,7 @@ export function pushedLayout(
     return withHeights({
       ...node,
       sizes: px.map((h, i) => (i === index ? h + delta : h)),
-      children: node.children.map((child, i) => (i === index ? grow(child, px[i]) : child)),
+      children: node.children.map((child, i) => (i === index ? grow(child, valueAt(px, i)) : child)),
     }, heights);
   };
   const pushed = push(root, heightPx, 0);

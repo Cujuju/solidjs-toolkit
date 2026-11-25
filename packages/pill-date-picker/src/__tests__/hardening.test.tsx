@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillDatePicker } from '../PillDatePicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 function mount(ui: () => any): HTMLDivElement {
@@ -39,12 +40,12 @@ describe('1 — a disabled control is inert, panel and all', () => {
     mount(() => (
       <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} disabled={dis()} />
     ));
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     expect(rows()).toHaveLength(5);
     setDis(true);
     expect(panels()).toHaveLength(0);
     // A disabled combobox must not claim to be expanded.
-    expect(pills()[0].getAttribute('aria-expanded')).toBe('false');
+    expect(valueAt(pills(), 0).getAttribute('aria-expanded')).toBe('false');
   });
 
   it('hides the ladder of a CONTROLLED-open picker too, and tells the parent', () => {
@@ -131,7 +132,7 @@ describe('3 — the cursor is keyed to the ROW, not to a slot', () => {
     mount(() => (
       <PillDatePicker items={items()} value={'2026-09-18'} onChange={() => {}} now={NOW} />
     ));
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     key('ArrowDown'); // off the selection, onto Jun 19
     expect(activeRow()!.textContent).toContain('Jun 19');
     setItems([...LADDER]); // an idle refetch: same contents, new array identity
@@ -142,7 +143,7 @@ describe('3 — the cursor is keyed to the ROW, not to a slot', () => {
     const picked = vi.fn();
     const [items, setItems] = createSignal<string[]>(LADDER);
     mount(() => <PillDatePicker items={items()} value={null} onChange={picked} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     key('ArrowDown');
     key('ArrowDown');
     key('ArrowDown'); // Jul 2 — index 2 today
@@ -158,7 +159,7 @@ describe('3 — the cursor is keyed to the ROW, not to a slot', () => {
   it('drops the cursor honestly when its own row disappears', () => {
     const [items, setItems] = createSignal<string[]>(LADDER);
     mount(() => <PillDatePicker items={items()} value={null} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     key('ArrowDown'); // Jun 19
     setItems(LADDER.slice(1)); // ...which is the row that just left
     expect(activeRow()).toBeNull(); // no cursor beats a cursor on the wrong row
@@ -168,9 +169,9 @@ describe('3 — the cursor is keyed to the ROW, not to a slot', () => {
     const picked = vi.fn();
     const [items, setItems] = createSignal<string[]>(LADDER);
     mount(() => <PillDatePicker items={items()} value={null} onChange={picked} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     setItems([...LADDER].reverse());
-    click(rows()[0]);
+    click(valueAt(rows(), 0));
     expect(picked).toHaveBeenCalledWith('2026-09-18');
   });
 });
@@ -178,7 +179,7 @@ describe('3 — the cursor is keyed to the ROW, not to a slot', () => {
 describe('4 — the active row is announceable', () => {
   it('wires combobox → listbox → active row, and only while open', () => {
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
-    const combo = pills()[0];
+    const combo = valueAt(pills(), 0);
     expect(combo.getAttribute('aria-activedescendant')).toBeNull();
     expect(combo.getAttribute('aria-controls')).toBeNull();
 
@@ -210,7 +211,7 @@ describe('4 — the active row is announceable', () => {
         noneSelectableMessage="Checking which expirations list 737…"
       />
     ));
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     const status = document.body.querySelector('.cpdp-empty') as HTMLElement;
     expect(status.textContent).toBe('Checking which expirations list 737…');
     expect(status.getAttribute('role')).toBe('status');
@@ -222,7 +223,7 @@ describe('4 — the active row is announceable', () => {
 
   it('drops the pointer when the ladder closes — a descendant that is not in the document is a lie', () => {
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
-    const combo = pills()[0];
+    const combo = valueAt(pills(), 0);
     click(combo);
     key('ArrowDown');
     expect(combo.getAttribute('aria-activedescendant')).toBeTruthy();
@@ -299,7 +300,7 @@ describe('the keyboard cursor and custom row content', () => {
     const ROW_H = 40;
     const VIEW_H = 100;
     mount(() => <PillDatePicker items={LADDER} value={null} onChange={() => {}} now={NOW} />);
-    click(pills()[0]);
+    click(valueAt(pills(), 0));
     const panel = panels()[0] as HTMLElement;
     // jsdom has no layout: rows stack ROW_H apart, the panel shows VIEW_H of them.
     let scrollTop = 0;
@@ -322,8 +323,8 @@ describe('the keyboard cursor and custom row content', () => {
   it('leaves a key that custom row content already consumed alone', () => {
     const onChange = vi.fn();
     mount(() => <PillDatePicker items={LADDER} value={LADDER[0]} onChange={onChange} now={NOW} />);
-    click(pills()[0]);
-    const row = rows()[0];
+    click(valueAt(pills(), 0));
+    const row = valueAt(rows(), 0);
     row.addEventListener('keydown', (e) => e.preventDefault()); // e.g. an input taking Space
     row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
     expect(onChange).not.toHaveBeenCalled();

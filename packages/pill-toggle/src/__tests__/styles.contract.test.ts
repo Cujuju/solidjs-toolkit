@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { DOT_INSET_PX } from '../_internal/dotPosition.js';
 import { cleanupToggles, renderToggle } from './_helpers.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * Stylesheet contract tests. jsdom neither substitutes var() nor tracks
@@ -61,11 +62,11 @@ describe('theme tokens resolve against the toggle, not :root', () => {
 
 describe('press effects', () => {
   const pressSelectors = [...css.matchAll(/([^{}]+)\{/g)]
-    .map((m) => m[1].trim())
+    .map((m) => valueAt(m, 1).trim())
     .filter((sel) => sel.includes('[data-press-effect=') && sel.includes(':active'));
 
   // The toggle's own compound selector with the untestable :active dropped.
-  const rootCompound = (sel: string): string => sel.split(/\s+/)[0].replace(':active', '').replace('::after', '');
+  const rootCompound = (sel: string): string => valueAt(sel.split(/\s+/), 0).replace(':active', '').replace('::after', '');
 
   it('covers both press effects', () => {
     expect(pressSelectors.some((s) => s.includes('"scale"'))).toBe(true);

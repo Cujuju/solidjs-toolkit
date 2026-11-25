@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot } from 'solid-js';
 import { MAX_CONSOLE_LINES, type Notice } from '../types.js';
 import { createNoticeQueue } from '../renderer/queue.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 const VISIBLE_MS = 1000;
 let nextId = 1;
@@ -85,7 +86,7 @@ it('evicts the oldest unpinned, then the oldest when all are pinned', () => {
   const closed = vi.fn(), q = createNoticeQueue(() => 0, closed);
   const ns = Array.from({ length: MAX_CONSOLE_LINES }, () => ({ ...notice(), pinned: true }));
   ns.forEach(q.push); const unpinned = notice(); q.push(unpinned); q.push(notice());
-  expect(closed.mock.calls).toEqual([[ns[0].id], [unpinned.id]]); q.clear();
+  expect(closed.mock.calls).toEqual([[valueAt(ns, 0).id], [unpinned.id]]); q.clear();
 });
 it('uses remaining time once and restarts a full duration after unpin', () => {
   vi.useFakeTimers();

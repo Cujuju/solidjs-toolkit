@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * jsdom applies no stylesheet, so cascade contracts are asserted on source: each
@@ -124,7 +125,7 @@ describe('the flying-out rail marker', () => {
     // The left-side rail relies on the initial value, so a stray override must not creep in.
     for (const base of flyoutMarkers.filter((s) => !s.text.includes("[data-rail-side='right']"))) {
       const position = /background-position\s*:\s*([^;]+)/.exec(base.body);
-      if (position !== null) expect(position[1].trim()).toMatch(/^(left|0)/);
+      if (position !== null) expect(valueAt(position, 1).trim()).toMatch(/^(left|0)/);
     }
     for (const r of right) {
       for (const f of flyoutMarkers) {
@@ -157,7 +158,7 @@ describe('the splitter overhang is one token', () => {
     const OFFSET = /\b(top|right|bottom|left|inset(?:-[a-z]+)*)\s*:\s*([^;]+)/g;
     const offsets = all
       .filter((s) => /\.acc-splitter$/.test(s.text))
-      .flatMap((s) => Array.from(s.body.matchAll(OFFSET), (m) => m[2].trim()))
+      .flatMap((s) => Array.from(s.body.matchAll(OFFSET), (m) => valueAt(m, 2).trim()))
       // A handle flush with the edge is the one offset that names no overhang.
       .filter((v) => v !== '0');
     const clips = all.flatMap((s) =>

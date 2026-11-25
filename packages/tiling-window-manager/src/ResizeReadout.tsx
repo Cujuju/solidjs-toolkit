@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, Show, type JSX } from 'solid-js';
 import type { LayoutHandle } from './layout.js';
 import { collapsedIndices, viewShares } from './tileCollapse.js';
 import { slotKey, type TileNode } from './tileTree.js';
+import { valueAt } from './valueAt.js';
 
 /** Which side of the divider the readout sits on: before (`a`) or after (`b`). */
 export type ReadoutSide = 'a' | 'b';
@@ -25,9 +26,9 @@ export function percentTenths(shares: readonly number[]): number[] {
   if (total <= 0) return shares.map(() => 0);
   const exact = shares.map((share) => share / total * TENTHS_PER_WHOLE);
   const tenths = exact.map(Math.floor);
-  const order = exact.map((value, i) => ({ i, rest: value - tenths[i] })).sort((x, y) => y.rest - x.rest);
+  const order = exact.map((value, i) => ({ i, rest: value - Math.floor(value) })).sort((x, y) => y.rest - x.rest);
   const missing = TENTHS_PER_WHOLE - tenths.reduce((sum, value) => sum + value, 0);
-  for (let k = 0; k < missing; k++) tenths[order[k].i] += 1;
+  for (const { i } of order.slice(0, missing)) tenths[i] = valueAt(tenths, i) + 1;
   return tenths;
 }
 
@@ -61,14 +62,17 @@ export function ResizeReadout(props: {
     const gap = parseFloat(axis() === 'width' ? style.columnGap : style.rowGap) || 0;
     const mark = map.querySelector<HTMLElement>('.twm-readout-gap')?.[size] ?? 0;
     const fixed = gap * (map.childElementCount - 1) + mark;
-    const needed = cells.slice(0, shown.length).map((cell, i) => (shown[i] > 0 && total > 0 ? (labels[i][size] + cell[size] - cell[inner]) * total / shown[i] : 0));
+    const needed = cells.slice(0, shown.length).map((cell, i) => {
+      const length = valueAt(shown, i);
+      return length > 0 && total > 0 ? (valueAt(labels, i)[size] + cell[size] - cell[inner]) * total / length : 0;
+    });
     setFitLength(fixed + Math.max(0, ...needed));
   });
   const mapLength = () => Math.min(MAP_MAX_PX[dir()], Math.max(MAP_MIN_PX[dir()], fitLength()));
   const position = (): JSX.CSSProperties => {
     const { rect, childRects, a, b } = props.handle;
     const before = props.side === 'a';
-    const pane = childRects[before ? a : b];
+    const pane = valueAt(childRects, before ? a : b);
     if (dir() === 'row') {
       return {
         left: `${before ? rect.x - READOUT_OFFSET_PX : rect.x + rect.width + READOUT_OFFSET_PX}px`,
@@ -90,10 +94,10 @@ export function ResizeReadout(props: {
             <>
               <div ref={(el) => { cells[index()] = el; }} class="twm-readout-cell" data-cell={index()}
                 data-traded={index() === props.handle.a || index() === props.handle.b ? '' : undefined}
-                style={{ flex: `${lengths()[index()]} 1 0`, '--twm-readout-color': nodeColor(child) }}>
+                style={{ flex: `${valueAt(lengths(), index())} 1 0`, '--twm-readout-color': nodeColor(child) }}>
                 <div ref={(el) => { labels[index()] = el; }} class="twm-readout-label">
-                  <b>{collapsed().has(index()) ? 'collapsed' : `${(tenths()[index()] / TENTHS_PER_PERCENT).toFixed(1)}%`}</b>
-                  <span>{collapsed().has(index()) ? '' : `${Math.round(lengths()[index()])} px`}</span>
+                  <b>{collapsed().has(index()) ? 'collapsed' : `${(valueAt(tenths(), index()) / TENTHS_PER_PERCENT).toFixed(1)}%`}</b>
+                  <span>{collapsed().has(index()) ? '' : `${Math.round(valueAt(lengths(), index()))} px`}</span>
                 </div>
               </div>
               <Show when={index() === props.handle.gap}><i class="twm-readout-gap" /></Show>

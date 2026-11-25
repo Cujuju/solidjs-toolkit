@@ -6,6 +6,7 @@ import { percentTenths } from '../ResizeReadout.js';
 import { GUIDE_SNAP_PX, nearestGuide, resizeGuides } from '../resizeGuides.js';
 import { TilingWorkspace } from '../TilingWorkspace.js';
 import type { TileNode, TileSplit } from '../tileTree.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 const WIDTH = 410;
 const HEIGHT = 300;
@@ -29,7 +30,7 @@ describe('resize readout and guides', () => {
   it('finds same-axis dividers in other layouts and snaps only within reach', () => {
     const mine = computeTileLayout(row([1, 1], t('a'), t('b')), { width: WIDTH, height: HEIGHT }, options());
     const guides = resizeGuides([{ name: 'Other', layout: row([1, 3], t('x'), t('y')) }, { name: 'Empty', layout: undefined }],
-      mine.handles[0], { width: WIDTH, height: HEIGHT }, options);
+      valueAt(mine.handles, 0), { width: WIDTH, height: HEIGHT }, options);
     expect(guides).toEqual([{ positionPx: 105, name: 'Other' }]);
     expect(nearestGuide(guides, 105 + GUIDE_SNAP_PX)?.name).toBe('Other');
     expect(nearestGuide(guides, 105 + GUIDE_SNAP_PX + 1)).toBeUndefined();

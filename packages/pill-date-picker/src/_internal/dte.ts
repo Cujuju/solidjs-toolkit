@@ -125,5 +125,5 @@ export function resolveDteColor(
   for (const stop of ramp) {
     if (dte <= stop.maxDte) return stop.color;
   }
-  return ramp[ramp.length - 1].color;
+  return ramp.at(-1)?.color;
 }

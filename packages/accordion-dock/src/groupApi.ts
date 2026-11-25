@@ -232,7 +232,8 @@ export function createGroupApi(deps: GroupApiDependencies) {
       }
       // Through `activatorElOf`, so arrowing onto a panel whose button collapsed focuses that
       // trigger rather than focusing nothing — which is what a raw `headerEls` read did.
-      api.activatorElOf(order[target].id)?.focus();
+      const panel = order[target];
+      if (panel) api.activatorElOf(panel.id)?.focus();
     },
 
     reorderItemProps: (id) =>

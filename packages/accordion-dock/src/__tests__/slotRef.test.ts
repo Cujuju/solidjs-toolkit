@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, onCleanup } from 'solid-js';
 import { createMapSlot, slotRef, type ElementSlot } from '../context.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /**
  * `slotRef` is the contract that element registrations are undone. Solid calls a `ref` once,
@@ -86,7 +87,7 @@ describe('slotRef', () => {
 
     // Contained, NOT silenced — the mistake still has to be findable.
     expect(consoleError).toHaveBeenCalledTimes(1);
-    expect(consoleError.mock.calls[0][0]).toContain('clear() threw during teardown');
+    expect(valueAt(consoleError.mock.calls, 0)[0]).toContain('clear() threw during teardown');
     consoleError.mockRestore();
   });
 

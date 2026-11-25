@@ -7,6 +7,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillDatePicker } from '../PillDatePicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 
@@ -88,14 +89,14 @@ describe('keyed rows', () => {
     ));
 
     const before = rows();
-    expect(noteOf(before[1])).toBeNull();
+    expect(noteOf(valueAt(before, 1))).toBeNull();
 
     // The caller's data settled — same dates, new annotations.
     setItems(LADDER((expId) => (expId === '2026-06-26~SPY' ? 'adjusted' : undefined)));
 
     const after = rows();
     expect(after[1]).toBe(before[1]); // same node …
-    expect(noteOf(after[1])).toBe('adjusted'); // … new content
+    expect(noteOf(valueAt(after, 1))).toBe('adjusted'); // … new content
   });
 
   /** A ladder that genuinely CHANGES still reconciles: the row for a dropped
@@ -143,7 +144,7 @@ describe('dteOf', () => {
         onChange={() => {}}
       />
     ));
-    expect(rows()[0].querySelector('.cpdp-row-dte')?.textContent).toBe('7d');
+    expect(valueAt(rows(), 0).querySelector('.cpdp-row-dte')?.textContent).toBe('7d');
   });
 
   it('falls back to calendar days when the caller supplies none', () => {
@@ -156,7 +157,7 @@ describe('dteOf', () => {
         onChange={() => {}}
       />
     ));
-    expect(rows()[0].querySelector('.cpdp-row-dte')?.textContent).toBe('6d');
+    expect(valueAt(rows(), 0).querySelector('.cpdp-row-dte')?.textContent).toBe('6d');
   });
 
   /** A null is "no DTE to show" — the same answer an unparseable date gives —
@@ -172,6 +173,6 @@ describe('dteOf', () => {
         onChange={() => {}}
       />
     ));
-    expect(rows()[0].querySelector('.cpdp-row-dte')?.textContent).not.toBe('0d');
+    expect(valueAt(rows(), 0).querySelector('.cpdp-row-dte')?.textContent).not.toBe('0d');
   });
 });

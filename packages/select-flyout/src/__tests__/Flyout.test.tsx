@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { Flyout, type FlyoutOption } from '../Flyout.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 const originalMatches = HTMLElement.prototype.matches;
 
@@ -130,9 +131,9 @@ describe('Flyout', () => {
     ]);
     // Selection is carried by ARIA + the class, which is what actually
     // conveys it to assistive tech and to the stylesheet.
-    expect(opts[0].getAttribute('aria-selected')).toBe('true');
-    expect(opts[0].className).toContain('cujuju-select-flyout-option-selected');
-    expect(opts[1].getAttribute('aria-selected')).toBe('false');
+    expect(valueAt(opts, 0).getAttribute('aria-selected')).toBe('true');
+    expect(valueAt(opts, 0).className).toContain('cujuju-select-flyout-option-selected');
+    expect(valueAt(opts, 1).getAttribute('aria-selected')).toBe('false');
   });
 
   it('surface="plain" paints a solid panel instead of glass', async () => {
@@ -405,7 +406,7 @@ describe('Flyout — hover and ARIA wiring', () => {
     const { getTrigger, getOptions, getValue } = renderSelect({ initialValue: 'apple' });
     getTrigger().click();
     await nextFrame();
-    const banana = getOptions()[1];
+    const banana = valueAt(getOptions(), 1);
     banana.dispatchEvent(new MouseEvent('mouseenter'));
     expect(document.activeElement).toBe(banana);
     banana.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));

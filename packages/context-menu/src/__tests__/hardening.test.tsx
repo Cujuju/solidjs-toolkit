@@ -9,6 +9,7 @@ import { aimRegion } from '../_internal/submenuAim.js';
 import type { ContextMenuSurface } from '../MenuEntries.js';
 import submenuItemSource from '../SubmenuItem.tsx?raw';
 import type { ContextMenuEntry, ContextMenuSubmenu } from '../types.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 // Per-element Popover API stub. `topLayer` records top-layer order the way
 // the browser does: LIFO of showPopover() calls, last entry paints on top.
@@ -109,12 +110,12 @@ describe('ContextMenu — scrollable submenu search', () => {
       },
     ]);
 
-    hover(wrappers()[0]);
+    hover(valueAt(wrappers(), 0));
     const search = document.querySelector('.cujuju-context-menu-flyout-search input') as HTMLInputElement;
     search.value = 'aa';
     search.dispatchEvent(new Event('input', { bubbles: true }));
 
-    const labels = Array.from(flyouts()[0].querySelectorAll('.cujuju-context-menu-label')).map(
+    const labels = Array.from(valueAt(flyouts(), 0).querySelectorAll('.cujuju-context-menu-label')).map(
       (l) => l.textContent,
     );
     expect(labels).toEqual(['AAPL']);
@@ -137,12 +138,12 @@ describe('ContextMenu — scrollable submenu search', () => {
       return <ContextMenu x={10} y={10} onClose={() => {}} items={items} />;
     }, document.body);
 
-    hover(wrappers()[0]);
+    hover(valueAt(wrappers(), 0));
     const search = document.querySelector('.cujuju-context-menu-flyout-search input') as HTMLInputElement;
     const query = (q: string) => {
       search.value = q;
       search.dispatchEvent(new Event('input', { bubbles: true }));
-      return Array.from(flyouts()[0].querySelectorAll('.cujuju-context-menu-label')).map(
+      return Array.from(valueAt(flyouts(), 0).querySelectorAll('.cujuju-context-menu-label')).map(
         (l) => l.textContent,
       );
     };
@@ -192,9 +193,9 @@ describe('ContextMenu — checked state a11y', () => {
     ]);
 
     const items = document.querySelectorAll('.cujuju-context-menu-item');
-    expect(items[0].getAttribute('aria-pressed')).toBe('true');
-    expect(items[1].getAttribute('aria-pressed')).toBe('false');
-    expect(items[2].hasAttribute('aria-pressed')).toBe(false);
+    expect(valueAt(items, 0).getAttribute('aria-pressed')).toBe('true');
+    expect(valueAt(items, 1).getAttribute('aria-pressed')).toBe('false');
+    expect(valueAt(items, 2).hasAttribute('aria-pressed')).toBe(false);
   });
 });
 
@@ -458,7 +459,7 @@ describe('ContextMenu — submenu hover aim', () => {
 
   it('closes an open submenu when its parent menu scrolls (the flyout would detach)', async () => {
     renderMenu(items());
-    hover(wrappers()[0]);
+    hover(valueAt(wrappers(), 0));
     await nextFrame();
 
     const scroller = rootMenu().querySelector('.cujuju-glass-menu-body') as HTMLElement;
@@ -474,7 +475,7 @@ describe('ContextMenu — submenu hover aim', () => {
       () => <ContextMenu x={at().x} y={at().y} onClose={() => {}} items={entries} />,
       document.body,
     );
-    hover(wrappers()[0]);
+    hover(valueAt(wrappers(), 0));
     await nextFrame();
     expect(flyouts()).toHaveLength(1);
 
@@ -508,10 +509,10 @@ describe('ContextMenu — submenu top layer', () => {
       [{ submenu: true, label: 'Export', children: [{ label: 'CSV', onClick: () => {} }] }],
       'solid',
     );
-    hover(wrappers()[0]);
+    hover(valueAt(wrappers(), 0));
     await nextFrame();
 
-    expect(flyouts()[0].style.left).toBe(`${PARENT.left - FLYOUT_W}px`);
+    expect(valueAt(flyouts(), 0).style.left).toBe(`${PARENT.left - FLYOUT_W}px`);
   });
 
   it('a submenu closed before its frame fires does not promote its detached flyout', async () => {
@@ -519,8 +520,8 @@ describe('ContextMenu — submenu top layer', () => {
       { submenu: true, label: 'A', children: [{ label: 'a', onClick: () => {} }] },
       { submenu: true, label: 'B', children: [{ label: 'b', onClick: () => {} }] },
     ]);
-    hover(wrappers()[0]);
-    hover(wrappers()[1]);
+    hover(valueAt(wrappers(), 0));
+    hover(valueAt(wrappers(), 1));
     await nextFrame();
 
     expect(topLayer.every((el) => el.isConnected)).toBe(true);
@@ -534,10 +535,10 @@ describe('ContextMenu — submenu top layer', () => {
         children: [{ submenu: true, label: 'B', children: [{ label: 'Leaf', onClick: () => {} }] }],
       },
     ]);
-    hover(wrappers()[0]);
+    hover(valueAt(wrappers(), 0));
     await nextFrame();
-    const flyoutA = flyouts()[0];
-    hover(wrappers(flyoutA)[0]);
+    const flyoutA = valueAt(flyouts(), 0);
+    hover(valueAt(wrappers(flyoutA), 0));
     await nextFrame();
     const flyoutB = flyouts().find((f) => f !== flyoutA) as HTMLElement;
 
@@ -599,7 +600,7 @@ describe('ContextMenu — submenu keyboard path', () => {
     renderMenu(items, undefined, onClose);
     trigger().click();
     await nextFrame();
-    const leaf = flyouts()[0].querySelector('button')!;
+    const leaf = valueAt(flyouts(), 0).querySelector('button')!;
     expect(document.activeElement).toBe(leaf);
 
     leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
@@ -612,7 +613,7 @@ describe('ContextMenu — submenu keyboard path', () => {
     renderMenu(items);
     trigger().click();
     await nextFrame();
-    const flyout = flyouts()[0];
+    const flyout = valueAt(flyouts(), 0);
     const leaf = flyout.querySelector('button')!;
     // Escape ownership wraps Solid's delegated keydown handler on an owned node.
     const keydown = Reflect.get(flyout, '$$keydown');
@@ -761,7 +762,7 @@ describe('ContextMenuSubmenuTrigger', () => {
     }], undefined, onClose);
     hover(rootMenu().querySelector('button')!);
     await nextFrame();
-    flyouts()[0].querySelector('button')!.click();
+    valueAt(flyouts(), 0).querySelector('button')!.click();
 
     expect(onLeafClick).toHaveBeenCalledOnce();
     expect(onRowClick).not.toHaveBeenCalled();

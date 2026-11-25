@@ -6,7 +6,7 @@ import { POPOVER_STACK_ATTR } from './_internal/popoverStack.js';
 import { CustomSubmenuScope, type SubmenuScope } from './_internal/submenuScope.js';
 import { MenuEntries } from './MenuEntries.js';
 import { createSubmenuHover } from './submenuHover.js';
-import { computeSubmenuStyle } from './submenuPosition.js';
+import { computeSubmenuStyle, type SubmenuStyle } from './submenuPosition.js';
 import { isDivider, type ContextMenuSubmenu } from './types.js';
 
 /** First control a keyboard-opened submenu focuses: an enabled row button or slider. */
@@ -48,7 +48,7 @@ export function SubmenuItem(props: Omit<SubmenuTriggerProps, 'children'> & {
   const { menu, activeSubmenu, setActiveSubmenu, aimLock } = props.scope;
   const key = Symbol();
   const [filter, setFilter] = createSignal('');
-  const [flyoutStyle, setFlyoutStyle] = createSignal<Record<string, string>>({});
+  const [flyoutStyle, setFlyoutStyle] = createSignal<Partial<SubmenuStyle>>({});
   let wrapperRef: HTMLDivElement | undefined;
   let flyoutRef: HTMLDivElement | undefined;
   let searchRef: HTMLInputElement | undefined;

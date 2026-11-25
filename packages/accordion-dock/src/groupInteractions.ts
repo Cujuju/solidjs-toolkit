@@ -122,7 +122,8 @@ export function createGroupInteractions(deps: {
     const openSlots = new Set(visual);
     let cursor = 0;
     const nextOrder = orderIds().map((id) =>
-      openSlots.has(id) ? nextVisual[cursor++] : id,
+      // `nextVisual` holds one id per open slot, so `?? id` only keeps a hole out of the order.
+      openSlots.has(id) ? (nextVisual[cursor++] ?? id) : id,
     );
     commitOrder(nextOrder);
 

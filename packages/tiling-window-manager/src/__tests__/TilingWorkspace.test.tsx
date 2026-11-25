@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PUSH_KEY_STEP_PX } from '../push.js';
 import { TilingWorkspace } from '../TilingWorkspace.js';
 import { tileIds, type TileNode } from '../tileTree.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 const WIDTH = 410;
 const HEIGHT = 300;
@@ -50,8 +51,8 @@ describe('TilingWorkspace', () => {
   it('steps a divider with the arrow keys', () => {
     const { container, onLayoutChange } = setup(pair);
     fireEvent.keyDown(container.querySelector('[role="separator"]')!, { key: 'ArrowRight' });
-    const next = onLayoutChange.mock.calls[0][0] as Extract<TileNode, { kind: 'split' }>;
-    expect(next.sizes[0]).toBeGreaterThan(next.sizes[1]);
+    const next = valueAt(onLayoutChange.mock.calls, 0)[0] as Extract<TileNode, { kind: 'split' }>;
+    expect(next.sizes[0]).toBeGreaterThan(valueAt(next.sizes, 1));
   });
 
   it('pushes in push mode: an arrow on the bottom edge grows the workspace and reports its height', () => {

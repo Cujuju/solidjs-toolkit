@@ -8,6 +8,7 @@ import {
   type CrumbData,
 } from '../breadcrumbPath.js';
 import { createStubGroup } from './stubGroup.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 /** A path of `n` open panels named p0…p(n-1), all open, in order. */
 function pathOf(n: number) {
@@ -88,7 +89,7 @@ describe('buildCrumbPath — labels', () => {
       panels: [{ id: 'a', title: '', tooltip: 'The alpha panel' }],
       open: ['a'],
     });
-    const [crumb] = buildCrumbPath(group);
+    const crumb = valueAt(buildCrumbPath(group), 0);
     // label is the id (renderable, never blank); text is the tooltip (for
     // attributes, which cannot carry a node).
     expect(crumb.label).toBe('a');
@@ -99,7 +100,7 @@ describe('buildCrumbPath — labels', () => {
 describe('buildCrumbPath — select() truncation', () => {
   it('closes every panel AFTER the clicked crumb, and none before it', () => {
     const { group, calls } = pathOf(4);
-    buildCrumbPath(group)[1].select();
+    valueAt(buildCrumbPath(group), 1).select();
     expect(calls.setOpen).toEqual([
       { id: 'p2', open: false },
       { id: 'p3', open: false },
@@ -108,7 +109,7 @@ describe('buildCrumbPath — select() truncation', () => {
 
   it('is a no-op on the current crumb', () => {
     const { group, calls } = pathOf(3);
-    buildCrumbPath(group)[2].select();
+    valueAt(buildCrumbPath(group), 2).select();
     expect(calls.setOpen).toEqual([]);
   });
 
@@ -120,7 +121,7 @@ describe('buildCrumbPath — select() truncation', () => {
       // Divider OFF (the stub defaults it on) so pinned c stays last; where c paints is not this rule.
       railDivider: false,
     });
-    buildCrumbPath(group)[0].select();
+    valueAt(buildCrumbPath(group), 0).select();
     expect(calls.setOpen).toEqual([
       { id: 'b', open: false },
       { id: 'c', open: false },
@@ -138,7 +139,7 @@ describe('buildCrumbPath — select() truncation', () => {
     });
     expect(buildCrumbPath(group).map((c) => c.id)).toEqual(['c', 'a', 'b']);
 
-    buildCrumbPath(group)[0].select();
+    valueAt(buildCrumbPath(group), 0).select();
     expect(calls.setOpen).toEqual([
       { id: 'a', open: false },
       { id: 'b', open: false },
@@ -155,11 +156,11 @@ describe('buildCrumbPath — select() truncation', () => {
       open: ['files', 'detail'],
     });
     const onTruncate = vi.fn();
-    buildCrumbPath(group, { onTruncate })[0].select();
+    valueAt(buildCrumbPath(group, { onTruncate }), 0).select();
 
     expect(calls.setOpen).toEqual([{ id: 'detail', open: false }]);
     expect(onTruncate).toHaveBeenCalledTimes(1);
-    expect(onTruncate.mock.calls[0][0]).toEqual(['detail']);
+    expect(valueAt(onTruncate.mock.calls, 0)[0]).toEqual(['detail']);
   });
 
   it('fires onTruncate BEFORE the group edits, with every closed id and the clicked crumb', () => {
@@ -173,7 +174,7 @@ describe('buildCrumbPath — select() truncation', () => {
       expect(ids).toEqual(['p1', 'p2']);
     });
     const path = buildCrumbPath(group, { onTruncate });
-    path[0].select();
+    valueAt(path, 0).select();
 
     expect(onTruncate).toHaveBeenCalledTimes(1);
     // Empty: the consumer ran BEFORE the group edited anything, so a controlled
@@ -187,7 +188,7 @@ describe('buildCrumbPath — select() truncation', () => {
     // crumb now sits if the path shifted underneath it.
     const { group, calls, setOpenIds } = pathOf(4);
     const path = buildCrumbPath(group);
-    const p2 = path[2];
+    const p2 = valueAt(path, 2);
 
     // p0 closes elsewhere; every later crumb shifts one slot toward the front.
     // (The path array is mutated by nothing here — select() re-finds by id.)
@@ -222,8 +223,8 @@ describe('elideCrumbs', () => {
     // WHICH crumbs it replaced, for a tooltip or an expand-in-place.
     expect(ellipsis.hidden.map((c) => c.id)).toEqual(['p1', 'p2', 'p3', 'p4']);
 
-    const first = out[0];
-    const last = out[out.length - 1];
+    const first = valueAt(out, 0);
+    const last = valueAt(out, out.length - 1);
     if (first.kind !== 'crumb' || last.kind !== 'crumb') {
       throw new Error('head and tail must survive elision as real crumbs');
     }

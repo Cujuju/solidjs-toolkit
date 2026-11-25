@@ -1,10 +1,11 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createNoticeOverlay, supportsNoticeOverlay } from '../overlay.js';
 import { BASIC_TONES, DEFAULT_NOTICE_CONFIG, NOTICE_CHANNELS, type NoticeView } from '../types.js';
+import { defined, valueAt } from '../../../_shared/testing.js';
 function setup(platform = 'win32', sessionType?: string) {
   const events: Record<string, () => void> = {};
   const w = { setShape: vi.fn(), setBounds: vi.fn(), showInactive: vi.fn(), hide: vi.fn(), isVisible: () => false, isDestroyed: () => false,
-    destroy: vi.fn(() => events.closed()), setAlwaysOnTop: vi.fn(), setVisibleOnAllWorkspaces: vi.fn(), setIgnoreMouseEvents: vi.fn(),
+    destroy: vi.fn(() => defined(events.closed, 'closed handler')()), setAlwaysOnTop: vi.fn(), setVisibleOnAllWorkspaces: vi.fn(), setIgnoreMouseEvents: vi.fn(),
     on: (name: string, cb: () => void) => { events[name] = cb; },
     webContents: { send: vi.fn(), on: (name: string, cb: () => void) => { events[name] = cb; }, setWindowOpenHandler: vi.fn() } };
   const view: NoticeView = { config: { ...DEFAULT_NOTICE_CONFIG }, appearance: { vars: {} }, tones: BASIC_TONES };
@@ -36,7 +37,7 @@ it.each(['darwin', 'linux'])('applies platform policy for %s and creates the res
   expect(w.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver');
   expect(w.setVisibleOnAllWorkspaces).toHaveBeenCalledTimes(platform === 'darwin' ? 1 : 0);
   overlay.pointer(true); expect(w.setIgnoreMouseEvents).toHaveBeenCalledTimes(platform === 'linux' ? 0 : 2);
-  expect(w.webContents.setWindowOpenHandler.mock.calls[0][0]()).toEqual({ action: 'deny' });
+  expect(valueAt(w.webContents.setWindowOpenHandler.mock.calls, 0)[0]()).toEqual({ action: 'deny' });
   overlay.ready(); overlay.refresh(); expect(w.webContents.send).toHaveBeenLastCalledWith(NOTICE_CHANNELS.view, view, 'top-center', 800);
 });
 
@@ -93,7 +94,7 @@ it('does not create an overlay for system delivery', async () => {
 it('fails pending on renderer crash and replays delivered notices with time left', async () => {
   vi.useFakeTimers(); const { overlay, w, events, createWindow } = setup();
   const first = overlay.show(notice(1)); overlay.ready(); overlay.ack(1); await first;
-  const pending = overlay.show(notice(2)); vi.advanceTimersByTime(1000); events['render-process-gone']();
+  const pending = overlay.show(notice(2)); vi.advanceTimersByTime(1000); defined(events['render-process-gone'], 'render-process-gone handler')();
   expect(await pending).toEqual({ delivered: false });
   const next = overlay.show(notice(3)); expect(createWindow).toHaveBeenCalledTimes(2);
   w.webContents.send.mockClear(); overlay.ready();
@@ -124,7 +125,7 @@ it('warms once and owns only its live window sender', () => {
   expect(createWindow).toHaveBeenCalledOnce();
   expect(overlay.owns(w.webContents)).toBe(true);
   expect(overlay.owns({})).toBe(false);
-  events.closed();
+  defined(events.closed, 'closed handler')();
   expect(overlay.owns(w.webContents)).toBe(false);
   overlay.destroy();
 });

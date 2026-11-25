@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillNumberPicker } from '../PillNumberPicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 
@@ -96,7 +97,7 @@ describe('editing session — opening', () => {
         max={100}
       />
     ));
-    click(buttonsIn(host)[0]); // +
+    click(valueAt(buttonsIn(host), 0)); // +
     expect(log.changes).toEqual([6]);
     expect(log.commits).toEqual([]); // no session => no confirmation event
   });
@@ -161,8 +162,8 @@ describe('editing session — a CONTROLLED open state owns the session too', () 
     // 'finish' mode published every step it promises to withhold.
     const { log, setOpen } = controlledHarness({ commit: 'finish', initial: 5 });
     setOpen(true);
-    click(buttonsIn(panel())[0]);
-    click(buttonsIn(panel())[0]);
+    click(valueAt(buttonsIn(panel()), 0));
+    click(valueAt(buttonsIn(panel()), 0));
     expect(log.changes, "'finish' published mid-session").toEqual([]);
     key(inputEl()!, 'Enter');
     expect(log.changes).toEqual([7]);
@@ -174,7 +175,7 @@ describe('editing session — a CONTROLLED open state owns the session too', () 
     // and reported the scrubbed value as if it had been kept.
     const { log, setOpen, value } = controlledHarness({ commit: 'change', initial: 5 });
     setOpen(true);
-    click(buttonsIn(panel())[0]); // 6, already published in 'change' mode
+    click(valueAt(buttonsIn(panel()), 0)); // 6, already published in 'change' mode
     key(document, 'Escape');
     expect(log.changes).toEqual([6, 5]);
     expect(value()).toBe(5);
@@ -187,7 +188,7 @@ describe('editing session — a CONTROLLED open state owns the session too', () 
     // instead of publishing.
     const { host, log, setOpen, value } = controlledHarness({ commit: 'finish', initial: 5 });
     setOpen(true);
-    click(buttonsIn(panel())[0]); // draft 6, silent by design
+    click(valueAt(buttonsIn(panel()), 0)); // draft 6, silent by design
     setOpen(false);               // a route change, a "close all overlays" handler…
     expect(panel()).toBeNull();
     expect(value()).toBe(5);
@@ -201,7 +202,7 @@ describe('editing session — a CONTROLLED open state owns the session too', () 
   it('a session opened by CLICK and closed from outside is ended too', () => {
     const { host, log, setOpen, value } = controlledHarness({ commit: 'finish', initial: 5 });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // draft 6
+    click(valueAt(buttonsIn(panel()), 0)); // draft 6
     setOpen(false);
     expect(value()).toBe(5);
     expect(log.changes).toEqual([]);
@@ -213,7 +214,7 @@ describe("commit: 'change' (default) — publish as you go", () => {
   it('publishes every step immediately', () => {
     const { host, log } = harness({ commit: 'change', initial: 5 });
     click(anchorValue(host));
-    const [inc] = buttonsIn(panel());
+    const inc = valueAt(buttonsIn(panel()), 0);
     click(inc);
     click(inc);
     expect(log.changes).toEqual([6, 7]);
@@ -222,7 +223,7 @@ describe("commit: 'change' (default) — publish as you go", () => {
   it('still fires onCommit when the session ends — settled is not the same as changed', () => {
     const { host, log } = harness({ commit: 'change', initial: 5 });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // 6
+    click(valueAt(buttonsIn(panel()), 0)); // 6
     key(inputEl()!, 'Enter');
     expect(log.commits).toEqual([6]);
     expect(panel()).toBeNull();
@@ -231,7 +232,7 @@ describe("commit: 'change' (default) — publish as you go", () => {
   it('cancel REVERTS the published value — cancel means the same thing in both modes', () => {
     const { host, log, value } = harness({ commit: 'change', initial: 5 });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // 6, already published
+    click(valueAt(buttonsIn(panel()), 0)); // 6, already published
     key(document, 'Escape');
     // The consumer saw 6, so the revert has to be published too, or it is stranded there.
     expect(log.changes).toEqual([6, 5]);
@@ -242,7 +243,7 @@ describe("commit: 'change' (default) — publish as you go", () => {
   it('revertOnCancel={false} keeps the scrubbed value', () => {
     const { host, log, value } = harness({ commit: 'change', initial: 5, revertOnCancel: false });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // 6
+    click(valueAt(buttonsIn(panel()), 0)); // 6
     key(document, 'Escape');
     expect(log.changes).toEqual([6]);
     expect(value()).toBe(6);
@@ -252,7 +253,7 @@ describe("commit: 'change' (default) — publish as you go", () => {
   it("revertOnCancel={false} in 'finish' mode publishes the kept draft", () => {
     const { host, log, value } = harness({ commit: 'finish', initial: 5, revertOnCancel: false });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // 6, unpublished draft
+    click(valueAt(buttonsIn(panel()), 0)); // 6, unpublished draft
     key(document, 'Escape');
     expect(log.changes).toEqual([6]);
     expect(value()).toBe(6);
@@ -272,7 +273,7 @@ describe("commit: 'finish' — publish only on confirmation", () => {
   it('stays SILENT while stepping, then publishes once on Enter', () => {
     const { host, log } = harness({ commit: 'finish', initial: 5 });
     click(anchorValue(host));
-    const [inc] = buttonsIn(panel());
+    const inc = valueAt(buttonsIn(panel()), 0);
     click(inc);
     click(inc);
     click(inc);
@@ -287,7 +288,7 @@ describe("commit: 'finish' — publish only on confirmation", () => {
     // Silent must not mean frozen — the user has to see what they are choosing.
     const { host, log } = harness({ commit: 'finish', initial: 5 });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // draft 6
+    click(valueAt(buttonsIn(panel()), 0)); // draft 6
     expect(inputEl()!.value).toBe('6');
     expect(anchorValue(host).textContent).toBe('6');
     expect(log.changes).toEqual([]);
@@ -296,7 +297,7 @@ describe("commit: 'finish' — publish only on confirmation", () => {
   it('clicking the pill again closes AND confirms', () => {
     const { host, log } = harness({ commit: 'finish', initial: 5 });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // draft 6
+    click(valueAt(buttonsIn(panel()), 0)); // draft 6
     click(anchorValue(host));     // the close gesture
     expect(panel()).toBeNull();
     expect(log.changes).toEqual([6]);
@@ -306,8 +307,8 @@ describe("commit: 'finish' — publish only on confirmation", () => {
   it('Escape DISCARDS the draft — nothing was ever published, so nothing is undone', () => {
     const { host, log, value } = harness({ commit: 'finish', initial: 5 });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]);
-    click(buttonsIn(panel())[0]); // draft 7
+    click(valueAt(buttonsIn(panel()), 0));
+    click(valueAt(buttonsIn(panel()), 0)); // draft 7
     key(document, 'Escape');
     expect(log.changes).toEqual([]); // never spoke — not even to revert
     expect(value()).toBe(5);
@@ -318,7 +319,7 @@ describe("commit: 'finish' — publish only on confirmation", () => {
   it('an outside press is a CANCEL, not a silent acceptance', () => {
     const { host, log, value } = harness({ commit: 'finish', initial: 5 });
     click(anchorValue(host));
-    click(buttonsIn(panel())[0]); // draft 6
+    click(valueAt(buttonsIn(panel()), 0)); // draft 6
     const outside = document.createElement('div');
     document.body.appendChild(outside);
     pointerDown(outside);
@@ -353,7 +354,7 @@ describe("commit: 'finish' — publish only on confirmation", () => {
     click(anchorValue(host));
     const input = inputEl()!;
     typeInto(input, '20');
-    const inc = buttonsIn(panel())[0];
+    const inc = valueAt(buttonsIn(panel()), 0);
     input.dispatchEvent(new FocusEvent('blur', { relatedTarget: inc, bubbles: false }));
     expect(panel(), 'the editor closed when focus moved to a button').not.toBeNull();
     click(inc);

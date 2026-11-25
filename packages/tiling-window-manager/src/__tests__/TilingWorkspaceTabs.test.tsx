@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { TabStrip } from '../TabStrip.js';
 import { TilingWorkspace } from '../TilingWorkspace.js';
 import type { TileLeaf, TileNode } from '../tileTree.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 const WIDTH = 410;
 const HEIGHT = 300;
@@ -60,14 +61,14 @@ describe('TilingWorkspace tab groups', () => {
     expect(getByTestId('tile-b').parentElement!.hidden).toBe(true);
     const tabs = getAllByRole('tab').filter((tab) => !tab.closest('[hidden]'));
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Tab a', 'Tab b']);
-    fireEvent.click(tabs[1]);
+    fireEvent.click(valueAt(tabs, 1));
     expect(layout()).toEqual({ kind: 'tabs', active: 1, children: [t('a'), t('b')] });
     expect(getByTestId('tile-a').parentElement!.hidden).toBe(true);
   });
 
   it('arrow keys move between tabs', () => {
     const { getAllByRole, layout } = setup({ kind: 'tabs', active: 0, children: [t('a'), t('b')] });
-    fireEvent.keyDown(getAllByRole('tab')[0], { key: 'ArrowLeft' });
+    fireEvent.keyDown(valueAt(getAllByRole('tab'), 0), { key: 'ArrowLeft' });
     expect(layout()).toEqual({ kind: 'tabs', active: 1, children: [t('a'), t('b')] });
   });
 });
@@ -87,8 +88,8 @@ describe('TilingWorkspace tab groups — review regressions', () => {
   it('keyboard selection moves focus to the strip of the tile now shown', () => {
     const { getAllByRole } = setup({ kind: 'tabs', active: 0, children: [t('a'), t('b')] });
     const visibleTabs = () => getAllByRole('tab').filter((tab) => !tab.closest('[hidden]'));
-    visibleTabs()[0].focus();
-    fireEvent.keyDown(visibleTabs()[0], { key: 'ArrowRight' });
+    valueAt(visibleTabs(), 0).focus();
+    fireEvent.keyDown(valueAt(visibleTabs(), 0), { key: 'ArrowRight' });
     expect(document.activeElement?.closest('[hidden]')).toBeNull();
     expect(document.activeElement?.textContent).toBe('Tab b');
   });
@@ -102,7 +103,7 @@ describe('TilingWorkspace tab groups — review regressions', () => {
     }) as typeof window.removeEventListener;
     try {
       const { getAllByRole, unmount } = setup({ kind: 'tabs', active: 0, children: [t('a'), t('b')] });
-      fireEvent.pointerDown(getAllByRole('tab')[0], { button: 0, clientX: 10, clientY: 10 });
+      fireEvent.pointerDown(valueAt(getAllByRole('tab'), 0), { button: 0, clientX: 10, clientY: 10 });
       unmount();
       expect(removed).toEqual(expect.arrayContaining(['pointermove', 'pointerup', 'pointercancel']));
     } finally {

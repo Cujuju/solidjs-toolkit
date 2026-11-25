@@ -41,15 +41,14 @@ export function injectCssImport(): Plugin {
       if (stylesheets.length === 0) return;
       // Lib mode uses cssCodeSplit:false, so one sheet for the main entry. chunk.viteMetadata.importedCss
       // is empty here, so nothing else could attribute a sheet to a chunk.
-      if (entries.length !== 1 || stylesheets.length !== 1) {
+      const [chunk] = entries;
+      const [css] = stylesheets;
+      if (!chunk || !css || entries.length !== 1 || stylesheets.length !== 1) {
         this.error(
           `inject-css-import assumes one main entry chunk and one CSS asset; got ${entries.length} entr` +
             `${entries.length === 1 ? 'y' : 'ies'} and ${stylesheets.length} stylesheets`,
         );
       }
-      const chunk = entries[0];
-      const css = stylesheets[0];
-
       // Where the entry's own source puts its stylesheet relative to its other imports:
       // glass-menu wants the glass dependency first, context-menu wants its own sheet first.
       const entryInfo = chunk.facadeModuleId ? this.getModuleInfo(chunk.facadeModuleId) : null;

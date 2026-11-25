@@ -9,7 +9,7 @@ import {
 } from '@cujuju/solidjs-tri-state-chip';
 import { Card, Code } from '../ui';
 
-const TAGS = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
+const TAGS: [string, ...string[]] = ['calls', 'puts', 'weeklies', 'monthlies', '0DTE'];
 
 /** Reverse cycle: neutral → excluded → included → neutral. */
 const REVERSE_CYCLE: Record<TriState, TriState> = { unselected: 'excluded', excluded: 'included', included: 'unselected' };

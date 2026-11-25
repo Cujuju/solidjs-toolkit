@@ -122,6 +122,16 @@ Primitive lives at `cujuju-solidjs-hold-action/_internal/measure.ts`. Duplicate 
 
 ---
 
+## 11. Source typechecks under a strict consumer
+
+**Rule:** `src` compiles under `strict` plus `noUncheckedIndexedAccess`. Narrow an index read for real: iterate entries, check `undefined`, or read an invariant index through a throwing accessor (`valueAt` in tiling-window-manager). No `!` or cast that hides `undefined`. Tests use `valueAt`/`defined` from `_shared/testing.ts`.
+
+**Why:** consumers typecheck `src` through the `cujuju-source` condition instead of rebuilding `dist`, so their flags apply to our source. Spillway's 91 errors in tiling-window-manager, hold-action, electron-notices and hooks came from this flag.
+
+**Enforced by** `_shared/tsconfig.base.json`, which every package and the playground extend; `pnpm typecheck` runs it.
+
+---
+
 ## When to add a new rule here
 
 - A bug reproduced twice across different packages or hooks.

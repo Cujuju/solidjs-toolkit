@@ -7,6 +7,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillNumberPicker } from '../PillNumberPicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 
@@ -71,20 +72,20 @@ describe('excludeZero', () => {
   it('the + BUTTON skips zero too — a click is not a second implementation', () => {
     // The click handlers bypassed the shared resolver: a click emitted 0 while a hold landed on +1.
     const { host, changes } = harness({ initial: -1 });
-    click(buttons(host)[0]);
+    click(valueAt(buttons(host), 0));
     expect(changes).toEqual([1]);
   });
 
   it('the − BUTTON skips zero too', () => {
     const { host, changes } = harness({ initial: 1 });
-    click(buttons(host)[1]);
+    click(valueAt(buttons(host), 1));
     expect(changes).toEqual([-1]);
   });
 
   it('a button click the bounds turn into a no-op publishes NOTHING', () => {
     // Same state as the ArrowDown case below, which is asserted to publish nothing.
     const { host, changes } = harness({ initial: 1, min: 0 });
-    click(buttons(host)[1]);
+    click(valueAt(buttons(host), 1));
     expect(changes).toEqual([]);
   });
 

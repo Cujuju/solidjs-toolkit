@@ -9,6 +9,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createSignal } from 'solid-js';
 import { PillNumberPicker } from '../PillNumberPicker.js';
+import { valueAt } from '../../../_shared/testing.js';
 
 let dispose: (() => void) | null = null;
 let host: HTMLDivElement;
@@ -67,7 +68,7 @@ describe('collapsible', () => {
 
   it('collapsed: renders the value and NO buttons', () => {
     const c = mount(() => <Harness collapsible initial={7} />);
-    expect(spinbuttons(c)[0].textContent).toBe('7');
+    expect(valueAt(spinbuttons(c), 0).textContent).toBe('7');
     expect(buttonsIn(c).length).toBe(0);
     expect(panel()).toBeNull();
   });
@@ -76,7 +77,7 @@ describe('collapsible', () => {
     // This is what makes the collapse cheap: the common case (nudge a qty) never needs
     // the pop-out at all. If expanding were mandatory, the feature would be a tax.
     const c = mount(() => <Harness collapsible initial={5} />);
-    const value = spinbuttons(c)[0];
+    const value = valueAt(spinbuttons(c), 0);
     key(value, 'ArrowUp');
     expect(value.textContent).toBe('6');
     key(value, 'ArrowDown');
@@ -89,7 +90,7 @@ describe('collapsible', () => {
     // Click-to-open means the editor is ready to type into immediately. Anything less and
     // the user pays a second click to reach the keyboard, which is the tax this removes.
     const c = mount(() => <Harness collapsible />);
-    click(spinbuttons(c)[0]);
+    click(valueAt(spinbuttons(c), 0));
     expect(panel()).not.toBeNull();
     expect(buttonsIn(panel()).length).toBe(2);
     const input = document.body.querySelector('.cpnp-input') as HTMLInputElement | null;
@@ -100,7 +101,7 @@ describe('collapsible', () => {
   it('expands from the KEYBOARD (Enter and Space), or the buttons are mouse-only', () => {
     for (const k of ['Enter', ' ']) {
       const c = mount(() => <Harness collapsible />);
-      key(spinbuttons(c)[0], k);
+      key(valueAt(spinbuttons(c), 0), k);
       expect(panel(), `"${k}" did not expand the picker`).not.toBeNull();
       dispose?.();
       dispose = null;
@@ -112,8 +113,9 @@ describe('collapsible', () => {
     // Opening puts the value cell into edit mode, so the live value is the INPUT's. The
         // anchor mirrors it — a stale number would misstate what Enter is about to commit.
     const c = mount(() => <Harness collapsible initial={3} />);
-    click(spinbuttons(c)[0]);
-    const [inc, dec] = buttonsIn(panel());
+    click(valueAt(spinbuttons(c), 0));
+    const inc = valueAt(buttonsIn(panel()), 0);
+    const dec = valueAt(buttonsIn(panel()), 1);
     const liveValue = () => (document.body.querySelector('.cpnp-input') as HTMLInputElement).value;
 
     click(inc);
@@ -134,7 +136,7 @@ describe('collapsible', () => {
         <Harness collapsible />
       </div>
     ));
-    click(spinbuttons(c)[0]);
+    click(valueAt(spinbuttons(c), 0));
     const p = panel();
     expect(p).not.toBeNull();
     expect(rootOf(c).contains(p)).toBe(false);
@@ -145,7 +147,7 @@ describe('collapsible', () => {
     // A consumer that unmounts a row while its picker is open (a keyed <For> rebuilding
     // its list, say) must not leak a floating panel into the document forever.
     const c = mount(() => <Harness collapsible />);
-    click(spinbuttons(c)[0]);
+    click(valueAt(spinbuttons(c), 0));
     expect(panels().length).toBe(1);
     dispose?.();
     dispose = null;
@@ -154,7 +156,7 @@ describe('collapsible', () => {
 
   it('keeps the anchor in flow while open, so the host row never reflows', () => {
     const c = mount(() => <Harness collapsible initial={9} />);
-    click(spinbuttons(c)[0]);
+    click(valueAt(spinbuttons(c), 0));
     const ph = placeholderIn(c);
     expect(ph.textContent).toBe('9');
     // aria-hidden so a screen reader is not offered the same spinbutton twice.
@@ -164,7 +166,7 @@ describe('collapsible', () => {
 
   it('dismisses on an outside pointerdown', () => {
     const c = mount(() => <Harness collapsible />);
-    click(spinbuttons(c)[0]);
+    click(valueAt(spinbuttons(c), 0));
     expect(panel()).not.toBeNull();
     const outside = document.createElement('div');
     document.body.appendChild(outside);
@@ -175,14 +177,14 @@ describe('collapsible', () => {
   it('does NOT dismiss on a pointerdown INSIDE the pop-out', () => {
     // Otherwise the panel would close the instant you reached for the + button.
     const c = mount(() => <Harness collapsible />);
-    click(spinbuttons(c)[0]);
-    pointerDown(buttonsIn(panel())[0]);
+    click(valueAt(spinbuttons(c), 0));
+    pointerDown(valueAt(buttonsIn(panel()), 0));
     expect(panel()).not.toBeNull();
   });
 
   it('dismisses on Escape', () => {
     const c = mount(() => <Harness collapsible />);
-    click(spinbuttons(c)[0]);
+    click(valueAt(spinbuttons(c), 0));
     key(document, 'Escape');
     expect(panel()).toBeNull();
   });
@@ -215,7 +217,7 @@ describe('collapsible', () => {
         onChange={() => {}}
       />
     ));
-    click(spinbuttons(c)[0]);
+    click(valueAt(spinbuttons(c), 0));
     key(document, 'Escape');
     expect(seen).toEqual([true, false]);
   });
@@ -224,7 +226,7 @@ describe('collapsible', () => {
     // The reserved width is a FLOOR, not a fixed width. A value that outgrows it must
     // widen the pill, never be clipped by it.
     const c = mount(() => <Harness collapsible initial={100} />);
-    const value = spinbuttons(c)[0];
+    const value = valueAt(spinbuttons(c), 0);
     expect(value.textContent).toBe('100');
     expect(value.style.width).toBe('max-content');
     expect(value.style.minWidth).not.toBe('');

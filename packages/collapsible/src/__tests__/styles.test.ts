@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { render } from 'solid-js/web';
 import { createComponent } from 'solid-js';
 import { Collapsible } from '../Collapsible.js';
+import { defined } from '../../../_shared/testing.js';
 
 /**
  * Markup/stylesheet cascade contract: jsdom applies UA `[hidden] { display: none }` under
@@ -49,7 +50,7 @@ beforeAll(() => {
   const style = document.createElement('style');
   document.head.appendChild(style);
   sheet = style.sheet as CSSStyleSheet;
-  for (const block of topLevelBlocks(CSS_SOURCES['../styles.css'])) {
+  for (const block of topLevelBlocks(defined(CSS_SOURCES['../styles.css'], 'styles.css'))) {
     try {
       sheet.insertRule(block, sheet.cssRules.length);
     } catch {

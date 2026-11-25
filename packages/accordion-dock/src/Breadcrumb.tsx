@@ -125,10 +125,11 @@ export function Breadcrumb(props: BreadcrumbProps): JSX.Element {
 
   const focusAt = (index: number): void => {
     const keys = focusKeys();
-    if (keys.length === 0) return;
     const clamped = Math.max(0, Math.min(index, keys.length - 1));
+    const key = keys[clamped];
+    if (key === undefined) return;
     setFocusIndex(clamped);
-    els.get(keys[clamped])?.focus();
+    els.get(key)?.focus();
   };
 
   /** Expand the elided middle and focus its first revealed crumb: the ellipsis unmounts itself, so focus would otherwise fall to `<body>`. */

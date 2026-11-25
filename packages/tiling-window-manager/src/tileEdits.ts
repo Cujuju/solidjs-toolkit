@@ -3,6 +3,7 @@ import {
   canonicalize, EVEN_SPLIT_PARTS, findSlot, findTile, isShare, nodeAt, replaceNode, splitAxis, tileIds, UNIT_SHARE,
   type DockSide, type DropZone, type InsertionShares, type TileLeaf, type TileNode, type TilePath, type TileSlot, type TileSplit,
 } from './tileTree.js';
+import { valueAt } from './valueAt.js';
 
 const finish = (root: TileNode): TileNode => repairCollapse(canonicalize(root));
 const atStart = (side: DockSide): boolean => side === 'left' || side === 'top';
@@ -15,7 +16,7 @@ function remove(node: TileNode, id: string): TileNode | undefined {
     if (!children.length) return undefined;
     // The group's collapse state stays with the slot when one tab is left.
     const { collapsed, lastCollapseEdge } = node;
-    if (children.length === 1) return { ...children[0], ...(collapsed ? { collapsed } : {}), ...(lastCollapseEdge ? { lastCollapseEdge } : {}) };
+    if (children.length === 1 && children[0]) return { ...children[0], ...(collapsed ? { collapsed } : {}), ...(lastCollapseEdge ? { lastCollapseEdge } : {}) };
     const activeId = node.children[node.active]?.id;
     const activeIndex = children.findIndex((child) => child.id === activeId);
     return { ...node, active: activeIndex >= 0 ? activeIndex : Math.min(node.active, children.length - 1), children };
@@ -26,13 +27,13 @@ function remove(node: TileNode, id: string): TileNode | undefined {
     const result = remove(child, id);
     // A removed collapsed slot's share stays with the slot showing it, so the screen does not change.
     const holder = holders.get(i);
-    if (!result && holder !== undefined) sizes[holder] += sizes[i];
+    if (!result && holder !== undefined) sizes[holder] = valueAt(sizes, holder) + valueAt(sizes, i);
     return result ? [{ child: result, index: i }] : [];
   });
   if (!kept.length) return undefined;
-  if (kept.length === 1) return repairCollapse(kept[0].child);
+  if (kept.length === 1 && kept[0]) return repairCollapse(kept[0].child);
   if (kept.length === node.children.length && kept.every((entry, i) => entry.child === node.children[i])) return node;
-  return { ...node, children: kept.map((entry) => entry.child), sizes: kept.map((entry) => sizes[entry.index]) };
+  return { ...node, children: kept.map((entry) => entry.child), sizes: kept.map((entry) => valueAt(sizes, entry.index)) };
 }
 
 /** Removes a tile; its siblings share the freed space in proportion. A tab leaves its group. */
@@ -67,7 +68,7 @@ export function dock(root: TileNode, movedId: string, targetId: string, side: Do
   if (!parent || parent.dir !== splitAxis(side)) return finish(replaceNode(rest, slot, pair(slot, moved, side, shares)));
   const sizes = [...parent.sizes];
   const children = [...parent.children];
-  const half = sizes[index] / EVEN_SPLIT_PARTS;
+  const half = valueAt(sizes, index) / EVEN_SPLIT_PARTS;
   sizes[index] = shares?.[0] ?? half;
   const insertAt = atStart(side) ? index : index + 1;
   sizes.splice(insertAt, 0, shares?.[1] ?? half);
@@ -122,9 +123,9 @@ export function moveTab(root: TileNode, id: string, toIndex: number): TileNode {
   if (slot?.kind !== 'tabs' || !Number.isInteger(toIndex) || toIndex < 0 || toIndex >= slot.children.length) return root;
   const from = slot.children.findIndex((child) => child.id === id);
   if (from === toIndex) return root;
-  const activeId = slot.children[slot.active].id;
+  const activeId = valueAt(slot.children, slot.active).id;
   const children = slot.children.filter((child) => child.id !== id);
-  children.splice(toIndex, 0, slot.children[from]);
+  children.splice(toIndex, 0, valueAt(slot.children, from));
   return finish(replaceNode(root, slot, { ...slot, active: children.findIndex((child) => child.id === activeId), children }));
 }
 

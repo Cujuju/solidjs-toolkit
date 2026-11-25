@@ -2,19 +2,20 @@
 import { describe, expect, it } from 'vitest';
 import * as helpers from '../helpers.js';
 import * as main from '../index.js';
+import { defined } from '../../../_shared/testing.js';
 
 // The `./helpers` subpath must load in workers and plain Node: no CSS, no component, no Solid.
 const SOURCES = import.meta.glob<string>(['../helpers.ts', '../cycleTriState.ts'], { query: '?raw', import: 'default', eager: true });
 const specifiers = (src: string): string[] =>
   Array.from(
     src.matchAll(/(?:^|\n)\s*(?:import\s+['"]([^'"]+)['"]|(?:import|export)\b[^;'"]*?\bfrom\s+['"]([^'"]+)['"])/g),
-    (m) => m[1] ?? m[2],
+    (m) => defined(m[1] ?? m[2], 'import specifier'),
   );
 
 describe('helpers entry', () => {
   it('imports only the pure helper module, which imports nothing', () => {
-    expect(specifiers(SOURCES['../helpers.ts'])).toEqual(['./cycleTriState.js']);
-    expect(specifiers(SOURCES['../cycleTriState.ts'])).toEqual([]);
+    expect(specifiers(defined(SOURCES['../helpers.ts'], 'helpers.ts'))).toEqual(['./cycleTriState.js']);
+    expect(specifiers(defined(SOURCES['../cycleTriState.ts'], 'cycleTriState.ts'))).toEqual([]);
   });
 
   it('exports the same helpers as the package entry', () => {

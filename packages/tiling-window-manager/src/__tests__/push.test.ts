@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeTileLayout, type TileSize } from '../layout.js';
 import { pushedLayout, type PushTarget } from '../push.js';
 import type { TileNode, TileSplit } from '../tileTree.js';
+import { defined } from '../../../_shared/testing.js';
 
 const t = (id: string): TileNode => ({ kind: 'tile', id });
 const row = (sizes: number[], ...children: TileNode[]): TileSplit => ({ kind: 'split', dir: 'row', sizes, children });
@@ -24,8 +25,9 @@ function push(root: TileNode, heightPx: number, target: PushTarget, delta: numbe
 }
 const expectRects = (actual: Record<string, { y: number; height: number }>, expected: Record<string, [y: number, height: number]>) =>
   Object.entries(expected).forEach(([id, [y, height]]) => {
-    expect(actual[id].y).toBeCloseTo(y, PX_DIGITS);
-    expect(actual[id].height).toBeCloseTo(height, PX_DIGITS);
+    const rect = defined(actual[id], `rect ${id}`);
+    expect(rect.y).toBeCloseTo(y, PX_DIGITS);
+    expect(rect.height).toBeCloseTo(height, PX_DIGITS);
   });
 
 describe('pushedLayout', () => {

@@ -124,8 +124,7 @@ export function useHoldAction(options: UseHoldActionOptions): UseHoldActionRetur
 
       // Fire stages that have been crossed
       if (options.stages) {
-        for (let i = 0; i < options.stages.length; i++) {
-          const stage = options.stages[i];
+        for (const [i, stage] of options.stages.entries()) {
           if (!reachedStages.has(i) && elapsed >= stage.at) {
             reachedStages.add(i);
             stage.onReach();

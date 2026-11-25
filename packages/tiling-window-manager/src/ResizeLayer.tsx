@@ -6,6 +6,7 @@ import { pushedLayout, PUSH_KEY_STEP_PX, type PushedLayout, type PushTarget } fr
 import { handleCentre, nearestGuide, resizeGuides, type AlignLayout, type ResizeGuide } from './resizeGuides.js';
 import { resizeSplit } from './tileEdits.js';
 import { nodeAt, type TileNode, type TileSplit } from './tileTree.js';
+import { valueAt } from './valueAt.js';
 
 /**
  * A trading drag's new shares for one split, or a pushing drag's whole tree and height. `holdPx` is the tallest the
@@ -111,7 +112,7 @@ export function ResizeLayer(props: {
                     if (props.readout) {
                       // The side is fixed here so the readout does not jump when the two panes cross in size.
                       const axis = start.split.dir === 'row' ? 'width' : 'height';
-                      setReadout({ key, side: start.childRects[start.a][axis] >= start.childRects[start.b][axis] ? 'a' : 'b' });
+                      setReadout({ key, side: valueAt(start.childRects, start.a)[axis] >= valueAt(start.childRects, start.b)[axis] ? 'a' : 'b' });
                     }
                     guides = props.alignWith ? resizeGuides(props.alignWith, start, props.size, props.optionsFor) : [];
                   }}

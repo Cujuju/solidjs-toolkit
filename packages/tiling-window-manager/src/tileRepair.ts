@@ -33,7 +33,7 @@ export function normalize(value: unknown, ids?: ReadonlySet<string>): TileNode |
         return tab ? [tab] : [];
       });
       if (!children.length) return undefined;
-      if (children.length === 1) return { ...children[0], ...slotState(node) };
+      if (children.length === 1 && children[0]) return { ...children[0], ...slotState(node) };
       return { kind: 'tabs', active: Math.max(0, children.findIndex((child) => child.id === activeId)), children, ...slotState(node) };
     }
     if (node.kind !== 'split' || (node.dir !== 'row' && node.dir !== 'column')) return undefined;
@@ -43,7 +43,7 @@ export function normalize(value: unknown, ids?: ReadonlySet<string>): TileNode |
       return result ? [{ child: result, size: isShare(sizes[i]) ? sizes[i] : UNIT_SHARE }] : [];
     });
     if (!kept.length) return undefined;
-    if (kept.length === 1) return kept[0].child;
+    if (kept.length === 1 && kept[0]) return kept[0].child;
     return { kind: 'split', dir: node.dir, sizes: repairShares(kept.map((entry) => entry.size)), children: kept.map((entry) => entry.child) };
   }
   const root = visit(value);
