@@ -54,7 +54,7 @@ The workspace fills its own box. Give it a height. A collapsed tile keeps render
 
 ## Model
 
-These are pure functions with no DOM. Every edit returns a canonical tree: no row directly inside a row, every share positive and finite, and only collapse flags that can hold.
+These are pure functions with no DOM. Import them from `@cujuju/solidjs-tiling-window-manager/model` where no DOM exists (Node, tests): the root entry also loads components and the stylesheet. Every edit returns a canonical tree: no row directly inside a row, every share positive and finite, and only collapse flags that can hold.
 
 - Tree: `insertTile`, `dock`, `swapTiles`, `removeTile`, `resizeSplit`, `appendTile`, `addToTabs`, `moveTab`, `setActiveTab`, `normalize`.
 - Collapse: `setSlotCollapsed`, `canCollapse`, `expandSlotAlone`, `collapseSlotAlone`, `shareHolders`, `viewShares`.
