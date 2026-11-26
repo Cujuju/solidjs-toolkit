@@ -45,13 +45,62 @@ describe('resize readout and guides', () => {
       </TilingWorkspace>
     ));
     const handle = container.querySelector('[role="separator"]')!;
+    const workspace = container.querySelector('.twm')!;
+    expect(workspace.hasAttribute('data-readout-active')).toBe(false);
     fireEvent.pointerDown(handle, { button: 0, clientX: 205, pointerId: 1 });
     fireEvent.pointerMove(handle, { clientX: 108, pointerId: 1 });
+    expect(workspace.hasAttribute('data-readout-active')).toBe(true);
     const readout = container.querySelector('.twm-readout')!;
     expect(readout.textContent).toContain('Aligned with Other');
     expect(readout.textContent).toContain('25.0%');
     fireEvent.pointerUp(handle, { clientX: 108, pointerId: 1 });
     expect(container.querySelector('.twm-readout')).toBeNull();
+    expect(workspace.hasAttribute('data-readout-active')).toBe(false);
     expect((layout() as TileSplit).sizes).toEqual([0.5, 1.5]);
+  });
+
+  it('toggles data-raised on a tile wrapper via tile.setRaised', () => {
+    const [layout, setLayout] = createSignal<TileNode | undefined>(row([1, 1], t('a'), t('b')));
+    let setARaised!: (active: boolean) => void;
+    const { container } = render(() => (
+      <TilingWorkspace layout={layout()} onLayoutChange={setLayout} gapPx={GAP} minSize={() => ({ width: 50, height: 50 })}>
+        {(tile) => {
+          if (tile.id === 'a') setARaised = tile.setRaised;
+          return <div>{tile.id}</div>;
+        }}
+      </TilingWorkspace>
+    ));
+    const tileA = container.querySelector('[data-tile-id="a"]')!;
+    const tileB = container.querySelector('[data-tile-id="b"]')!;
+    expect(tileA.hasAttribute('data-raised')).toBe(false);
+    expect(tileB.hasAttribute('data-raised')).toBe(false);
+
+    setARaised(true);
+    expect(tileA.hasAttribute('data-raised')).toBe(true);
+    expect(tileB.hasAttribute('data-raised')).toBe(false);
+
+    setARaised(false);
+    expect(tileA.hasAttribute('data-raised')).toBe(false);
+  });
+
+  it('clears the readout and data-readout-active when readout turns off mid-drag', () => {
+    const [layout, setLayout] = createSignal<TileNode | undefined>(row([1, 1], t('a'), t('b')));
+    const [readoutEnabled, setReadoutEnabled] = createSignal(true);
+    const { container } = render(() => (
+      <TilingWorkspace layout={layout()} onLayoutChange={setLayout} gapPx={GAP} minSize={() => ({ width: 50, height: 50 })} readout={readoutEnabled()}>
+        {(tile) => <div>{tile.id}</div>}
+      </TilingWorkspace>
+    ));
+    const handle = container.querySelector('[role="separator"]')!;
+    const workspace = container.querySelector('.twm')!;
+    fireEvent.pointerDown(handle, { button: 0, clientX: 205, pointerId: 1 });
+    expect(container.querySelector('.twm-readout')).not.toBeNull();
+    expect(workspace.hasAttribute('data-readout-active')).toBe(true);
+
+    setReadoutEnabled(false);
+    expect(container.querySelector('.twm-readout')).toBeNull();
+    expect(workspace.hasAttribute('data-readout-active')).toBe(false);
+
+    fireEvent.pointerUp(handle, { clientX: 205, pointerId: 1 });
   });
 });

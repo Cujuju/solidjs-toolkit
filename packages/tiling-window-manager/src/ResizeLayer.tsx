@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from 'solid-js';
 import { equalisedShares, resizedShares, type LayoutHandle, type ResizeSnap, type TileLayout, type TileLayoutOptions, type TileSize } from './layout.js';
 import { ResizeHandle } from './ResizeHandle.js';
 import { ResizeReadout, type ReadoutSide } from './ResizeReadout.js';
@@ -34,6 +34,8 @@ export function ResizeLayer(props: {
   alignWith?: readonly AlignLayout[];
   /** A pointer drag of a divider began (true) or ended (false); keyboard steps report nothing. */
   onPointerDrag?: (active: boolean) => void;
+  /** The resize readout mounted (true) or unmounted (false). */
+  onReadoutChange?: (active: boolean) => void;
 }) {
   let start: LayoutHandle | undefined;
   /** A pushing drag's target and the geometry it started from. */
@@ -78,6 +80,7 @@ export function ResizeLayer(props: {
   });
 
   const readoutView = createMemo(() => {
+    if (!props.readout) return null;
     const current = readout();
     const handle = current && props.layout.handles.find((entry) => entry.key === current.key);
     if (!current || !handle) return null;
@@ -85,6 +88,9 @@ export function ResizeLayer(props: {
     const shares = pending && 'split' in pending && pending.split === handle.split ? pending.sizes : handle.split.sizes;
     return { handle, side: current.side, alignedWith: current.alignedWith, shares };
   });
+  const readoutVisible = createMemo(() => readoutView() !== null);
+  createEffect(() => { props.onReadoutChange?.(readoutVisible()); });
+  onCleanup(() => { if (untrack(readoutVisible)) props.onReadoutChange?.(false); });
 
   return (
     <>

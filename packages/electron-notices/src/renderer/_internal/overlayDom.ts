@@ -1,5 +1,55 @@
 import type { Rect } from '../../placement.js';
 
+const OVERLAY_ROOT_ATTR = 'data-cuj-notices-overlay';
+const overlayRootCounts = new WeakMap<Element, number>();
+
+function acquireRoot(docEl: Element): void {
+  const count = overlayRootCounts.get(docEl) ?? 0;
+  if (count === 0) docEl.setAttribute(OVERLAY_ROOT_ATTR, '');
+  overlayRootCounts.set(docEl, count + 1);
+}
+
+function releaseRoot(docEl: Element): void {
+  const next = (overlayRootCounts.get(docEl) ?? 1) - 1;
+  if (next <= 0) {
+    overlayRootCounts.delete(docEl);
+    docEl.removeAttribute(OVERLAY_ROOT_ATTR);
+  } else {
+    overlayRootCounts.set(docEl, next);
+  }
+}
+
+/** Marks `el`'s document root while light-DOM connected (ref-counted). Tracks `el`'s current document; detached re-adoption into another document requires remounting. */
+export function markOverlayRoot(el: HTMLElement): () => void {
+  let activeDocEl: Element | null = null;
+  let observedDoc: Document | null = null;
+  const observer = typeof MutationObserver !== 'undefined' ? new MutationObserver(() => sync()) : null;
+  const observeDoc = (doc: Document | null): void => {
+    if (!observer || doc === observedDoc) return;
+    observer.disconnect();
+    observedDoc = doc;
+    if (observedDoc) observer.observe(observedDoc, { childList: true, subtree: true });
+  };
+  const sync = (): void => {
+    const doc = el.ownerDocument;
+    observeDoc(doc);
+    const nextDocEl = doc && el.getRootNode() === doc ? doc.documentElement : null;
+    if (nextDocEl === activeDocEl) return;
+    if (activeDocEl) releaseRoot(activeDocEl);
+    activeDocEl = nextDocEl;
+    if (activeDocEl) acquireRoot(activeDocEl);
+  };
+  sync();
+  return () => {
+    observer?.disconnect();
+    observedDoc = null;
+    if (activeDocEl) {
+      releaseRoot(activeDocEl);
+      activeDocEl = null;
+    }
+  };
+}
+
 /** Reports size and optionally the visible card rectangles in window coordinates. */
 export function watchSize(el: HTMLElement, report: (width: number, height: number, rects?: Rect[]) => void, selector?: string): () => void {
   let last = '';
@@ -48,6 +98,10 @@ export function watchPointer(selector: string, report: (over: boolean) => void):
   return () => {
     document.removeEventListener('mousemove', onMove);
     document.documentElement.removeEventListener('mouseleave', onLeave);
+    if (over) {
+      over = false;
+      report(false);
+    }
   };
 }
 
